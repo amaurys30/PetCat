@@ -2,10 +2,13 @@ import { z } from "zod";
 import {
   conAlMenosUnCampo,
   coordenadasJuntas,
+  email,
   idParam,
   latitud,
   longitud,
   telefono,
+  texto,
+  urlHttp,
 } from "../../shared/utils/schemas.js";
 
 export const TIPOS_NEGOCIO = [
@@ -20,16 +23,15 @@ export const TIPOS_NEGOCIO = [
 
 export const idNegocioParams = idParam("id_negocio");
 
-const texto = (max) => z.string().trim().min(1).max(max);
-const url = z.url({ protocol: /^https?$/ }).max(500);
+const url = urlHttp();
 
 // Campos opcionales que se pueden vaciar enviando null.
 const opcionales = {
   descripcion: texto(2000).nullable(),
   telefono: telefono.nullable(),
   whatsapp: telefono.nullable(),
-  email: z.string().trim().toLowerCase().pipe(z.email().max(150)).nullable(),
-  sitio_web: z.url({ protocol: /^https?$/ }).max(300).nullable(),
+  email: email.nullable(),
+  sitio_web: urlHttp(300).nullable(),
   nit: texto(20).nullable(),
   razon_social: texto(200).nullable(),
   direccion: texto(300).nullable(),

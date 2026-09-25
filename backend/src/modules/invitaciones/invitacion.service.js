@@ -57,9 +57,7 @@ export const acceptInvitation = async (token, password, nombre, apellido) => {
   // 🟢 CASO 1: YA EXISTE
   if (usuario) {
 
-    await empleadoRepo.update(invitacion.id_empleado, {
-      id_usuario: usuario.id_usuario
-    });
+    await empleadoRepo.linkUsuario(invitacion.id_empleado, usuario.id_usuario);
 
   } else {
 
@@ -77,9 +75,7 @@ export const acceptInvitation = async (token, password, nombre, apellido) => {
       password_hash: hashed
     });
 
-    await empleadoRepo.update(invitacion.id_empleado, {
-      id_usuario: userId
-    });
+    await empleadoRepo.linkUsuario(invitacion.id_empleado, userId);
   }
 
   await invitacionRepo.markAsUsed(invitacion.id_invitacion);

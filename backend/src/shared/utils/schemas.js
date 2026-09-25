@@ -39,3 +39,12 @@ export const conAlMenosUnCampo = (schema) =>
     path: [],
     when: (payload) => payload.issues.length === 0,
   });
+
+/** Email normalizado (sin espacios y en minúsculas) antes de validar. */
+export const email = z.string().trim().toLowerCase().pipe(z.email().max(150));
+
+/** URL http o https (sin javascript:, data:, etc.). */
+export const urlHttp = (max = 500) => z.url({ protocol: /^https?$/ }).max(max);
+
+/** Texto con espacios recortados, no vacío. */
+export const texto = (max) => z.string().trim().min(1).max(max);

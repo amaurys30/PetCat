@@ -1,149 +1,113 @@
 import db from "../../config/db.js";
+import { pick } from "../../shared/utils/pick.js";
+import { CAMPOS_EMPLEADO } from "./empleado.schemas.js";
 
-export const findByUserId = async (id_usuario) => {
-  const [rows] = await db.query(
-    `
-    SELECT e.*, r.permisos_json
-    FROM empleados e
-    JOIN roles r ON e.id_rol = r.id_rol
-    WHERE e.id_usuario = ?
-    LIMIT 1
-    `,
-    [id_usuario]
-  );
+const SELECT_EMPLEADO = `
+  SELECT e.id_empleado, e.id_negocio, e.id_usuario, e.nombre, e.apellido, e.email, e.telefono,
+         e.documento, e.especialidad, e.titulo_profesional, e.registro_profesional, e.foto_url,
+         e.notas, e.activo, e.fecha_vinculacion, e.fecha_retiro, e.fecha_creacion,
+         e.fecha_actualizacion,
+         r.id_rol, r.nombre AS rol_nombre, r.permisos_json,
+         EXISTS (SELECT 1 FROM invitaciones_empleado i
+                 WHERE i.id_empleado = e.id_empleado AND i.usado = FALSE AND i.expiracion > NOW())
+           AS invitacion_pendiente
+  FROM empleados e
+  JOIN roles r ON r.id_rol = e.id_rol`;
 
-  if (rows.length === 0) return null;
-
-  const empleado = rows[0];
-
-  return {
-    ...empleado,
-    rol: {
-      permisos_json: empleado.permisos_json,
-    },
-  };
-};
-
-
-export const findById = async (id_empleado) => {
-  const [rows] = await db.query(
-    `
-    SELECT 
-      e.*, 
-      r.nombre AS rol_nombre,
-      r.descripcion AS rol_descripcion,
-      r.permisos_json
-    FROM empleados e
-    INNER JOIN roles r ON e.id_rol = r.id_rol
-    WHERE e.id_empleado = ?
-    LIMIT 1
-    `,
-    [id_empleado]
-  );
-
+export const findById = async (id_empleado, conn) => {
+  const [rows] = await (conn ?? db).query(`${SELECT_EMPLEADO} WHERE e.id_empleado = ?`, [id_empleado]);
   return rows[0];
 };
 
+// En LIKE, % y _ son comodines: se escapan para buscar el texto literal.
+const likeLiteral = (texto) => `%${texto.replace(/[\\%_]/g, "\\$&")}%`;
 
-export const create = async (data) => {
-  const {
-    id_negocio,
-    id_rol,
-    id_usuario,
-    nombre,
-    apellido,
-    email,
-    telefono,
-    documento,
-    especialidad,
-    titulo_profesional,
-    registro_profesional,
-    foto_url,
-    notas,
-    fecha_vinculacion
-  } = data;
+/**
+ * Página de empleados del negocio con filtros opcionales:
+ * `activo` (true/false) y `q` (nombre, apellido, nombre completo, email o documento).
+ */
+export const findPageByNegocio = async (id_negocio, { activo, q, limit, offset }) => {
+  const condiciones = ["e.id_negocio = ?"];
+  const valores = [id_negocio];
+  if (activo !== undefined) {
+    condiciones.push("e.activo = ?");
+    valores.push(activo);
+  }
+  if (q) {
+    condiciones.push(
+      "(e.nombre LIKE ? OR e.apellido LIKE ? OR CONCAT(e.nombre, ' ', e.apellido) LIKE ? OR e.email LIKE ? OR e.documento LIKE ?)"
+    );
+    valores.push(...Array(5).fill(likeLiteral(q)));
+  }
+  const where = `WHERE ${condiciones.join(" AND ")}`;
 
-  const [result] = await db.query(
-    `
-    INSERT INTO empleados (
-      id_negocio, id_rol, id_usuario,
-      nombre, apellido, email, telefono,
-      documento, especialidad, titulo_profesional,
-      registro_profesional, foto_url, notas,
-      fecha_vinculacion
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `,
-    [
-      id_negocio,
-      id_rol,
-      id_usuario || null,
-      nombre,
-      apellido,
-      email || null,
-      telefono || null,
-      documento || null,
-      especialidad || null,
-      titulo_profesional || null,
-      registro_profesional || null,
-      foto_url || null,
-      notas || null,
-      fecha_vinculacion
-    ]
+  const [rows] = await db.query(
+    `${SELECT_EMPLEADO} ${where}
+     ORDER BY e.activo DESC, e.apellido, e.nombre, e.id_empleado
+     LIMIT ? OFFSET ?`,
+    [...valores, limit, offset]
   );
+  const [[{ total }]] = await db.query(`SELECT COUNT(*) AS total FROM empleados e ${where}`, valores);
+  return { rows, total };
+};
 
+/** Empleado del negocio con ese email (sin distinguir mayúsculas), excepto `excluirId`. */
+export const findByEmailInNegocio = async (id_negocio, email, excluirId = 0, conn) => {
+  const [rows] = await (conn ?? db).query(
+    "SELECT id_empleado, activo FROM empleados WHERE id_negocio = ? AND email = ? AND id_empleado <> ? LIMIT 1",
+    [id_negocio, email, excluirId]
+  );
+  return rows[0];
+};
+
+/** Crea el empleado; sin fecha_vinculacion se usa la fecha de hoy. */
+export const create = async (id_negocio, data, conn) => {
+  const { fecha_vinculacion = null, ...resto } = pick(data, CAMPOS_EMPLEADO);
+  const campos = { ...resto, id_negocio };
+  const columnas = Object.keys(campos);
+  const [result] = await (conn ?? db).query(
+    `INSERT INTO empleados (${columnas.join(", ")}, fecha_vinculacion)
+     VALUES (${columnas.map(() => "?").join(", ")}, COALESCE(?, CURDATE()))`,
+    [...Object.values(campos), fecha_vinculacion]
+  );
   return result.insertId;
 };
 
-export const findByEmail = async (email) => {
-  const [rows] = await db.query(
-    "SELECT * FROM empleados WHERE email = ?",
-    [email]
+export const update = async (id_empleado, data, conn) => {
+  const campos = pick(data, CAMPOS_EMPLEADO);
+  const columnas = Object.keys(campos);
+  if (columnas.length === 0) return;
+  await (conn ?? db).query(
+    `UPDATE empleados SET ${columnas.map((c) => `${c} = ?`).join(", ")} WHERE id_empleado = ?`,
+    [...Object.values(campos), id_empleado]
   );
-  return rows[0];
 };
 
-
-
-export const findAllByNegocio = async (id_negocio) => {
-  const [rows] = await db.query(
-    `
-    SELECT 
-      e.id_empleado,
-      e.id_negocio,
-      e.id_rol,
-      r.nombre AS rol_nombre,
-      r.descripcion AS rol_descripcion,
-      e.id_usuario,
-      e.nombre,
-      e.apellido,
-      e.email,
-      e.telefono,
-      e.documento,
-      e.especialidad,
-      e.titulo_profesional,
-      e.registro_profesional,
-      e.foto_url,
-      e.notas,
-      e.activo,
-      e.fecha_vinculacion,
-      e.fecha_retiro,
-      e.fecha_creacion,
-      e.fecha_actualizacion
-    FROM empleados e
-    INNER JOIN roles r ON e.id_rol = r.id_rol
-    WHERE e.id_negocio = ?
-    ORDER BY e.activo DESC, e.fecha_creacion DESC
-    `,
-    [id_negocio]
+export const desactivar = async (id_empleado, conn) => {
+  await (conn ?? db).query(
+    "UPDATE empleados SET activo = FALSE, fecha_retiro = CURDATE() WHERE id_empleado = ?",
+    [id_empleado]
   );
+};
 
-  return rows;
+export const reactivar = async (id_empleado, conn) => {
+  await (conn ?? db).query(
+    "UPDATE empleados SET activo = TRUE, fecha_retiro = NULL WHERE id_empleado = ?",
+    [id_empleado]
+  );
 };
 
 /**
- * Vínculo de un usuario como empleado de un negocio, con su rol y permisos.
- * Si hubiera más de un registro, se prefiere el activo.
+ * Vincula la cuenta de un usuario al empleado (flujo de invitaciones). La base
+ * impide vincular el mismo usuario dos veces al mismo negocio (UNIQUE, 409).
+ */
+export const linkUsuario = async (id_empleado, id_usuario, conn) => {
+  await (conn ?? db).query("UPDATE empleados SET id_usuario = ? WHERE id_empleado = ?", [id_usuario, id_empleado]);
+};
+
+/**
+ * Vínculo de un usuario como empleado de un negocio, con su rol y permisos
+ * (lo usa authorize). La base garantiza un solo registro por usuario y negocio.
  */
 export const findAccesoByUsuarioAndNegocio = async (id_usuario, id_negocio) => {
   const [rows] = await db.query(
@@ -151,60 +115,8 @@ export const findAccesoByUsuarioAndNegocio = async (id_usuario, id_negocio) => {
      FROM empleados e
      JOIN roles r ON r.id_rol = e.id_rol
      WHERE e.id_usuario = ? AND e.id_negocio = ?
-     ORDER BY e.activo DESC, e.id_empleado
      LIMIT 1`,
     [id_usuario, id_negocio]
   );
   return rows[0];
-};
-
-export const update = async (id_empleado, data) => {
-
-  const fields = [];
-  const values = [];
-
-  for (const key in data) {
-    fields.push(`${key} = ?`);
-    values.push(data[key]);
-  }
-
-  if (fields.length === 0) {
-    throw new Error("No hay campos para actualizar");
-  }
-
-  values.push(id_empleado);
-
-  await db.query(
-    `UPDATE empleados SET ${fields.join(", ")} WHERE id_empleado = ?`,
-    values
-  );
-
-  return await findById(id_empleado);
-};
-
-export const softDelete = async (id_empleado) => {
-  await db.query(
-    `
-    UPDATE empleados
-    SET 
-      activo = FALSE,
-      fecha_retiro = CURDATE()
-    WHERE id_empleado = ?
-    `,
-    [id_empleado]
-  );
-};
-
-
-export const reactivar = async (id_empleado) => {
-  await db.query(
-    `
-    UPDATE empleados
-    SET
-      activo = TRUE,
-      fecha_retiro = NULL
-    WHERE id_empleado = ?
-    `,
-    [id_empleado]
-  );
 };

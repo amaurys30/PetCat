@@ -118,6 +118,20 @@ export const crearEmpleado = async (negocio, { rol = "Veterinario", usuario = nu
   return findOne("empleados", "id_empleado", id);
 };
 
+/** Invitación pendiente (vigente 72 h) para el email del empleado; guarda un hash aleatorio como token. */
+export const crearInvitacion = async (empleado, overrides = {}) => {
+  const [[{ expiracion }]] = await pool.query("SELECT NOW() + INTERVAL 72 HOUR AS expiracion");
+  const id = await insert("invitaciones_empleado", {
+    id_empleado: empleado.id_empleado,
+    id_negocio: empleado.id_negocio,
+    email: empleado.email,
+    token: randomUUID().replaceAll("-", "").padEnd(64, "0"),
+    expiracion,
+    ...overrides,
+  });
+  return findOne("invitaciones_empleado", "id_invitacion", id);
+};
+
 /** Rangos de horario de una sucursal: [[dia_semana, "08:00", "12:00"], ...]. */
 export const crearHorarios = async (sucursal, rangos) => {
   for (const [dia_semana, hora_apertura, hora_cierre] of rangos) {

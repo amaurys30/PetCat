@@ -1,273 +1,117 @@
-import * as negocioRepo from "../negocios/negocio.repository.js";
 import * as empleadoRepo from "./empleado.repository.js";
 import * as rolRepo from "../roles/rol.repository.js";
-import * as userRepo from "../usuarios/usuario.repository.js";
+import * as invitacionRepo from "../invitaciones/invitacion.repository.js";
+import { withTransaction } from "../../shared/utils/transaction.js";
+import { buildMeta } from "../../shared/utils/pagination.js";
+import { ApiError } from "../../shared/errors/ApiError.js";
 
-export const createEmpleado = async (id_usuario, id_negocio, data) => {
+const NO_ENCONTRADO = "Empleado no encontrado";
 
-  // 1️⃣ Validar negocio
-  const negocio = await negocioRepo.findById(id_negocio);
-
-  if (!negocio) {
-    const error = new Error("Negocio no encontrado");
-    error.status = 404;
-    throw error;
-  }
-
-  // ⚠️ IMPORTANTE:
-  // ❌ NO validamos permisos aquí
-  // ✔ Ya se validaron en authorize()
-
-  // 2️⃣ Validar rol
-  const rol = await rolRepo.findById(data.id_rol);
-
-  if (!rol) {
-    const error = new Error("Rol no válido");
-    error.status = 400;
-    throw error;
-  }
-
-  // 3️⃣ Validaciones obligatorias
-  if (!data.nombre || !data.apellido || !data.fecha_vinculacion) {
-    const error = new Error("Nombre, apellido y fecha de vinculación son obligatorios");
-    error.status = 400;
-    throw error;
-  }
-
-  // 4️⃣ Validar email formato
-  if (data.email) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-    if (!emailRegex.test(data.email)) {
-      const error = new Error("Email inválido");
-      error.status = 400;
-      throw error;
-    }
-  }
-
-  // 5️⃣ Validar duplicados
-  if (data.email) {
-    const existente = await empleadoRepo.findByEmail(data.email);
-
-    if (existente) {
-      const error = new Error("Ya existe un empleado con este email");
-      error.status = 400;
-      throw error;
-    }
-  }
-
-  // 6️⃣ Validar fecha
-  const fecha = new Date(data.fecha_vinculacion);
-
-  if (isNaN(fecha.getTime())) {
-    const error = new Error("Fecha de vinculación inválida");
-    error.status = 400;
-    throw error;
-  }
-
-  // 7️⃣ Crear empleado
-  return await empleadoRepo.create({
-    ...data,
-    id_negocio
-  });
+/**
+ * Formato de salida. En el detalle el rol incluye sus permisos; en el listado, no.
+ */
+const formatEmpleado = (row, { conPermisos = false } = {}) => {
+  const { id_rol, rol_nombre, permisos_json, activo, invitacion_pendiente, ...empleado } = row;
+  return {
+    ...empleado,
+    activo: Boolean(activo),
+    tiene_cuenta: empleado.id_usuario !== null,
+    invitacion_pendiente: Boolean(invitacion_pendiente),
+    rol: { id_rol, nombre: rol_nombre, ...(conPermisos && { permisos_json }) },
+  };
 };
 
+const mismoEmail = (a, b) => (a ?? "").toLowerCase() === (b ?? "").toLowerCase();
 
-export const getEmpleadosByNegocio = async (id_negocio) => {
-
-  // 1️⃣ Validar negocio
-  const negocio = await negocioRepo.findById(id_negocio);
-
-  if (!negocio) {
-    const error = new Error("Negocio no encontrado");
-    error.status = 404;
-    throw error;
+/** El rol debe ser del sistema o del mismo negocio. */
+const findRolAsignable = async (id_rol, id_negocio) => {
+  const rol = await rolRepo.findById(id_rol);
+  if (!rol || (rol.id_negocio !== null && rol.id_negocio !== id_negocio)) {
+    throw ApiError.unprocessable("Datos inválidos", { id_rol: "El rol no existe en este negocio" });
   }
-
-  // ⚠️ NO validamos permisos aquí
-  // ✔ authorize() ya lo hizo
-
-  // 2️⃣ Obtener empleados (activos e inactivos)
-  const empleados = await empleadoRepo.findAllByNegocio(id_negocio);
-
-  if (!empleados || empleados.length === 0) {
-    return [];
-  }
-
-  return empleados;
+  return rol;
 };
 
-export const updateEmpleado = async (user, id_empleado, data) => {
-
-  // 1️⃣ Validar ID
-  if (!id_empleado || isNaN(id_empleado)) {
-    const error = new Error("ID de empleado inválido");
-    error.status = 400;
-    throw error;
-  }
-
-  // 2️⃣ Buscar empleado
-  const empleado = await empleadoRepo.findById(id_empleado);
-
-  if (!empleado) {
-    const error = new Error("Empleado no encontrado");
-    error.status = 404;
-    throw error;
-  }
-
-  // 3️⃣ Validar negocio
-  const negocio = await negocioRepo.findById(empleado.id_negocio);
-
-  if (!negocio) {
-    const error = new Error("Negocio no encontrado");
-    error.status = 404;
-    throw error;
-  }
-
-  // 4️⃣ Validar propietario
-  const esPropietario = negocio.id_usuario_propietario === user.id_usuario;
-
-  let tienePermiso = esPropietario;
-
-  // 5️⃣ Validar admin por permisos_json (authorize ya ayuda, pero reforzamos)
-  if (!tienePermiso) {
-    const emp = await empleadoRepo.findByUserAndNegocio(
-      user.id_usuario,
-      negocio.id_negocio
+/** Email único en el negocio. Si lo tiene un empleado inactivo, el 409 indica que se puede reactivar. */
+const verificarEmailLibre = async (id_negocio, email, excluirId, conn) => {
+  if (!email) return;
+  const existente = await empleadoRepo.findByEmailInNegocio(id_negocio, email, excluirId, conn);
+  if (!existente) return;
+  if (!existente.activo) {
+    throw ApiError.conflict(
+      `Ese email pertenece a un empleado inactivo del negocio (id_empleado ${existente.id_empleado}): puedes reactivarlo en lugar de crear otro`,
+      { email: `Pertenece a un empleado inactivo que se puede reactivar: PATCH /empleados/${existente.id_empleado}/reactivar` }
     );
-
-    if (emp) {
-      const rol = await rolRepo.findById(emp.id_rol);
-
-      const allowed = hasPermission(
-        rol.permisos_json,
-        "empleados",
-        "editar"
-      );
-
-      if (allowed) {
-        tienePermiso = true;
-      }
-    }
   }
-
-  if (!tienePermiso) {
-    const error = new Error("No tienes permisos para editar este empleado");
-    error.status = 403;
-    throw error;
-  }
-
-  // 6️⃣ Validar rol (si se envía)
-  if (data.id_rol) {
-    const rol = await rolRepo.findById(data.id_rol);
-
-    if (!rol) {
-      const error = new Error("Rol no válido");
-      error.status = 400;
-      throw error;
-    }
-  }
-
-  // 7️⃣ Validar usuario (si se quiere vincular)
-  if (data.id_usuario) {
-    const userExist = await userRepo.findById(data.id_usuario);
-
-    if (!userExist) {
-      const error = new Error("Usuario no existe");
-      error.status = 404;
-      throw error;
-    }
-
-    // evitar duplicidad
-    const yaAsignado = await empleadoRepo.findByUserId(data.id_usuario);
-
-    if (yaAsignado && yaAsignado.id_empleado != id_empleado) {
-      const error = new Error("Este usuario ya está asignado a otro empleado");
-      error.status = 400;
-      throw error;
-    }
-  }
-
-  // 8️⃣ Validar email único (si se cambia)
-  if (data.email) {
-    const existente = await empleadoRepo.findByEmail(data.email);
-
-    if (existente && existente.id_empleado != id_empleado) {
-      const error = new Error("Ya existe un empleado con este email");
-      error.status = 400;
-      throw error;
-    }
-  }
-
-  // 9️⃣ Validar campos vacíos opcionalmente
-  if (data.nombre !== undefined && data.nombre.trim() === "") {
-    throw new Error("Nombre no puede estar vacío");
-  }
-
-  if (data.apellido !== undefined && data.apellido.trim() === "") {
-    throw new Error("Apellido no puede estar vacío");
-  }
-
-  // 🔟 Actualizar
-  const updated = await empleadoRepo.update(id_empleado, data);
-
-  return updated;
+  throw ApiError.conflict("Ya existe un empleado con ese email en el negocio", { email: "Ya está en uso" });
 };
 
+export const getEmpleados = async (id_negocio, { page, limit, activo, q }) => {
+  const { rows, total } = await empleadoRepo.findPageByNegocio(id_negocio, {
+    activo,
+    q,
+    limit,
+    offset: (page - 1) * limit,
+  });
+  return { rows: rows.map((row) => formatEmpleado(row)), meta: buildMeta(total, page, limit) };
+};
 
-export const deleteEmpleado = async (id_usuario, id_empleado) => {
-
-  // 1️⃣ Buscar empleado
+export const getEmpleado = async (id_empleado) => {
   const empleado = await empleadoRepo.findById(id_empleado);
+  if (!empleado) throw ApiError.notFound(NO_ENCONTRADO);
+  return formatEmpleado(empleado, { conPermisos: true });
+};
 
-  if (!empleado) {
-    const error = new Error("Empleado no encontrado");
-    error.status = 404;
-    throw error;
-  }
+export const createEmpleado = async (id_negocio, data) => {
+  await findRolAsignable(data.id_rol, id_negocio);
+  const id_empleado = await withTransaction(async (conn) => {
+    await verificarEmailLibre(id_negocio, data.email, 0, conn);
+    return empleadoRepo.create(id_negocio, data, conn);
+  });
+  return getEmpleado(id_empleado);
+};
 
-  // 2️⃣ Validar si ya está inactivo
-  if (!empleado.activo) {
-    const error = new Error("El empleado ya se encuentra desactivado");
-    error.status = 400;
-    throw error;
-  }
+/**
+ * Cambiar el email invalida las invitaciones pendientes: iban al correo anterior.
+ */
+export const updateEmpleado = async (id_empleado, data) => {
+  await withTransaction(async (conn) => {
+    const empleado = await empleadoRepo.findById(id_empleado, conn);
+    if (!empleado) throw ApiError.notFound(NO_ENCONTRADO);
 
-  // 3️⃣ Evitar auto-desactivación
-  if (empleado.id_usuario === id_usuario) {
-    const error = new Error("No puedes desactivarte a ti mismo");
-    error.status = 400;
-    throw error;
-  }
+    if (data.id_rol !== undefined && data.id_rol !== empleado.id_rol) {
+      await findRolAsignable(data.id_rol, empleado.id_negocio);
+    }
 
-  // 4️⃣ Soft delete
-  await empleadoRepo.softDelete(id_empleado);
+    const cambiaEmail = data.email !== undefined && !mismoEmail(data.email, empleado.email);
+    if (cambiaEmail) {
+      await verificarEmailLibre(empleado.id_negocio, data.email, id_empleado, conn);
+      await invitacionRepo.invalidatePrevious(id_empleado, conn);
+    }
 
-  // 5️⃣ Retornar actualizado
-  return await empleadoRepo.findById(id_empleado);
+    await empleadoRepo.update(id_empleado, data, conn);
+  });
+  return getEmpleado(id_empleado);
+};
+
+/** Borrado lógico: activo = FALSE, fecha_retiro = hoy e invitaciones pendientes invalidadas. */
+export const desactivarEmpleado = async (id_empleado) => {
+  await withTransaction(async (conn) => {
+    const empleado = await empleadoRepo.findById(id_empleado, conn);
+    if (!empleado) throw ApiError.notFound(NO_ENCONTRADO);
+    if (!empleado.activo) throw ApiError.conflict("El empleado ya está inactivo");
+
+    await empleadoRepo.desactivar(id_empleado, conn);
+    await invitacionRepo.invalidatePrevious(id_empleado, conn);
+  });
+  return getEmpleado(id_empleado);
 };
 
 export const reactivarEmpleado = async (id_empleado) => {
-
-  // 1️⃣ Buscar empleado
   const empleado = await empleadoRepo.findById(id_empleado);
+  if (!empleado) throw ApiError.notFound(NO_ENCONTRADO);
+  if (empleado.activo) throw ApiError.conflict("El empleado ya está activo");
 
-  if (!empleado) {
-    const error = new Error("Empleado no encontrado");
-    error.status = 404;
-    throw error;
-  }
-
-  // 2️⃣ Validar si ya está activo
-  if (empleado.activo) {
-    const error = new Error("El empleado ya se encuentra activo");
-    error.status = 400;
-    throw error;
-  }
-
-  // 3️⃣ Reactivar
   await empleadoRepo.reactivar(id_empleado);
-
-  // 4️⃣ Retornar actualizado
-  return await empleadoRepo.findById(id_empleado);
+  return getEmpleado(id_empleado);
 };

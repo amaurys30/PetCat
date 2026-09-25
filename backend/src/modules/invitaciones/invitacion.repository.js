@@ -30,8 +30,9 @@ export const findByToken = async (token) => {
   return rows[0];
 };
 
-export const invalidatePrevious = async (id_empleado) => {
-  await db.query(
+// Invalida las invitaciones pendientes del empleado. Acepta conn para usarse en transacciones.
+export const invalidatePrevious = async (id_empleado, conn) => {
+  await (conn ?? db).query(
     `
     UPDATE invitaciones_empleado
     SET expiracion = NOW()
