@@ -50,6 +50,9 @@ const schema = z
     SMTP_PORT: z.coerce.number().int().positive().default(587),
     SMTP_USER: z.string().optional(),
     SMTP_PASS: z.string().optional(),
+    // Tiempo máximo (ms) para conectar, saludo y cada operación del SMTP. Un servidor que no
+    // responde falla rápido en lugar de dejar abierta la transacción que envía el correo.
+    SMTP_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
     MAIL_FROM: z.string().default("PetCat <no-reply@petcat.co>"),
 
     // Máximo de solicitudes cada 15 min por IP en login, forgot-password e invitaciones.

@@ -1,7 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { pool } from "../../src/config/db.js";
 import { withTransaction } from "../../src/shared/utils/transaction.js";
-import { sendMail, outbox, clearOutbox } from "../../src/shared/utils/mailer.js";
+import { sendMail, outbox, clearOutbox, transportOptions } from "../../src/shared/utils/mailer.js";
+import { env } from "../../src/config/env.js";
 
 describe("withTransaction (petcat_test)", () => {
   beforeAll(async () => {
@@ -52,5 +53,16 @@ describe("mailer en tests", () => {
     expect(result).toEqual({ delivered: false, mode: "test" });
     expect(outbox).toHaveLength(1);
     expect(outbox[0]).toMatchObject({ to: "ana@petcat.co", from: expect.stringContaining("PetCat") });
+  });
+});
+
+describe("transporte SMTP", () => {
+  it("usa SMTP_TIMEOUT_MS (10 s por defecto) para conexión, saludo e inactividad", () => {
+    expect(env.SMTP_TIMEOUT_MS).toBe(10000);
+    expect(transportOptions()).toMatchObject({
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 10000,
+    });
   });
 });

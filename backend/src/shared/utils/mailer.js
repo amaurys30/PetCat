@@ -11,15 +11,24 @@ export const clearOutbox = () => {
   outbox.length = 0;
 };
 
+/**
+ * Opciones de Nodemailer. Los tres tiempos límite usan SMTP_TIMEOUT_MS (10 s por
+ * defecto): conexión TCP, saludo del servidor e inactividad del socket.
+ */
+export const transportOptions = () => ({
+  host: env.SMTP_HOST,
+  port: env.SMTP_PORT,
+  secure: env.SMTP_PORT === 465,
+  auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASS } : undefined,
+  connectionTimeout: env.SMTP_TIMEOUT_MS,
+  greetingTimeout: env.SMTP_TIMEOUT_MS,
+  socketTimeout: env.SMTP_TIMEOUT_MS,
+});
+
 let transporter;
 
 const getTransporter = () => {
-  transporter ??= nodemailer.createTransport({
-    host: env.SMTP_HOST,
-    port: env.SMTP_PORT,
-    secure: env.SMTP_PORT === 465,
-    auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASS } : undefined,
-  });
+  transporter ??= nodemailer.createTransport(transportOptions());
   return transporter;
 };
 

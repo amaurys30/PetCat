@@ -32,6 +32,7 @@ describe("ApiError", () => {
     ["unprocessable", 422],
     ["tooMany", 429],
     ["internal", 500],
+    ["serviceUnavailable", 503],
   ])("%s -> %i con mensaje por defecto", (name, status) => {
     const err = ApiError[name]();
     expect(err).toBeInstanceOf(ApiError);

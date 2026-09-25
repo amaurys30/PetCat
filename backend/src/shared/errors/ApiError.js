@@ -49,6 +49,11 @@ export class ApiError extends Error {
   static internal(message = "Error interno del servidor") {
     return new ApiError(500, message);
   }
+
+  /** Un servicio externo (p. ej. el SMTP) no respondió o falló. */
+  static serviceUnavailable(message = "Servicio no disponible, intenta más tarde") {
+    return new ApiError(503, message);
+  }
 }
 
 export default ApiError;
