@@ -1,9 +1,14 @@
 import express from "express";
+import helmet from "helmet";
+import cors from "cors";
+import morgan from "morgan";
+import swaggerUi from "swagger-ui-express";
 import "./config/zod.js";
+import { env, isProduction } from "./config/env.js";
+import swaggerSpec from "./docs/swagger.js";
 
-// routes
+import healthRoutes from "./modules/health/health.routes.js";
 import authRoutes from "./modules/auth/auth.routes.js";
-import userRoutes from "./routes/users.routes.js"; // si lo tienes
 import negocioRoutes from "./modules/negocios/negocio.routes.js";
 import sucursalRoutes from "./modules/sucursales/sucursal.routes.js";
 import empleadoRoutes from "./modules/empleados/empleado.routes.js";
@@ -11,49 +16,61 @@ import invitacionRoutes from "./modules/invitaciones/invitacion.routes.js";
 import rolRoutes from "./modules/roles/rol.routes.js";
 import horarioRoutes from "./modules/horarios/horario.routes.js";
 
-// swagger
-import swaggerUi from "swagger-ui-express";
-import swaggerSpec from "./docs/swagger.js";
-
+import { generalLimiter, strictLimiter } from "./shared/middlewares/rateLimit.js";
 import { notFound } from "./shared/middlewares/notFound.js";
 import { errorHandler } from "./shared/middlewares/errorHandler.js";
 
 const app = express();
 
-// ========================
-// MIDDLEWARE GLOBAL
-// ========================
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// En producción la API va detrás de un proxy: la IP real (para el rate limit) viene en X-Forwarded-For.
+if (isProduction) app.set("trust proxy", 1);
 
-// ========================
-// ROUTES
-// ========================
-app.use("/api/auth", authRoutes);
-app.use("/api/usuarios", userRoutes);
-app.use("/api/negocios", negocioRoutes);
-app.use("/api/sucursales", sucursalRoutes);
-app.use("/api/empleados", empleadoRoutes);
-app.use("/api/invitaciones", invitacionRoutes);
-app.use("/api/roles", rolRoutes);
-app.use("/api/horarios", horarioRoutes);
+// ---------- Seguridad y parseo ----------
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        // Fuera de producción se sirve por http (también desde la IP de la red local): no forzar https.
+        upgradeInsecureRequests: isProduction ? [] : null,
+      },
+    },
+    strictTransportSecurity: isProduction,
+  })
+);
+app.use(
+  cors({
+    // Sin cabecera Origin (app móvil, curl, Postman) se permite; en navegador solo los orígenes configurados.
+    origin: (origin, callback) => callback(null, !origin || env.CORS_ORIGINS.includes(origin)),
+  })
+);
+app.use(express.json({ limit: "1mb" }));
+if (env.NODE_ENV === "development") {
+  // El healthcheck de Docker llama cada 10 s: no se registra.
+  app.use(morgan("dev", { skip: (req) => req.originalUrl === "/api/v1/health" }));
+}
 
+// ---------- API v1 ----------
+const v1 = express.Router();
 
-// ========================
-// SWAGGER
-// ========================
-app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+// Health y documentación quedan fuera del límite de solicitudes.
+v1.use("/health", healthRoutes);
+v1.get("/docs.json", (req, res) => res.json(swaggerSpec));
+v1.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, { customSiteTitle: "PetCat API" }));
 
-// ========================
-// HEALTH CHECK
-// ========================
-app.get("/health", (req, res) => {
-  res.json({
-    status: "OK",
-    service: "PetCat API",
-    time: new Date(),
-  });
-});
+v1.use(generalLimiter);
+v1.use("/auth/login", strictLimiter());
+v1.use("/auth/forgot-password", strictLimiter());
+v1.use("/invitaciones", strictLimiter());
+
+v1.use("/auth", authRoutes);
+v1.use("/negocios", negocioRoutes);
+v1.use("/sucursales", sucursalRoutes);
+v1.use("/empleados", empleadoRoutes);
+v1.use("/invitaciones", invitacionRoutes);
+v1.use("/roles", rolRoutes);
+v1.use("/horarios", horarioRoutes);
+
+app.use("/api/v1", v1);
 
 // Siempre al final: rutas inexistentes y manejo central de errores.
 app.use(notFound);

@@ -51,9 +51,9 @@ PetCat/
 └── backend/
     ├── .env.example
     ├── src/
-    │   ├── server.js           # primera línea: import "dotenv/config"
+    │   ├── server.js           # primera línea: import "./config/loadEnv.js" (dotenv, quiet)
     │   ├── app.js
-    │   ├── config/             # env.js (validado con Zod), db.js
+    │   ├── config/             # loadEnv.js, env.js (validado con Zod), db.js, zod.js (mensajes en español)
     │   ├── docs/swagger.js
     │   ├── shared/
     │   │   ├── errors/ApiError.js

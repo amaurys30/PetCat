@@ -32,13 +32,13 @@ Objetivo: que todo módulo nuevo nazca con el mismo patrón y que los módulos e
 - [x] `shared/utils/transaction.js`: `withTransaction(async (conn) => {...})` con commit/rollback y liberación de la conexión. Los repositorios aceptan un `conn` opcional (`conn ?? pool`).
 - [x] `shared/utils/pick.js` (lista blanca de campos) y `sanitizeUsuario`.
 - [x] `shared/utils/mailer.js`: Nodemailer; en desarrollo, si no hay SMTP, registrar el correo y el enlace en consola.
-- [ ] `app.js`: helmet, cors con `CORS_ORIGINS`, `express.json({ limit: "1mb" })`, morgan en desarrollo, rate limit general y uno más estricto para `/auth/login`, `/auth/forgot-password` e invitaciones. Montar todo bajo `/api/v1`. Swagger en `/api/v1/docs` con `servers.url` actualizado. `notFound` y `errorHandler` al final.
+- [x] `app.js`: helmet, cors con `CORS_ORIGINS`, `express.json({ limit: "1mb" })`, morgan en desarrollo, rate limit general y uno más estricto para `/auth/login`, `/auth/forgot-password` e invitaciones. Montar todo bajo `/api/v1`. Swagger en `/api/v1/docs` con `servers.url` actualizado. `notFound` y `errorHandler` al final.
 
 ### 0.C Corrección y normalización de módulos existentes
 Pasar cada módulo al patrón (schemas Zod, sin try/catch en controladores, `ApiError`, helpers de respuesta, Swagger actualizado).
 
 **Bugs y riesgos a corregir**
-- [ ] Eliminar `src/routes/users.routes.js`: `GET /usuarios` es público y devuelve `password_hash`; `POST /usuarios` recibe el hash directo.
+- [x] Eliminar `src/routes/users.routes.js`: `GET /usuarios` es público y devuelve `password_hash`; `POST /usuarios` recibe el hash directo.
 - [ ] Eliminar `shared/middlewares/role.middleware.js` (duplica `authorize` y no se usa). Eliminar o completar `auth.validation.js` y `session.service.js` (están vacíos).
 - [ ] `empleado.service.js`: falta importar `hasPermission` (lanza `ReferenceError` cuando edita alguien que no es propietario). Además, esa verificación duplica la de `authorize`: quitarla.
 - [ ] `empleado.repository.js → update`: arma nombres de columna desde `req.body` (inyección SQL y asignación masiva de `id_negocio`, `id_usuario`, etc.). Usar lista blanca.
@@ -140,3 +140,6 @@ Pasar cada módulo al patrón (schemas Zod, sin try/catch en controladores, `Api
 - Zona horaria: MySQL (contenedor con `TZ`) y el proceso Node (`env.js` fija `process.env.TZ`) usan `America/Bogota`, para que las fechas en texto (`dateStrings`) se interpreten igual en cualquier máquina.
 - Node 24 LTS (imagen `node:24`, `engines >=24`). Node 20 terminó su soporte en abril de 2026.
 - MySQL de docker compose publicado solo en `127.0.0.1:3307`.
+- Límites de solicitudes: 300 cada 15 min por IP en toda la API; estricto (`AUTH_RATE_LIMIT_MAX`, por defecto 10 en producción y 100 en desarrollo) con un contador propio por endpoint en login, forgot-password e invitaciones. Desactivados con `NODE_ENV=test`.
+- `GET /api/v1/health` comprueba la base (`SELECT 1`, 503 si no responde); lo usa el healthcheck del backend en compose. Health y Swagger quedan fuera del rate limit.
+- Swagger: `servers` relativo (`/api/v1`) para que "Try it out" funcione desde cualquier host; especificación en `/api/v1/docs.json`.

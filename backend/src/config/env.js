@@ -2,7 +2,7 @@ import { z } from "zod";
 
 /**
  * Variables de entorno validadas. Este módulo NO carga archivos .env:
- * - server.js hace `import "dotenv/config"` como primera línea (lee backend/.env).
+ * - server.js importa config/loadEnv.js como primera línea (lee backend/.env).
  * - Vitest las inyecta desde backend/.env.test (ver vitest.config.js).
  * - En Docker llegan por env_file/environment de docker-compose.yml.
  */
@@ -51,6 +51,10 @@ const schema = z
     SMTP_USER: z.string().optional(),
     SMTP_PASS: z.string().optional(),
     MAIL_FROM: z.string().default("PetCat <no-reply@petcat.co>"),
+
+    // Máximo de solicitudes cada 15 min por IP en login, forgot-password e invitaciones.
+    // Por defecto: 10 en producción, 100 en desarrollo y tests.
+    AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.JWT_SECRET === data.REFRESH_SECRET) {
@@ -101,7 +105,11 @@ if (!parsed.success) {
 // en cualquier máquina o contenedor (el de Node en Docker está en UTC).
 process.env.TZ = "America/Bogota";
 
-export const env = Object.freeze(parsed.data);
+export const env = Object.freeze({
+  ...parsed.data,
+  AUTH_RATE_LIMIT_MAX:
+    parsed.data.AUTH_RATE_LIMIT_MAX ?? (parsed.data.NODE_ENV === "production" ? 10 : 100),
+});
 
 export const isProduction = env.NODE_ENV === "production";
 export const isTest = env.NODE_ENV === "test";

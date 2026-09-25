@@ -12,7 +12,7 @@ describe("configuración de tests", () => {
   });
 
   it("app.js responde sin pasar por server.js", async () => {
-    const res = await request(app).get("/health");
+    const res = await request(app).get("/api/v1/docs.json");
     expect(res.status).toBe(200);
   });
 });
