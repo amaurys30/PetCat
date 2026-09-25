@@ -68,7 +68,7 @@ Se hace en sub-bloques que se aprueban por separado: **0.C.1** base de tests y s
 **Base de datos, datos de prueba y tests**
 - [ ] Migración `001_empleados_email_por_negocio.sql`: `UNIQUE(id_negocio, email)` en `empleados`. Actualizar `petcat.sql`.
 - [ ] Migración `002_horarios_varios_rangos.sql`: quitar `UNIQUE(id_sucursal, dia_semana)` de `horarios_negocio` para permitir horario partido. Actualizar `petcat.sql`. (Se crea en 0.C.3 y se entrega con la 001; Amaurys las aplica en su base.)
-- [ ] `database/seeds/dev_seed.sql`: admin de plataforma, un propietario con negocio (plan Gratuito), una sucursal con horarios, dos empleados (veterinario vinculado y recepcionista con invitación pendiente), un cliente con dos mascotas y algunos servicios. Contraseña común documentada (p. ej. `Petcat123!`).
+- [x] `database/seeds/dev_seed.sql`: admin de plataforma, un propietario con negocio (plan Gratuito), una sucursal con horarios, dos empleados (veterinario vinculado y recepcionista con invitación pendiente), un cliente con dos mascotas y algunos servicios. Contraseña común documentada (p. ej. `Petcat123!`).
 - [ ] Configurar Vitest + supertest con base `petcat_test`. Tests: health, registro, login, ruta protegida sin token (401), permisos (403), flujo completo de invitación (usuario nuevo y usuario existente).
 - [ ] `backend/README.md`: cómo levantar el proyecto, aplicar migraciones, cargar el seed y correr los tests.
 

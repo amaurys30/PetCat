@@ -1,9 +1,6 @@
-import { afterAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import request from "supertest";
 import app from "../src/app.js";
-import { pool } from "../src/config/db.js";
-
-afterAll(() => pool.end());
 
 describe("app", () => {
   it("GET /api/v1/health comprueba la base de datos", async () => {

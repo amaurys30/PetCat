@@ -11,7 +11,6 @@ describe("withTransaction (petcat_test)", () => {
 
   afterAll(async () => {
     await pool.query("DROP TABLE IF EXISTS _tx_prueba");
-    await pool.end();
   });
 
   it("hace commit y devuelve el resultado", async () => {
