@@ -19,6 +19,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.js"],
+    globalSetup: ["tests/globalSetup.js"],
     env: {
       ...parse(readFileSync(envTestPath)),
       NODE_ENV: "test",
