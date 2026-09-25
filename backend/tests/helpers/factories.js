@@ -1,9 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { pool } from "../../src/config/db.js";
 import { hashPassword } from "../../src/shared/utils/hash.js";
-import { generateToken } from "../../src/shared/utils/jwt.js";
-import { generateRefreshToken } from "../../src/shared/utils/tokens.js";
-import * as sessionRepo from "../../src/modules/sessions/session.repository.js";
+import { createSessionForUser } from "../../src/modules/sessions/session.service.js";
 
 /**
  * Fábricas de datos para tests de integración. Insertan directo por SQL para no
@@ -121,24 +119,13 @@ export const crearEmpleado = async (negocio, { rol = "Veterinario", usuario = nu
 };
 
 /**
- * Crea una sesión válida para el usuario y devuelve su access token, como si
- * hubiera iniciado sesión.
+ * Crea una sesión válida para el usuario, igual que el login, y devuelve su access token.
  */
 export const tokenDe = async (usuario) => {
-  const payload = {
-    id_usuario: usuario.id_usuario,
-    email: usuario.email,
-    tipo_usuario: usuario.tipo_usuario,
-  };
-  const token = generateToken(payload);
-  await sessionRepo.createSession({
-    id_usuario: usuario.id_usuario,
-    token,
-    refresh_token: generateRefreshToken(payload),
+  const { access_token } = await createSessionForUser(usuario, {
     dispositivo: "test",
-    ip_address: "127.0.0.1",
-    user_agent: "vitest",
-    expira_en: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    ip: "127.0.0.1",
+    userAgent: "vitest",
   });
-  return token;
+  return access_token;
 };

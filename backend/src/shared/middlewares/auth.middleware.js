@@ -1,46 +1,46 @@
+import { ApiError } from "../errors/ApiError.js";
 import { verifyToken } from "../utils/jwt.js";
+import { hashToken } from "../utils/hash.js";
 import * as sessionRepo from "../../modules/sessions/session.repository.js";
-import * as empleadoRepo from "../../modules/empleados/empleado.repository.js";
 
+/** Token de `Authorization: Bearer <token>`, o null si la cabecera falta o está mal formada. */
+const bearerToken = (header) => {
+  const match = /^Bearer\s+(\S+)\s*$/i.exec(header ?? "");
+  return match ? match[1] : null;
+};
+
+/**
+ * Exige un access token válido con sesión activa y vigente de un usuario activo.
+ * Deja en la petición:
+ *   req.user    = { id_usuario, email, tipo_usuario }  (desde la base, no desde el token)
+ *   req.session = { id_sesion, dispositivo, expira_en }
+ * Los permisos sobre un negocio no se cargan aquí: los resuelve `authorize` por negocio.
+ */
 export const authMiddleware = async (req, res, next) => {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader) {
-    return res.status(401).json({ message: "Token requerido" });
-  }
-
-  const token = authHeader.split(" ")[1];
+  const token = bearerToken(req.get("authorization"));
+  if (!token) throw ApiError.unauthorized("Token requerido");
 
   try {
-    const decoded = verifyToken(token);
-
-    const session = await sessionRepo.findSessionByToken(token);
-
-    if (!session || session.activa === 0) {
-    return res.status(401).json({ message: "Sesión inválida o expirada" });
-    }
-
-    // 🔥 NUEVO: traer rol si es usuario tipo negocio
-    let permisos = null;
-
-    if (decoded.tipo_usuario === "negocio") {
-      const empleado = await empleadoRepo.findByUserId(decoded.id_usuario);
-
-      if (empleado && empleado.rol) {
-        permisos = empleado.rol.permisos_json;
-      }
-    }
-
-    req.user = {
-      ...decoded,
-      permisos, // 👈 aquí viajan los permisos
-    };
-
-    req.session = session;
-
-    next();
+    verifyToken(token);
   } catch (err) {
-    console.error("Error en authMiddleware:", err.message); // Esto te dirá si es 'jwt expired' o 'invalid signature'
-    return res.status(401).json({ message: "Token inválido" });
+    throw ApiError.unauthorized(err.name === "TokenExpiredError" ? "Token expirado" : "Token inválido");
   }
+
+  const session = await sessionRepo.findActiveByTokenHash(hashToken(token));
+  if (!session) throw ApiError.unauthorized("Sesión inválida o expirada");
+  if (!session.usuario_activo) throw ApiError.forbidden("La cuenta está desactivada");
+
+  req.user = {
+    id_usuario: session.id_usuario,
+    email: session.email,
+    tipo_usuario: session.tipo_usuario,
+  };
+  req.session = {
+    id_sesion: session.id_sesion,
+    dispositivo: session.dispositivo,
+    expira_en: session.expira_en,
+  };
+  next();
 };
+
+export default authMiddleware;

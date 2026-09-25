@@ -11,8 +11,8 @@ export const generateToken = (payload) => {
 };
 
 /**
- * Verificar Access Token
+ * Verificar Access Token. Lanza TokenExpiredError o JsonWebTokenError.
  */
 export const verifyToken = (token) => {
-  return jwt.verify(token, env.JWT_SECRET);
+  return jwt.verify(token, env.JWT_SECRET, { algorithms: ["HS256"] });
 };

@@ -37,16 +37,6 @@ export const login = async (req, res) => {
 
 
 export const logout = async (req, res) => {
-  try {
-    // El token viene del middleware gracias a req.session o req.headers
-    const authHeader = req.headers.authorization;
-    const token = authHeader.split(" ")[1];
-
-    // Cambiamos el estado en la base de datos
-    await sessionRepo.invalidateSession(token);
-
-    return res.status(200).json({ message: "Sesión cerrada exitosamente" });
-  } catch (error) {
-    return res.status(500).json({ message: "Error al cerrar sesión" });
-  }
+  await sessionRepo.deactivate(req.session.id_sesion);
+  return res.status(200).json({ success: true, message: "Sesión cerrada", data: null });
 };

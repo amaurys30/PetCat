@@ -14,5 +14,5 @@ export const generateRefreshToken = (payload) => {
  * Verificar Refresh Token
  */
 export const verifyRefreshToken = (token) => {
-  return jwt.verify(token, env.REFRESH_SECRET);
+  return jwt.verify(token, env.REFRESH_SECRET, { algorithms: ["HS256"] });
 };
