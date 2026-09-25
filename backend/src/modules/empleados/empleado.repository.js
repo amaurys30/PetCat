@@ -141,17 +141,20 @@ export const findAllByNegocio = async (id_negocio) => {
   return rows;
 };
 
-export const findByUserAndNegocio = async (id_usuario, id_negocio) => {
+/**
+ * Vínculo de un usuario como empleado de un negocio, con su rol y permisos.
+ * Si hubiera más de un registro, se prefiere el activo.
+ */
+export const findAccesoByUsuarioAndNegocio = async (id_usuario, id_negocio) => {
   const [rows] = await db.query(
-    `
-    SELECT * 
-    FROM empleados 
-    WHERE id_usuario = ? AND id_negocio = ?
-    LIMIT 1
-    `,
+    `SELECT e.id_empleado, e.activo, e.id_rol, r.nombre AS rol_nombre, r.permisos_json
+     FROM empleados e
+     JOIN roles r ON r.id_rol = e.id_rol
+     WHERE e.id_usuario = ? AND e.id_negocio = ?
+     ORDER BY e.activo DESC, e.id_empleado
+     LIMIT 1`,
     [id_usuario, id_negocio]
   );
-
   return rows[0];
 };
 

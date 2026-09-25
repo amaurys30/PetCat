@@ -1,5 +1,6 @@
 // negocio.repository.js
 import db from "../../config/db.js";
+import { ApiError } from "../../shared/errors/ApiError.js";
 
 export const createNegocio = async (data) => {
   const [result] = await db.query(
@@ -159,6 +160,33 @@ export const findById = async (id_negocio) => {
     [id_negocio]
   );
 
+  return rows[0];
+};
+
+// Consulta que da el id_negocio de un recurso a partir del parámetro de ruta que lo identifica.
+const NEGOCIO_DE_RECURSO = {
+  id_sucursal: "SELECT id_negocio FROM sucursales WHERE id_sucursal = ?",
+  id_empleado: "SELECT id_negocio FROM empleados WHERE id_empleado = ?",
+  id_rol: "SELECT id_negocio FROM roles WHERE id_rol = ?",
+  id_servicio: "SELECT id_negocio FROM servicios WHERE id_servicio = ?",
+  id_cita: "SELECT id_negocio FROM citas WHERE id_cita = ?",
+  id_producto: "SELECT id_negocio FROM productos WHERE id_producto = ?",
+  id_disponibilidad: `SELECT e.id_negocio
+                      FROM disponibilidad_empleado d
+                      JOIN empleados e ON e.id_empleado = d.id_empleado
+                      WHERE d.id_disponibilidad = ?`,
+};
+
+export const RECURSOS_CON_NEGOCIO = Object.keys(NEGOCIO_DE_RECURSO);
+
+/**
+ * Negocio al que pertenece un recurso. Devuelve undefined si el recurso no existe
+ * y { id_negocio: null } si existe pero no es de ningún negocio (rol del sistema).
+ */
+export const findNegocioDeRecurso = async (param, id) => {
+  const sql = NEGOCIO_DE_RECURSO[param];
+  if (!sql) throw ApiError.internal(`Recurso sin resolver de negocio: ${param}`);
+  const [rows] = await db.query(sql, [id]);
   return rows[0];
 };
 

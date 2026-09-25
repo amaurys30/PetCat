@@ -1,5 +1,6 @@
 import * as empleadoService from "./empleado.service.js";
 import * as userRepo from "../usuarios/usuario.repository.js";
+import * as empleadoRepo from "./empleado.repository.js";
 
 export const createEmpleado = async (req, res) => {
   try {
@@ -76,7 +77,8 @@ export const updateEmpleado = async (req, res) => {
 
 export const getEmpleadoById = async (req, res) => {
   try {
-    const empleado = req.empleadoTarget;
+    // authorize ya comprobó que existe y que es del negocio del usuario.
+    const empleado = await empleadoRepo.findById(req.params.id_empleado);
 
     return res.status(200).json({
       ok: true,
