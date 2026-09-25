@@ -42,8 +42,8 @@ Se hace en sub-bloques que se aprueban por separado: **0.C.1** base de tests y s
 **Bugs y riesgos a corregir**
 - [x] Eliminar `src/routes/users.routes.js`: `GET /usuarios` es público y devuelve `password_hash`; `POST /usuarios` recibe el hash directo.
 - [x] Eliminar `shared/middlewares/role.middleware.js` (duplica `authorize` y no se usa). Eliminar o completar `auth.validation.js` y `session.service.js` (están vacíos).
-- [ ] `empleado.service.js`: falta importar `hasPermission` (lanza `ReferenceError` cuando edita alguien que no es propietario). Además, esa verificación duplica la de `authorize`: quitarla.
-- [ ] `empleado.repository.js → update`: arma nombres de columna desde `req.body` (inyección SQL y asignación masiva de `id_negocio`, `id_usuario`, etc.). Usar lista blanca.
+- [x] `empleado.service.js`: falta importar `hasPermission` (lanza `ReferenceError` cuando edita alguien que no es propietario). Además, esa verificación duplica la de `authorize`: quitarla.
+- [x] `empleado.repository.js → update`: arma nombres de columna desde `req.body` (inyección SQL y asignación masiva de `id_negocio`, `id_usuario`, etc.). Usar lista blanca.
 - [x] `authorize`: rechazar empleados con `activo = FALSE`; resolver el negocio también desde `:id_cita`, `:id_servicio`, `:id_rol`... mediante un mapa de resolvers para no repetir código.
 - [x] `authMiddleware`: usar `verifyToken` de `utils/jwt.js`, validar el formato `Bearer`, comprobar `sesiones.expira_en` y que el usuario siga `activo`. Quitar la carga de permisos por `tipo_usuario === "negocio"` (toma el primer negocio encontrado; los permisos se resuelven por negocio en `authorize`).
 - [x] Login: mismo mensaje para email inexistente y contraseña errónea ("Credenciales inválidas"); rechazar usuarios inactivos o bloqueados; registrar `ip_address` y `user_agent` reales; actualizar `ultimo_acceso`.
@@ -55,7 +55,7 @@ Se hace en sub-bloques que se aprueban por separado: **0.C.1** base de tests y s
 - [x] Sucursales: `GET|POST /negocios/:id_negocio/sucursales`, `GET|PATCH|DELETE /sucursales/:id_sucursal`.
 - [x] Horarios: `GET /sucursales/:id_sucursal/horarios`, `PUT /sucursales/:id_sucursal/horarios` (reemplaza la semana completa, en transacción). La semana llega como lista de rangos; se permiten varios rangos por día (horario partido) y el servicio valida que no se crucen.
 - [x] Roles: `GET /negocios/:id_negocio/roles` (globales + propios), `POST /negocios/:id_negocio/roles`, `PATCH|DELETE /roles/:id_rol`. Los roles `es_sistema` no se editan ni se borran. Validar que `permisos_json` solo use módulos y acciones conocidos.
-- [ ] Empleados: `GET|POST /negocios/:id_negocio/empleados`, `GET|PATCH|DELETE /empleados/:id_empleado`, `PATCH /empleados/:id_empleado/reactivar`. Validar que el `id_rol` asignado sea global o del mismo negocio.
+- [x] Empleados: `GET|POST /negocios/:id_negocio/empleados`, `GET|PATCH|DELETE /empleados/:id_empleado`, `PATCH /empleados/:id_empleado/reactivar`. Validar que el `id_rol` asignado sea global o del mismo negocio.
 
 **Flujo de invitaciones completo**
 - [ ] `POST /empleados/:id_empleado/invitacion` — enviar. `id_negocio` se toma del empleado (hoy viene del query sin validar). Rechazar si el empleado no tiene email, está inactivo o ya tiene `id_usuario`.
@@ -64,14 +64,16 @@ Se hace en sub-bloques que se aprueban por separado: **0.C.1** base de tests y s
 - [ ] `POST /invitaciones/:token/aceptar` — público. En **transacción**: crea el usuario o vincula el existente, asigna `empleados.id_usuario`, marca `usado` y `fecha_usado`. Si la cuenta ya existía, exigir su contraseña actual para vincular. Responde con access token, refresh token y sesión creada (auto-login), reutilizando la función de creación de sesión del login.
 - [ ] Guardar en BD el **hash SHA-256** del token, no el token en claro. El enlace del correo lleva el token real: `${FRONTEND_URL}/invitacion/<token>`.
 - [ ] Enviar el correo con `mailer.js`. No devolver el token en la respuesta de la API.
+- [ ] Propietario como empleado de su propio negocio, sin invitación (en veterinarias pequeñas el dueño es el veterinario y debe aparecer en la agenda). Propuesta: `POST /negocios/:id_negocio/empleados/yo`, solo para el propietario: crea el empleado con `id_usuario` = su cuenta y nombre, apellido y email tomados de ella; el body lleva `id_rol` (por defecto Administrador) y los datos profesionales. Si ya existe un empleado sin cuenta con su email, lo vincula en lugar de crear otro; si ya está vinculado, 409 (lo garantiza también `UNIQUE(id_negocio, id_usuario)`). Es más explícito que vincular por email al crear un empleado, que mezclaría dos flujos en el mismo endpoint.
 
 **Base de datos, datos de prueba y tests**
-- [ ] Migración `001_empleados_email_por_negocio.sql`: `UNIQUE(id_negocio, email)` en `empleados`. Actualizar `petcat.sql`.
+- [x] Migración `001_empleados_unicos_por_negocio.sql`: `UNIQUE(id_negocio, email)` y `UNIQUE(id_negocio, id_usuario)` en `empleados`. Actualizar `petcat.sql`. (Aplicada después de la 002 y la 003: son independientes.)
 - [x] Migración `002_horarios_varios_rangos.sql`: quitar `UNIQUE(id_sucursal, dia_semana)` de `horarios_negocio` para permitir horario partido. Actualizar `petcat.sql`. (Creada en 0.C.3; Amaurys la aplica en su base.)
 - [x] Migración `003_rol_administrador_permisos.sql`: el rol del sistema Administrador con el catálogo completo de permisos (le faltaban `historial_medico`, `vacunas`, `editar_stock` y `ver_basico`). Actualizar `petcat.sql`.
 - [x] `database/seeds/dev_seed.sql`: admin de plataforma, un propietario con negocio (plan Gratuito), una sucursal con horarios, dos empleados (veterinario vinculado y recepcionista con invitación pendiente), un cliente con dos mascotas y algunos servicios. Contraseña común documentada (p. ej. `Petcat123!`).
 - [ ] Configurar Vitest + supertest con base `petcat_test`. Tests: health, registro, login, ruta protegida sin token (401), permisos (403), flujo completo de invitación (usuario nuevo y usuario existente).
 - [ ] `backend/README.md`: cómo levantar el proyecto, aplicar migraciones, cargar el seed y correr los tests.
+- [ ] Si se crea `npm run db:migrate`: registrar las migraciones aplicadas por **nombre de archivo** (tabla `schema_migrations`), no por el número más alto. En la base de Amaurys la 002 y la 003 se aplicaron antes que la 001; el script debe detectar esas tres como aplicadas en una base existente (por ejemplo, marcándolas a mano o comprobando índices) y no volver a ejecutarlas.
 
 **Cierre de fase:** todos los tests pasan, Swagger muestra todos los endpoints actuales y el servidor arranca desde cero con `docker compose up` + seed.
 
@@ -173,3 +175,9 @@ Se hace en sub-bloques que se aprueban por separado: **0.C.1** base de tests y s
 - Horarios: el PUT recibe `{ horarios: [{ dia_semana, hora_apertura, hora_cierre }] }`; horas HH:MM (acepta HH:MM:SS) y se devuelven HH:MM. Los rangos pueden tocarse (12:00–12:00) pero no cruzarse; el 422 indica el índice (`horarios.N`). Lista vacía = cerrado toda la semana.
 - Roles: nombre único en el negocio y distinto de los roles del sistema, sin distinguir mayúsculas (409). Los roles del sistema no se editan ni se borran, tampoco por el admin (403). Un rol con empleados asignados, activos o no, no se borra (409). Escalada: las reglas aplican a empleados; propietario y admin no tienen límite. Asignar un rol y cambiar el propio rol se controla en empleados (0.C.4).
 - PATCH de negocio, sucursal y rol: lista blanca estricta (campos desconocidos -> 422), al menos un campo; los opcionales se vacían con `null`. `latitud` y `longitud` van juntas (ambas con valor o ambas `null`).
+- Empleados (0.C.4): el body no acepta `id_usuario`, `id_negocio`, `activo` ni `fecha_retiro` (422). La cuenta se vincula solo con `empleadoRepo.linkUsuario` (invitaciones y, en 0.C.5, el propietario). `fecha_vinculacion` por defecto es hoy. `id_rol` debe ser del sistema o del mismo negocio (422 en `errors.id_rol`).
+- Email del empleado único por negocio sin distinguir mayúsculas (409). Si el email es de un empleado inactivo, el 409 lo dice con su `id_empleado` para reactivarlo. Cambiar el email (sin contar mayúsculas) o desactivar invalida las invitaciones pendientes en la misma transacción. Desactivar a un inactivo o reactivar a un activo: 409.
+- Listado de empleados: paginado, activos primero y luego apellido y nombre; filtros `activo` (true/false, sin filtro = todos) y `q` (nombre, apellido, nombre completo, email, documento). Cada fila trae `rol { id_rol, nombre }`, `tiene_cuenta` e `invitacion_pendiente` (sin usar y vigente); el detalle añade `rol.permisos_json`.
+- Escalada en empleados (solo cuando actúa un empleado): no asignar un rol con permisos que el suyo no tiene, no cambiar su propio rol, no desactivarse a sí mismo y no editar, desactivar ni reactivar a un empleado con permisos que él no tiene (403). Puede editar sus propios datos salvo el rol.
+- El propietario puede ser también empleado de su propio negocio (aparece en la agenda). En `authorize` y `/negocios/mios` cuenta como propietario, así que no le aplican las reglas de escalada: puede cambiar su propio rol de empleado o desactivarse como empleado sin perder el acceso.
+- Un usuario solo puede estar vinculado una vez a cada negocio: `UNIQUE(id_negocio, id_usuario)` (migración 001), además de las validaciones del servicio.
