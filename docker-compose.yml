@@ -1,32 +1,44 @@
-version: '3.9'
-
+# Las variables se leen del archivo .env de la raíz (ver .env.example).
 services:
   mysql:
     image: mysql:8
     container_name: petcat_mysql
-    restart: always
+    restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: "2003"
-      MYSQL_DATABASE: "petcat_db"
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Define MYSQL_ROOT_PASSWORD en el .env de la raiz}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-petcat_db}
+      TZ: America/Bogota
+    # Solo accesible desde esta máquina, no desde la red local.
     ports:
-      - "3307:3306"
+      - "127.0.0.1:3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./database/petcat.sql:/docker-entrypoint-initdb.d/petcat.sql
+      - ./database/petcat.sql:/docker-entrypoint-initdb.d/petcat.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
 
   backend:
     build: ./backend
     container_name: petcat_backend
-    restart: always
+    restart: unless-stopped
     ports:
       - "3000:3000"
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
     env_file:
-      - ./backend/.env  # <--- Esto carga tu JWT_SECRET
+      - ./backend/.env
+    # Dentro de la red de Docker la base está en mysql:3306, no en localhost:3307.
     environment:
-      DATABASE_URL: "mysql://root:2003@mysql:3306/petcat_db"
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_USER: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DB_NAME: ${MYSQL_DATABASE:-petcat_db}
 
 volumes:
   mysql_data:
-  
