@@ -5,17 +5,19 @@ const email = z.string().trim().toLowerCase().pipe(z.email().max(150));
 
 const nombre = z.string().trim().min(2).max(80);
 
+/** Contraseña de una cuenta nueva (registro y aceptar invitación). bcrypt solo usa los primeros 72 bytes. */
+export const passwordNueva = z
+  .string()
+  .min(8)
+  .max(72)
+  .regex(/[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/, "Debe incluir al menos una letra")
+  .regex(/\d/, "Debe incluir al menos un número");
+
 export const registerBody = z.strictObject({
   nombre,
   apellido: nombre,
   email,
-  // bcrypt solo usa los primeros 72 bytes.
-  password: z
-    .string()
-    .min(8)
-    .max(72)
-    .regex(/[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/, "Debe incluir al menos una letra")
-    .regex(/\d/, "Debe incluir al menos un número"),
+  password: passwordNueva,
   telefono: z
     .string()
     .trim()

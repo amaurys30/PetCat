@@ -1,12 +1,7 @@
 import * as service from "./auth.service.js";
 import * as sessionRepo from "../sessions/session.repository.js";
 import { ok, created } from "../../shared/utils/response.js";
-
-// Datos del cliente que se guardan con la sesión.
-const clienteDe = (req) => ({
-  ip: req.ip ?? null,
-  userAgent: req.get("user-agent")?.slice(0, 500) ?? null,
-});
+import { clienteDe } from "../../shared/utils/cliente.js";
 
 export const register = async (req, res) => {
   const usuario = await service.register(req.body);

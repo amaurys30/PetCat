@@ -113,8 +113,8 @@ export const linkUsuario = async (id_empleado, id_usuario, conn) => {
  * Vínculo de un usuario como empleado de un negocio, con su rol y permisos
  * (lo usa authorize). La base garantiza un solo registro por usuario y negocio.
  */
-export const findAccesoByUsuarioAndNegocio = async (id_usuario, id_negocio) => {
-  const [rows] = await db.query(
+export const findAccesoByUsuarioAndNegocio = async (id_usuario, id_negocio, conn) => {
+  const [rows] = await (conn ?? db).query(
     `SELECT e.id_empleado, e.activo, e.id_rol, r.nombre AS rol_nombre, r.permisos_json
      FROM empleados e
      JOIN roles r ON r.id_rol = e.id_rol

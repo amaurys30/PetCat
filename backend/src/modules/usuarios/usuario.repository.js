@@ -17,8 +17,8 @@ export const findByEmail = async (email, conn) => {
  * Usuario para el login, con `bloqueado` calculado en MySQL (mismo reloj que
  * guarda `bloqueado_hasta`).
  */
-export const findForLogin = async (email) => {
-  const [rows] = await pool.query(
+export const findForLogin = async (email, conn) => {
+  const [rows] = await (conn ?? pool).query(
     `SELECT *, (bloqueado_hasta IS NOT NULL AND bloqueado_hasta > NOW()) AS bloqueado
      FROM usuarios WHERE email = ?`,
     [email]

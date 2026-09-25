@@ -33,6 +33,29 @@ export const register = async ({ nombre, apellido, email, password, telefono, ti
 };
 
 /**
+ * Comprueba la contraseña con las reglas del login. Con la cuenta bloqueada no se
+ * evalúa: no se puede seguir probando (403). Un fallo suma al contador y al llegar
+ * al máximo bloquea la cuenta (403); si no, 401 con `mensajeError`. Cuenta inactiva: 403.
+ * La usan el login y aceptar una invitación con una cuenta existente.
+ * @param {object} usuario Fila de usuarioRepo.findForLogin (incluye `bloqueado`)
+ */
+export const verificarPassword = async (usuario, password, mensajeError = CREDENCIALES_INVALIDAS) => {
+  if (usuario.bloqueado) throw ApiError.forbidden(CUENTA_BLOQUEADA);
+
+  if (!(await comparePassword(password, usuario.password_hash))) {
+    const bloqueado = await usuarioRepo.registerFailedLogin(
+      usuario.id_usuario,
+      MAX_INTENTOS_LOGIN,
+      MINUTOS_BLOQUEO
+    );
+    if (bloqueado) throw ApiError.forbidden(CUENTA_BLOQUEADA);
+    throw ApiError.unauthorized(mensajeError);
+  }
+
+  if (!usuario.activo) throw ApiError.forbidden("La cuenta está desactivada");
+};
+
+/**
  * @param {{ email: string, password: string, dispositivo?: string }} credenciales
  * @param {{ ip?: string, userAgent?: string }} cliente
  */
@@ -44,20 +67,7 @@ export const login = async ({ email, password, dispositivo }, cliente = {}) => {
     throw ApiError.unauthorized(CREDENCIALES_INVALIDAS);
   }
 
-  // Durante el bloqueo no se evalúa la contraseña: no se puede seguir probando.
-  if (usuario.bloqueado) throw ApiError.forbidden(CUENTA_BLOQUEADA);
-
-  if (!(await comparePassword(password, usuario.password_hash))) {
-    const bloqueado = await usuarioRepo.registerFailedLogin(
-      usuario.id_usuario,
-      MAX_INTENTOS_LOGIN,
-      MINUTOS_BLOQUEO
-    );
-    if (bloqueado) throw ApiError.forbidden(CUENTA_BLOQUEADA);
-    throw ApiError.unauthorized(CREDENCIALES_INVALIDAS);
-  }
-
-  if (!usuario.activo) throw ApiError.forbidden("La cuenta está desactivada");
+  await verificarPassword(usuario, password);
 
   return withTransaction(async (conn) => {
     await usuarioRepo.registerSuccessfulLogin(usuario.id_usuario, conn);
