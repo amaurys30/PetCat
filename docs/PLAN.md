@@ -51,10 +51,10 @@ Se hace en sub-bloques que se aprueban por separado: **0.C.1** base de tests y s
 - [x] Registro: validar con Zod; no permitir `tipo_usuario = "admin"` desde el endpoint público.
 
 **Rutas normalizadas**
-- [ ] Negocios: `POST /negocios`, `GET /negocios/mios`, `GET /negocios/:id_negocio` (perfil público), `PATCH /negocios/:id_negocio`. Al crear un negocio, crear en la misma transacción una suscripción al plan Gratuito.
-- [ ] Sucursales: `GET|POST /negocios/:id_negocio/sucursales`, `GET|PATCH|DELETE /sucursales/:id_sucursal`.
-- [ ] Horarios: `GET /sucursales/:id_sucursal/horarios`, `PUT /sucursales/:id_sucursal/horarios` (reemplaza la semana completa, en transacción). La semana llega como lista de rangos; se permiten varios rangos por día (horario partido) y el servicio valida que no se crucen.
-- [ ] Roles: `GET /negocios/:id_negocio/roles` (globales + propios), `POST /negocios/:id_negocio/roles`, `PATCH|DELETE /roles/:id_rol`. Los roles `es_sistema` no se editan ni se borran. Validar que `permisos_json` solo use módulos y acciones conocidos.
+- [x] Negocios: `POST /negocios`, `GET /negocios/mios`, `GET /negocios/:id_negocio` (perfil público), `PATCH /negocios/:id_negocio`. Al crear un negocio, crear en la misma transacción una suscripción al plan Gratuito.
+- [x] Sucursales: `GET|POST /negocios/:id_negocio/sucursales`, `GET|PATCH|DELETE /sucursales/:id_sucursal`.
+- [x] Horarios: `GET /sucursales/:id_sucursal/horarios`, `PUT /sucursales/:id_sucursal/horarios` (reemplaza la semana completa, en transacción). La semana llega como lista de rangos; se permiten varios rangos por día (horario partido) y el servicio valida que no se crucen.
+- [x] Roles: `GET /negocios/:id_negocio/roles` (globales + propios), `POST /negocios/:id_negocio/roles`, `PATCH|DELETE /roles/:id_rol`. Los roles `es_sistema` no se editan ni se borran. Validar que `permisos_json` solo use módulos y acciones conocidos.
 - [ ] Empleados: `GET|POST /negocios/:id_negocio/empleados`, `GET|PATCH|DELETE /empleados/:id_empleado`, `PATCH /empleados/:id_empleado/reactivar`. Validar que el `id_rol` asignado sea global o del mismo negocio.
 
 **Flujo de invitaciones completo**
@@ -67,7 +67,8 @@ Se hace en sub-bloques que se aprueban por separado: **0.C.1** base de tests y s
 
 **Base de datos, datos de prueba y tests**
 - [ ] Migración `001_empleados_email_por_negocio.sql`: `UNIQUE(id_negocio, email)` en `empleados`. Actualizar `petcat.sql`.
-- [ ] Migración `002_horarios_varios_rangos.sql`: quitar `UNIQUE(id_sucursal, dia_semana)` de `horarios_negocio` para permitir horario partido. Actualizar `petcat.sql`. (Se crea en 0.C.3 y se entrega con la 001; Amaurys las aplica en su base.)
+- [x] Migración `002_horarios_varios_rangos.sql`: quitar `UNIQUE(id_sucursal, dia_semana)` de `horarios_negocio` para permitir horario partido. Actualizar `petcat.sql`. (Creada en 0.C.3; Amaurys la aplica en su base.)
+- [x] Migración `003_rol_administrador_permisos.sql`: el rol del sistema Administrador con el catálogo completo de permisos (le faltaban `historial_medico`, `vacunas`, `editar_stock` y `ver_basico`). Actualizar `petcat.sql`.
 - [x] `database/seeds/dev_seed.sql`: admin de plataforma, un propietario con negocio (plan Gratuito), una sucursal con horarios, dos empleados (veterinario vinculado y recepcionista con invitación pendiente), un cliente con dos mascotas y algunos servicios. Contraseña común documentada (p. ej. `Petcat123!`).
 - [ ] Configurar Vitest + supertest con base `petcat_test`. Tests: health, registro, login, ruta protegida sin token (401), permisos (403), flujo completo de invitación (usuario nuevo y usuario existente).
 - [ ] `backend/README.md`: cómo levantar el proyecto, aplicar migraciones, cargar el seed y correr los tests.
@@ -165,3 +166,10 @@ Se hace en sub-bloques que se aprueban por separado: **0.C.1** base de tests y s
 - Login: con la cuenta bloqueada no se evalúa la contraseña (403 directo); el intento que alcanza el límite ya responde 403. Al vencer el bloqueo el conteo empieza de nuevo. El registro no inicia sesión.
 - Contraseña de registro: 8 a 72 caracteres (límite de bcrypt), con al menos una letra y un número. El body de register y login es estricto: campos no previstos -> 422.
 - `authorize` deduce el negocio solo de parámetros de ruta (`:id_negocio` o un recurso del mapa de `negocio.repository`); si la ruta no tiene ninguno es un error de programación (500). Deja `req.negocio` y `req.acceso = { relacion, id_empleado?, id_rol?, permisos? }` para los servicios. Recursos globales (roles del sistema): solo el admin.
+- Negocios, sucursales y roles (0.C.3): los routers de estos módulos definen rutas completas (`/negocios/:id_negocio/sucursales`, `/sucursales/:id_sucursal`...) y se montan en la raíz de `/api/v1`. En las rutas protegidas el orden es `authMiddleware`, `validate`, `authorize` (un id inválido da 422 antes de consultar la base).
+- `authorize(modulo, accion)` lanza un error al cargar las rutas si el permiso no está en `CATALOGO_PERMISOS` (`shared/utils/permissions.js`). Si el catálogo cambia, actualizar los roles del sistema con una migración.
+- Lectura pública sin token: perfil del negocio, sus sucursales y los horarios. El perfil devuelve 404 si el negocio está inactivo y solo muestra sucursales activas (con sus horarios), servicios activos y con `visible_app`, y las 5 reseñas visibles más recientes (autor como "Nombre I."). No expone `nit`, `razon_social` ni el propietario.
+- Sucursal principal: la primera sucursal activa del negocio siempre queda como principal; marcar otra desmarca la anterior; desmarcar la principal da 409 (se marca otra). Eliminar (lógico) da 409 si hay citas futuras pendientes o confirmadas, o si es la principal y hay otras activas; la única sucursal sí se elimina. Estas operaciones bloquean las sucursales del negocio con `FOR UPDATE`.
+- Horarios: el PUT recibe `{ horarios: [{ dia_semana, hora_apertura, hora_cierre }] }`; horas HH:MM (acepta HH:MM:SS) y se devuelven HH:MM. Los rangos pueden tocarse (12:00–12:00) pero no cruzarse; el 422 indica el índice (`horarios.N`). Lista vacía = cerrado toda la semana.
+- Roles: nombre único en el negocio y distinto de los roles del sistema, sin distinguir mayúsculas (409). Los roles del sistema no se editan ni se borran, tampoco por el admin (403). Un rol con empleados asignados, activos o no, no se borra (409). Escalada: las reglas aplican a empleados; propietario y admin no tienen límite. Asignar un rol y cambiar el propio rol se controla en empleados (0.C.4).
+- PATCH de negocio, sucursal y rol: lista blanca estricta (campos desconocidos -> 422), al menos un campo; los opcionales se vacían con `null`. `latitud` y `longitud` van juntas (ambas con valor o ambas `null`).
