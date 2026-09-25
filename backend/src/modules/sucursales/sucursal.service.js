@@ -1,138 +1,92 @@
-import * as negocioRepo from "../negocios/negocio.repository.js";
 import * as sucursalRepo from "./sucursal.repository.js";
-import * as empleadoRepo from "../empleados/empleado.repository.js";
-import * as rolRepo from "../roles/rol.repository.js";
+import * as negocioRepo from "../negocios/negocio.repository.js";
+import { withTransaction } from "../../shared/utils/transaction.js";
+import { castFields } from "../../shared/utils/format.js";
+import { ApiError } from "../../shared/errors/ApiError.js";
 
-export const createSucursal = async (id_usuario, id_negocio, data) => {
+export const formatSucursal = (sucursal) =>
+  castFields(sucursal, { bools: ["es_principal", "activo"], numbers: ["latitud", "longitud"] });
 
-  // 1️⃣ Validar negocio
+const NO_ENCONTRADA = "Sucursal no encontrada";
+
+export const getSucursalesPublicas = async (id_negocio) => {
   const negocio = await negocioRepo.findById(id_negocio);
+  if (!negocio || !negocio.activo) throw ApiError.notFound("Negocio no encontrado");
+  const sucursales = await sucursalRepo.findActivasByNegocio(id_negocio);
+  return sucursales.map(formatSucursal);
+};
 
-  if (!negocio) {
-    const error = new Error("Negocio no encontrado");
-    error.status = 404;
-    throw error;
-  }
+export const getSucursalPublica = async (id_sucursal) => {
+  const sucursal = await sucursalRepo.findPublicaById(id_sucursal);
+  if (!sucursal) throw ApiError.notFound(NO_ENCONTRADA);
+  return formatSucursal(sucursal);
+};
 
-  // 2️⃣ Validar propietario
-  if (negocio.id_usuario_propietario !== id_usuario) {
-    const error = new Error("No tienes permisos para este negocio");
-    error.status = 403;
-    throw error;
-  }
+/**
+ * La primera sucursal activa del negocio queda como principal. Si se crea como
+ * principal, la anterior deja de serlo.
+ */
+export const createSucursal = async (id_negocio, data) => {
+  const id_sucursal = await withTransaction(async (conn) => {
+    const activas = await sucursalRepo.lockActivasByNegocio(id_negocio, conn);
+    const es_principal = activas.length === 0 || data.es_principal === true;
+    if (es_principal) await sucursalRepo.clearPrincipal(id_negocio, conn);
+    return sucursalRepo.create(id_negocio, { ...data, es_principal }, conn);
+  });
+  return formatSucursal(await sucursalRepo.findById(id_sucursal));
+};
 
-  // 3️⃣ Validaciones básicas
-  if (!data.nombre || !data.direccion) {
-    const error = new Error("Nombre y dirección son obligatorios");
-    error.status = 400;
-    throw error;
-  }
+/**
+ * Sucursal activa leída con las sucursales activas del negocio bloqueadas (FOR UPDATE),
+ * más el total de activas. 404 si no existe o está inactiva.
+ */
+const findActivaBloqueada = async (id_sucursal, conn) => {
+  const sucursal = await sucursalRepo.findById(id_sucursal, conn);
+  if (!sucursal?.activo) throw ApiError.notFound(NO_ENCONTRADA);
+  const activas = await sucursalRepo.lockActivasByNegocio(sucursal.id_negocio, conn);
+  const bloqueada = activas.find((s) => s.id_sucursal === sucursal.id_sucursal);
+  if (!bloqueada) throw ApiError.notFound(NO_ENCONTRADA);
+  return { ...sucursal, es_principal: bloqueada.es_principal, totalActivas: activas.length };
+};
 
+/**
+ * Marcar otra como principal desmarca la anterior. No se puede desmarcar la
+ * principal directamente: siempre debe haber una (409).
+ */
+export const updateSucursal = async (id_sucursal, data) => {
+  await withTransaction(async (conn) => {
+    const sucursal = await findActivaBloqueada(id_sucursal, conn);
 
-  // 4️⃣ Validar coordenadas
-  if (data.latitud !== undefined && (data.latitud < -90 || data.latitud > 90)) {
-    throw new Error("Latitud inválida");
-  }
+    if (data.es_principal === false && sucursal.es_principal) {
+      throw ApiError.conflict(
+        "Debe haber una sucursal principal: marca otra sucursal como principal en lugar de desmarcar esta"
+      );
+    }
+    if (data.es_principal === true && !sucursal.es_principal) {
+      await sucursalRepo.clearPrincipal(sucursal.id_negocio, conn);
+    }
+    await sucursalRepo.update(id_sucursal, data, conn);
+  });
+  return formatSucursal(await sucursalRepo.findById(id_sucursal));
+};
 
-  if (data.longitud !== undefined && (data.longitud < -180 || data.longitud > 180)) {
-    throw new Error("Longitud inválida");
-  }
+/**
+ * Borrado lógico. 409 si tiene citas futuras pendientes o confirmadas, o si es
+ * la principal y el negocio tiene otras sucursales activas.
+ */
+export const deleteSucursal = async (id_sucursal) => {
+  await withTransaction(async (conn) => {
+    const sucursal = await findActivaBloqueada(id_sucursal, conn);
 
-  if (
-    (data.latitud !== undefined && data.longitud === undefined) ||
-    (data.latitud === undefined && data.longitud !== undefined)
-  ) {
-    throw new Error("Debes enviar latitud y longitud juntas");
-  }
-
-  // 5️⃣ Si es principal, desactivar otras
-  if (data.es_principal) {
-    await sucursalRepo.clearPrincipal(id_negocio);
-  }
-
-
-  // 4️⃣ Crear sucursal
-  return await sucursalRepo.createSucursal({
-    ...data,
-    id_negocio
+    const citas = await sucursalRepo.countCitasFuturasActivas(id_sucursal, conn);
+    if (citas > 0) {
+      throw ApiError.conflict(
+        `La sucursal tiene ${citas} ${citas === 1 ? "cita futura" : "citas futuras"} pendientes o confirmadas: cancélalas o reprográmalas antes de eliminarla`
+      );
+    }
+    if (sucursal.es_principal && sucursal.totalActivas > 1) {
+      throw ApiError.conflict("Es la sucursal principal: marca otra como principal antes de eliminarla");
+    }
+    await sucursalRepo.softDelete(id_sucursal, conn);
   });
 };
-
-export const getSucursalesPublico = async (id_negocio) => {
-
-  // 1️⃣ Validar que el negocio exista y esté activo
-  const negocio = await negocioRepo.findById(id_negocio);
-
-  if (!negocio || !negocio.activo) {
-    const error = new Error("Negocio no encontrado");
-    error.status = 404;
-    throw error;
-  }
-
-  // 2️⃣ Obtener sucursales activas
-  const sucursales = await sucursalRepo.findByNegocio(id_negocio);
-
-  return sucursales;
-};
-
-
-export const updateSucursal = async (id_usuario, id_sucursal, data) => {
-
-  // 1️⃣ Buscar sucursal
-  const sucursal = await sucursalRepo.findById(id_sucursal);
-
-  if (!sucursal) {
-    const error = new Error("Sucursal no encontrada");
-    error.status = 404;
-    throw error;
-  }
-
-  // 2️⃣ Obtener negocio
-  const negocio = await negocioRepo.findById(sucursal.id_negocio);
-
-  // 3️⃣ Validar si es propietario
-  const esPropietario = negocio.id_usuario_propietario === id_usuario;
-
-  // 4️⃣ Validar si es empleado admin
-  const empleado = await empleadoRepo.findByUserId(id_usuario);
-
-  let esAdmin = false;
-
-  if (empleado && empleado.id_negocio === sucursal.id_negocio) {
-    const rol = await rolRepo.findById(empleado.id_rol);
-    esAdmin = rol?.nombre === "Administrador";
-  }
-
-  if (!esPropietario && !esAdmin) {
-    const error = new Error("No tienes permisos para editar esta sucursal");
-    error.status = 403;
-    throw error;
-  }
-
-  // 5️⃣ Validaciones
-  if (data.latitud !== undefined && (data.latitud < -90 || data.latitud > 90)) {
-    throw new Error("Latitud inválida");
-  }
-
-  if (data.longitud !== undefined && (data.longitud < -180 || data.longitud > 180)) {
-    throw new Error("Longitud inválida");
-  }
-
-  if (
-    (data.latitud !== undefined && data.longitud === undefined) ||
-    (data.latitud === undefined && data.longitud !== undefined)
-  ) {
-    throw new Error("Debes enviar latitud y longitud juntas");
-  }
-
-  // 6️⃣ Manejo de sucursal principal
-  if (data.es_principal === true) {
-    await sucursalRepo.clearPrincipal(sucursal.id_negocio);
-  }
-
-  // 7️⃣ Actualizar
-  await sucursalRepo.update(id_sucursal, data);
-
-  return await sucursalRepo.findById(id_sucursal);
-};
-

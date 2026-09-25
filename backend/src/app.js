@@ -65,7 +65,7 @@ v1.use("/invitaciones", strictLimiter());
 
 v1.use("/auth", authRoutes);
 v1.use(negocioRoutes);
-v1.use("/sucursales", sucursalRoutes);
+v1.use(sucursalRoutes);
 v1.use("/empleados", empleadoRoutes);
 v1.use("/invitaciones", invitacionRoutes);
 v1.use("/roles", rolRoutes);
