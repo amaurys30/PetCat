@@ -1,8 +1,8 @@
+import "dotenv/config";
 import app from "./app.js";
+import { env } from "./config/env.js";
 
-const PORT = 3000;
-
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
-  console.log(`📘 Swagger: http://localhost:${PORT}/api/docs`);
+app.listen(env.PORT, "0.0.0.0", () => {
+  console.log(`Servidor corriendo en http://localhost:${env.PORT} (${env.NODE_ENV})`);
+  console.log(`Swagger: http://localhost:${env.PORT}/api/docs`);
 });

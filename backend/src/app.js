@@ -1,5 +1,4 @@
 import express from "express";
-import dotenv from "dotenv";
 
 // routes
 import authRoutes from "./modules/auth/auth.routes.js";
@@ -14,8 +13,6 @@ import horarioRoutes from "./modules/horarios/horario.routes.js";
 // swagger
 import swaggerUi from "swagger-ui-express";
 import swaggerSpec from "./docs/swagger.js";
-
-dotenv.config();
 
 const app = express();
 

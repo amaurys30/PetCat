@@ -1,4 +1,4 @@
-import jwt from "jsonwebtoken";
+import { verifyToken } from "../utils/jwt.js";
 import * as sessionRepo from "../../modules/sessions/session.repository.js";
 import * as empleadoRepo from "../../modules/empleados/empleado.repository.js";
 
@@ -12,7 +12,7 @@ export const authMiddleware = async (req, res, next) => {
   const token = authHeader.split(" ")[1];
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = verifyToken(token);
 
     const session = await sessionRepo.findSessionByToken(token);
 
