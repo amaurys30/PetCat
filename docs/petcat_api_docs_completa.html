@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PetCat API Docs</title>
+<style>
+:root{
+  --bg:#0c0e12;--bg2:#12161c;--bg3:#1a1f28;--bd:#1e252f;--bd2:#252d3a;
+  --gr:#00e5a0;--gr2:#00b57e;--grd:rgba(0,229,160,.08);
+  --bl:#4f8ef7;--bld:rgba(79,142,247,.1);
+  --or:#f97b3d;--ord:rgba(249,123,61,.1);
+  --rd:#f74f6a;--rdd:rgba(247,79,106,.1);
+  --pu:#a78bfa;--pud:rgba(167,139,250,.1);
+  --ye:#fbbf24;--yed:rgba(251,191,36,.1);
+  --t1:#e4e8f0;--t2:#7a8494;--t3:#3d4555;
+  --fn:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--t1);font-family:system-ui,sans-serif;display:grid;grid-template-columns:260px 1fr;min-height:100vh}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:2px}
+
+/* SIDEBAR */
+.sb{position:sticky;top:0;height:100vh;overflow-y:auto;background:var(--bg2);border-right:1px solid var(--bd)}
+.sb-top{padding:1rem;border-bottom:1px solid var(--bd);position:sticky;top:0;background:var(--bg2);z-index:5}
+.logo{display:flex;align-items:center;gap:.5rem;margin-bottom:.6rem}
+.logo-ic{width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,var(--gr),var(--bl));display:flex;align-items:center;justify-content:center;font-size:13px}
+.logo-t{font-size:13px;font-weight:700}
+.logo-s{font-size:9px;color:var(--t3);font-family:var(--fn)}
+.base-url{font-family:var(--fn);font-size:9px;color:var(--gr);background:var(--grd);padding:3px 7px;border-radius:4px;border:1px solid rgba(0,229,160,.15);word-break:break-all}
+
+/* PROGRESS */
+.prog-box{padding:.75rem 1rem;border-bottom:1px solid var(--bd);background:var(--bg3)}
+.prog-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:.35rem}
+.prog-lbl{font-size:9px;font-family:var(--fn);color:var(--t3)}
+.prog-n{font-size:13px;font-family:var(--fn);font-weight:700;color:var(--gr)}
+.prog-bar{height:4px;background:var(--bd);border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--gr),var(--bl));border-radius:2px;transition:width .3s}
+.prog-pct{font-size:9px;color:var(--t2);font-family:var(--fn);margin-top:.25rem;text-align:right}
+.reset-btn{font-size:9px;color:var(--rd);background:transparent;border:1px solid rgba(247,79,106,.25);border-radius:3px;padding:2px 6px;cursor:pointer;font-family:var(--fn)}
+.reset-btn:hover{background:var(--rdd)}
+
+.sb-search{padding:.5rem 1rem;border-bottom:1px solid var(--bd)}
+.sb-search input{width:100%;background:var(--bg3);border:1px solid var(--bd2);border-radius:5px;padding:4px 8px;font-size:11px;font-family:var(--fn);color:var(--t1);outline:none}
+.sb-search input:focus{border-color:var(--gr)}
+.sb-search input::placeholder{color:var(--t3)}
+
+.nav-g{padding:.4rem 0}
+.nav-gt{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);padding:.2rem 1rem .35rem;font-family:var(--fn)}
+.nav-a{display:flex;align-items:center;gap:.35rem;padding:.3rem 1rem;cursor:pointer;font-size:11px;color:var(--t2);border-left:2px solid transparent;transition:all .1s}
+.nav-a:hover{color:var(--t1);background:var(--bg3)}
+.nav-a.on{color:var(--gr);border-left-color:var(--gr);background:var(--grd)}
+.nav-c{font-family:var(--fn);font-size:9px;color:var(--t3);margin-left:auto}
+.nav-done{font-family:var(--fn);font-size:9px;color:var(--gr)}
+
+/* MAIN */
+.main{overflow-x:hidden}
+.mhd{padding:1.75rem 2.25rem 1.25rem;border-bottom:1px solid var(--bd);background:var(--bg2);position:sticky;top:0;z-index:4}
+.api-title{font-size:22px;font-weight:800;letter-spacing:-.03em;background:linear-gradient(135deg,var(--t1),var(--gr) 55%,var(--bl));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.api-sub{font-size:11px;color:var(--t2);margin-top:.2rem}
+.hd-row{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:.85rem}
+.badges{display:flex;flex-wrap:wrap;gap:.35rem}
+.badge{font-size:9px;font-family:var(--fn);padding:2px 6px;border-radius:3px;font-weight:600}
+.bv{background:var(--grd);color:var(--gr);border:1px solid rgba(0,229,160,.2)}
+.stat-bar{display:grid;grid-template-columns:repeat(6,1fr);gap:1px;background:var(--bd)}
+.stat{background:var(--bg2);padding:.5rem;text-align:center}
+.sv{font-size:15px;font-weight:700;font-family:var(--fn)}
+.sl{font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-top:1px}
+
+/* CONTENT */
+.cnt{padding:1.5rem 2.25rem 4rem;max-width:960px}
+.mod{margin-bottom:2.25rem;scroll-margin-top:90px}
+.mod-hd{display:flex;align-items:center;gap:.5rem;margin-bottom:.85rem;padding-bottom:.5rem;border-bottom:1px solid var(--bd)}
+.mod-ic{font-size:15px;width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.mod-nm{font-size:15px;font-weight:700;letter-spacing:-.02em}
+.mod-ds{font-size:10px;color:var(--t2);margin-top:1px}
+.mod-prog{font-family:var(--fn);font-size:10px;color:var(--t3);margin-left:auto;background:var(--bg3);padding:2px 7px;border-radius:3px;border:1px solid var(--bd)}
+.mod-prog .dc{color:var(--gr)}
+
+/* ENDPOINT */
+.ep{border:1px solid var(--bd);border-radius:8px;margin-bottom:.5rem;overflow:hidden;transition:border-color .1s}
+.ep:hover{border-color:var(--bd2)}
+.ep.open{border-color:rgba(0,229,160,.3)}
+.ep.done{border-color:rgba(0,229,160,.2);background:rgba(0,229,160,.01)}
+.ep-hd{display:flex;align-items:center;gap:.5rem;padding:.55rem .85rem;cursor:pointer;background:var(--bg2);user-select:none}
+.ep-hd:hover{background:var(--bg3)}
+.ep.open .ep-hd{background:var(--bg3)}
+
+/* CHECKBOX */
+.chk{width:17px;height:17px;border-radius:4px;border:1.5px solid var(--bd2);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+.chk:hover{border-color:var(--gr)}
+.chk.on{background:var(--gr);border-color:var(--gr)}
+.chk.on::after{content:"✓";font-size:10px;color:#000;font-weight:700}
+
+.mt{font-family:var(--fn);font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;min-width:46px;text-align:center;flex-shrink:0}
+.mg{background:rgba(79,142,247,.15);color:var(--bl)}
+.mp{background:rgba(0,229,160,.15);color:var(--gr)}
+.mpu{background:rgba(249,123,61,.15);color:var(--or)}
+.mpa{background:rgba(251,191,36,.15);color:var(--ye)}
+.md{background:rgba(247,79,106,.15);color:var(--rd)}
+
+.ep-path{font-family:var(--fn);font-size:11px;color:var(--t1);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ep-path .pm{color:var(--gr)}
+.ep-sm{font-size:10px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
+.ep-auth{font-size:8px;color:var(--ye);background:var(--yed);padding:2px 5px;border-radius:3px;font-family:var(--fn);flex-shrink:0}
+.ep-innov{font-size:8px;color:var(--gr);background:var(--grd);padding:2px 5px;border-radius:3px;font-family:var(--fn);flex-shrink:0}
+.ep-arr{color:var(--t3);transition:transform .18s;flex-shrink:0;font-size:9px;margin-left:.2rem}
+.ep.open .ep-arr{transform:rotate(90deg)}
+
+.ep-body{display:none;border-top:1px solid var(--bd);background:var(--bg)}
+.ep.open .ep-body{display:block}
+.ep-bi{padding:1rem 1.1rem}
+.ep-desc{font-size:11px;color:var(--t2);margin-bottom:.85rem;line-height:1.6;padding:.5rem .75rem;background:var(--bg2);border-radius:6px;border-left:2px solid var(--bd2)}
+.ep-desc.inn{border-left-color:var(--gr);background:rgba(0,229,160,.03);color:var(--t1)}
+
+/* TABS */
+.tabs{display:flex;border-bottom:1px solid var(--bd);margin-bottom:.85rem}
+.tab{font-size:10px;font-family:var(--fn);padding:5px 12px;cursor:pointer;color:var(--t3);border-bottom:2px solid transparent;background:transparent;border-top:none;border-left:none;border-right:none;transition:all .1s}
+.tab:hover{color:var(--t2)}
+.tab.on{color:var(--gr);border-bottom-color:var(--gr)}
+.tc{display:none}.tc.on{display:block}
+
+/* TABLES */
+.stit{font-size:8px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:.4rem;font-family:var(--fn);display:flex;align-items:center;gap:.4rem}
+.stit::after{content:'';flex:1;height:1px;background:var(--bd)}
+.pt{width:100%;border-collapse:collapse;font-size:10px;margin-bottom:.85rem}
+.pt th{text-align:left;padding:3px 7px;background:var(--bg3);color:var(--t3);font-size:8px;text-transform:uppercase;letter-spacing:.07em;font-family:var(--fn)}
+.pt td{padding:4px 7px;border-top:1px solid var(--bd);color:var(--t1);vertical-align:top}
+.pt tr:hover td{background:var(--bg2)}
+.pn{font-family:var(--fn);color:var(--bl);font-size:10px}
+.pty{font-family:var(--fn);font-size:9px;color:var(--pu)}
+.pr{font-size:8px;color:var(--rd);font-family:var(--fn);font-weight:700}
+.po{font-size:8px;color:var(--t3);font-family:var(--fn)}
+.pd{color:var(--t2);font-size:10px;line-height:1.5}
+.pe{font-family:var(--fn);font-size:9px;color:var(--t3)}
+.pdef{font-family:var(--fn);font-size:9px;color:var(--ye)}
+
+/* CODE */
+.cb{background:var(--bg2);border:1px solid var(--bd);border-radius:6px;overflow:hidden;margin-bottom:.75rem;font-family:var(--fn);font-size:10.5px}
+.ch{display:flex;align-items:center;justify-content:space-between;padding:4px 9px;background:var(--bg3);border-bottom:1px solid var(--bd)}
+.cl{font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.07em}
+.ca{display:flex;align-items:center;gap:.35rem}
+.cs{font-size:8px;font-family:var(--fn);padding:1px 5px;border-radius:3px;font-weight:700}
+.cs2{color:var(--gr);background:rgba(0,229,160,.1)}.cs4{color:var(--or);background:var(--ord)}.cs5{color:var(--rd);background:var(--rdd)}
+.cc-btn{font-size:8px;color:var(--t3);cursor:pointer;padding:1px 5px;border:1px solid var(--bd);border-radius:3px;background:transparent;font-family:var(--fn)}
+.cc-btn:hover{color:var(--gr);border-color:var(--gr)}
+.cc{padding:.65rem .9rem;color:var(--t1);line-height:1.75;overflow-x:auto;white-space:pre}
+.k{color:var(--t2)}.s{color:var(--gr)}.n{color:var(--bl)}.num{color:var(--or)}.b{color:var(--ye)}.c{color:var(--t3);font-style:italic}.kw{color:var(--pu)}
+
+.ig{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.85rem}
+.ic{background:var(--bg2);border:1px solid var(--bd);border-radius:6px;padding:.5rem .75rem}
+.ict{font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:var(--t3);font-family:var(--fn);margin-bottom:.25rem}
+.icv{font-size:10px;color:var(--t1);font-family:var(--fn)}
+
+.inn-ban{background:linear-gradient(135deg,rgba(0,229,160,.05),rgba(79,142,247,.04));border:1px solid rgba(0,229,160,.14);border-radius:8px;padding:.75rem .9rem;margin-bottom:1.5rem}
+.inn-t{font-size:9px;font-weight:700;color:var(--gr);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.4rem;font-family:var(--fn)}
+.inn-g{display:grid;grid-template-columns:repeat(3,1fr);gap:.35rem}
+.inn-i{font-size:10px;color:var(--t2);display:flex;align-items:flex-start;gap:.3rem}
+.inn-i::before{content:"◈";color:var(--gr);flex-shrink:0;font-size:9px;margin-top:1px}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sb">
+  <div class="sb-top">
+    <div class="logo">
+      <div class="logo-ic">🐾</div>
+      <div><div class="logo-t">PetCat API</div><div class="logo-s">v1.0 · MySQL · REST</div></div>
+    </div>
+    <div class="base-url">localhost:3001/api/v1</div>
+  </div>
+
+  <div class="prog-box">
+    <div class="prog-row">
+      <span class="prog-lbl">Progreso backend</span>
+      <button class="reset-btn" onclick="resetAll()">Reset</button>
+    </div>
+    <div class="prog-bar"><div class="prog-fill" id="pf" style="width:0%"></div></div>
+    <div class="prog-pct"><span id="pd">0</span>/<span id="pt2">0</span> completados · <span id="pp">0</span>%</div>
+  </div>
+
+  <div class="sb-search">
+    <input type="text" placeholder="Buscar endpoint..." oninput="filterEps(this.value)">
+  </div>
+
+  <nav>
+    <div class="nav-g">
+      <div class="nav-gt">General</div>
+      <a class="nav-a on" onclick="go('ov',this)">📖 Overview</a>
+      <a class="nav-a" onclick="go('err',this)">⚠️ Errores</a>
+    </div>
+    <div class="nav-g">
+      <div class="nav-gt">Módulos</div>
+      <a class="nav-a" onclick="go('m-auth',this)">🔑 Auth <span class="nav-c">(9)</span></a>
+      <a class="nav-a" onclick="go('m-mascotas',this)">🐕 Mascotas <span class="nav-c">(9)</span></a>
+      <a class="nav-a" onclick="go('m-historial',this)">📋 Historial médico <span class="nav-c">(6)</span></a>
+      <a class="nav-a" onclick="go('m-vacunas',this)">💉 Vacunas <span class="nav-c">(5)</span></a>
+      <a class="nav-a" onclick="go('m-negocios',this)">🏥 Negocios <span class="nav-c">(8)</span></a>
+      <a class="nav-a" onclick="go('m-sucursales',this)">📍 Sucursales <span class="nav-c">(5)</span></a>
+      <a class="nav-a" onclick="go('m-empleados',this)">👨‍⚕️ Empleados <span class="nav-c">(6)</span></a>
+      <a class="nav-a" onclick="go('m-planes',this)">💎 Planes <span class="nav-c">(4)</span></a>
+      <a class="nav-a" onclick="go('m-servicios',this)">🛠 Servicios <span class="nav-c">(7)</span></a>
+      <a class="nav-a" onclick="go('m-citas',this)">📅 Citas <span class="nav-c">(10)</span></a>
+      <a class="nav-a" onclick="go('m-inventario',this)">📦 Inventario <span class="nav-c">(8)</span></a>
+      <a class="nav-a" onclick="go('m-compras',this)">🛒 Compras <span class="nav-c">(6)</span></a>
+      <a class="nav-a" onclick="go('m-pagos',this)">💳 Pagos <span class="nav-c">(5)</span></a>
+      <a class="nav-a" onclick="go('m-recordatorios',this)">🔔 Recordatorios <span class="nav-c">(5)</span></a>
+      <a class="nav-a" onclick="go('m-resenas',this)">⭐ Reseñas <span class="nav-c">(6)</span></a>
+      <a class="nav-a" onclick="go('m-comunidad',this)">💬 Comunidad <span class="nav-c">(8)</span></a>
+      <a class="nav-a" onclick="go('m-ia',this)">🤖 IA & Recom. <span class="nav-c">(5)</span></a>
+      <a class="nav-a" onclick="go('m-usuarios',this)">👤 Usuarios <span class="nav-c">(6)</span></a>
+      <a class="nav-a" onclick="go('m-admin',this)">⚙️ Admin <span class="nav-c">(4)</span></a>
+    </div>
+  </nav>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="mhd">
+    <div class="hd-row">
+      <div>
+        <div class="api-title">PetCat REST API — Guía completa</div>
+        <div class="api-sub">Request · Response · Chequea lo que ya programaste · CECAR 2026</div>
+      </div>
+      <div class="badges">
+        <span class="badge bv">v1.0.0</span>
+        <span class="badge bv" style="color:#00ff9d;border-color:rgba(0,255,157,.2)">🟢 En desarrollo</span>
+        <span class="badge bv" style="color:var(--bl);border-color:rgba(79,142,247,.2);background:var(--bld)">JWT</span>
+        <span class="badge bv" style="color:var(--pu);border-color:rgba(167,139,250,.2);background:var(--pud)">MySQL</span>
+        <span class="badge bv" style="color:var(--or);border-color:rgba(249,123,61,.2);background:var(--ord)">Prisma</span>
+      </div>
+    </div>
+    <div class="stat-bar">
+      <div class="stat"><div class="sv" style="color:var(--gr)" id="h-done">0</div><div class="sl">✅ Hechos</div></div>
+      <div class="stat"><div class="sv" style="color:var(--t2)" id="h-pend">127</div><div class="sl">⏳ Pendientes</div></div>
+      <div class="stat"><div class="sv" style="color:var(--bl)">19</div><div class="sl">Módulos</div></div>
+      <div class="stat"><div class="sv" style="color:var(--pu)">27</div><div class="sl">Tablas BD</div></div>
+      <div class="stat"><div class="sv" style="color:var(--or)">6</div><div class="sl">Jobs Cron</div></div>
+      <div class="stat"><div class="sv" style="color:var(--ye)">🤖</div><div class="sl">OpenAI IA</div></div>
+    </div>
+  </div>
+
+  <div class="cnt">
+
+<!-- OVERVIEW -->
+<div class="mod" id="ov">
+  <div class="inn-ban">
+    <div class="inn-t">✨ Innovaciones PetCat</div>
+    <div class="inn-g">
+      <div class="inn-i">IA salud personalizada por mascota</div>
+      <div class="inn-i">Recordatorios multicanal automáticos</div>
+      <div class="inn-i">Slots de citas en tiempo real</div>
+      <div class="inn-i">Auditoría de cambios por cita</div>
+      <div class="inn-i">Trazabilidad total de inventario</div>
+      <div class="inn-i">Comparador de precios entre negocios</div>
+      <div class="inn-i">Calificación granular (4 dimensiones)</div>
+      <div class="inn-i">Blacklist JWT en Redis</div>
+      <div class="inn-i">Jobs cron: vacunas, recordatorios, sesiones</div>
+    </div>
+  </div>
+  <div class="ig">
+    <div class="ic"><div class="ict">URL base desarrollo</div><div class="icv" style="color:var(--gr)">http://localhost:3001/api/v1</div></div>
+    <div class="ic"><div class="ict">URL base producción</div><div class="icv" style="color:var(--bl)">https://api.petcat.com.co/api/v1</div></div>
+    <div class="ic"><div class="ict">Content-Type</div><div class="icv">application/json</div></div>
+    <div class="ic"><div class="ict">Autenticación</div><div class="icv">Authorization: Bearer &lt;token&gt;</div></div>
+  </div>
+  <div class="cb">
+    <div class="ch"><span class="cl">Estructura estándar de respuesta</span></div>
+    <div class="cc"><span class="c">// Éxito</span>
+<span class="k">{</span> <span class="s">"success"</span><span class="k">:</span> <span class="b">true</span><span class="k">,</span> <span class="s">"message"</span><span class="k">:</span> <span class="s">"OK"</span><span class="k">,</span> <span class="s">"data"</span><span class="k">:</span> <span class="k">{}</span> <span class="k">}</span>
+
+<span class="c">// Lista paginada</span>
+<span class="k">{</span> <span class="s">"success"</span><span class="k">:</span> <span class="b">true</span><span class="k">,</span> <span class="s">"data"</span><span class="k">:</span> <span class="k">[]</span><span class="k">,</span>
+  <span class="s">"meta"</span><span class="k">:</span> <span class="k">{</span> <span class="s">"total"</span><span class="k">:</span> <span class="num">143</span><span class="k">,</span> <span class="s">"page"</span><span class="k">:</span> <span class="num">1</span><span class="k">,</span> <span class="s">"limit"</span><span class="k">:</span> <span class="num">20</span><span class="k">,</span> <span class="s">"totalPages"</span><span class="k">:</span> <span class="num">8</span><span class="k">,</span> <span class="s">"hasNext"</span><span class="k">:</span> <span class="b">true</span> <span class="k">}</span> <span class="k">}</span>
+
+<span class="c">// Error</span>
+<span class="k">{</span> <span class="s">"success"</span><span class="k">:</span> <span class="b">false</span><span class="k">,</span> <span class="s">"message"</span><span class="k">:</span> <span class="s">"Descripción del error"</span><span class="k">,</span> <span class="s">"errors"</span><span class="k">:</span> <span class="k">{}</span> <span class="k">}</span></div>
+  </div>
+</div>
+
+<!-- ERRORES -->
+<div class="mod" id="err">
+  <div class="mod-hd"><div class="mod-ic" style="background:var(--rdd)">⚠️</div><div><div class="mod-nm">Códigos de error</div></div></div>
+  <table class="pt">
+    <tr><th>Código</th><th>Nombre</th><th>Cuándo ocurre</th></tr>
+    <tr><td><span class="pn" style="color:var(--gr)">200</span></td><td>OK</td><td class="pd">Operación exitosa</td></tr>
+    <tr><td><span class="pn" style="color:var(--gr)">201</span></td><td>Created</td><td class="pd">Recurso creado</td></tr>
+    <tr><td><span class="pn" style="color:var(--or)">400</span></td><td>Bad Request</td><td class="pd">Datos malformados</td></tr>
+    <tr><td><span class="pn" style="color:var(--or)">401</span></td><td>Unauthorized</td><td class="pd">Token ausente, inválido o expirado</td></tr>
+    <tr><td><span class="pn" style="color:var(--or)">403</span></td><td>Forbidden</td><td class="pd">Sin permiso de rol o recurso ajeno</td></tr>
+    <tr><td><span class="pn" style="color:var(--or)">404</span></td><td>Not Found</td><td class="pd">Recurso no encontrado</td></tr>
+    <tr><td><span class="pn" style="color:var(--ye)">409</span></td><td>Conflict</td><td class="pd">Email duplicado, slot ocupado</td></tr>
+    <tr><td><span class="pn" style="color:var(--ye)">422</span></td><td>Unprocessable</td><td class="pd">Validación Zod fallida</td></tr>
+    <tr><td><span class="pn" style="color:var(--ye)">429</span></td><td>Too Many Requests</td><td class="pd">Rate limit excedido</td></tr>
+    <tr><td><span class="pn" style="color:var(--rd)">500</span></td><td>Server Error</td><td class="pd">Error interno del servidor</td></tr>
+  </table>
+</div>
+
+<!-- HELPER MACROS (inline via JS) -->
+<script>
+// Endpoint builder helper
+function ep(id, mod, method, path, summary, authLabel, innovLabel, bodyHtml) {
+  const mc = {GET:'mg',POST:'mp',PUT:'mpu',PATCH:'mpa',DELETE:'md'};
+  return `
+  <div class="ep" data-id="${id}" data-mod="${mod}" id="ep-${id}">
+    <div class="ep-hd">
+      <div class="chk" id="chk-${id}" onclick="toggleDone('${id}',event)"></div>
+      <span class="mt ${mc[method]}">${method}</span>
+      <span class="ep-path">${path.replace(/:([a-z_]+)/g,'<span class="pm">:$1</span>')}</span>
+      ${authLabel?`<span class="ep-auth">${authLabel}</span>`:''}
+      ${innovLabel?`<span class="ep-innov">${innovLabel}</span>`:''}
+      <span class="ep-sm">${summary}</span>
+      <span class="ep-arr" onclick="toggleEp(this.closest('.ep'))">▶</span>
+    </div>
+    <div class="ep-body"><div class="ep-bi">${bodyHtml}</div></div>
+  </div>`;
+}
+
+function tabs(id, items) {
+  const hdrs = items.map((it,i)=>`<button class="tab${i===0?' on':''}" onclick="swTab(this,'${id}-${i}')">${it[0]}</button>`).join('');
+  const bodies = items.map((it,i)=>`<div class="tc${i===0?' on':''}" id="${id}-${i}">${it[1]}</div>`).join('');
+  return `<div class="tabs">${hdrs}</div>${bodies}`;
+}
+
+function code(lang, content, status) {
+  const sc = status ? (status<300?'cs2':status<500?'cs4':'cs5') : '';
+  return `<div class="cb"><div class="ch"><span class="cl">${lang}</span><div class="ca">${status?`<span class="cs ${sc}">${status}</span>`:''}<button class="cc-btn" onclick="cp(this)">Copiar</button></div></div><div class="cc">${content}</div></div>`;
+}
+
+function ptable(rows) {
+  return `<table class="pt"><tr><th>Campo</th><th>Tipo</th><th>Req</th><th>Descripción</th><th>Ejemplo / Default</th></tr>${rows.map(r=>`<tr><td class="pn">${r[0]}</td><td class="pty">${r[1]}</td><td class="${r[2]==='✱'?'pr':'po'}">${r[2]}</td><td class="pd">${r[3]}</td><td class="pe">${r[4]||''}</td></tr>`).join('')}</table>`;
+}
+
+function qparams(rows) {
+  return `<div class="stit">Query params</div>${ptable(rows)}`;
+}
+
+// ── MÓDULO: AUTH ──────────────────────────────────────────
+document.write(`
+<div class="mod" id="m-auth">
+<div class="mod-hd">
+  <div class="mod-ic" style="background:var(--grd)">🔑</div>
+  <div><div class="mod-nm">Autenticación</div><div class="mod-ds">Registro, login, sesiones JWT, recuperación de contraseña</div></div>
+  <span class="mod-prog" id="mp-m-auth"><span class="dc">0</span>/9</span>
+</div>
+
+${ep('auth-register','m-auth','POST','/auth/register','Registrar usuario','','',
+tabs('ar',[
+  ['📤 Request', code('POST /auth/register',
+`<span class="k">{</span>
+  <span class="s">"nombre"</span><span class="k">:</span>             <span class="s">"Carlos"</span>,
+  <span class="s">"apellido"</span><span class="k">:</span>           <span class="s">"Pérez Gómez"</span>,
+  <span class="s">"email"</span><span class="k">:</span>              <span class="s">"carlos@email.com"</span>,
+  <span class="s">"password"</span><span class="k">:</span>           <span class="s">"MiPass1!"</span>,      <span class="c">// min 8 + mayúscula + número + especial</span>
+  <span class="s">"confirmar_password"</span><span class="k">:</span> <span class="s">"MiPass1!"</span>,
+  <span class="s">"telefono"</span><span class="k">:</span>           <span class="s">"+57 301 234 5678"</span>,
+  <span class="s">"tipo_usuario"</span><span class="k">:</span>       <span class="s">"cliente"</span>          <span class="c">// "cliente" | "negocio"</span>
+<span class="k">}</span>`)],
+  ['✅ 201',code('201 Created',
+`<span class="k">{</span>
+  <span class="s">"success"</span><span class="k">:</span> <span class="b">true</span>,
+  <span class="s">"message"</span><span class="k">:</span> <span class="s">"Cuenta creada. Revisa tu email para verificar."</span>,
+  <span class="s">"data"</span><span class="k">:</span> <span class="k">{</span>
+    <span class="s">"id_usuario"</span><span class="k">:</span>      <span class="num">42</span>,
+    <span class="s">"nombre"</span><span class="k">:</span>          <span class="s">"Carlos"</span>,
+    <span class="s">"apellido"</span><span class="k">:</span>        <span class="s">"Pérez Gómez"</span>,
+    <span class="s">"email"</span><span class="k">:</span>           <span class="s">"carlos@email.com"</span>,
+    <span class="s">"tipo_usuario"</span><span class="k">:</span>    <span class="s">"cliente"</span>,
+    <span class="s">"fecha_registro"</span><span class="k">:</span>  <span class="s">"2026-04-09T14:30:00.000Z"</span>
+  <span class="k">}</span>
+<span class="k">}</span>`,201)],
+  ['❌ Errores',
+    code('409 — Email duplicado',`<span class="k">{</span><span class="s">"success"</span><span class="k">:</span><span class="b">false</span><span class="k">,</span><span class="s">"message"</span><span class="k">:</span><span class="s">"Ya existe una cuenta con ese email"</span><span class="k">}</span>`,409)+
+    code('422 — Validación',`<span class="k">{</span><span class="s">"success"</span><span class="k">:</span><span class="b">false</span><span class="k">,</span><span class="s">"message"</span><span class="k">:</span><span class="s">"Error de validación"</span><span class="k">,</span><span class="s">"errors"</span><span class="k">:{</span><span class="s">"password"</span><span class="k">:[</span><span class="s">"Debe contener al menos un número"</span><span class="k">]</span><span class="k">}}</span>`,422)],
+  ['📋 Campos', ptable([
+    ['nombre','string','✱','Nombre. 2–80 chars','"Carlos"'],
+    ['apellido','string','✱','Apellido. 2–80 chars','"Pérez"'],
+    ['email','email','✱','Único, normalizado a minúsculas','"user@email.com"'],
+    ['password','string','✱','Min 8 + 1 mayúsc + 1 núm + 1 especial','"MiPass1!"'],
+    ['confirmar_password','string','✱','Debe coincidir con password',''],
+    ['telefono','string','opt','7–20 chars','+57 301 234 5678'],
+    ['tipo_usuario','enum','opt','"cliente" | "negocio"','Default: "cliente"'],
+  ])]
+])
+)}
+
+${ep('auth-login','m-auth','POST','/auth/login','Iniciar sesión','','',
+tabs('al',[
+  ['📤 Request', code('POST /auth/login',
+`<span class="k">{</span>
+  <span class="s">"email"</span><span class="k">:</span>    <span class="s">"carlos@email.com"</span>,
+  <span class="s">"password"</span><span class="k">:</span> <span class="s">"MiPass1!"</span>
+<span class="k">}</span>`)],
+  ['✅ 200', code('200 OK — devuelve access_token + refresh_token',
+`<span class="k">{</span>
+  <span class="s">"success"</span><span class="k">:</span> <span class="b">true</span>,
+  <span class="s">"message"</span><span class="k">:</span> <span class="s">"Inicio de sesión exitoso"</span>,
+  <span class="s">"data"</span><span class="k">:</span> <span class="k">{</span>
+    <span class="s">"access_token"</span><span class="k">:</span>  <span class="s">"eyJhbGciOiJIUzI1NiJ9..."</span>,
+    <span class="s">"refresh_token"</span><span class="k">:</span> <span class="s">"eyJhbGciOiJIUzI1NiJ9..."</span>,
+    <span class="s">"expires_in"</span><span class="k">:</span>    <span class="s">"7d"</span>,
+    <span class="s">"usuario"</span><span class="k">:</span> <span class="k">{</span>
+      <span class="s">"id_usuario"</span><span class="k">:</span>       <span class="num">42</span>,
+      <span class="s">"nombre"</span><span class="k">:</span>           <span class="s">"Carlos"</span>,
+      <span class="s">"email"</span><span class="k">:</span>            <span class="s">"carlos@email.com"</span>,
+      <span class="s">"tipo_usuario"</span><span class="k">:</span>     <span class="s">"cliente"</span>,
+      <span class="s">"foto_url"</span><span class="k">:</span>         <span class="b">null</span>,
+      <span class="s">"email_verificado"</span><span class="k">:</span> <span class="b">true</span>,
+      <span class="s">"id_negocio"</span><span class="k">:</span>       <span class="b">null</span>
+    <span class="k">}</span>
+  <span class="k">}</span>
+<span class="k">}</span>`,200)],
+  ['❌ Errores',
+    code('401 — Credenciales',`<span class="k">{</span><span class="s">"success"</span><span class="k">:</span><span class="b">false</span><span class="k">,</span><span class="s">"message"</span><span class="k">:</span><span class="s">"Credenciales incorrectas. Intentos restantes: 3"</span><span class="k">}</span>`,401)+
+    code('403 — Bloqueado',`<span class="k">{</span><span class="s">"success"</span><span class="k">:</span><span class="b">false</span><span class="k">,</span><span class="s">"message"</span><span class="k">:</span><span class="s">"Demasiados intentos. Cuenta bloqueada por 1 hora."</span><span class="k">}</span>`,403)]
+])
+)}
+
+${ep('auth-refresh','m-auth','POST','/auth/refresh-token','Renovar token','','',
+tabs('arf',[
+  ['📤 Request',code('POST /auth/refresh-token',`<span class="k">{</span><span class="s">"refresh_token"</span><span class="k">:</span><span class="s">"eyJhbGci..."</span><span class="k">}</span>`)],
+  ['✅ 200',code('200',`<span class="k">{</span><span class="s">"data"</span><span class="k">:{</span><span class="s">"access_token"</span><span class="k">:</span><span class="s">"eyJ..."</span><span class="k">,</span><span class="s">"expires_in"</span><span class="k">:</span><span class="s">"7d"</span><span class="k">}}</span>`,200)]
+]))}
+
+${ep('auth-logout','m-auth','POST','/auth/logout','Cerrar sesión','🔒 JWT','',
+`<div class="ep-desc">No requiere body. Añade el token a blacklist Redis y lo invalida en BD.</div>`+
+code('200 OK',`<span class="k">{</span><span class="s">"success"</span><span class="k">:</span><span class="b">true</span><span class="k">,</span><span class="s">"message"</span><span class="k">:</span><span class="s">"Sesión cerrada exitosamente"</span><span class="k">,</span><span class="s">"data"</span><span class="k">:</span><span class="b">null</span><span class="k">}</span>`,200))}
+
+${ep('auth-me','m-auth','GET','/auth/me','Perfil del usuario autenticado','🔒 JWT','',
+code('200 OK — datos completos del usuario',
+`<span class="k">{</span> <span class="s">"data"</span><span class="k">:</span> <span class="k">{</span>
+  <span class="s">"id_usuario"</span><span class="k">:</span>         <span class="num">42</span><span class="k">,</span>
+  <span class="s">"nombre"</span><span class="k">:</span>             <span class="s">"Carlos"</span><span class="k">,</span>
+  <span class="s">"apellido"</span><span class="k">:</span>           <span class="s">"Pérez Gómez"</span><span class="k">,</span>
+  <span class="s">"email"</span><span class="k">:</span>              <span class="s">"carlos@email.com"</span><span class="k">,</span>
+  <span class="s">"telefono"</span><span class="k">:</span>           <span class="s">"+57 301 234 5678"</span><span class="k">,</span>
+  <span class="s">"foto_url"</span><span class="k">:</span>           <span class="s">"https://res.cloudinary.com/..."</span><span class="k">,</span>
+  <span class="s">"tipo_usuario"</span><span class="k">:</span>       <span class="s">"cliente"</span><span class="k">,</span>
+  <span class="s">"email_verificado"</span><span class="k">:</span>   <span class="b">true</span><span class="k">,</span>
+  <span class="s">"notif_push"</span><span class="k">:</span>         <span class="b">true</span><span class="k">,</span>
+  <span class="s">"notif_whatsapp"</span><span class="k">:</span>     <span class="b">true</span><span class="k">,</span>
+  <span class="s">"zona_horaria"</span><span class="k">:</span>       <span class="s">"America/Bogota"</span><span class="k">,</span>
+  <span class="s">"ultimo_acceso"</span><span class="k">:</span>      <span class="s">"2026-04-09T14:30:00.000Z"</span>
+<span class="k">}</span> <span class="k">}</span>`,200))}
+
+${ep('auth-forgot','m-auth','POST','/auth/forgot-password','Recuperar contraseña','','',
+tabs('afg',[
+  ['📤 Request',code('POST /auth/forgot-password',`<span class="k">{</span><span class="s">"email"</span><span class="k">:</span><span class="s">"carlos@email.com"</span><span class="k">}</span>`)],
+  ['✅ 200',code('200 — siempre 200 para no revelar si existe',`<span class="k">{</span><span class="s">"success"</span><span class="k">:</span><span class="b">true</span><span class="k">,</span><span class="s">"message"</span><span class="k">:</span><span class="s">"Si el email existe recibirás el enlace de recuperación"</span><span class="k">}</span>`,200)]
+]))}
+
+${ep('auth-reset','m-auth','POST','/auth/reset-password','Restablecer contraseña','','',
+tabs('ars',[
+  ['📤 Request',code('POST /auth/reset-password',
+`<span class="k">{</span>
+  <span class="s">"token"</span><span class="k">:</span>             <span class="s">"uuid-del-email"</span>,
+  <span class="s">"password"</span><span class="k">:</span>          <span class="s">"NuevaPass1!"</span>,
+  <span class="s">"confirmar_password"</span><span class="k">:</span><span class="s">"NuevaPass1!"</span>
+<span class="k">}</span>`)],
+  ['✅ 200',code('200',`<span class="k">{</span><span class="s">"success"</span><span class="k">:</span><span class="b">true</span><span class="k">,</span><span class="s">"message"</span><span class="k">:</span><span class="s">"Contraseña restablecida exitosamente"</span><span class="k">}</span>`,200)],
+  ['❌ Error',code('400 — token expirado',`<span class="k">{</span><span class="s">"success"</span><span class="k">:</span><span class="b">false</span><span class="k">,</span><span class="s">"message"</span><span class="k">:</span><span class="s">"Token inválido o expirado"</span><span class="k">}</span>`,400)]
+]))}
+
+${ep('auth-verify','m-auth','GET','/auth/verify-email/:token','Verificar email','','',
+code('200 OK',`<span class="k">{</span><span class="s">"success"</span><span class="k">:</span><span class="b">true</span><span class="k">,</span><span class="s">"message"</span><span class="k">:</span><span class="s">"Email verificado exitosamente"</span><span class="k">,</span><span class="s">"data"</span><span class="k">:</span><span class="b">null</span><span class="k">}</span>`,200))}
+
+${ep('auth-chpass','m-auth','POST','/auth/change-password','Cambiar contraseña','🔒 JWT','',
+tabs('acp',[
+  ['📤 Request',code('POST /auth/change-password',
+`<span class="k">{</span>
+  <span class="s">"password_actual"</span><span class="k">:</span>    <span class="s">"MiPass1!"</span>,
+  <span class="s">"password_nuevo"</span><span class="k">:</span>     <span class="s">"NuevoPass2@"</span>,
+  <span class="s">"confirmar_password"</span><span class="k">:</span> <span class="s">"NuevoPass2@"</span>
+<span class="k">}</span>`)],
+  ['✅ 200',code('200',`<span class="k">{</span><span class="s">"success"</span><span class="k">:</span><span class="b">true</span><span class="k">,</span><span class="s">"message"</span><span class="k">:</span><span class="s">"Contraseña actualizada exitosamente"</span><span class="k">}</span>`,200)],
+  ['❌ Error',code('401',`<span class="k">{</span><span class="s">"success"</span><span class="k">:</span><span class="b">false</span><span class="k">,</span><span class="s">"message"</span><span class="k">:</span><span class="s">"Contraseña actual incorrecta"</span><span class="k">}</span>`,401)]
+]))}
+</div>`);
+
+// ── MÓDULO: MASCOTAS ─────────────────────────────────────
+document.write(`
+<div class="mod" id="m-mascotas">
+<div class="mod-hd">
+  <div class="mod-ic" style="background:var(--ord)">🐕</div>
+  <div><div class="mod-nm">Mascotas</div><div class="mod-ds">Perfil completo, historial médico, vacunas y resumen de salud con IA</div></div>
+  <span class="mod-prog" id="mp-m-mascotas"><span class="dc">0</span>/9</span>
+</div>
+
+${ep('mas-list','m-mascotas','GET','/mascotas','Listar mascotas del usuario','🔒 JWT','',
+`<div class="ep-desc">No requiere body ni query params. Devuelve todas las mascotas activas del usuario autenticado.</div>`+
+code('200 OK',
+`<span class="k">{</span> <span class="s">"data"</span><span class="k">:</span> <span class="k">[{</span>
+  <span class="s">"id_mascota"</span><span class="k">:</span>         <span class="num">7</span><span class="k">,</span>  <span class="s">"nombre"</span><span class="k">:</span>  <span class="s">"Rex"</span><span class="k">,</span>  <span class="s">"especie"</span><span class="k">:</span> <span class="s">"perro"</span><span class="k">,</span>
+  <span class="s">"raza"</span><span class="k">:</span>               <span class="s">"Labrador Retriever"</span><span class="k">,</span>
+  <span class="s">"fecha_nacimiento"</span><span class="k">:</span>   <span class="s">"2022-03-15"</span><span class="k">,</span>  <span class="s">"sexo"</span><span class="k">:</span> <span class="s">"macho"</span><span class="k">,</span>
+  <span class="s">"peso"</span><span class="k">:</span>               <span class="num">28.5</span><span class="k">,</span>  <span class="s">"microchip"</span><span class="k">:</span> <span class="s">"985112345678901"</span><span class="k">,</span>
+  <span class="s">"esterilizado"</span><span class="k">:</span>       <span class="b">false</span><span class="k">,</span>  <span class="s">"tiene_alergias"</span><span class="k">:</span> <span class="b">false</span><span class="k">,</span>
+  <span class="s">"foto_url"</span><span class="k">:</span>           <span class="s">"https://res.cloudinary.com/petcat/..."</span><span class="k">,</span>
+  <span class="s">"activo"</span><span class="k">:</span>             <span class="b">true</span><span class="k">,</span>  <span class="s">"fallecido"</span><span class="k">:</span> <span class="b">false</span>
+<span class="k">}] }</span>`,200))}
+
+${ep('mas-create','m-mascotas','POST','/mascotas','Registrar mascota','🔒 JWT','',
+tabs('mc',[
+  ['📤 Request',code('POST /mascotas — JSON o multipart/form-data si hay foto',
+`<span class="k">{</span>
+  <span class="s">"nombre"</span><span class="k">:</span>              <span class="s">"Rex"</span>,
+  <span class="s">"especie"</span><span class="k">:</span>             <span class="s">"perro"</span>,       <span class="c">// perro|gato|conejo|ave|reptil|roedor|pez|otro</span>
+  <span class="s">"raza"</span><span class="k">:</span>                <span class="s">"Labrador Retriever"</span>,
+  <span class="s">"color"</span><span class="k">:</span>               <span class="s">"Dorado"</span>,
+  <span class="s">"fecha_nacimiento"</span><span class="k">:</span>    <span class="s">"2022-03-15"</span>,
+  <span class="s">"sexo"</span><span class="k">:</span>                <span class="s">"macho"</span>,       <span class="c">// macho|hembra|desconocido</span>
+  <span class="s">"peso"</span><span class="k">:</span>                <span class="num">28.5</span>,
+  <span class="s">"microchip"</span><span class="k">:</span>           <span class="s">"985112345678901"</span>,
+  <span class="s">"esterilizado"</span><span class="k">:</span>        <span class="b">false</span>,
+  <span class="s">"tiene_alergias"</span><span class="k">:</span>      <span class="b">true</span>,
+  <span class="s">"alergias_detalle"</span><span class="k">:</span>    <span class="s">"Alérgico a pollo y trigo"</span>,
+  <span class="s">"condiciones_medicas"</span><span class="k">:</span> <span class="s">"Displasia de cadera leve"</span>
+<span class="k">}</span>`)],
+  ['✅ 201',code('201 Created',
+`<span class="k">{</span><span class="s">"success"</span><span class="k">:</span><span class="b">true</span><span class="k">,</span><span class="s">"message"</span><span class="k">:</span><span class="s">"Mascota registrada exitosamente"</span><span class="k">,</span>
+ <span class="s">"data"</span><span class="k">:{</span><span class="s">"id_mascota"</span><span class="k">:</span><span class="num">15</span><span class="k">,</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Rex"</span><span class="k">,</span><span class="s">"especie"</span><span class="k">:</span><span class="s">"perro"</span><span class="k">,</span><span class="s">"foto_url"</span><span class="k">:</span><span class="b">null</span><span class="k">}}</span>`,201)],
+  ['📋 Campos', ptable([
+    ['nombre','string','✱','1–80 chars','"Rex"'],
+    ['especie','enum','✱','perro|gato|conejo|ave|reptil|roedor|pez|otro',''],
+    ['raza','string','opt','Raza de la mascota',''],
+    ['fecha_nacimiento','date','opt','YYYY-MM-DD',''],
+    ['sexo','enum','opt','macho|hembra|desconocido','Default: desconocido'],
+    ['peso','decimal','opt','Kg. Positivo, máx 999',''],
+    ['microchip','string','opt','Único en el sistema',''],
+    ['esterilizado','boolean','opt','','Default: false'],
+    ['tiene_alergias','boolean','opt','','Default: false'],
+    ['alergias_detalle','string','opt','Si tiene_alergias=true',''],
+    ['condiciones_medicas','string','opt','Condiciones preexistentes',''],
+    ['foto','file','opt','multipart. JPG/PNG/WebP. Máx 5MB',''],
+  ])]
+]))}
+
+${ep('mas-get','m-mascotas','GET','/mascotas/:id','Detalle de mascota','🔒 JWT','',
+code('200 OK',`<span class="k">{</span><span class="s">"data"</span><span class="k">:{</span><span class="c">/* objeto mascota completo */</span><span class="k">}}</span>`,200)+
+code('404',`<span class="k">{</span><span class="s">"success"</span><span class="k">:</span><span class="b">false</span><span class="k">,</span><span class="s">"message"</span><span class="k">:</span><span class="s">"Mascota no encontrada"</span><span class="k">}</span>`,404))}
+
+${ep('mas-update','m-mascotas','PUT','/mascotas/:id','Editar mascota','🔒 JWT','',
+code('PUT /mascotas/15',
+`<span class="k">{</span>
+  <span class="s">"peso"</span><span class="k">:</span>              <span class="num">30.2</span>,
+  <span class="s">"esterilizado"</span><span class="k">:</span>     <span class="b">true</span>,
+  <span class="s">"condiciones_medicas"</span><span class="k">:</span> <span class="s">"Displasia tratada — en seguimiento"</span>
+<span class="k">}</span> <span class="c">// Todos los campos son opcionales</span>`)+
+code('200 OK',`<span class="k">{</span><span class="s">"success"</span><span class="k">:</span><span class="b">true</span><span class="k">,</span><span class="s">"message"</span><span class="k">:</span><span class="s">"Mascota actualizada exitosamente"</span><span class="k">,</span><span class="s">"data"</span><span class="k">:{</span><span class="c">/*mascota*/</span><span class="k">}}</span>`,200))}
+
+${ep('mas-delete','m-mascotas','DELETE','/mascotas/:id','Eliminar mascota (lógico)','🔒 JWT','',
+`<div class="ep-desc">Eliminación lógica: activo=false. El historial médico y citas se conservan para auditoría. No requiere body.</div>`+
+code('200 OK',`<span class="k">{</span><span class="s">"success"</span><span class="k">:</span><span class="b">true</span><span class="k">,</span><span class="s">"message"</span><span class="k">:</span><span class="s">"Mascota eliminada exitosamente"</span><span class="k">,</span><span class="s">"data"</span><span class="k">:</span><span class="b">null</span><span class="k">}</span>`,200))}
+
+${ep('mas-historial','m-mascotas','GET','/mascotas/:id/historial-medico','Historial médico completo','🔒 JWT','',
+code('200 OK',
+`<span class="k">{</span> <span class="s">"data"</span><span class="k">:</span> <span class="k">[{</span>
+  <span class="s">"id_historial"</span><span class="k">:</span>     <span class="num">1</span><span class="k">,</span>  <span class="s">"tipo"</span><span class="k">:</span> <span class="s">"consulta_general"</span><span class="k">,</span>
+  <span class="s">"fecha"</span><span class="k">:</span>            <span class="s">"2026-03-15"</span><span class="k">,</span>
+  <span class="s">"diagnostico"</span><span class="k">:</span>      <span class="s">"Estado bueno, ligero sobrepeso"</span><span class="k">,</span>
+  <span class="s">"tratamiento"</span><span class="k">:</span>      <span class="s">"Dieta y ejercicio diario"</span><span class="k">,</span>
+  <span class="s">"peso_registro"</span><span class="k">:</span>    <span class="num">31.2</span><span class="k">,</span>  <span class="s">"temperatura"</span><span class="k">:</span> <span class="num">38.5</span><span class="k">,</span>
+  <span class="s">"frecuencia_cardiaca"</span><span class="k">:</span> <span class="num">88</span><span class="k">,</span>
+  <span class="s">"proximo_control"</span><span class="k">:</span>  <span class="s">"2026-09-15"</span><span class="k">,</span>
+  <span class="s">"empleados"</span><span class="k">:</span>        <span class="k">{</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Carlos"</span><span class="k">,</span><span class="s">"apellido"</span><span class="k">:</span><span class="s">"Martínez"</span><span class="k">}</span><span class="k">,</span>
+  <span class="s">"negocios"</span><span class="k">:</span>         <span class="k">{</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Veterinaria Los Laureles"</span><span class="k">}</span>
+<span class="k">}] }</span>`,200))}
+
+${ep('mas-vacunas','m-mascotas','GET','/mascotas/:id/vacunas','Vacunas de la mascota','🔒 JWT','',
+code('200 OK',
+`<span class="k">{</span> <span class="s">"data"</span><span class="k">:</span> <span class="k">[{</span>
+  <span class="s">"id_vacuna"</span><span class="k">:</span>        <span class="num">3</span><span class="k">,</span>  <span class="s">"nombre_vacuna"</span><span class="k">:</span> <span class="s">"Antirrábica"</span><span class="k">,</span>
+  <span class="s">"laboratorio"</span><span class="k">:</span>      <span class="s">"Nobivac"</span><span class="k">,</span>  <span class="s">"lote"</span><span class="k">:</span> <span class="s">"A230145"</span><span class="k">,</span>
+  <span class="s">"fecha_aplicacion"</span><span class="k">:</span> <span class="s">"2025-04-10"</span><span class="k">,</span>
+  <span class="s">"fecha_proxima"</span><span class="k">:</span>    <span class="s">"2026-04-10"</span><span class="k">,</span>
+  <span class="s">"estado"</span><span class="k">:</span>           <span class="s">"proximo"</span>  <span class="c">// al_dia | proximo | vencido</span>
+<span class="k">}] }</span>`,200))}
+
+${ep('mas-citas','m-mascotas','GET','/mascotas/:id/citas','Historial de citas','🔒 JWT','',
+code('200 OK — últimas 20 citas',
+`<span class="k">{</span><span class="s">"data"</span><span class="k">:[{</span><span class="s">"id_cita"</span><span class="k">:</span><span class="num">88</span><span class="k">,</span><span class="s">"fecha"</span><span class="k">:</span><span class="s">"2026-03-28"</span><span class="k">,</span><span class="s">"estado"</span><span class="k">:</span><span class="s">"completada"</span><span class="k">,</span>
+ <span class="s">"precio_final"</span><span class="k">:</span><span class="num">60000</span><span class="k">,</span><span class="s">"servicios"</span><span class="k">:{</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Consulta general"</span><span class="k">}</span><span class="k">,</span>
+ <span class="s">"negocios"</span><span class="k">:{</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Veterinaria Los Laureles"</span><span class="k">}}]}</span>`,200))}
+
+${ep('mas-ia','m-mascotas','GET','/mascotas/:id/resumen-salud','🤖 Resumen IA de salud','🔒 JWT','🤖 IA',
+`<div class="ep-desc inn">✨ INNOVACIÓN: Genera análisis personalizado con GPT-4o-mini basado en historial real, vacunas, peso y condiciones. Respuesta cacheada 1h en Redis.</div>`+
+code('200 OK',
+`<span class="k">{</span>
+  <span class="s">"data"</span><span class="k">:</span> <span class="k">{</span>
+    <span class="s">"resumen"</span><span class="k">:</span>     <span class="s">"Rex se encuentra en buen estado general. Su vacuna antirrábica vence en 15 días. El peso aumentó 2kg desde la última visita, se recomienda ajuste de dieta."</span>,
+    <span class="s">"generado_por"</span><span class="k">:</span> <span class="s">"IA PetCat"</span>,
+    <span class="s">"advertencia"</span><span class="k">:</span>  <span class="s">"Este análisis es informativo. Consulta siempre a un veterinario."</span>,
+    <span class="s">"fecha"</span><span class="k">:</span>        <span class="s">"2026-04-09T15:30:00.000Z"</span>
+  <span class="k">}</span>
+<span class="k">}</span>`,200))}
+</div>`);
+
+// ── MÓDULO: CITAS ────────────────────────────────────────
+document.write(`
+<div class="mod" id="m-citas">
+<div class="mod-hd">
+  <div class="mod-ic" style="background:var(--bld)">📅</div>
+  <div><div class="mod-nm">Citas</div><div class="mod-ds">Agendamiento, disponibilidad en tiempo real, auditoría completa de cambios</div></div>
+  <span class="mod-prog" id="mp-m-citas"><span class="dc">0</span>/10</span>
+</div>
+
+${ep('cit-list','m-citas','GET','/citas','Listar citas paginadas','🔒 JWT','',
+tabs('clist',[
+  ['📤 Query Params',ptable([
+    ['page','integer','opt','Página. Default: 1',''],
+    ['limit','integer','opt','Items/pág. Default: 20, máx: 100',''],
+    ['estado','enum','opt','pendiente|confirmada|en_curso|completada|cancelada|no_asistio',''],
+    ['fecha_desde','date','opt','YYYY-MM-DD',''],
+    ['fecha_hasta','date','opt','YYYY-MM-DD',''],
+    ['id_empleado','integer','opt','Filtrar por veterinario',''],
+    ['id_mascota','integer','opt','Filtrar por mascota',''],
+  ])],
+  ['✅ 200',code('200 OK — paginado con relaciones',
+`<span class="k">{</span>
+  <span class="s">"data"</span><span class="k">:</span> <span class="k">[{</span>
+    <span class="s">"id_cita"</span><span class="k">:</span>         <span class="num">101</span><span class="k">,</span>  <span class="s">"fecha"</span><span class="k">:</span> <span class="s">"2026-04-09"</span><span class="k">,</span>
+    <span class="s">"hora_inicio"</span><span class="k">:</span>     <span class="s">"09:30"</span><span class="k">,</span>  <span class="s">"hora_fin"</span><span class="k">:</span> <span class="s">"10:15"</span><span class="k">,</span>
+    <span class="s">"estado"</span><span class="k">:</span>          <span class="s">"confirmada"</span><span class="k">,</span>  <span class="s">"precio_estimado"</span><span class="k">:</span> <span class="num">35000</span><span class="k">,</span>
+    <span class="s">"prioridad"</span><span class="k">:</span>       <span class="s">"normal"</span><span class="k">,</span>  <span class="s">"notas_cliente"</span><span class="k">:</span> <span class="s">"Revisar oído"</span><span class="k">,</span>
+    <span class="s">"usuarios"</span><span class="k">:</span>        <span class="k">{</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Carlos"</span><span class="k">,</span><span class="s">"apellido"</span><span class="k">:</span><span class="s">"Pérez"</span><span class="k">,</span><span class="s">"telefono"</span><span class="k">:</span><span class="s">"+57..."</span><span class="k">}</span><span class="k">,</span>
+    <span class="s">"mascotas"</span><span class="k">:</span>        <span class="k">{</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Rex"</span><span class="k">,</span><span class="s">"especie"</span><span class="k">:</span><span class="s">"perro"</span><span class="k">}</span><span class="k">,</span>
+    <span class="s">"servicios"</span><span class="k">:</span>       <span class="k">{</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Baño y corte"</span><span class="k">,</span><span class="s">"duracion_minutos"</span><span class="k">:</span><span class="num">45</span><span class="k">}</span><span class="k">,</span>
+    <span class="s">"empleados"</span><span class="k">:</span>       <span class="k">{</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Ana"</span><span class="k">,</span><span class="s">"apellido"</span><span class="k">:</span><span class="s">"Gómez"</span><span class="k">}</span><span class="k">,</span>
+    <span class="s">"sucursales"</span><span class="k">:</span>      <span class="k">{</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Sede principal"</span><span class="k">}</span>
+  <span class="k">}]</span>,
+  <span class="s">"meta"</span><span class="k">:</span> <span class="k">{</span><span class="s">"total"</span><span class="k">:</span><span class="num">47</span><span class="k">,</span><span class="s">"page"</span><span class="k">:</span><span class="num">1</span><span class="k">,</span><span class="s">"limit"</span><span class="k">:</span><span class="num">20</span><span class="k">,</span><span class="s">"totalPages"</span><span class="k">:</span><span class="num">3</span><span class="k">,</span><span class="s">"hasNext"</span><span class="k">:</span><span class="b">true</span><span class="k">}</span>
+<span class="k">}</span>`,200)]
+]))}
+
+${ep('cit-disp','m-citas','GET','/citas/disponibilidad','🕐 Slots disponibles en tiempo real','🔒 JWT','🕐 Real-time',
+tabs('cd',[
+  ['📤 Query Params',ptable([
+    ['id_negocio','integer','✱','ID del negocio',''],
+    ['id_servicio','integer','✱','Define la duración del slot',''],
+    ['fecha','date','✱','Fecha a consultar (YYYY-MM-DD)',''],
+    ['id_empleado','integer','opt','Si se quiere un veterinario específico',''],
+  ])],
+  ['✅ 200',code('200 OK — slots calculados automáticamente',
+`<span class="k">{</span>
+  <span class="s">"data"</span><span class="k">:</span> <span class="k">{</span>
+    <span class="s">"slots"</span><span class="k">:</span> <span class="k">[</span>
+      <span class="k">{</span><span class="s">"hora"</span><span class="k">:</span><span class="s">"07:00"</span><span class="k">,</span><span class="s">"disponible"</span><span class="k">:</span><span class="b">true</span><span class="k">}</span><span class="k">,</span>
+      <span class="k">{</span><span class="s">"hora"</span><span class="k">:</span><span class="s">"07:45"</span><span class="k">,</span><span class="s">"disponible"</span><span class="k">:</span><span class="b">false</span><span class="k">}</span><span class="k">,</span>  <span class="c">// ocupado</span>
+      <span class="k">{</span><span class="s">"hora"</span><span class="k">:</span><span class="s">"09:30"</span><span class="k">,</span><span class="s">"disponible"</span><span class="k">:</span><span class="b">true</span><span class="k">}</span>
+    <span class="k">]</span><span class="k">,</span>
+    <span class="s">"duracion_minutos"</span><span class="k">:</span> <span class="num">45</span><span class="k">,</span>
+    <span class="s">"mensaje"</span><span class="k">:</span>         <span class="b">null</span>  <span class="c">// "No hay atención ese día" si está cerrado</span>
+  <span class="k">}</span>
+<span class="k">}</span>`,200)]
+]))}
+
+${ep('cit-create','m-citas','POST','/citas','Crear nueva cita','🔒 JWT','',
+tabs('cc',[
+  ['📤 Request',code('POST /citas',
+`<span class="k">{</span>
+  <span class="s">"id_negocio"</span><span class="k">:</span>    <span class="num">1</span>,
+  <span class="s">"id_sucursal"</span><span class="k">:</span>   <span class="num">2</span>,             <span class="c">// opcional</span>
+  <span class="s">"id_mascota"</span><span class="k">:</span>    <span class="num">7</span>,             <span class="c">// debe pertenecer al usuario</span>
+  <span class="s">"id_servicio"</span><span class="k">:</span>   <span class="num">3</span>,
+  <span class="s">"id_empleado"</span><span class="k">:</span>   <span class="num">5</span>,             <span class="c">// opcional</span>
+  <span class="s">"fecha"</span><span class="k">:</span>         <span class="s">"2026-04-10"</span>,  <span class="c">// YYYY-MM-DD, no puede ser pasada</span>
+  <span class="s">"hora_inicio"</span><span class="k">:</span>   <span class="s">"09:30"</span>,       <span class="c">// debe ser slot disponible</span>
+  <span class="s">"notas_cliente"</span><span class="k">:</span> <span class="s">"Revisar oído derecho también"</span>,
+  <span class="s">"prioridad"</span><span class="k">:</span>     <span class="s">"normal"</span>       <span class="c">// normal | alta | urgente</span>
+<span class="k">}</span>`)],
+  ['✅ 201',code('201 Created',
+`<span class="k">{</span>
+  <span class="s">"success"</span><span class="k">:</span> <span class="b">true</span>,
+  <span class="s">"message"</span><span class="k">:</span> <span class="s">"Cita agendada exitosamente"</span>,
+  <span class="s">"data"</span><span class="k">:</span> <span class="k">{</span>
+    <span class="s">"id_cita"</span><span class="k">:</span>         <span class="num">101</span><span class="k">,</span>  <span class="s">"estado"</span><span class="k">:</span> <span class="s">"pendiente"</span><span class="k">,</span>
+    <span class="s">"hora_fin"</span><span class="k">:</span>        <span class="s">"10:15"</span><span class="k">,</span>  <span class="c">// calculado automáticamente</span>
+    <span class="s">"precio_estimado"</span><span class="k">:</span> <span class="num">35000</span><span class="k">,</span>
+    <span class="s">"servicios"</span><span class="k">:</span>       <span class="k">{</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Baño y corte"</span><span class="k">,</span><span class="s">"duracion_minutos"</span><span class="k">:</span><span class="num">45</span><span class="k">}</span><span class="k">,</span>
+    <span class="s">"negocios"</span><span class="k">:</span>        <span class="k">{</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Veterinaria Los Laureles"</span><span class="k">}</span><span class="k">,</span>
+    <span class="s">"mascotas"</span><span class="k">:</span>        <span class="k">{</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Rex"</span><span class="k">}</span>
+  <span class="k">}</span>
+<span class="k">}</span>`,201)],
+  ['❌ Errores',
+    code('409 — slot ocupado',`<span class="k">{</span><span class="s">"success"</span><span class="k">:</span><span class="b">false</span><span class="k">,</span><span class="s">"message"</span><span class="k">:</span><span class="s">"El horario seleccionado no está disponible"</span><span class="k">}</span>`,409)+
+    code('404 — mascota no pertenece al usuario',`<span class="k">{</span><span class="s">"success"</span><span class="k">:</span><span class="b">false</span><span class="k">,</span><span class="s">"message"</span><span class="k">:</span><span class="s">"Mascota no encontrada"</span><span class="k">}</span>`,404)]
+]))}
+
+${ep('cit-get','m-citas','GET','/citas/:id','Detalle completo de cita','🔒 JWT','',
+code('200 OK — todas las relaciones incluidas',
+`<span class="k">{</span><span class="s">"data"</span><span class="k">:{</span>
+  <span class="s">"id_cita"</span><span class="k">:</span><span class="num">101</span><span class="k">,</span> <span class="c">/* ... campos cita ... */</span>
+  <span class="s">"usuarios"</span><span class="k">:{</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Carlos"</span><span class="k">,</span><span class="s">"apellido"</span><span class="k">:</span><span class="s">"Pérez"</span><span class="k">,</span><span class="s">"email"</span><span class="k">:</span><span class="s">"..."</span><span class="k">,</span><span class="s">"telefono"</span><span class="k">:</span><span class="s">"..."</span><span class="k">}</span><span class="k">,</span>
+  <span class="s">"mascotas"</span><span class="k">:{</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Rex"</span><span class="k">,</span><span class="s">"especie"</span><span class="k">:</span><span class="s">"perro"</span><span class="k">,</span><span class="s">"raza"</span><span class="k">:</span><span class="s">"Labrador"</span><span class="k">,</span><span class="s">"peso"</span><span class="k">:</span><span class="num">28.5</span><span class="k">}</span><span class="k">,</span>
+  <span class="s">"servicios"</span><span class="k">:{</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Baño y corte"</span><span class="k">,</span><span class="s">"precio_base"</span><span class="k">:</span><span class="num">35000</span><span class="k">,</span><span class="s">"duracion_minutos"</span><span class="k">:</span><span class="num">45</span><span class="k">}</span><span class="k">,</span>
+  <span class="s">"empleados"</span><span class="k">:{</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Ana"</span><span class="k">,</span><span class="s">"especialidad"</span><span class="k">:</span><span class="s">"Estética canina"</span><span class="k">,</span><span class="s">"foto_url"</span><span class="k">:</span><span class="s">"..."</span><span class="k">}</span><span class="k">,</span>
+  <span class="s">"sucursales"</span><span class="k">:{</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Sede principal"</span><span class="k">,</span><span class="s">"direccion"</span><span class="k">:</span><span class="s">"Cra 22 #18-40"</span><span class="k">}</span><span class="k">,</span>
+  <span class="s">"negocios"</span><span class="k">:{</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Veterinaria Los Laureles"</span><span class="k">,</span><span class="s">"telefono"</span><span class="k">:</span><span class="s">"315..."</span><span class="k">}</span>
+<span class="k">}}</span>`,200))}
+
+${ep('cit-update','m-citas','PUT','/citas/:id','Editar cita (con auditoría automática)','🔒 JWT','',
+tabs('cu',[
+  ['📤 Request',code('PUT /citas/101 — motivo_cambio es requerido',
+`<span class="k">{</span>
+  <span class="s">"id_servicio"</span><span class="k">:</span>    <span class="num">5</span>,            <span class="c">// cambiar servicio (opcional)</span>
+  <span class="s">"id_empleado"</span><span class="k">:</span>    <span class="num">3</span>,            <span class="c">// cambiar veterinario (opcional)</span>
+  <span class="s">"fecha"</span><span class="k">:</span>          <span class="s">"2026-04-11"</span>,  <span class="c">// reprogramar (opcional)</span>
+  <span class="s">"hora_inicio"</span><span class="k">:</span>    <span class="s">"10:00"</span>,       <span class="c">// reprogramar (opcional)</span>
+  <span class="s">"notas_cliente"</span><span class="k">:</span>  <span class="s">"Instrucciones actualizadas"</span>,
+  <span class="s">"notas_internas"</span><span class="k">:</span> <span class="s">"Paciente en tratamiento de cadera"</span>,
+  <span class="s">"motivo_cambio"</span><span class="k">:</span>  <span class="s">"Cliente solicitó cambio por viaje"</span>  <span class="c">// REQUERIDO siempre</span>
+<span class="k">}</span>`)],
+  ['✅ 200',code('200 OK',
+`<span class="k">{</span><span class="s">"success"</span><span class="k">:</span><span class="b">true</span><span class="k">,</span><span class="s">"message"</span><span class="k">:</span><span class="s">"Cita actualizada exitosamente"</span><span class="k">,</span>
+ <span class="s">"data"</span><span class="k">:{</span><span class="s">"hora_fin"</span><span class="k">:</span><span class="s">"10:45"</span><span class="k">,</span> <span class="c">/* hora_fin recalculada */</span> <span class="k">}}</span>`,200)]
+]))}
+
+${ep('cit-estado','m-citas','PATCH','/citas/:id/estado','Cambiar estado de cita','🔒 JWT','',
+tabs('ces',[
+  ['📤 Request',code('PATCH /citas/101/estado',
+`<span class="k">{</span>
+  <span class="s">"estado"</span><span class="k">:</span>       <span class="s">"completada"</span>,  <span class="c">// pendiente|confirmada|en_curso|completada|cancelada|no_asistio</span>
+  <span class="s">"precio_final"</span><span class="k">:</span> <span class="num">38000</span>,         <span class="c">// solo al completar</span>
+  <span class="s">"motivo"</span><span class="k">:</span>       <span class="b">null</span>           <span class="c">// requerido si estado="cancelada"</span>
+<span class="k">}</span>`)],
+  ['✅ 200',code('200',`<span class="k">{</span><span class="s">"success"</span><span class="k">:</span><span class="b">true</span><span class="k">,</span><span class="s">"message"</span><span class="k">:</span><span class="s">"Estado actualizado"</span><span class="k">,</span><span class="s">"data"</span><span class="k">:{</span><span class="s">"estado"</span><span class="k">:</span><span class="s">"completada"</span><span class="k">,</span><span class="s">"precio_final"</span><span class="k">:</span><span class="num">38000</span><span class="k">}}</span>`,200)]
+]))}
+
+${ep('cit-confirmar','m-citas','PATCH','/citas/:id/confirmar','Confirmar cita + notificación push','🔒 JWT · Admin/Recep','',
+`<div class="ep-desc">No requiere body. Confirma la cita y dispara push + WhatsApp al cliente automáticamente.</div>`+
+code('200',`<span class="k">{</span><span class="s">"success"</span><span class="k">:</span><span class="b">true</span><span class="k">,</span><span class="s">"message"</span><span class="k">:</span><span class="s">"Cita confirmada"</span><span class="k">,</span><span class="s">"data"</span><span class="k">:{</span><span class="s">"estado"</span><span class="k">:</span><span class="s">"confirmada"</span><span class="k">}}</span>`,200))}
+
+${ep('cit-delete','m-citas','DELETE','/citas/:id','Cancelar cita','🔒 JWT','',
+tabs('cdel',[
+  ['📤 Request',code('DELETE /citas/101',`<span class="k">{</span><span class="s">"motivo"</span><span class="k">:</span><span class="s">"Viaje imprevisto"</span><span class="k">}</span> <span class="c">// body opcional</span>`)],
+  ['✅ 200',code('200',`<span class="k">{</span><span class="s">"success"</span><span class="k">:</span><span class="b">true</span><span class="k">,</span><span class="s">"message"</span><span class="k">:</span><span class="s">"Cita cancelada exitosamente"</span><span class="k">,</span><span class="s">"data"</span><span class="k">:</span><span class="b">null</span><span class="k">}</span>`,200)]
+]))}
+
+${ep('cit-cal','m-citas','GET','/citas/calendario','Vista calendario del panel web','🔒 JWT','',
+code('200 OK — ordenado fecha ASC',
+`<span class="k">{</span><span class="s">"data"</span><span class="k">:[{</span>
+  <span class="s">"id_cita"</span><span class="k">:</span><span class="num">101</span><span class="k">,</span> <span class="s">"fecha"</span><span class="k">:</span><span class="s">"2026-04-10"</span><span class="k">,</span> <span class="s">"hora_inicio"</span><span class="k">:</span><span class="s">"09:30"</span><span class="k">,</span> <span class="s">"hora_fin"</span><span class="k">:</span><span class="s">"10:15"</span><span class="k">,</span>
+  <span class="s">"estado"</span><span class="k">:</span><span class="s">"confirmada"</span><span class="k">,</span>
+  <span class="s">"mascotas"</span><span class="k">:{</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Rex"</span><span class="k">,</span><span class="s">"especie"</span><span class="k">:</span><span class="s">"perro"</span><span class="k">}</span><span class="k">,</span>
+  <span class="s">"servicios"</span><span class="k">:{</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Baño y corte"</span><span class="k">}</span><span class="k">,</span>
+  <span class="s">"empleados"</span><span class="k">:{</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Ana"</span><span class="k">,</span><span class="s">"apellido"</span><span class="k">:</span><span class="s">"Gómez"</span><span class="k">}</span>
+<span class="k">}]}</span>`,200)+
+ptable([['fecha_desde','date','opt','Default: hoy',''],['fecha_hasta','date','opt','Default: hoy+30días','']]))}
+
+${ep('cit-historial','m-citas','GET','/citas/:id/historial','Auditoría de cambios de la cita','🔒 JWT · Admin/Vet','✨ Auditoría',
+`<div class="ep-desc inn">✨ INNOVACIÓN: Log completo de todos los cambios. Campo modificado, valor anterior, valor nuevo, quién lo modificó y motivo.</div>`+
+code('200 OK',
+`<span class="k">[{</span>
+  <span class="s">"id_historial"</span><span class="k">:</span>    <span class="num">5</span><span class="k">,</span>
+  <span class="s">"campo_modificado"</span><span class="k">:</span> <span class="s">"id_servicio"</span><span class="k">,</span>
+  <span class="s">"valor_anterior"</span><span class="k">:</span>  <span class="s">"3"</span><span class="k">,</span>
+  <span class="s">"valor_nuevo"</span><span class="k">:</span>     <span class="s">"5"</span><span class="k">,</span>
+  <span class="s">"motivo"</span><span class="k">:</span>          <span class="s">"Cliente solicitó cambio de servicio"</span><span class="k">,</span>
+  <span class="s">"empleados"</span><span class="k">:</span>       <span class="k">{</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Ana"</span><span class="k">,</span><span class="s">"apellido"</span><span class="k">:</span><span class="s">"Gómez"</span><span class="k">}</span><span class="k">,</span>
+  <span class="s">"fecha_cambio"</span><span class="k">:</span>    <span class="s">"2026-04-09T11:30:00.000Z"</span>
+<span class="k">}]</span>`,200))}
+</div>`);
+
+// ── INVENTARIO ───────────────────────────────────────────
+document.write(`
+<div class="mod" id="m-inventario">
+<div class="mod-hd">
+  <div class="mod-ic" style="background:var(--rdd)">📦</div>
+  <div><div class="mod-nm">Inventario</div><div class="mod-ds">Productos, stock, movimientos con trazabilidad total y alertas automáticas</div></div>
+  <span class="mod-prog" id="mp-m-inventario"><span class="dc">0</span>/8</span>
+</div>
+
+${ep('inv-list','m-inventario','GET','/inventario','Listar productos','🔒 JWT','',
+tabs('il',[
+  ['📤 Query Params',ptable([
+    ['estado_stock','enum','opt','ok|stock_bajo|agotado|por_vencer',''],
+    ['id_categoria','integer','opt','Filtrar por categoría',''],
+    ['buscar','string','opt','Full-text en nombre, descripción, marca',''],
+    ['vence_en_dias','integer','opt','Productos que vencen en N días',''],
+    ['venta_en_app','boolean','opt','Solo visibles en app móvil',''],
+  ])],
+  ['✅ 200',code('200 OK — con estado y margen calculado',
+`<span class="k">{</span><span class="s">"data"</span><span class="k">:[{</span>
+  <span class="s">"id_producto"</span><span class="k">:</span>    <span class="num">12</span><span class="k">,</span>  <span class="s">"nombre"</span><span class="k">:</span> <span class="s">"Ibuprofeno 200mg"</span><span class="k">,</span>  <span class="s">"marca"</span><span class="k">:</span> <span class="s">"Bayer"</span><span class="k">,</span>
+  <span class="s">"stock_actual"</span><span class="k">:</span>   <span class="num">3</span><span class="k">,</span>   <span class="s">"stock_minimo"</span><span class="k">:</span> <span class="num">10</span><span class="k">,</span>
+  <span class="s">"precio_compra"</span><span class="k">:</span>  <span class="num">2500</span><span class="k">,</span>  <span class="s">"precio_venta"</span><span class="k">:</span> <span class="num">4200</span><span class="k">,</span>
+  <span class="s">"estado_stock"</span><span class="k">:</span>   <span class="s">"stock_bajo"</span><span class="k">,</span>  <span class="c">// calculado automáticamente</span>
+  <span class="s">"margen_bruto"</span><span class="k">:</span>   <span class="num">1700</span><span class="k">,</span>  <span class="s">"margen_pct"</span><span class="k">:</span> <span class="num">68.0</span><span class="k">,</span>
+  <span class="s">"categoria"</span><span class="k">:</span>      <span class="s">"Medicamentos"</span>
+<span class="k">}]}</span>`,200)]
+]))}
+
+${ep('inv-create','m-inventario','POST','/inventario','Agregar producto al inventario','🔒 JWT · Admin','',
+tabs('ic',[
+  ['📤 Request',code('POST /inventario',
+`<span class="k">{</span>
+  <span class="s">"nombre"</span><span class="k">:</span>              <span class="s">"Ibuprofeno 200mg"</span>,
+  <span class="s">"id_categoria"</span><span class="k">:</span>         <span class="num">1</span>,
+  <span class="s">"marca"</span><span class="k">:</span>                <span class="s">"Bayer"</span>,
+  <span class="s">"codigo_sku"</span><span class="k">:</span>            <span class="s">"IB-200-BAY"</span>,
+  <span class="s">"codigo_barras"</span><span class="k">:</span>         <span class="s">"7506295014068"</span>,
+  <span class="s">"unidad_medida"</span><span class="k">:</span>         <span class="s">"tableta"</span>,
+  <span class="s">"presentacion"</span><span class="k">:</span>          <span class="s">"Caja x 20 tabletas"</span>,
+  <span class="s">"precio_compra"</span><span class="k">:</span>         <span class="num">2500</span>,
+  <span class="s">"precio_venta"</span><span class="k">:</span>          <span class="num">4200</span>,
+  <span class="s">"iva_pct"</span><span class="k">:</span>               <span class="num">0</span>,
+  <span class="s">"stock_actual"</span><span class="k">:</span>          <span class="num">50</span>,
+  <span class="s">"stock_minimo"</span><span class="k">:</span>          <span class="num">10</span>,
+  <span class="s">"stock_maximo"</span><span class="k">:</span>          <span class="num">200</span>,
+  <span class="s">"fecha_vencimiento"</span><span class="k">:</span>     <span class="s">"2027-06-30"</span>,
+  <span class="s">"fecha_ingreso"</span><span class="k">:</span>         <span class="s">"2026-04-09"</span>,
+  <span class="s">"requiere_prescripcion"</span><span class="k">:</span> <span class="b">false</span>,
+  <span class="s">"venta_en_app"</span><span class="k">:</span>          <span class="b">true</span>,
+  <span class="s">"especie_objetivo"</span><span class="k">:</span>      <span class="s">"todos"</span>,
+  <span class="s">"descripcion"</span><span class="k">:</span>           <span class="s">"Antiinflamatorio para uso veterinario"</span>
+<span class="k">}</span>`)],
+  ['✅ 201',code('201 Created',
+`<span class="k">{</span><span class="s">"success"</span><span class="k">:</span><span class="b">true</span><span class="k">,</span><span class="s">"message"</span><span class="k">:</span><span class="s">"Producto agregado al inventario"</span><span class="k">,</span>
+ <span class="s">"data"</span><span class="k">:{</span><span class="s">"id_producto"</span><span class="k">:</span><span class="num">45</span><span class="k">,</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Ibuprofeno 200mg"</span><span class="k">,</span>
+          <span class="s">"margen_bruto"</span><span class="k">:</span><span class="num">1700</span><span class="k">,</span><span class="s">"margen_pct"</span><span class="k">:</span><span class="num">68.0</span><span class="k">,</span><span class="s">"estado_stock"</span><span class="k">:</span><span class="s">"ok"</span><span class="k">}}</span>`,201)]
+]))}
+
+${ep('inv-get','m-inventario','GET','/inventario/:id','Detalle del producto','🔒 JWT','',
+code('200 OK',`<span class="k">{</span><span class="s">"data"</span><span class="k">:{</span><span class="c">/* campos del producto */</span><span class="k">,</span><span class="s">"margen_bruto"</span><span class="k">:</span><span class="num">1700</span><span class="k">,</span><span class="s">"estado_stock"</span><span class="k">:</span><span class="s">"ok"</span><span class="k">,</span><span class="s">"ultimos_movimientos"</span><span class="k">:[</span><span class="c">/*10 últimos*/</span><span class="k">]}}</span>`,200))}
+
+${ep('inv-update','m-inventario','PUT','/inventario/:id','Editar producto','🔒 JWT · Admin','',
+code('PUT /inventario/45',
+`<span class="k">{</span>
+  <span class="s">"precio_venta"</span><span class="k">:</span>     <span class="num">4500</span>,
+  <span class="s">"stock_minimo"</span><span class="k">:</span>     <span class="num">15</span>
+<span class="k">}</span> <span class="c">// ⚠ El stock se modifica con POST /inventario/:id/movimiento</span>`)+
+code('200',`<span class="k">{</span><span class="s">"success"</span><span class="k">:</span><span class="b">true</span><span class="k">,</span><span class="s">"message"</span><span class="k">:</span><span class="s">"Producto actualizado"</span><span class="k">,</span><span class="s">"data"</span><span class="k">:{</span><span class="c">/*producto*/</span><span class="k">}}</span>`,200))}
+
+${ep('inv-delete','m-inventario','DELETE','/inventario/:id','Eliminar producto (lógico)','🔒 JWT · Admin','',
+`<div class="ep-desc">Eliminación lógica (activo=false). Solo si stock_actual=0 y no tiene movimientos activos.</div>`+
+code('200',`<span class="k">{</span><span class="s">"success"</span><span class="k">:</span><span class="b">true</span><span class="k">,</span><span class="s">"message"</span><span class="k">:</span><span class="s">"Producto eliminado del inventario"</span><span class="k">}</span>`,200))}
+
+${ep('inv-mov','m-inventario','POST','/inventario/:id/movimiento','Registrar movimiento de stock','🔒 JWT · Admin/Vet','✨ Trazabilidad',
+tabs('imov',[
+  ['📤 Request',code('POST /inventario/45/movimiento',
+`<span class="k">{</span>
+  <span class="s">"tipo"</span><span class="k">:</span>               <span class="s">"salida"</span>,     <span class="c">// entrada|salida|ajuste|devolucion|merma</span>
+  <span class="s">"cantidad"</span><span class="k">:</span>           <span class="num">5</span>,            <span class="c">// siempre positivo</span>
+  <span class="s">"motivo"</span><span class="k">:</span>             <span class="s">"Uso en cirugía Rex — cita #101"</span>,
+  <span class="s">"id_cita"</span><span class="k">:</span>            <span class="num">101</span>,          <span class="c">// vincula al consumo de la cita</span>
+  <span class="s">"precio_unitario"</span><span class="k">:</span>    <span class="num">2500</span>,
+  <span class="s">"referencia_externa"</span><span class="k">:</span> <span class="s">"FACTURA-2026-001"</span>
+<span class="k">}</span>`)],
+  ['✅ 201',code('201 Created — stock actualizado via trigger MySQL',
+`<span class="k">{</span><span class="s">"data"</span><span class="k">:{</span>
+  <span class="s">"id_movimiento"</span><span class="k">:</span>     <span class="num">88</span><span class="k">,</span>  <span class="s">"tipo"</span><span class="k">:</span> <span class="s">"salida"</span><span class="k">,</span>
+  <span class="s">"cantidad_anterior"</span><span class="k">:</span>  <span class="num">50</span><span class="k">,</span>  <span class="s">"cantidad_nueva"</span><span class="k">:</span> <span class="num">45</span><span class="k">,</span>
+  <span class="s">"alerta_stock"</span><span class="k">:</span>       <span class="b">false</span>  <span class="c">// true si nuevo stock <= stock_minimo</span>
+<span class="k">}}</span>`,201)]
+]))}
+
+${ep('inv-movs','m-inventario','GET','/inventario/:id/movimientos','Historial de movimientos','🔒 JWT','',
+code('200 OK',
+`<span class="k">{</span><span class="s">"data"</span><span class="k">:[{</span>
+  <span class="s">"tipo"</span><span class="k">:</span><span class="s">"salida"</span><span class="k">,</span>  <span class="s">"cantidad"</span><span class="k">:</span><span class="num">5</span><span class="k">,</span>  <span class="s">"cantidad_anterior"</span><span class="k">:</span><span class="num">50</span><span class="k">,</span>  <span class="s">"cantidad_nueva"</span><span class="k">:</span><span class="num">45</span><span class="k">,</span>
+  <span class="s">"motivo"</span><span class="k">:</span><span class="s">"Uso en cirugía Rex"</span><span class="k">,</span>
+  <span class="s">"citas"</span><span class="k">:{</span><span class="s">"id_cita"</span><span class="k">:</span><span class="num">101</span><span class="k">,</span><span class="s">"fecha"</span><span class="k">:</span><span class="s">"2026-04-09"</span><span class="k">}</span><span class="k">,</span>
+  <span class="s">"empleados"</span><span class="k">:{</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Carlos"</span><span class="k">,</span><span class="s">"apellido"</span><span class="k">:</span><span class="s">"Martínez"</span><span class="k">}</span>
+<span class="k">}]}</span>`,200))}
+
+${ep('inv-alertas','m-inventario','GET','/inventario/alertas','Alertas de stock bajo y vencimiento','🔒 JWT','',
+code('200 OK',
+`<span class="k">{</span><span class="s">"data"</span><span class="k">:{</span>
+  <span class="s">"agotados"</span><span class="k">:</span>   <span class="k">[{</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Collar isabelino"</span><span class="k">,</span><span class="s">"stock_actual"</span><span class="k">:</span><span class="num">0</span><span class="k">}]</span><span class="k">,</span>
+  <span class="s">"stock_bajo"</span><span class="k">:</span> <span class="k">[{</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Ibuprofeno 200mg"</span><span class="k">,</span><span class="s">"stock_actual"</span><span class="k">:</span><span class="num">3</span><span class="k">,</span><span class="s">"stock_minimo"</span><span class="k">:</span><span class="num">10</span><span class="k">}]</span><span class="k">,</span>
+  <span class="s">"por_vencer"</span><span class="k">:</span> <span class="k">[{</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Vacuna Rabia"</span><span class="k">,</span><span class="s">"fecha_vencimiento"</span><span class="k">:</span><span class="s">"2026-05-01"</span><span class="k">}]</span><span class="k">,</span>
+  <span class="s">"total_alertas"</span><span class="k">:</span> <span class="num">7</span>
+<span class="k">}}</span>`,200))}
+</div>`);
+
+// ── MÓDULOS RESTANTES CONDENSADOS ────────────────────────
+const modulos = [
+  {id:'m-historial',ic:'📋',ic_bg:'var(--bld)',nm:'Historial médico',ds:'Consultas, diagnósticos, signos vitales y archivos clínicos',total:6,eps:[
+    {id:'hist-create',m:'POST',p:'/historial',s:'Crear registro médico',a:'🔒 JWT · Vet/Admin',req:
+`<span class="k">{</span>
+  <span class="s">"id_mascota"</span><span class="k">:</span>             <span class="num">7</span>,
+  <span class="s">"id_cita"</span><span class="k">:</span>                <span class="num">101</span>,          <span class="c">// cita que originó el registro</span>
+  <span class="s">"tipo"</span><span class="k">:</span>                   <span class="s">"consulta_general"</span>,
+  <span class="s">"fecha"</span><span class="k">:</span>                  <span class="s">"2026-04-09"</span>,
+  <span class="s">"motivo_consulta"</span><span class="k">:</span>        <span class="s">"Revisión de rutina"</span>,
+  <span class="s">"diagnostico"</span><span class="k">:</span>            <span class="s">"Otitis externa leve en oído derecho"</span>,
+  <span class="s">"tratamiento"</span><span class="k">:</span>            <span class="s">"Gotas óticas 2 veces al día por 7 días"</span>,
+  <span class="s">"medicamentos_prescritos"</span><span class="k">:</span> <span class="s">"Aurizon gotas 10ml"</span>,
+  <span class="s">"indicaciones"</span><span class="k">:</span>           <span class="s">"Limpiar con suero fisiológico antes de aplicar"</span>,
+  <span class="s">"proximo_control"</span><span class="k">:</span>        <span class="s">"2026-04-16"</span>,  <span class="c">// genera recordatorio automático</span>
+  <span class="s">"peso_registro"</span><span class="k">:</span>          <span class="num">28.8</span>,
+  <span class="s">"temperatura"</span><span class="k">:</span>            <span class="num">38.7</span>,
+  <span class="s">"frecuencia_cardiaca"</span><span class="k">:</span>    <span class="num">85</span>,
+  <span class="s">"frecuencia_respiratoria"</span><span class="k">:</span> <span class="num">18</span>,
+  <span class="s">"archivos_json"</span><span class="k">:</span>          <span class="k">[</span><span class="s">"https://cloudinary.com/rx1.jpg"</span><span class="k">]</span>,
+  <span class="s">"notas_internas"</span><span class="k">:</span>         <span class="s">"Paciente nervioso durante la consulta"</span>
+<span class="k">}</span>`,res:`<span class="k">{</span><span class="s">"success"</span><span class="k">:</span><span class="b">true</span><span class="k">,</span><span class="s">"message"</span><span class="k">:</span><span class="s">"Registro médico creado"</span><span class="k">,</span><span class="s">"data"</span><span class="k">:{</span><span class="s">"id_historial"</span><span class="k">:</span><span class="num">22</span><span class="k">}}</span>`,rc:201},
+    {id:'hist-list',m:'GET',p:'/historial/mascota/:id',s:'Historial de una mascota',a:'🔒 JWT'},
+    {id:'hist-get',m:'GET',p:'/historial/:id',s:'Detalle de registro',a:'🔒 JWT'},
+    {id:'hist-update',m:'PUT',p:'/historial/:id',s:'Editar registro médico',a:'🔒 JWT · Vet'},
+    {id:'hist-files',m:'POST',p:'/historial/:id/archivos',s:'Subir archivos al registro',a:'🔒 JWT · Vet',req:`<span class="c">// multipart/form-data — campo: archivos[] — JPG/PNG/PDF máx 5MB c/u</span>`,res:`<span class="k">{</span><span class="s">"data"</span><span class="k">:{</span><span class="s">"archivos_json"</span><span class="k">:[</span><span class="s">"https://cloudinary.com/..."</span><span class="k">]</span><span class="k">}}</span>`,rc:200},
+    {id:'hist-delete',m:'DELETE',p:'/historial/:id',s:'Eliminar registro',a:'🔒 JWT · Admin'},
+  ]},
+  {id:'m-vacunas',ic:'💉',ic_bg:'var(--grd)',nm:'Vacunas',ds:'Trazabilidad por lote, carnet digital y recordatorios automáticos',total:5,eps:[
+    {id:'vac-create',m:'POST',p:'/vacunas',s:'Registrar vacuna',a:'🔒 JWT · Vet/Admin',req:
+`<span class="k">{</span>
+  <span class="s">"id_mascota"</span><span class="k">:</span>         <span class="num">7</span>,
+  <span class="s">"id_historial_medico"</span><span class="k">:</span> <span class="num">22</span>,
+  <span class="s">"nombre_vacuna"</span><span class="k">:</span>      <span class="s">"Antirrábica"</span>,
+  <span class="s">"laboratorio"</span><span class="k">:</span>        <span class="s">"Nobivac"</span>,
+  <span class="s">"lote"</span><span class="k">:</span>               <span class="s">"A230145"</span>,  <span class="c">// trazabilidad</span>
+  <span class="s">"dosis"</span><span class="k">:</span>              <span class="s">"Refuerzo anual"</span>,
+  <span class="s">"fecha_aplicacion"</span><span class="k">:</span>  <span class="s">"2026-04-09"</span>,
+  <span class="s">"fecha_proxima"</span><span class="k">:</span>      <span class="s">"2027-04-09"</span>  <span class="c">// genera recordatorio 7 días antes</span>
+<span class="k">}</span>`,res:`<span class="k">{</span><span class="s">"data"</span><span class="k">:{</span><span class="s">"id_vacuna"</span><span class="k">:</span><span class="num">9</span><span class="k">,</span><span class="s">"estado"</span><span class="k">:</span><span class="s">"al_dia"</span><span class="k">,</span><span class="s">"fecha_proxima"</span><span class="k">:</span><span class="s">"2027-04-09"</span><span class="k">}}</span>`,rc:201},
+    {id:'vac-list',m:'GET',p:'/vacunas/mascota/:id',s:'Vacunas de una mascota',a:'🔒 JWT'},
+    {id:'vac-proximas',m:'GET',p:'/vacunas/proximas-vencer',s:'Próximas o vencidas',a:'🔒 JWT'},
+    {id:'vac-update',m:'PUT',p:'/vacunas/:id',s:'Editar vacuna',a:'🔒 JWT · Vet'},
+    {id:'vac-delete',m:'DELETE',p:'/vacunas/:id',s:'Eliminar vacuna',a:'🔒 JWT · Admin'},
+  ]},
+  {id:'m-negocios',ic:'🏥',ic_bg:'var(--grd)',nm:'Negocios',ds:'Registro, búsqueda geolocalizada, dashboard de métricas y calificaciones',total:8,eps:[
+    {id:'neg-list',m:'GET',p:'/negocios',s:'Buscar negocios (público)',a:'',req:`<span class="c">// Query: lat, lng, radio_km, tipo, buscar, calificacion_min, destacado</span>`,res:`<span class="k">{</span><span class="s">"data"</span><span class="k">:[{</span><span class="s">"id_negocio"</span><span class="k">:</span><span class="num">1</span><span class="k">,</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Veterinaria Los Laureles"</span><span class="k">,</span><span class="s">"calificacion_promedio"</span><span class="k">:</span><span class="num">4.8</span><span class="k">,</span><span class="s">"distancia_km"</span><span class="k">:</span><span class="num">1.2</span><span class="k">}]}</span>`,rc:200},
+    {id:'neg-create',m:'POST',p:'/negocios',s:'Registrar negocio',a:'🔒 JWT · negocio',req:
+`<span class="k">{</span>
+  <span class="s">"nombre"</span><span class="k">:</span>      <span class="s">"Veterinaria Los Laureles"</span>,
+  <span class="s">"tipo"</span><span class="k">:</span>        <span class="s">"veterinaria"</span>,
+  <span class="s">"descripcion"</span><span class="k">:</span> <span class="s">"10 años cuidando tus mascotas"</span>,
+  <span class="s">"telefono"</span><span class="k">:</span>    <span class="s">"(5) 280-1234"</span>,
+  <span class="s">"whatsapp"</span><span class="k">:</span>    <span class="s">"+57 315 678 9012"</span>,
+  <span class="s">"email"</span><span class="k">:</span>       <span class="s">"info@laureles.com"</span>,
+  <span class="s">"nit"</span><span class="k">:</span>         <span class="s">"890.123.456-7"</span>,
+  <span class="s">"direccion"</span><span class="k">:</span>   <span class="s">"Cra 22 #18-40, Sincelejo"</span>,
+  <span class="s">"latitud"</span><span class="k">:</span>     <span class="num">9.30832</span>,
+  <span class="s">"longitud"</span><span class="k">:</span>    <span class="num">-75.38340</span>
+<span class="k">}</span>`,res:`<span class="k">{</span><span class="s">"success"</span><span class="k">:</span><span class="b">true</span><span class="k">,</span><span class="s">"data"</span><span class="k">:{</span><span class="s">"id_negocio"</span><span class="k">:</span><span class="num">1</span><span class="k">}}</span>`,rc:201},
+    {id:'neg-get',m:'GET',p:'/negocios/:id',s:'Detalle del negocio (público)',a:''},
+    {id:'neg-update',m:'PUT',p:'/negocios/:id',s:'Editar negocio',a:'🔒 JWT · propietario'},
+    {id:'neg-servicios',m:'GET',p:'/negocios/:id/servicios',s:'Servicios del negocio',a:''},
+    {id:'neg-resenas',m:'GET',p:'/negocios/:id/resenas',s:'Reseñas del negocio',a:''},
+    {id:'neg-dashboard',m:'GET',p:'/negocios/:id/dashboard',s:'Dashboard métricas',a:'🔒 JWT · propietario',res:`<span class="k">{</span><span class="s">"data"</span><span class="k">:{</span><span class="s">"citas_hoy"</span><span class="k">:</span><span class="num">8</span><span class="k">,</span><span class="s">"ingresos_mes"</span><span class="k">:</span><span class="num">1240000</span><span class="k">,</span><span class="s">"clientes_activos"</span><span class="k">:</span><span class="num">143</span><span class="k">,</span><span class="s">"calificacion"</span><span class="k">:</span><span class="num">4.8</span><span class="k">,</span><span class="s">"alertas_inventario"</span><span class="k">:{</span><span class="s">"total"</span><span class="k">:</span><span class="num">3</span><span class="k">}}}</span>`,rc:200},
+    {id:'neg-integr',m:'GET',p:'/negocios/:id/integraciones',s:'Gestionar integraciones',a:'🔒 JWT · Admin'},
+  ]},
+  {id:'m-sucursales',ic:'📍',ic_bg:'var(--bld)',nm:'Sucursales',ds:'Sedes del negocio con horarios configurables',total:5,eps:[
+    {id:'suc-list',m:'GET',p:'/sucursales/negocio/:id',s:'Sucursales del negocio',a:''},
+    {id:'suc-create',m:'POST',p:'/sucursales',s:'Crear sucursal (Plan Pro+)',a:'🔒 JWT · Admin',req:`<span class="k">{</span><span class="s">"id_negocio"</span><span class="k">:</span><span class="num">1</span><span class="k">,</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Sede norte"</span><span class="k">,</span><span class="s">"direccion"</span><span class="k">:</span><span class="s">"Clle 15 #20-10"</span><span class="k">,</span><span class="s">"latitud"</span><span class="k">:</span><span class="num">9.31</span><span class="k">,</span><span class="s">"longitud"</span><span class="k">:</span><span class="num">-75.38</span><span class="k">,</span><span class="s">"telefono"</span><span class="k">:</span><span class="s">"315..."</span><span class="k">}</span>`,rc:201},
+    {id:'suc-get',m:'GET',p:'/sucursales/:id',s:'Detalle de sucursal',a:''},
+    {id:'suc-update',m:'PUT',p:'/sucursales/:id',s:'Editar sucursal',a:'🔒 JWT · Admin'},
+    {id:'suc-horarios',m:'PUT',p:'/sucursales/:id/horarios',s:'Configurar horarios',a:'🔒 JWT · Admin',req:`<span class="k">[{</span><span class="s">"dia_semana"</span><span class="k">:</span><span class="num">1</span><span class="k">,</span><span class="s">"hora_apertura"</span><span class="k">:</span><span class="s">"07:00"</span><span class="k">,</span><span class="s">"hora_cierre"</span><span class="k">:</span><span class="s">"19:00"</span><span class="k">}</span><span class="k">,</span><span class="c">/* 0=Dom..6=Sáb */</span><span class="k">]</span>`,rc:200},
+  ]},
+  {id:'m-empleados',ic:'👨‍⚕️',ic_bg:'var(--ord)',nm:'Empleados',ds:'Equipo de trabajo con roles, disponibilidad y agenda',total:6,eps:[
+    {id:'emp-list',m:'GET',p:'/empleados/negocio/:id',s:'Lista de empleados',a:'🔒 JWT'},
+    {id:'emp-create',m:'POST',p:'/empleados',s:'Agregar miembro al equipo',a:'🔒 JWT · Admin',req:
+`<span class="k">{</span>
+  <span class="s">"id_negocio"</span><span class="k">:</span>           <span class="num">1</span>,
+  <span class="s">"id_rol"</span><span class="k">:</span>               <span class="num">2</span>,       <span class="c">// 1=Admin 2=Veterinario 3=Recepcionista</span>
+  <span class="s">"nombre"</span><span class="k">:</span>               <span class="s">"Luis"</span>,
+  <span class="s">"apellido"</span><span class="k">:</span>             <span class="s">"Suárez Pérez"</span>,
+  <span class="s">"email"</span><span class="k">:</span>                <span class="s">"lsuarez@laureles.com"</span>,
+  <span class="s">"telefono"</span><span class="k">:</span>             <span class="s">"+57 310 555 6677"</span>,
+  <span class="s">"documento"</span><span class="k">:</span>            <span class="s">"1234567890"</span>,
+  <span class="s">"especialidad"</span><span class="k">:</span>         <span class="s">"Cirugía veterinaria"</span>,
+  <span class="s">"titulo_profesional"</span><span class="k">:</span>   <span class="s">"MVZ"</span>,
+  <span class="s">"registro_profesional"</span><span class="k">:</span> <span class="s">"COMVEZCOL-12345"</span>,
+  <span class="s">"fecha_vinculacion"</span><span class="k">:</span>    <span class="s">"2026-04-01"</span>
+<span class="k">}</span>`,rc:201},
+    {id:'emp-get',m:'GET',p:'/empleados/:id',s:'Perfil del empleado',a:'🔒 JWT'},
+    {id:'emp-update',m:'PUT',p:'/empleados/:id',s:'Editar empleado',a:'🔒 JWT · Admin'},
+    {id:'emp-disp',m:'POST',p:'/empleados/:id/disponibilidad',s:'Configurar disponibilidad',a:'🔒 JWT · Admin',req:`<span class="k">{</span><span class="s">"tipo"</span><span class="k">:</span><span class="s">"bloqueo"</span><span class="k">,</span><span class="s">"fecha_especifica"</span><span class="k">:</span><span class="s">"2026-05-01"</span><span class="k">,</span><span class="s">"hora_inicio"</span><span class="k">:</span><span class="s">"08:00"</span><span class="k">,</span><span class="s">"hora_fin"</span><span class="k">:</span><span class="s">"12:00"</span><span class="k">,</span><span class="s">"motivo"</span><span class="k">:</span><span class="s">"Capacitación"</span><span class="k">}</span>`,rc:201},
+    {id:'emp-delete',m:'DELETE',p:'/empleados/:id',s:'Desactivar empleado',a:'🔒 JWT · Admin'},
+  ]},
+  {id:'m-planes',ic:'💎',ic_bg:'var(--yed)',nm:'Planes y suscripciones',ds:'Gestión de planes Gratuito, Pro y Enterprise con facturación',total:4,eps:[
+    {id:'plan-list',m:'GET',p:'/planes',s:'Lista de planes (público)',a:'',res:`<span class="k">[{</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Pro"</span><span class="k">,</span><span class="s">"precio_mensual"</span><span class="k">:</span><span class="num">120000</span><span class="k">,</span><span class="s">"precio_anual"</span><span class="k">:</span><span class="num">1080000</span><span class="k">,</span><span class="s">"max_sucursales"</span><span class="k">:</span><span class="num">3</span><span class="k">,</span><span class="s">"estadisticas_avanzadas"</span><span class="k">:</span><span class="b">true</span><span class="k">}]</span>`,rc:200},
+    {id:'plan-suscribir',m:'POST',p:'/planes/suscribir',s:'Contratar/cambiar plan',a:'🔒 JWT · negocio',req:`<span class="k">{</span><span class="s">"id_plan"</span><span class="k">:</span><span class="num">2</span><span class="k">,</span><span class="s">"tipo_facturacion"</span><span class="k">:</span><span class="s">"mensual"</span><span class="k">,</span><span class="s">"metodo_pago"</span><span class="k">:</span><span class="s">"mercadopago"</span><span class="k">}</span>`,res:`<span class="k">{</span><span class="s">"data"</span><span class="k">:{</span><span class="s">"id_suscripcion"</span><span class="k">:</span><span class="num">5</span><span class="k">,</span><span class="s">"estado"</span><span class="k">:</span><span class="s">"en_prueba"</span><span class="k">,</span><span class="s">"fecha_prueba_fin"</span><span class="k">:</span><span class="s">"2026-04-23"</span><span class="k">,</span><span class="s">"checkout_url"</span><span class="k">:</span><span class="s">"https://mercadopago.com/..."</span><span class="k">}}</span>`,rc:201},
+    {id:'plan-mi',m:'GET',p:'/planes/mi-suscripcion',s:'Suscripción activa del negocio',a:'🔒 JWT'},
+    {id:'plan-cancelar',m:'DELETE',p:'/planes/cancelar',s:'Cancelar suscripción',a:'🔒 JWT · propietario'},
+  ]},
+  {id:'m-servicios',ic:'🛠',ic_bg:'var(--pud)',nm:'Servicios',ds:'Servicios que ofrecen los negocios con precios, duración y ofertas',total:7,eps:[
+    {id:'ser-list',m:'GET',p:'/servicios/negocio/:id',s:'Servicios del negocio (público)',a:''},
+    {id:'ser-create',m:'POST',p:'/servicios',s:'Crear servicio',a:'🔒 JWT · Admin',req:`<span class="k">{</span><span class="s">"id_negocio"</span><span class="k">:</span><span class="num">1</span><span class="k">,</span><span class="s">"id_categoria"</span><span class="k">:</span><span class="num">3</span><span class="k">,</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Baño y corte"</span><span class="k">,</span><span class="s">"precio_base"</span><span class="k">:</span><span class="num">35000</span><span class="k">,</span><span class="s">"duracion_minutos"</span><span class="k">:</span><span class="num">45</span><span class="k">,</span><span class="s">"tipo_precio"</span><span class="k">:</span><span class="s">"fijo"</span><span class="k">,</span><span class="s">"tipo_mascota"</span><span class="k">:</span><span class="s">"todos"</span><span class="k">,</span><span class="s">"requiere_cita"</span><span class="k">:</span><span class="b">true</span><span class="k">,</span><span class="s">"visible_app"</span><span class="k">:</span><span class="b">true</span><span class="k">}</span>`,rc:201},
+    {id:'ser-get',m:'GET',p:'/servicios/:id',s:'Detalle del servicio',a:''},
+    {id:'ser-update',m:'PUT',p:'/servicios/:id',s:'Editar servicio',a:'🔒 JWT · Admin'},
+    {id:'ser-delete',m:'DELETE',p:'/servicios/:id',s:'Eliminar servicio',a:'🔒 JWT · Admin'},
+    {id:'ser-pausar',m:'PATCH',p:'/servicios/:id/pausar',s:'Pausar servicio',a:'🔒 JWT · Admin'},
+    {id:'ser-activar',m:'PATCH',p:'/servicios/:id/activar',s:'Activar servicio',a:'🔒 JWT · Admin'},
+  ]},
+  {id:'m-compras',ic:'🛒',ic_bg:'var(--grd)',nm:'Compras',ds:'E-commerce de productos en la app móvil',total:6,eps:[
+    {id:'com-list',m:'GET',p:'/compras',s:'Historial de compras del usuario',a:'🔒 JWT'},
+    {id:'com-create',m:'POST',p:'/compras',s:'Crear nueva compra',a:'🔒 JWT · cliente',req:`<span class="k">{</span><span class="s">"id_negocio"</span><span class="k">:</span><span class="num">1</span><span class="k">,</span><span class="s">"items"</span><span class="k">:[{</span><span class="s">"id_producto"</span><span class="k">:</span><span class="num">12</span><span class="k">,</span><span class="s">"cantidad"</span><span class="k">:</span><span class="num">2</span><span class="k">}]</span><span class="k">,</span><span class="s">"direccion_entrega"</span><span class="k">:</span><span class="s">"Cra 22 #18-40"</span><span class="k">}</span>`,res:`<span class="k">{</span><span class="s">"data"</span><span class="k">:{</span><span class="s">"id_compra"</span><span class="k">:</span><span class="num">8</span><span class="k">,</span><span class="s">"total"</span><span class="k">:</span><span class="num">8400</span><span class="k">,</span><span class="s">"estado"</span><span class="k">:</span><span class="s">"pendiente"</span><span class="k">}}</span>`,rc:201},
+    {id:'com-get',m:'GET',p:'/compras/:id',s:'Detalle de compra',a:'🔒 JWT'},
+    {id:'com-estado',m:'PATCH',p:'/compras/:id/estado',s:'Actualizar estado',a:'🔒 JWT · Admin',req:`<span class="k">{</span><span class="s">"estado"</span><span class="k">:</span><span class="s">"entregada"</span><span class="k">}</span>`,rc:200},
+    {id:'com-cancelar',m:'DELETE',p:'/compras/:id',s:'Cancelar compra',a:'🔒 JWT'},
+    {id:'com-factura',m:'GET',p:'/compras/:id/factura',s:'Descargar factura PDF',a:'🔒 JWT'},
+  ]},
+  {id:'m-pagos',ic:'💳',ic_bg:'var(--grd)',nm:'Pagos',ds:'MercadoPago, PayU, PSE · Webhooks · Facturación electrónica',total:5,eps:[
+    {id:'pag-iniciar',m:'POST',p:'/pagos/iniciar',s:'Iniciar proceso de pago',a:'🔒 JWT',req:`<span class="k">{</span><span class="s">"monto"</span><span class="k">:</span><span class="num">35000</span><span class="k">,</span><span class="s">"metodo_pago"</span><span class="k">:</span><span class="s">"mercadopago"</span><span class="k">,</span><span class="s">"id_cita"</span><span class="k">:</span><span class="num">101</span><span class="k">}</span>`,res:`<span class="k">{</span><span class="s">"data"</span><span class="k">:{</span><span class="s">"id_pago"</span><span class="k">:</span><span class="num">22</span><span class="k">,</span><span class="s">"estado"</span><span class="k">:</span><span class="s">"pendiente"</span><span class="k">,</span><span class="s">"checkout_url"</span><span class="k">:</span><span class="s">"https://mercadopago.com/..."</span><span class="k">}}</span>`,rc:201},
+    {id:'pag-wh-mp',m:'POST',p:'/pagos/webhook/mercadopago',s:'Webhook MercadoPago',a:'',req:`<span class="c">// Enviado automáticamente por MercadoPago — verificar firma HMAC</span>`,rc:200},
+    {id:'pag-wh-pu',m:'POST',p:'/pagos/webhook/payu',s:'Webhook PayU',a:'',rc:200},
+    {id:'pag-get',m:'GET',p:'/pagos/:id',s:'Estado de un pago',a:'🔒 JWT'},
+    {id:'pag-hist',m:'GET',p:'/pagos/historial',s:'Historial de pagos',a:'🔒 JWT'},
+  ]},
+  {id:'m-recordatorios',ic:'🔔',ic_bg:'var(--grd)',nm:'Recordatorios',ds:'Sistema multicanal: Push, WhatsApp, Email, SMS. Jobs automáticos cada 5min',total:5,eps:[
+    {id:'rec-list',m:'GET',p:'/recordatorios',s:'Mis recordatorios',a:'🔒 JWT',res:`<span class="k">[{</span><span class="s">"tipo"</span><span class="k">:</span><span class="s">"vacuna_proxima"</span><span class="k">,</span><span class="s">"titulo"</span><span class="k">:</span><span class="s">"💉 Vacuna de Rex próxima"</span><span class="k">,</span><span class="s">"canal"</span><span class="k">:</span><span class="s">"push,whatsapp"</span><span class="k">,</span><span class="s">"estado"</span><span class="k">:</span><span class="s">"pendiente"</span><span class="k">,</span><span class="s">"fecha_programada"</span><span class="k">:</span><span class="s">"2026-04-17T08:00:00Z"</span><span class="k">}]</span>`,rc:200},
+    {id:'rec-create',m:'POST',p:'/recordatorios',s:'Crear recordatorio personalizado',a:'🔒 JWT',req:`<span class="k">{</span><span class="s">"tipo"</span><span class="k">:</span><span class="s">"personalizado"</span><span class="k">,</span><span class="s">"titulo"</span><span class="k">:</span><span class="s">"Baño de Rex"</span><span class="k">,</span><span class="s">"mensaje"</span><span class="k">:</span><span class="s">"Es hora del baño mensual"</span><span class="k">,</span><span class="s">"canal"</span><span class="k">:</span><span class="s">"push"</span><span class="k">,</span><span class="s">"fecha_programada"</span><span class="k">:</span><span class="s">"2026-05-01T09:00:00Z"</span><span class="k">,</span><span class="s">"id_mascota"</span><span class="k">:</span><span class="num">7</span><span class="k">,</span><span class="s">"recurrente"</span><span class="k">:</span><span class="b">true</span><span class="k">,</span><span class="s">"frecuencia_dias"</span><span class="k">:</span><span class="num">30</span><span class="k">}</span>`,rc:201},
+    {id:'rec-pendientes',m:'GET',p:'/recordatorios/pendientes',s:'Recordatorios pendientes',a:'🔒 JWT'},
+    {id:'rec-silenciar',m:'PATCH',p:'/recordatorios/:id/silenciar',s:'Silenciar recordatorio',a:'🔒 JWT'},
+    {id:'rec-delete',m:'DELETE',p:'/recordatorios/:id',s:'Cancelar recordatorio',a:'🔒 JWT'},
+  ]},
+  {id:'m-resenas',ic:'⭐',ic_bg:'var(--yed)',nm:'Reseñas',ds:'Calificación granular por 4 dimensiones + respuesta del negocio',total:6,eps:[
+    {id:'res-create',m:'POST',p:'/resenas',s:'Crear reseña (1 por cita)',a:'🔒 JWT · cliente',req:`<span class="k">{</span><span class="s">"id_negocio"</span><span class="k">:</span><span class="num">1</span><span class="k">,</span><span class="s">"id_cita"</span><span class="k">:</span><span class="num">101</span><span class="k">,</span><span class="s">"calificacion"</span><span class="k">:</span><span class="num">5</span><span class="k">,</span><span class="s">"comentario"</span><span class="k">:</span><span class="s">"Excelente atención"</span><span class="k">,</span><span class="s">"calif_atencion"</span><span class="k">:</span><span class="num">5</span><span class="k">,</span><span class="s">"calif_precio"</span><span class="k">:</span><span class="num">4</span><span class="k">,</span><span class="s">"calif_instalaciones"</span><span class="k">:</span><span class="num">5</span><span class="k">,</span><span class="s">"calif_puntualidad"</span><span class="k">:</span><span class="num">5</span><span class="k">}</span>`,rc:201},
+    {id:'res-list',m:'GET',p:'/resenas/negocio/:id',s:'Reseñas de un negocio (público)',a:''},
+    {id:'res-responder',m:'PATCH',p:'/resenas/:id/responder',s:'Responder reseña',a:'🔒 JWT · propietario',req:`<span class="k">{</span><span class="s">"respuesta_negocio"</span><span class="k">:</span><span class="s">"Gracias por su confianza!"</span><span class="k">}</span>`,rc:200},
+    {id:'res-get',m:'GET',p:'/resenas/:id',s:'Detalle de reseña',a:''},
+    {id:'res-reportar',m:'PATCH',p:'/resenas/:id/reportar',s:'Reportar reseña',a:'🔒 JWT'},
+    {id:'res-delete',m:'DELETE',p:'/resenas/:id',s:'Eliminar reseña (moderación)',a:'🔒 JWT · Admin'},
+  ]},
+  {id:'m-comunidad',ic:'💬',ic_bg:'var(--pud)',nm:'Comunidad',ds:'Red social de dueños: posts, comentarios anidados y likes',total:8,eps:[
+    {id:'com-posts',m:'GET',p:'/comunidad/posts',s:'Feed de publicaciones (público)',a:''},
+    {id:'com-post-c',m:'POST',p:'/comunidad/posts',s:'Crear publicación',a:'🔒 JWT',req:`<span class="k">{</span><span class="s">"contenido"</span><span class="k">:</span><span class="s">"Rex tuvo su primera cita hoy!"</span><span class="k">,</span><span class="s">"tipo"</span><span class="k">:</span><span class="s">"experiencia"</span><span class="k">,</span><span class="s">"titulo"</span><span class="k">:</span><span class="s">"Primera visita al vet"</span><span class="k">,</span><span class="s">"id_mascota"</span><span class="k">:</span><span class="num">7</span><span class="k">,</span><span class="s">"etiquetas_json"</span><span class="k">:[</span><span class="s">"cachorro"</span><span class="k">,</span><span class="s">"salud"</span><span class="k">]}</span>`,rc:201},
+    {id:'com-post-g',m:'GET',p:'/comunidad/posts/:id',s:'Detalle del post',a:''},
+    {id:'com-post-d',m:'DELETE',p:'/comunidad/posts/:id',s:'Eliminar publicación',a:'🔒 JWT'},
+    {id:'com-comentar',m:'POST',p:'/comunidad/posts/:id/comentarios',s:'Comentar post',a:'🔒 JWT',req:`<span class="k">{</span><span class="s">"contenido"</span><span class="k">:</span><span class="s">"Qué lindo Rex!"</span><span class="k">,</span><span class="s">"id_comentario_padre"</span><span class="k">:</span><span class="b">null</span><span class="k">}</span>`,rc:201},
+    {id:'com-like-p',m:'POST',p:'/comunidad/posts/:id/like',s:'Like / Unlike post',a:'🔒 JWT',res:`<span class="k">{</span><span class="s">"data"</span><span class="k">:{</span><span class="s">"liked"</span><span class="k">:</span><span class="b">true</span><span class="k">,</span><span class="s">"total_likes"</span><span class="k">:</span><span class="num">15</span><span class="k">}}</span>`,rc:200},
+    {id:'com-like-c',m:'POST',p:'/comunidad/comentarios/:id/like',s:'Like / Unlike comentario',a:'🔒 JWT'},
+    {id:'com-feed',m:'GET',p:'/comunidad/mi-feed',s:'Feed personalizado',a:'🔒 JWT'},
+  ]},
+  {id:'m-ia',ic:'🤖',ic_bg:'var(--pud)',nm:'IA & Recomendaciones',ds:'Motor de recomendaciones personalizado con GPT-4o-mini y scoring',total:5,eps:[
+    {id:'ia-rec',m:'GET',p:'/ia/recomendaciones',s:'Recomendaciones personalizadas',a:'🔒 JWT','inn':'🤖 IA',res:`<span class="k">[{</span><span class="s">"tipo"</span><span class="k">:</span><span class="s">"vacuna_proxima"</span><span class="k">,</span><span class="s">"descripcion"</span><span class="k">:</span><span class="s">"La antirrábica de Rex vence en 15 días"</span><span class="k">,</span><span class="s">"score_relevancia"</span><span class="k">:</span><span class="num">0.9543</span><span class="k">,</span><span class="s">"mascotas"</span><span class="k">:{</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Rex"</span><span class="k">}</span><span class="k">}]</span>`,rc:200},
+    {id:'ia-cercanos',m:'GET',p:'/ia/negocios-cercanos',s:'Negocios cercanos + ranking IA',a:'🔒 JWT','inn':'🤖 IA'},
+    {id:'ia-feedback',m:'POST',p:'/ia/recomendaciones/:id/feedback',s:'Feedback de recomendación',a:'🔒 JWT',req:`<span class="k">{</span><span class="s">"aceptada"</span><span class="k">:</span><span class="b">true</span><span class="k">,</span><span class="s">"feedback_json"</span><span class="k">:{</span><span class="s">"razon"</span><span class="k">:</span><span class="s">"Muy relevante"</span><span class="k">}}</span>`,rc:200},
+    {id:'ia-precios',m:'GET',p:'/ia/comparar-precios',s:'Comparador de precios',a:'🔒 JWT','inn':'✨ Innov.'},
+    {id:'ia-stats',m:'GET',p:'/ia/estadisticas-negocio',s:'Estadísticas avanzadas IA',a:'🔒 JWT · Admin · Pro+','inn':'📊 IA',res:`<span class="k">{</span><span class="s">"citas_mes"</span><span class="k">:</span><span class="num">87</span><span class="k">,</span><span class="s">"tasa_confirmacion"</span><span class="k">:</span><span class="num">0.89</span><span class="k">,</span><span class="s">"hora_pico"</span><span class="k">:</span><span class="s">"09:00-11:00"</span><span class="k">,</span><span class="s">"prediccion_proxima_semana"</span><span class="k">:</span><span class="num">23</span><span class="k">,</span><span class="s">"nps_score"</span><span class="k">:</span><span class="num">4.6</span><span class="k">}</span>`,rc:200},
+  ]},
+  {id:'m-usuarios',ic:'👤',ic_bg:'var(--bld)',nm:'Usuarios',ds:'Gestión de perfil, foto y preferencias de notificación',total:6,eps:[
+    {id:'usr-get',m:'GET',p:'/usuarios/:id',s:'Perfil público de usuario',a:'🔒 JWT'},
+    {id:'usr-update',m:'PUT',p:'/usuarios/:id',s:'Actualizar perfil',a:'🔒 JWT',req:`<span class="k">{</span><span class="s">"nombre"</span><span class="k">:</span><span class="s">"Carlos A."</span><span class="k">,</span><span class="s">"telefono"</span><span class="k">:</span><span class="s">"+57 310 111 2222"</span><span class="k">,</span><span class="s">"idioma"</span><span class="k">:</span><span class="s">"es"</span><span class="k">}</span>`,rc:200},
+    {id:'usr-foto',m:'POST',p:'/usuarios/:id/foto',s:'Subir foto de perfil',a:'🔒 JWT',req:`<span class="c">// multipart/form-data — campo: foto — JPG/PNG/WebP máx 5MB</span>`,rc:200},
+    {id:'usr-notif',m:'PUT',p:'/usuarios/:id/notificaciones',s:'Preferencias de notificación',a:'🔒 JWT',req:`<span class="k">{</span><span class="s">"notif_push"</span><span class="k">:</span><span class="b">true</span><span class="k">,</span><span class="s">"notif_whatsapp"</span><span class="k">:</span><span class="b">true</span><span class="k">,</span><span class="s">"notif_email"</span><span class="k">:</span><span class="b">false</span><span class="k">}</span>`,rc:200},
+    {id:'usr-mascotas',m:'GET',p:'/usuarios/:id/mascotas',s:'Mascotas de un usuario',a:'🔒 JWT'},
+    {id:'usr-delete',m:'DELETE',p:'/usuarios/:id',s:'Eliminar cuenta',a:'🔒 JWT'},
+  ]},
+  {id:'m-admin',ic:'⚙️',ic_bg:'var(--rdd)',nm:'Admin',ds:'Endpoints exclusivos para superadmin de la plataforma PetCat',total:4,eps:[
+    {id:'adm-stats',m:'GET',p:'/admin/estadisticas',s:'Métricas globales de la plataforma',a:'🔒 JWT · admin',res:`<span class="k">{</span><span class="s">"total_usuarios"</span><span class="k">:</span><span class="num">1240</span><span class="k">,</span><span class="s">"total_negocios"</span><span class="k">:</span><span class="num">47</span><span class="k">,</span><span class="s">"total_mascotas"</span><span class="k">:</span><span class="num">2183</span><span class="k">,</span><span class="s">"ingresos_mes"</span><span class="k">:</span><span class="num">18500000</span><span class="k">,</span><span class="s">"comision_petcat"</span><span class="k">:</span><span class="num">740000</span><span class="k">,</span><span class="s">"negocios_por_plan"</span><span class="k">:{</span><span class="s">"Gratuito"</span><span class="k">:</span><span class="num">29</span><span class="k">,</span><span class="s">"Pro"</span><span class="k">:</span><span class="num">15</span><span class="k">,</span><span class="s">"Enterprise"</span><span class="k">:</span><span class="num">3</span><span class="k">}}</span>`,rc:200},
+    {id:'adm-ver',m:'PATCH',p:'/admin/negocios/:id/verificar',s:'Verificar negocio',a:'🔒 JWT · admin'},
+    {id:'adm-cfg',m:'GET',p:'/admin/configuracion',s:'Leer/editar configuración global',a:'🔒 JWT · admin'},
+    {id:'adm-log',m:'GET',p:'/admin/auditoria',s:'Log de auditoría global',a:'🔒 JWT · admin'},
+  ]},
+];
+
+modulos.forEach(m=>{
+  let html = `<div class="mod" id="${m.id}">
+<div class="mod-hd">
+  <div class="mod-ic" style="background:${m.ic_bg}">${m.ic}</div>
+  <div><div class="mod-nm">${m.nm}</div><div class="mod-ds">${m.ds}</div></div>
+  <span class="mod-prog" id="mp-${m.id}"><span class="dc">0</span>/${m.total}</span>
+</div>`;
+  m.eps.forEach(e=>{
+    const mc={GET:'mg',POST:'mp',PUT:'mpu',PATCH:'mpa',DELETE:'md'};
+    let body='';
+    if(e.req||e.res){
+      const ti=[];
+      if(e.req) ti.push(['📤 Request',code(e.m+' '+e.p,e.req)]);
+      if(e.res) ti.push(['✅ '+e.rc,code(e.rc+' '+(e.rc===201?'Created':'OK'),e.res,e.rc)]);
+      body=tabs(e.id,ti);
+    }else{
+      body=`<div class="ep-desc">Ver documentación interna.</div>`;
+    }
+    html+=`<div class="ep" data-id="${e.id}" data-mod="${m.id}" id="ep-${e.id}">
+  <div class="ep-hd">
+    <div class="chk" id="chk-${e.id}" onclick="toggleDone('${e.id}',event)"></div>
+    <span class="mt ${mc[e.m]}">${e.m}</span>
+    <span class="ep-path">${e.p.replace(/:([a-z_]+)/g,'<span class="pm">:$1</span>')}</span>
+    ${e.a?`<span class="ep-auth">${e.a}</span>`:''}
+    ${e.inn?`<span class="ep-innov">${e.inn}</span>`:''}
+    <span class="ep-sm">${e.s}</span>
+    <span class="ep-arr" onclick="toggleEp(this.closest('.ep'))">▶</span>
+  </div>
+  <div class="ep-body"><div class="ep-bi">${body}</div></div>
+</div>`;
+  });
+  html+='</div>';
+  document.write(html);
+});
+
+// ── SCRIPTS ──────────────────────────────────────────────
+</script>
+
+  </div><!-- /cnt -->
+</main>
+
+<script>
+// State
+let done = JSON.parse(localStorage.getItem('petcat_done') || '{}');
+const TOTAL = document.querySelectorAll('.ep').length;
+
+function save() { localStorage.setItem('petcat_done', JSON.stringify(done)); }
+
+function updateProgress() {
+  const n = Object.values(done).filter(Boolean).length;
+  const pct = TOTAL ? Math.round(n/TOTAL*100) : 0;
+  document.getElementById('pf').style.width = pct+'%';
+  document.getElementById('pd').textContent = n;
+  document.getElementById('pt2').textContent = TOTAL;
+  document.getElementById('pp').textContent = pct;
+  document.getElementById('h-done').textContent = n;
+  document.getElementById('h-pend').textContent = TOTAL - n;
+  // update per-module
+  document.querySelectorAll('.mod').forEach(m => {
+    const mid = m.id;
+    const eps = m.querySelectorAll('.ep');
+    const mdone = [...eps].filter(e => done[e.dataset.id]).length;
+    const mp = document.getElementById('mp-'+mid);
+    if(mp) mp.querySelector('.dc').textContent = mdone;
+  });
+}
+
+function toggleDone(id, e) {
+  e.stopPropagation();
+  done[id] = !done[id];
+  const chk = document.getElementById('chk-'+id);
+  const ep  = document.getElementById('ep-'+id);
+  chk.classList.toggle('on', done[id]);
+  ep.classList.toggle('done', done[id]);
+  save(); updateProgress();
+}
+
+function resetAll() {
+  if(!confirm('¿Resetear todo el progreso?')) return;
+  done = {};
+  document.querySelectorAll('.chk').forEach(c => c.classList.remove('on'));
+  document.querySelectorAll('.ep').forEach(e => e.classList.remove('done'));
+  save(); updateProgress();
+}
+
+function toggleEp(ep) {
+  const wasOpen = ep.classList.contains('open');
+  ep.closest('.mod').querySelectorAll('.ep.open').forEach(e => e.classList.remove('open'));
+  if(!wasOpen) ep.classList.add('open');
+}
+
+function swTab(btn, tcId) {
+  const p = btn.parentElement;
+  p.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  btn.classList.add('on');
+  const body = btn.closest('.ep-bi') || btn.closest('.cnt');
+  const all = body.querySelectorAll('.tc');
+  all.forEach(t => { if(t.id && t.id.startsWith(tcId.split('-').slice(0,-1).join('-'))) t.classList.remove('on'); });
+  const target = document.getElementById(tcId);
+  if(target) target.classList.add('on');
+}
+
+function go(id, el) {
+  document.querySelectorAll('.nav-a').forEach(a=>a.classList.remove('on'));
+  el.classList.add('on');
+  const target = document.getElementById(id);
+  if(target) target.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function filterEps(q) {
+  q = q.toLowerCase();
+  document.querySelectorAll('.ep').forEach(ep => {
+    const txt = ep.querySelector('.ep-path')?.textContent + ' ' + ep.querySelector('.ep-sm')?.textContent;
+    ep.style.display = !q || txt.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+function cp(btn) {
+  const txt = btn.closest('.cb').querySelector('.cc').textContent;
+  navigator.clipboard.writeText(txt).then(()=>{btn.textContent='Copiado ✓';setTimeout(()=>btn.textContent='Copiar',1500);});
+}
+
+// Init — restore state
+function init() {
+  Object.keys(done).forEach(id => {
+    if(!done[id]) return;
+    const chk = document.getElementById('chk-'+id);
+    const ep  = document.getElementById('ep-'+id);
+    if(chk) chk.classList.add('on');
+    if(ep)  ep.classList.add('done');
+  });
+  updateProgress();
+  // Open first ep of each module
+  document.querySelectorAll('.mod').forEach(mod => {
+    const first = mod.querySelector('.ep');
+    if(first && !['ov','err'].includes(mod.id)) first.classList.add('open');
+  });
+}
+init();
+
+// IntersectionObserver para nav activo
+const obs = new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      const id=e.target.id;
+      document.querySelectorAll('.nav-a').forEach(n=>{
+        if(n.getAttribute('onclick')?.includes("'"+id+"'")) n.classList.add('on');
+        else n.classList.remove('on');
+      });
+    }
+  });
+},{threshold:0.15});
+document.querySelectorAll('.mod[id]').forEach(m=>obs.observe(m));
+</script>
+</body>
+</html>
