@@ -15,6 +15,7 @@ import empleadoRoutes from "./modules/empleados/empleado.routes.js";
 import invitacionRoutes from "./modules/invitaciones/invitacion.routes.js";
 import rolRoutes from "./modules/roles/rol.routes.js";
 import horarioRoutes from "./modules/horarios/horario.routes.js";
+import permisoRoutes from "./modules/permisos/permiso.routes.js";
 
 import { generalLimiter, strictLimiter } from "./shared/middlewares/rateLimit.js";
 import { notFound } from "./shared/middlewares/notFound.js";
@@ -69,6 +70,7 @@ v1.use("/empleados", empleadoRoutes);
 v1.use("/invitaciones", invitacionRoutes);
 v1.use("/roles", rolRoutes);
 v1.use("/horarios", horarioRoutes);
+v1.use(permisoRoutes);
 
 app.use("/api/v1", v1);
 

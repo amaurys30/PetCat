@@ -1,5 +1,5 @@
 import { ApiError } from "../errors/ApiError.js";
-import { hasPermission } from "../utils/permissions.js";
+import { existePermiso, hasPermission } from "../utils/permissions.js";
 import * as negocioRepo from "../../modules/negocios/negocio.repository.js";
 import * as empleadoRepo from "../../modules/empleados/empleado.repository.js";
 
@@ -40,8 +40,16 @@ const resolveIdNegocio = async (params) => {
  *
  *   router.patch("/:id_cita", authMiddleware, authorize("citas", "editar"), controller.update);
  */
+export const authorize = (modulo, accion) => {
+  // Error de programación: falla al cargar las rutas, no en la primera petición.
+  if (!existePermiso(modulo, accion)) {
+    throw new Error(`authorize("${modulo}", "${accion}"): permiso fuera de CATALOGO_PERMISOS`);
+  }
+  return authorizeMiddleware(modulo, accion);
+};
+
 // eslint-disable-next-line no-unused-vars
-export const authorize = (modulo, accion) => async (req, res, next) => {
+const authorizeMiddleware = (modulo, accion) => async (req, res, next) => {
   if (!req.user) throw ApiError.unauthorized("Token requerido");
   const { id_usuario, tipo_usuario } = req.user;
   const esAdmin = tipo_usuario === "admin";

@@ -137,7 +137,7 @@ const router = express.Router();
 router.post(
   "/sucursales/:id_sucursal/horarios",
   authMiddleware,
-  authorize("horarios", "crear"),
+  authorize("configuracion", "editar"),
   createHorario
 );
 
