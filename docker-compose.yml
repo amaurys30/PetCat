@@ -13,7 +13,9 @@ services:
       - "127.0.0.1:3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./database/petcat.sql:/docker-entrypoint-initdb.d/petcat.sql:ro
+      # Solo se ejecutan con un volumen nuevo, en orden alfabético: esquema y luego seed.
+      - ./database/petcat.sql:/docker-entrypoint-initdb.d/01_petcat.sql:ro
+      - ./database/seeds/dev_seed.sql:/docker-entrypoint-initdb.d/02_dev_seed.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
       interval: 5s

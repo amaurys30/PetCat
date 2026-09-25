@@ -11,7 +11,8 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "db:reset": "node scripts/db-reset.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
