@@ -67,7 +67,7 @@ v1.use("/auth", authRoutes);
 v1.use(negocioRoutes);
 v1.use(sucursalRoutes);
 v1.use(empleadoRoutes);
-v1.use("/invitaciones", invitacionRoutes);
+v1.use(invitacionRoutes);
 v1.use(rolRoutes);
 v1.use(horarioRoutes);
 v1.use(permisoRoutes);

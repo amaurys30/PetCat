@@ -14,8 +14,12 @@ const SELECT_EMPLEADO = `
   FROM empleados e
   JOIN roles r ON r.id_rol = e.id_rol`;
 
-export const findById = async (id_empleado, conn) => {
-  const [rows] = await (conn ?? db).query(`${SELECT_EMPLEADO} WHERE e.id_empleado = ?`, [id_empleado]);
+/** Con `forUpdate` (dentro de una transacción) bloquea la fila del empleado. */
+export const findById = async (id_empleado, conn, { forUpdate = false } = {}) => {
+  const [rows] = await (conn ?? db).query(
+    `${SELECT_EMPLEADO} WHERE e.id_empleado = ? ${forUpdate ? "FOR UPDATE OF e" : ""}`,
+    [id_empleado]
+  );
   return rows[0];
 };
 
