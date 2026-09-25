@@ -1,102 +1,78 @@
-// negocio.service.js
 import * as negocioRepo from "./negocio.repository.js";
-import * as empleadoRepo from "../empleados/empleado.repository.js";
+import * as suscripcionRepo from "../suscripciones/suscripcion.repository.js";
+import { withTransaction } from "../../shared/utils/transaction.js";
+import { castFields } from "../../shared/utils/format.js";
+import { ApiError } from "../../shared/errors/ApiError.js";
 
-export const createNegocio = async (data) => {
-  // Validación básica
-  if (!data.nombre || !data.tipo) {
-    throw new Error("Nombre y tipo son obligatorios");
-  }
+const formatNegocio = (negocio) =>
+  castFields(negocio, {
+    bools: ["verificado", "destacado", "activo"],
+    numbers: ["latitud", "longitud", "calificacion_promedio"],
+  });
 
-  return await negocioRepo.createNegocio(data);
+const formatServicio = (servicio) => ({
+  ...castFields(servicio, {
+    bools: ["en_oferta"],
+    numbers: ["precio_base", "precio_maximo", "precio_oferta"],
+  }),
+  // Columna SET: "perro,gato" -> ["perro", "gato"]
+  tipo_mascota: servicio.tipo_mascota ? servicio.tipo_mascota.split(",") : [],
+});
+
+/**
+ * Cualquier usuario autenticado puede crear un negocio y queda como propietario
+ * (el acceso al panel es por pertenencia, no por tipo_usuario). En la misma
+ * transacción se crea la suscripción al plan Gratuito.
+ */
+export const createNegocio = async (id_usuario, data) => {
+  const id_negocio = await withTransaction(async (conn) => {
+    const id = await negocioRepo.create(id_usuario, data, conn);
+    await suscripcionRepo.createGratuita(id, conn);
+    return id;
+  });
+  return formatNegocio(await negocioRepo.findById(id_negocio));
 };
 
-export const getNegociosByUsuario = async (id_usuario) => {
-  return await negocioRepo.findByUsuario(id_usuario);
+export const getMisNegocios = async (id_usuario) => {
+  const rows = await negocioRepo.findMios(id_usuario);
+  return rows.map(({ id_empleado, id_rol, rol_nombre, ...negocio }) => ({
+    ...formatNegocio(negocio),
+    id_empleado,
+    rol: id_rol === null ? null : { id_rol, nombre: rol_nombre },
+  }));
 };
 
+/**
+ * Perfil público para la app: 404 si el negocio no existe o está inactivo. Solo
+ * muestra sucursales activas (con sus horarios), servicios activos y visibles en
+ * la app, y las últimas reseñas visibles.
+ */
+export const getPerfilPublico = async (id_negocio) => {
+  const negocio = await negocioRepo.findPublicoById(id_negocio);
+  if (!negocio) throw ApiError.notFound("Negocio no encontrado");
 
-export const getNegocioPublico = async (id_negocio) => {
-  return await negocioRepo.getNegocioPublicoCompleto(id_negocio);
+  const [sucursales, horarios, servicios, resenas] = await Promise.all([
+    negocioRepo.findSucursalesPublicas(id_negocio),
+    negocioRepo.findHorariosPublicos(id_negocio),
+    negocioRepo.findServiciosPublicos(id_negocio),
+    negocioRepo.findResenasVisibles(id_negocio),
+  ]);
+
+  return {
+    ...formatNegocio(negocio),
+    sucursales: sucursales.map((sucursal) => ({
+      ...castFields(sucursal, { bools: ["es_principal"], numbers: ["latitud", "longitud"] }),
+      horarios: horarios
+        .filter((h) => h.id_sucursal === sucursal.id_sucursal)
+        .map(({ dia_semana, hora_apertura, hora_cierre }) => ({ dia_semana, hora_apertura, hora_cierre })),
+    })),
+    servicios: servicios.map(formatServicio),
+    resenas_recientes: resenas,
+  };
 };
 
-
-export const updateNegocio = async (id_negocio, id_usuario, data) => {
-
-  // 1️⃣ Verificar existencia
-  const negocio = await negocioRepo.findById(id_negocio);
-
-  if (!negocio) {
-    const err = new Error("Negocio no encontrado");
-    err.status = 404;
-    throw err;
-  }
-
-  // 2️⃣ Verificar propietario
-  if (negocio.id_usuario_propietario !== id_usuario) {
-    const err = new Error("No tienes permisos para editar este negocio");
-    err.status = 403;
-    throw err;
-  }
-
-  // 3️⃣ Campos permitidos (whitelist)
-  const allowedFields = [
-    "nombre",
-    "tipo",
-    "descripcion",
-    "telefono",
-    "whatsapp",
-    "email",
-    "sitio_web",
-    "direccion",
-    "ciudad",
-    "departamento",
-    "pais",
-    "codigo_postal",
-    "latitud",
-    "longitud",
-    "logo_url",
-    "banner_url"
-  ];
-
-  const filteredData = {};
-
-  for (const key of allowedFields) {
-    if (data[key] !== undefined) {
-      filteredData[key] = data[key];
-    }
-  }
-
-  if (Object.keys(filteredData).length === 0) {
-    const err = new Error("No hay campos válidos para actualizar");
-    err.status = 400;
-    throw err;
-  }
-
-  // 4️⃣ Validaciones básicas
-  if (filteredData.email && !filteredData.email.includes("@")) {
-    throw new Error("Email inválido");
-  }
-
-  if (filteredData.tipo) {
-    const tiposValidos = [
-      "veterinaria",
-      "tienda_mascotas",
-      "peluqueria_canina",
-      "guarderia",
-      "entrenador",
-      "clinica",
-      "multiservicio"
-    ];
-
-    if (!tiposValidos.includes(filteredData.tipo)) {
-      throw new Error("Tipo de negocio inválido");
-    }
-  }
-
-  // 5️⃣ Update
-  await negocioRepo.updateNegocio(id_negocio, filteredData);
-
-  // 6️⃣ Retornar actualizado
-  return await negocioRepo.findById(id_negocio);
+/** authorize ya resolvió el negocio y comprobó configuracion.editar. */
+export const updateNegocio = async (id_negocio, data) => {
+  await negocioRepo.update(id_negocio, data);
+  return formatNegocio(await negocioRepo.findById(id_negocio));
 };

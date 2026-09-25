@@ -118,6 +118,72 @@ export const crearEmpleado = async (negocio, { rol = "Veterinario", usuario = nu
   return findOne("empleados", "id_empleado", id);
 };
 
+/** Rangos de horario de una sucursal: [[dia_semana, "08:00", "12:00"], ...]. */
+export const crearHorarios = async (sucursal, rangos) => {
+  for (const [dia_semana, hora_apertura, hora_cierre] of rangos) {
+    await insert("horarios_negocio", { id_sucursal: sucursal.id_sucursal, dia_semana, hora_apertura, hora_cierre });
+  }
+};
+
+export const crearMascota = async (dueno, overrides = {}) => {
+  const id = await insert("mascotas", {
+    id_usuario: dueno.id_usuario,
+    nombre: `Mascota ${unique()}`,
+    especie: "perro",
+    ...overrides,
+  });
+  return findOne("mascotas", "id_mascota", id);
+};
+
+/** Servicio del negocio en la categoría "Consulta y diagnóstico". */
+export const crearServicio = async (negocio, overrides = {}) => {
+  const id = await insert("servicios", {
+    id_negocio: negocio.id_negocio,
+    id_categoria: await categoriaServicio("Consulta y diagnóstico"),
+    nombre: `Servicio ${unique()}`,
+    precio_base: 50000,
+    ...overrides,
+  });
+  return findOne("servicios", "id_servicio", id);
+};
+
+const categoriaServicio = async (nombre) => {
+  const [[row]] = await pool.query("SELECT id_categoria FROM categorias_servicio WHERE nombre = ?", [nombre]);
+  return row.id_categoria;
+};
+
+/**
+ * Cita en un negocio. Si no se pasan, crea cliente, mascota y servicio.
+ * `fecha` en formato YYYY-MM-DD (por defecto, mañana).
+ */
+export const crearCita = async (negocio, { cliente, mascota, servicio, ...overrides } = {}) => {
+  const dueno = cliente ?? (await crearUsuario());
+  const [[{ manana }]] = await pool.query("SELECT DATE_FORMAT(CURDATE() + INTERVAL 1 DAY, '%Y-%m-%d') AS manana");
+  const id = await insert("citas", {
+    id_negocio: negocio.id_negocio,
+    id_usuario: dueno.id_usuario,
+    id_mascota: (mascota ?? (await crearMascota(dueno))).id_mascota,
+    id_servicio: (servicio ?? (await crearServicio(negocio))).id_servicio,
+    fecha: manana,
+    hora_inicio: "09:00:00",
+    hora_fin: "09:30:00",
+    ...overrides,
+  });
+  return findOne("citas", "id_cita", id);
+};
+
+export const crearResena = async (negocio, overrides = {}) => {
+  const autor = await crearUsuario();
+  const id = await insert("resenas", {
+    id_negocio: negocio.id_negocio,
+    id_usuario: autor.id_usuario,
+    calificacion: 5,
+    comentario: "Excelente atención",
+    ...overrides,
+  });
+  return findOne("resenas", "id_resena", id);
+};
+
 /**
  * Crea una sesión válida para el usuario, igual que el login, y devuelve su access token.
  */

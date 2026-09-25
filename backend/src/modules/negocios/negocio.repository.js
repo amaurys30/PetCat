@@ -1,167 +1,128 @@
-// negocio.repository.js
 import db from "../../config/db.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
+import { pick } from "../../shared/utils/pick.js";
+import { CAMPOS_NEGOCIO } from "./negocio.schemas.js";
 
-export const createNegocio = async (data) => {
-  const [result] = await db.query(
-    `
-    INSERT INTO negocios (
-      id_usuario_propietario,
-      nombre,
-      tipo,
-      descripcion,
-      telefono,
-      email,
-      direccion,
-      ciudad
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `,
-    [
-      data.id_usuario_propietario,
-      data.nombre,
-      data.tipo,
-      data.descripcion,
-      data.telefono,
-      data.email,
-      data.direccion,
-      data.ciudad,
-    ]
+export const findById = async (id_negocio, conn) => {
+  const [rows] = await (conn ?? db).query("SELECT * FROM negocios WHERE id_negocio = ?", [id_negocio]);
+  return rows[0];
+};
+
+/** Crea el negocio con los campos de la lista blanca y devuelve su id. */
+export const create = async (id_usuario_propietario, data, conn) => {
+  const campos = { ...pick(data, CAMPOS_NEGOCIO), id_usuario_propietario };
+  const columnas = Object.keys(campos);
+  const [result] = await (conn ?? db).query(
+    `INSERT INTO negocios (${columnas.join(", ")}) VALUES (${columnas.map(() => "?").join(", ")})`,
+    Object.values(campos)
   );
-
   return result.insertId;
 };
 
-export const findByUsuario = async (id_usuario) => { 
-  const [rows] = await db.query(
-    `SELECT 
-        id_negocio,
-        nombre,
-        tipo,
-        descripcion,
-        telefono,
-        email,
-        direccion,
-        ciudad,
-        verificado,
-        activo,
-        fecha_registro
-     FROM negocios
-     WHERE id_usuario_propietario = ?`,
-    [id_usuario]
+export const update = async (id_negocio, data, conn) => {
+  const campos = pick(data, CAMPOS_NEGOCIO);
+  const columnas = Object.keys(campos);
+  if (columnas.length === 0) return;
+  await (conn ?? db).query(
+    `UPDATE negocios SET ${columnas.map((c) => `${c} = ?`).join(", ")} WHERE id_negocio = ?`,
+    [...Object.values(campos), id_negocio]
   );
+};
 
+/**
+ * Negocios del panel del usuario: los propios (activos o no) y los activos donde
+ * es empleado activo. Si es propietario y empleado del mismo, cuenta como propietario.
+ */
+export const findMios = async (id_usuario) => {
+  const columnas = "n.id_negocio, n.nombre, n.tipo, n.ciudad, n.logo_url, n.verificado, n.activo";
+  const [rows] = await db.query(
+    `SELECT ${columnas}, 'propietario' AS relacion,
+            NULL AS id_empleado, NULL AS id_rol, NULL AS rol_nombre
+     FROM negocios n
+     WHERE n.id_usuario_propietario = ?
+     UNION ALL
+     SELECT ${columnas}, 'empleado' AS relacion,
+            e.id_empleado, r.id_rol, r.nombre AS rol_nombre
+     FROM empleados e
+     JOIN negocios n ON n.id_negocio = e.id_negocio
+     JOIN roles r ON r.id_rol = e.id_rol
+     WHERE e.id_usuario = ? AND e.activo = TRUE AND n.activo = TRUE
+       AND n.id_usuario_propietario <> ?
+     ORDER BY nombre, id_negocio`,
+    [id_usuario, id_usuario, id_usuario]
+  );
   return rows;
 };
 
+// ---------- Perfil público (app) ----------
 
-export const getNegocioPublicoCompleto = async (id_negocio) => {
-  // 1️⃣ Negocio
-  const [negocioRows] = await db.query(
-    `SELECT 
-      id_negocio,
-      nombre,
-      tipo,
-      descripcion,
-      telefono,
-      email,
-      direccion,
-      ciudad,
-      logo_url,
-      banner_url,
-      calificacion_promedio,
-      total_resenas
+export const findPublicoById = async (id_negocio) => {
+  const [rows] = await db.query(
+    `SELECT id_negocio, nombre, tipo, descripcion, telefono, whatsapp, email, sitio_web,
+            direccion, ciudad, departamento, latitud, longitud, logo_url, banner_url,
+            calificacion_promedio, total_resenas, verificado
      FROM negocios
      WHERE id_negocio = ? AND activo = TRUE`,
     [id_negocio]
   );
-
-  if (!negocioRows.length) return null;
-
-  const negocio = negocioRows[0];
-
-  // 2️⃣ Sucursales
-  const [sucursales] = await db.query(
-    `SELECT * FROM sucursales 
-     WHERE id_negocio = ? AND activo = TRUE`,
-    [id_negocio]
-  );
-
-  // 3️⃣ Horarios
-  const [horarios] = await db.query(
-    `SELECT h.*, s.id_sucursal 
-     FROM horarios_negocio h
-     JOIN sucursales s ON s.id_sucursal = h.id_sucursal
-     WHERE s.id_negocio = ?`,
-    [id_negocio]
-  );
-
-  const sucursalesConHorarios = sucursales.map((s) => ({
-    ...s,
-    horarios: horarios.filter((h) => h.id_sucursal === s.id_sucursal),
-  }));
-
-  // 4️⃣ Servicios (⚠ depende de tu tabla servicios)
-  const [servicios] = await db.query(
-    `SELECT id_servicio, nombre, precio_base, duracion_minutos
-     FROM servicios
-     WHERE id_negocio = ? AND activo = TRUE`,
-    [id_negocio]
-  );
-
-  // 5️⃣ Reseñas recientes (últimas 5)
-  const [resenas] = await db.query(
-    `SELECT 
-        r.id_resena,
-        r.calificacion,
-        r.comentario,
-        r.fecha_creacion,
-        u.nombre AS cliente_nombre
-     FROM resenas r
-     JOIN usuarios u ON u.id_usuario = r.id_usuario
-     WHERE r.id_negocio = ?
-     ORDER BY r.fecha_creacion DESC
-     LIMIT 5`,
-    [id_negocio]
-  );
-
-  return {
-    ...negocio,
-    sucursales: sucursalesConHorarios,
-    servicios,
-    resenas_recientes: resenas,
-  };
-};
-
-
-export const updateNegocio = async (id_negocio, data) => {
-
-  const fields = [];
-  const values = [];
-
-  for (const key in data) {
-    fields.push(`${key} = ?`);
-    values.push(data[key]);
-  }
-
-  const sql = `
-    UPDATE negocios
-    SET ${fields.join(", ")}, fecha_actualizacion = NOW()
-    WHERE id_negocio = ?
-  `;
-
-  values.push(id_negocio);
-
-  await db.query(sql, values);
-};
-
-export const findById = async (id_negocio) => {
-  const [rows] = await db.query(
-    "SELECT * FROM negocios WHERE id_negocio = ?",
-    [id_negocio]
-  );
-
   return rows[0];
 };
+
+export const findSucursalesPublicas = async (id_negocio) => {
+  const [rows] = await db.query(
+    `SELECT id_sucursal, nombre, descripcion, telefono, direccion, ciudad, latitud, longitud, es_principal
+     FROM sucursales
+     WHERE id_negocio = ? AND activo = TRUE
+     ORDER BY es_principal DESC, id_sucursal`,
+    [id_negocio]
+  );
+  return rows;
+};
+
+export const findHorariosPublicos = async (id_negocio) => {
+  const [rows] = await db.query(
+    `SELECT h.id_sucursal, h.dia_semana,
+            TIME_FORMAT(h.hora_apertura, '%H:%i') AS hora_apertura,
+            TIME_FORMAT(h.hora_cierre, '%H:%i') AS hora_cierre
+     FROM horarios_negocio h
+     JOIN sucursales s ON s.id_sucursal = h.id_sucursal
+     WHERE s.id_negocio = ? AND s.activo = TRUE AND h.activo = TRUE
+     ORDER BY h.id_sucursal, h.dia_semana, h.hora_apertura`,
+    [id_negocio]
+  );
+  return rows;
+};
+
+export const findServiciosPublicos = async (id_negocio) => {
+  const [rows] = await db.query(
+    `SELECT s.id_servicio, s.nombre, s.descripcion, s.precio_base, s.precio_maximo, s.tipo_precio,
+            s.duracion_minutos, s.tipo_mascota, s.en_oferta, s.precio_oferta,
+            c.id_categoria, c.nombre AS categoria
+     FROM servicios s
+     JOIN categorias_servicio c ON c.id_categoria = s.id_categoria
+     WHERE s.id_negocio = ? AND s.activo = TRUE AND s.visible_app = TRUE
+     ORDER BY c.orden_display, s.nombre`,
+    [id_negocio]
+  );
+  return rows;
+};
+
+export const findResenasVisibles = async (id_negocio, limit = 5) => {
+  const [rows] = await db.query(
+    `SELECT r.id_resena, r.calificacion, r.titulo, r.comentario, r.respuesta_negocio,
+            r.fecha_respuesta, r.fecha_creacion,
+            CONCAT(u.nombre, ' ', LEFT(u.apellido, 1), '.') AS autor
+     FROM resenas r
+     JOIN usuarios u ON u.id_usuario = r.id_usuario
+     WHERE r.id_negocio = ? AND r.visible = TRUE
+     ORDER BY r.fecha_creacion DESC, r.id_resena DESC
+     LIMIT ?`,
+    [id_negocio, limit]
+  );
+  return rows;
+};
+
+// ---------- Resolución del negocio de un recurso (authorize) ----------
 
 // Consulta que da el id_negocio de un recurso a partir del parámetro de ruta que lo identifica.
 const NEGOCIO_DE_RECURSO = {
@@ -189,4 +150,3 @@ export const findNegocioDeRecurso = async (param, id) => {
   const [rows] = await db.query(sql, [id]);
   return rows[0];
 };
-

@@ -29,9 +29,13 @@ export const coordenadasJuntas = (data, ctx) => {
   }
 };
 
-/** Para PATCH: el body debe traer al menos un campo. */
-export const alMenosUnCampo = (data, ctx) => {
-  if (Object.keys(data).length === 0) {
-    ctx.addIssue({ code: "custom", path: [], message: "Envía al menos un campo para actualizar" });
-  }
-};
+/**
+ * Para PATCH: el body debe traer al menos un campo. Solo se evalúa si no hubo
+ * otros errores (un body con solo campos no permitidos ya los reporta).
+ */
+export const conAlMenosUnCampo = (schema) =>
+  schema.refine((data) => Object.keys(data).length > 0, {
+    message: "Envía al menos un campo para actualizar",
+    path: [],
+    when: (payload) => payload.issues.length === 0,
+  });

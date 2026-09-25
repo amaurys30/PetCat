@@ -58,10 +58,10 @@ describe("helpers de tests", () => {
     const negocio = await crearNegocio();
     const token = await tokenDe(negocio.propietario);
 
-    const conToken = await api(token).get("/negocios/mis-negocios");
+    const conToken = await api(token).get("/negocios/mios");
     expect(conToken.status).toBe(200);
 
-    const sinToken = await api().get("/negocios/mis-negocios");
+    const sinToken = await api().get("/negocios/mios");
     expect(sinToken.status).toBe(401);
   });
 });

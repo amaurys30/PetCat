@@ -41,7 +41,7 @@ describe("app", () => {
   });
 
   it("el rate limit no se aplica en tests", async () => {
-    const res = await request(app).get("/api/v1/negocios/mis-negocios");
+    const res = await request(app).get("/api/v1/negocios/mios");
     expect(res.headers.ratelimit).toBeUndefined();
   });
 
