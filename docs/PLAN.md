@@ -35,7 +35,9 @@ Objetivo: que todo módulo nuevo nazca con el mismo patrón y que los módulos e
 - [x] `app.js`: helmet, cors con `CORS_ORIGINS`, `express.json({ limit: "1mb" })`, morgan en desarrollo, rate limit general y uno más estricto para `/auth/login`, `/auth/forgot-password` e invitaciones. Montar todo bajo `/api/v1`. Swagger en `/api/v1/docs` con `servers.url` actualizado. `notFound` y `errorHandler` al final.
 
 ### 0.C Corrección y normalización de módulos existentes
-Pasar cada módulo al patrón (schemas Zod, sin try/catch en controladores, `ApiError`, helpers de respuesta, Swagger actualizado).
+Pasar cada módulo al patrón (schemas Zod, sin try/catch en controladores, `ApiError`, helpers de respuesta, Swagger actualizado). Cada módulo normalizado queda con tests de integración (caso feliz, 401, 403, 404 y 422).
+
+Se hace en sub-bloques que se aprueban por separado: **0.C.1** base de tests y seed · **0.C.2** auth, authMiddleware y authorize · **0.C.3** negocios, sucursales, horarios y roles · **0.C.4** empleados · **0.C.5** invitaciones · **0.C.6** migraciones, README y cierre.
 
 **Bugs y riesgos a corregir**
 - [x] Eliminar `src/routes/users.routes.js`: `GET /usuarios` es público y devuelve `password_hash`; `POST /usuarios` recibe el hash directo.
@@ -51,7 +53,7 @@ Pasar cada módulo al patrón (schemas Zod, sin try/catch en controladores, `Api
 **Rutas normalizadas**
 - [ ] Negocios: `POST /negocios`, `GET /negocios/mios`, `GET /negocios/:id_negocio` (perfil público), `PATCH /negocios/:id_negocio`. Al crear un negocio, crear en la misma transacción una suscripción al plan Gratuito.
 - [ ] Sucursales: `GET|POST /negocios/:id_negocio/sucursales`, `GET|PATCH|DELETE /sucursales/:id_sucursal`.
-- [ ] Horarios: `GET /sucursales/:id_sucursal/horarios`, `PUT /sucursales/:id_sucursal/horarios` (reemplaza la semana completa, en transacción).
+- [ ] Horarios: `GET /sucursales/:id_sucursal/horarios`, `PUT /sucursales/:id_sucursal/horarios` (reemplaza la semana completa, en transacción). La semana llega como lista de rangos; se permiten varios rangos por día (horario partido) y el servicio valida que no se crucen.
 - [ ] Roles: `GET /negocios/:id_negocio/roles` (globales + propios), `POST /negocios/:id_negocio/roles`, `PATCH|DELETE /roles/:id_rol`. Los roles `es_sistema` no se editan ni se borran. Validar que `permisos_json` solo use módulos y acciones conocidos.
 - [ ] Empleados: `GET|POST /negocios/:id_negocio/empleados`, `GET|PATCH|DELETE /empleados/:id_empleado`, `PATCH /empleados/:id_empleado/reactivar`. Validar que el `id_rol` asignado sea global o del mismo negocio.
 
@@ -65,6 +67,7 @@ Pasar cada módulo al patrón (schemas Zod, sin try/catch en controladores, `Api
 
 **Base de datos, datos de prueba y tests**
 - [ ] Migración `001_empleados_email_por_negocio.sql`: `UNIQUE(id_negocio, email)` en `empleados`. Actualizar `petcat.sql`.
+- [ ] Migración `002_horarios_varios_rangos.sql`: quitar `UNIQUE(id_sucursal, dia_semana)` de `horarios_negocio` para permitir horario partido. Actualizar `petcat.sql`. (Se crea en 0.C.3 y se entrega con la 001; Amaurys las aplica en su base.)
 - [ ] `database/seeds/dev_seed.sql`: admin de plataforma, un propietario con negocio (plan Gratuito), una sucursal con horarios, dos empleados (veterinario vinculado y recepcionista con invitación pendiente), un cliente con dos mascotas y algunos servicios. Contraseña común documentada (p. ej. `Petcat123!`).
 - [ ] Configurar Vitest + supertest con base `petcat_test`. Tests: health, registro, login, ruta protegida sin token (401), permisos (403), flujo completo de invitación (usuario nuevo y usuario existente).
 - [ ] `backend/README.md`: cómo levantar el proyecto, aplicar migraciones, cargar el seed y correr los tests.
@@ -77,6 +80,7 @@ Pasar cada módulo al patrón (schemas Zod, sin try/catch en controladores, `Api
 
 **Auth completo**
 - [ ] `POST /auth/refresh-token` (rota el refresh token), `GET /auth/me` (perfil + negocios a los que tiene acceso con su rol), `PATCH /auth/me`, `POST /auth/change-password` (cierra las demás sesiones), `POST /auth/forgot-password`, `POST /auth/reset-password`, `GET /auth/verify-email/:token`.
+- [ ] `forgot-password` y `reset-password` deben funcionar aunque la cuenta esté bloqueada por intentos fallidos; al restablecer la contraseña se reinician `intentos_login` y `bloqueado_hasta`.
 
 **Mascotas (app)**
 - [ ] `GET|POST /mascotas` (del usuario autenticado), `GET|PATCH|DELETE /mascotas/:id_mascota`, `GET /mascotas/:id_mascota/resumen-salud` (vacunas próximas o vencidas, último control, próximo control).
@@ -143,3 +147,16 @@ Pasar cada módulo al patrón (schemas Zod, sin try/catch en controladores, `Api
 - Límites de solicitudes: 300 cada 15 min por IP en toda la API; estricto (`AUTH_RATE_LIMIT_MAX`, por defecto 10 en producción y 100 en desarrollo) con un contador propio por endpoint en login, forgot-password e invitaciones. Desactivados con `NODE_ENV=test`.
 - `GET /api/v1/health` comprueba la base (`SELECT 1`, 503 si no responde); lo usa el healthcheck del backend en compose. Health y Swagger quedan fuera del rate limit.
 - Swagger: `servers` relativo (`/api/v1`) para que "Try it out" funcione desde cualquier host; especificación en `/api/v1/docs.json`.
+
+### Decisiones de 0.C (septiembre 2026)
+- Base de tests: `petcat_test` se borra y recrea en cada corrida cargando `database/petcat.sql` con un cargador en Node (entiende `DELIMITER`). Cada test crea sus propios datos con emails únicos; no se limpia entre tests. El seed de desarrollo también se carga y se prueba en `petcat_test`.
+- Seed: `database/seeds/dev_seed.sql`, contraseña común `Petcat123!`. En volúmenes nuevos compose lo ejecuta después del esquema (`01_petcat.sql`, `02_dev_seed.sql`). `npm run db:reset -- --yes` recrea `petcat_db` con esquema y seed (se niega en producción y sin `--yes`).
+- Sesiones: se guarda el hash SHA-256 del access token y del refresh token, no los tokens en claro. La sesión dura lo mismo que el refresh token.
+- Login: 5 intentos fallidos seguidos bloquean la cuenta 15 minutos (`intentos_login`, `bloqueado_hasta`). Un login correcto reinicia el contador. Mismo mensaje "Credenciales inválidas" si el email no existe o la contraseña es errónea (con comparación contra un hash ficticio para no delatar emails). Cuenta inactiva o bloqueada: 403.
+- Respuesta del login y de aceptar invitación: `data: { access_token, refresh_token, usuario }` (snake_case, como el resto de campos).
+- `GET /negocios/mios` devuelve los negocios propios y aquellos donde el usuario es empleado activo, con `relacion: "propietario" | "empleado"` y su rol.
+- Sin escalada de privilegios: quien no es propietario no puede crear ni editar un rol con permisos que él no tiene, ni asignar ese rol, ni cambiar su propio rol (403).
+- Invitaciones: vigencia de 72 horas. Al aceptar, un usuario nuevo queda con `email_verificado = TRUE` (abrir el enlace prueba que el correo es suyo).
+- Suscripción Gratuita sin vencimiento: `fecha_fin = 9999-12-31`.
+- `GET /permisos`: catálogo de módulos y acciones para el editor de roles del panel. El mismo catálogo valida `permisos_json`.
+- Horario partido: `horarios_negocio` admite varios rangos por día (se quita `UNIQUE(id_sucursal, dia_semana)`, migración 002). El servicio valida que los rangos de un mismo día no se crucen. El cálculo de horarios libres de la Fase 1 debe recorrer todos los rangos del día.
