@@ -53,6 +53,7 @@ VALUES (@id_negocio, (SELECT id_plan FROM planes_suscripcion WHERE nombre = 'Gra
 
 -- ---------------------------------------------------------------------------
 -- Sucursal principal y horarios (0 = domingo ... 6 = sábado)
+-- Horario partido de lunes a viernes; sábado solo en la mañana; domingo cerrado.
 -- ---------------------------------------------------------------------------
 INSERT INTO sucursales (id_negocio, nombre, telefono, direccion, ciudad, latitud, longitud, es_principal)
 VALUES (@id_negocio, 'Sede Centro', '6052801010', 'Calle 23 # 18-45, Centro', 'Sincelejo',
@@ -60,11 +61,11 @@ VALUES (@id_negocio, 'Sede Centro', '6052801010', 'Calle 23 # 18-45, Centro', 'S
 SET @id_sucursal = LAST_INSERT_ID();
 
 INSERT INTO horarios_negocio (id_sucursal, dia_semana, hora_apertura, hora_cierre) VALUES
-(@id_sucursal, 1, '08:00:00', '18:00:00'),
-(@id_sucursal, 2, '08:00:00', '18:00:00'),
-(@id_sucursal, 3, '08:00:00', '18:00:00'),
-(@id_sucursal, 4, '08:00:00', '18:00:00'),
-(@id_sucursal, 5, '08:00:00', '18:00:00'),
+(@id_sucursal, 1, '08:00:00', '12:00:00'), (@id_sucursal, 1, '14:00:00', '18:00:00'),
+(@id_sucursal, 2, '08:00:00', '12:00:00'), (@id_sucursal, 2, '14:00:00', '18:00:00'),
+(@id_sucursal, 3, '08:00:00', '12:00:00'), (@id_sucursal, 3, '14:00:00', '18:00:00'),
+(@id_sucursal, 4, '08:00:00', '12:00:00'), (@id_sucursal, 4, '14:00:00', '18:00:00'),
+(@id_sucursal, 5, '08:00:00', '12:00:00'), (@id_sucursal, 5, '14:00:00', '18:00:00'),
 (@id_sucursal, 6, '08:00:00', '12:00:00');
 
 -- ---------------------------------------------------------------------------

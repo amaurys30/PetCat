@@ -175,13 +175,14 @@ CREATE TABLE horarios_negocio (
     hora_cierre      TIME            NOT NULL,
     activo           BOOLEAN         NOT NULL DEFAULT TRUE,
     PRIMARY KEY (id_horario),
-    UNIQUE KEY uq_horario_sucursal_dia (id_sucursal, dia_semana),
     INDEX idx_horarios_sucursal (id_sucursal),
+    -- Varios rangos por día (horario partido): sin UNIQUE por día. Migración 002.
+    INDEX idx_horarios_sucursal_dia (id_sucursal, dia_semana),
     CONSTRAINT fk_horarios_sucursal
         FOREIGN KEY (id_sucursal) REFERENCES sucursales (id_sucursal)
         ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  COMMENT='Horarios de atención por día y sucursal';
+  COMMENT='Horarios de atención por sucursal: uno o varios rangos por día';
 
 
 CREATE TABLE roles (
@@ -1308,7 +1309,7 @@ VALUES
 INSERT INTO roles (nombre, descripcion, permisos_json, es_sistema) VALUES
 ('Administrador',
  'Acceso total al panel del negocio. Puede editar todo.',
- '{"citas":["ver","crear","editar","cancelar"],"servicios":["ver","crear","editar","eliminar"],"inventario":["ver","crear","editar","eliminar"],"clientes":["ver","editar"],"empleados":["ver","crear","editar","eliminar"],"pagos":["ver","reembolsar"],"roles": ["ver", "crear", "editar", "eliminar"],"reportes":["ver","exportar"],"configuracion":["ver","editar"]}',
+ '{"citas":["ver","crear","editar","cancelar"],"servicios":["ver","crear","editar","eliminar"],"inventario":["ver","crear","editar","eliminar","editar_stock"],"clientes":["ver","editar"],"empleados":["ver","crear","editar","eliminar"],"pagos":["ver","ver_basico","reembolsar"],"roles":["ver","crear","editar","eliminar"],"reportes":["ver","exportar"],"configuracion":["ver","editar"],"historial_medico":["ver","crear","editar"],"vacunas":["ver","crear","editar"]}',
  TRUE),
 
 ('Veterinario',

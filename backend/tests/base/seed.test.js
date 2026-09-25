@@ -49,11 +49,13 @@ describe("seed de desarrollo", () => {
     expect(sucursales).toHaveLength(1);
     expect(sucursales[0].es_principal).toBe(1);
 
-    const [[{ dias }]] = await pool.query(
-      "SELECT COUNT(DISTINCT dia_semana) AS dias FROM horarios_negocio WHERE id_sucursal = ?",
+    // Horario partido: dos rangos de lunes a viernes y uno el sábado.
+    const [[{ dias, rangos }]] = await pool.query(
+      "SELECT COUNT(DISTINCT dia_semana) AS dias, COUNT(*) AS rangos FROM horarios_negocio WHERE id_sucursal = ?",
       [sucursales[0].id_sucursal]
     );
     expect(dias).toBe(6);
+    expect(rangos).toBe(11);
   });
 
   it("veterinario vinculado y recepcionista con invitación pendiente (token guardado como SHA-256)", async () => {
