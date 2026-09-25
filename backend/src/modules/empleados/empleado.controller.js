@@ -11,21 +11,21 @@ export const getEmpleado = async (req, res) => {
 };
 
 export const createEmpleado = async (req, res) => {
-  const empleado = await service.createEmpleado(req.negocio.id_negocio, req.body);
+  const empleado = await service.createEmpleado(req.negocio.id_negocio, req.body, req.acceso);
   return created(res, empleado, "Empleado creado");
 };
 
 export const updateEmpleado = async (req, res) => {
-  const empleado = await service.updateEmpleado(req.params.id_empleado, req.body);
+  const empleado = await service.updateEmpleado(req.params.id_empleado, req.body, req.acceso);
   return ok(res, empleado, "Empleado actualizado");
 };
 
 export const desactivarEmpleado = async (req, res) => {
-  const empleado = await service.desactivarEmpleado(req.params.id_empleado);
+  const empleado = await service.desactivarEmpleado(req.params.id_empleado, req.acceso);
   return ok(res, empleado, "Empleado desactivado");
 };
 
 export const reactivarEmpleado = async (req, res) => {
-  const empleado = await service.reactivarEmpleado(req.params.id_empleado);
+  const empleado = await service.reactivarEmpleado(req.params.id_empleado, req.acceso);
   return ok(res, empleado, "Empleado reactivado");
 };
