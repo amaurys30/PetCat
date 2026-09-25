@@ -26,7 +26,7 @@ Reglas de dominio que guían el diseño:
 
 ## Stack (decidido — no cambiar sin consultar)
 
-- Node 20, Express 5, **JavaScript ES Modules** (no TypeScript).
+- Node 24 LTS, Express 5, **JavaScript ES Modules** (no TypeScript).
 - MySQL 8 con **`mysql2/promise` y SQL escrito a mano**. **No usar Prisma**: el esquema usa columnas `SET` (no soportadas por Prisma), triggers y vistas. `database/petcat.sql` es la fuente de verdad del esquema.
 - Validación: **Zod**. Auth: JWT access + refresh, `bcryptjs` (no `bcrypt`). Docs: swagger-jsdoc + swagger-ui-express.
 - Seguridad: helmet, cors, express-rate-limit. Logs: morgan.

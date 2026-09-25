@@ -138,5 +138,5 @@ Pasar cada módulo al patrón (schemas Zod, sin try/catch en controladores, `Api
 - MercadoPago como única pasarela del MVP; Expo Push en lugar de FCM directo.
 - Variables de entorno: `src/config/env.js` valida pero no carga archivos. `server.js` carga `backend/.env`; Vitest inyecta `backend/.env.test` desde `vitest.config.js` (los tests importan `app.js` sin `server.js`). Con `NODE_ENV=test`, `DB_NAME` debe terminar en `_test`.
 - Zona horaria: MySQL (contenedor con `TZ`) y el proceso Node (`env.js` fija `process.env.TZ`) usan `America/Bogota`, para que las fechas en texto (`dateStrings`) se interpreten igual en cualquier máquina.
-- Vitest 3 mientras el stack sea Node 20 (Vitest 5 exige Node 22). Tiene un aviso moderado de `npm audit`, solo en desarrollo.
+- Node 24 LTS (imagen `node:24`, `engines >=24`). Node 20 terminó su soporte en abril de 2026.
 - MySQL de docker compose publicado solo en `127.0.0.1:3307`.
