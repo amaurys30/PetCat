@@ -239,6 +239,9 @@ CREATE TABLE empleados (
     INDEX idx_empleados_rol (id_rol),
     INDEX idx_empleados_usuario (id_usuario),
     INDEX idx_empleados_activo (activo),
+    -- Email único por negocio y un usuario vinculado una sola vez por negocio. Migración 001.
+    UNIQUE KEY uq_empleados_negocio_email (id_negocio, email),
+    UNIQUE KEY uq_empleados_negocio_usuario (id_negocio, id_usuario),
     CONSTRAINT fk_empleados_negocio
         FOREIGN KEY (id_negocio) REFERENCES negocios (id_negocio)
         ON DELETE CASCADE ON UPDATE CASCADE,
