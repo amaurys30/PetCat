@@ -14,6 +14,9 @@ import horarioRoutes from "./modules/horarios/horario.routes.js";
 import swaggerUi from "swagger-ui-express";
 import swaggerSpec from "./docs/swagger.js";
 
+import { notFound } from "./shared/middlewares/notFound.js";
+import { errorHandler } from "./shared/middlewares/errorHandler.js";
+
 const app = express();
 
 // ========================
@@ -50,5 +53,9 @@ app.get("/health", (req, res) => {
     time: new Date(),
   });
 });
+
+// Siempre al final: rutas inexistentes y manejo central de errores.
+app.use(notFound);
+app.use(errorHandler);
 
 export default app;

@@ -24,10 +24,10 @@ Objetivo: que todo módulo nuevo nazca con el mismo patrón y que los módulos e
 - [x] Unificar `JWT_EXPIRES` → `JWT_EXPIRES_IN` (hoy el `.env` y el código usan nombres distintos).
 
 ### 0.B Infraestructura compartida
-- [ ] `shared/errors/ApiError.js` con estáticos: `badRequest, unauthorized, forbidden, notFound, conflict, unprocessable, tooMany, internal`.
-- [ ] `shared/middlewares/errorHandler.js` y `notFound.js` (ver reglas en `CLAUDE.md`).
+- [x] `shared/errors/ApiError.js` con estáticos: `badRequest, unauthorized, forbidden, notFound, conflict, unprocessable, tooMany, internal`.
+- [x] `shared/middlewares/errorHandler.js` y `notFound.js` (ver reglas en `CLAUDE.md`).
 - [ ] `shared/middlewares/validate.js`: valida `{ body, params, query }` con Zod, reemplaza por los datos parseados y responde 422 con `errors` por campo.
-- [ ] `shared/utils/response.js`: `ok(res, data, message)`, `created(res, data, message)`, `paginated(res, rows, meta)`.
+- [x] `shared/utils/response.js`: `ok(res, data, message)`, `created(res, data, message)`, `paginated(res, rows, meta)`.
 - [ ] `shared/utils/pagination.js`: lee `page` y `limit` (por defecto 20, máximo 100), devuelve `{ limit, offset }` y construye `meta`.
 - [ ] `shared/utils/transaction.js`: `withTransaction(async (conn) => {...})` con commit/rollback y liberación de la conexión. Los repositorios aceptan un `conn` opcional (`conn ?? pool`).
 - [ ] `shared/utils/pick.js` (lista blanca de campos) y `sanitizeUsuario`.
