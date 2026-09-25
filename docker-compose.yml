@@ -12,7 +12,7 @@ services:
       - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./petcat.sql:/docker-entrypoint-initdb.d/petcat.sql
+      - ./database/petcat.sql:/docker-entrypoint-initdb.d/petcat.sql
 
   backend:
     build: ./backend
