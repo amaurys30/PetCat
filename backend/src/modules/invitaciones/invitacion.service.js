@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import bcrypt from "bcrypt";
+import { hashPassword } from "../../shared/utils/hash.js";
 import * as invitacionRepo from "./invitacion.repository.js";
 import * as userRepo from "../usuarios/usuario.repository.js";
 import * as empleadoRepo from "../empleados/empleado.repository.js";
@@ -68,7 +68,7 @@ export const acceptInvitation = async (token, password, nombre, apellido) => {
       throw new Error("Nombre, apellido y contraseña son obligatorios");
     }
 
-    const hashed = await bcrypt.hash(password, 10);
+    const hashed = await hashPassword(password);
 
     const userId = await userRepo.create({
       nombre,
