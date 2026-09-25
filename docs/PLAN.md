@@ -41,14 +41,14 @@ Se hace en sub-bloques que se aprueban por separado: **0.C.1** base de tests y s
 
 **Bugs y riesgos a corregir**
 - [x] Eliminar `src/routes/users.routes.js`: `GET /usuarios` es público y devuelve `password_hash`; `POST /usuarios` recibe el hash directo.
-- [ ] Eliminar `shared/middlewares/role.middleware.js` (duplica `authorize` y no se usa). Eliminar o completar `auth.validation.js` y `session.service.js` (están vacíos).
+- [x] Eliminar `shared/middlewares/role.middleware.js` (duplica `authorize` y no se usa). Eliminar o completar `auth.validation.js` y `session.service.js` (están vacíos).
 - [ ] `empleado.service.js`: falta importar `hasPermission` (lanza `ReferenceError` cuando edita alguien que no es propietario). Además, esa verificación duplica la de `authorize`: quitarla.
 - [ ] `empleado.repository.js → update`: arma nombres de columna desde `req.body` (inyección SQL y asignación masiva de `id_negocio`, `id_usuario`, etc.). Usar lista blanca.
-- [ ] `authorize`: rechazar empleados con `activo = FALSE`; resolver el negocio también desde `:id_cita`, `:id_servicio`, `:id_rol`... mediante un mapa de resolvers para no repetir código.
-- [ ] `authMiddleware`: usar `verifyToken` de `utils/jwt.js`, validar el formato `Bearer`, comprobar `sesiones.expira_en` y que el usuario siga `activo`. Quitar la carga de permisos por `tipo_usuario === "negocio"` (toma el primer negocio encontrado; los permisos se resuelven por negocio en `authorize`).
-- [ ] Login: mismo mensaje para email inexistente y contraseña errónea ("Credenciales inválidas"); rechazar usuarios inactivos o bloqueados; registrar `ip_address` y `user_agent` reales; actualizar `ultimo_acceso`.
-- [ ] Logout: no fallar si el header viene mal formado.
-- [ ] Registro: validar con Zod; no permitir `tipo_usuario = "admin"` desde el endpoint público.
+- [x] `authorize`: rechazar empleados con `activo = FALSE`; resolver el negocio también desde `:id_cita`, `:id_servicio`, `:id_rol`... mediante un mapa de resolvers para no repetir código.
+- [x] `authMiddleware`: usar `verifyToken` de `utils/jwt.js`, validar el formato `Bearer`, comprobar `sesiones.expira_en` y que el usuario siga `activo`. Quitar la carga de permisos por `tipo_usuario === "negocio"` (toma el primer negocio encontrado; los permisos se resuelven por negocio en `authorize`).
+- [x] Login: mismo mensaje para email inexistente y contraseña errónea ("Credenciales inválidas"); rechazar usuarios inactivos o bloqueados; registrar `ip_address` y `user_agent` reales; actualizar `ultimo_acceso`.
+- [x] Logout: no fallar si el header viene mal formado.
+- [x] Registro: validar con Zod; no permitir `tipo_usuario = "admin"` desde el endpoint público.
 
 **Rutas normalizadas**
 - [ ] Negocios: `POST /negocios`, `GET /negocios/mios`, `GET /negocios/:id_negocio` (perfil público), `PATCH /negocios/:id_negocio`. Al crear un negocio, crear en la misma transacción una suscripción al plan Gratuito.
@@ -160,3 +160,8 @@ Se hace en sub-bloques que se aprueban por separado: **0.C.1** base de tests y s
 - Suscripción Gratuita sin vencimiento: `fecha_fin = 9999-12-31`.
 - `GET /permisos`: catálogo de módulos y acciones para el editor de roles del panel. El mismo catálogo valida `permisos_json`.
 - Horario partido: `horarios_negocio` admite varios rangos por día (se quita `UNIQUE(id_sucursal, dia_semana)`, migración 002). El servicio valida que los rangos de un mismo día no se crucen. El cálculo de horarios libres de la Fase 1 debe recorrer todos los rangos del día.
+- Auth (0.C.2): los tokens llevan un `jti` aleatorio para que dos sesiones nunca tengan el mismo hash. `session.service.createSessionForUser(usuario, cliente, conn)` es la única forma de crear sesiones (login, invitaciones y `tokenDe` de los tests).
+- `authMiddleware` toma `req.user` de la base (no del token) y responde 403 si el usuario está inactivo. El bloqueo por intentos no cierra las sesiones abiertas: solo impide iniciar sesión.
+- Login: con la cuenta bloqueada no se evalúa la contraseña (403 directo); el intento que alcanza el límite ya responde 403. Al vencer el bloqueo el conteo empieza de nuevo. El registro no inicia sesión.
+- Contraseña de registro: 8 a 72 caracteres (límite de bcrypt), con al menos una letra y un número. El body de register y login es estricto: campos no previstos -> 422.
+- `authorize` deduce el negocio solo de parámetros de ruta (`:id_negocio` o un recurso del mapa de `negocio.repository`); si la ruta no tiene ninguno es un error de programación (500). Deja `req.negocio` y `req.acceso = { relacion, id_empleado?, id_rol?, permisos? }` para los servicios. Recursos globales (roles del sistema): solo el admin.
