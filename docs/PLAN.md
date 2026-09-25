@@ -16,12 +16,12 @@ Objetivo: que todo módulo nuevo nazca con el mismo patrón y que los módulos e
 - [x] Inicializar Git (si no existe), crear rama `fase-0`. Verificar que `.env` y `node_modules` están en `.gitignore`.
 - [x] Mover `petcat.sql` a `database/petcat.sql` y actualizar la ruta en `docker-compose.yml`. Crear `database/migrations/` y `database/seeds/`.
 - [x] `docker-compose.yml`: sacar la contraseña de root a variables de entorno (archivo `.env` en la raíz o `env_file`), sin valores fijos en el YAML.
-- [ ] Crear `backend/.env.example` con todas las variables: `NODE_ENV, PORT, DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME, JWT_SECRET, JWT_EXPIRES_IN, REFRESH_SECRET, REFRESH_EXPIRES_IN, APP_URL, FRONTEND_URL, CORS_ORIGINS, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, MAIL_FROM`.
-- [ ] `src/config/env.js`: cargar y validar variables con Zod. Si falta una obligatoria (p. ej. `JWT_SECRET`), el servidor no arranca. Eliminar todos los secretos por defecto del código (`"petcat_secret_key"`, `"petcat_refresh_secret"`, contraseña `"2003"`).
-- [ ] `server.js`: `import "dotenv/config"` como **primera línea** (hoy `dotenv.config()` corre después de los imports y `jwt.js` firma con el secreto por defecto). `PORT` desde env. Quitar `dotenv.config()` de `app.js`.
-- [ ] `config/db.js`: usar `env.js`, `dateStrings: true`, `timezone: "-05:00"`, `charset: "utf8mb4"`. Exportar también `getConnection` para transacciones.
-- [ ] Dependencias: quitar `bcrypt` (dejar `bcryptjs`); agregar `zod, helmet, cors, express-rate-limit, morgan, nodemailer`; dev: `nodemon, vitest, supertest`. Scripts: `dev`, `start`, `test`.
-- [ ] Unificar `JWT_EXPIRES` → `JWT_EXPIRES_IN` (hoy el `.env` y el código usan nombres distintos).
+- [x] Crear `backend/.env.example` con todas las variables: `NODE_ENV, PORT, DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME, JWT_SECRET, JWT_EXPIRES_IN, REFRESH_SECRET, REFRESH_EXPIRES_IN, APP_URL, FRONTEND_URL, CORS_ORIGINS, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, MAIL_FROM`.
+- [x] `src/config/env.js`: cargar y validar variables con Zod. Si falta una obligatoria (p. ej. `JWT_SECRET`), el servidor no arranca. Eliminar todos los secretos por defecto del código (`"petcat_secret_key"`, `"petcat_refresh_secret"`, contraseña `"2003"`).
+- [x] `server.js`: `import "dotenv/config"` como **primera línea** (hoy `dotenv.config()` corre después de los imports y `jwt.js` firma con el secreto por defecto). `PORT` desde env. Quitar `dotenv.config()` de `app.js`.
+- [x] `config/db.js`: usar `env.js`, `dateStrings: true`, `timezone: "-05:00"`, `charset: "utf8mb4"`. Exportar también `getConnection` para transacciones.
+- [x] Dependencias: quitar `bcrypt` (dejar `bcryptjs`); agregar `zod, helmet, cors, express-rate-limit, morgan, nodemailer`; dev: `nodemon, vitest, supertest`. Scripts: `dev`, `start`, `test`.
+- [x] Unificar `JWT_EXPIRES` → `JWT_EXPIRES_IN` (hoy el `.env` y el código usan nombres distintos).
 
 ### 0.B Infraestructura compartida
 - [ ] `shared/errors/ApiError.js` con estáticos: `badRequest, unauthorized, forbidden, notFound, conflict, unprocessable, tooMany, internal`.
@@ -136,3 +136,7 @@ Pasar cada módulo al patrón (schemas Zod, sin try/catch en controladores, `Api
 - Un negocio ve el historial de una mascota solo si tiene al menos una cita con ella.
 - Tokens de invitación guardados como hash SHA-256.
 - MercadoPago como única pasarela del MVP; Expo Push en lugar de FCM directo.
+- Variables de entorno: `src/config/env.js` valida pero no carga archivos. `server.js` carga `backend/.env`; Vitest inyecta `backend/.env.test` desde `vitest.config.js` (los tests importan `app.js` sin `server.js`). Con `NODE_ENV=test`, `DB_NAME` debe terminar en `_test`.
+- Zona horaria: MySQL (contenedor con `TZ`) y el proceso Node (`env.js` fija `process.env.TZ`) usan `America/Bogota`, para que las fechas en texto (`dateStrings`) se interpreten igual en cualquier máquina.
+- Vitest 3 mientras el stack sea Node 20 (Vitest 5 exige Node 22). Tiene un aviso moderado de `npm audit`, solo en desarrollo.
+- MySQL de docker compose publicado solo en `127.0.0.1:3307`.
