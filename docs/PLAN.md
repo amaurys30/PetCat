@@ -26,11 +26,11 @@ Objetivo: que todo módulo nuevo nazca con el mismo patrón y que los módulos e
 ### 0.B Infraestructura compartida
 - [x] `shared/errors/ApiError.js` con estáticos: `badRequest, unauthorized, forbidden, notFound, conflict, unprocessable, tooMany, internal`.
 - [x] `shared/middlewares/errorHandler.js` y `notFound.js` (ver reglas en `CLAUDE.md`).
-- [ ] `shared/middlewares/validate.js`: valida `{ body, params, query }` con Zod, reemplaza por los datos parseados y responde 422 con `errors` por campo.
+- [x] `shared/middlewares/validate.js`: valida `{ body, params, query }` con Zod, reemplaza por los datos parseados y responde 422 con `errors` por campo.
 - [x] `shared/utils/response.js`: `ok(res, data, message)`, `created(res, data, message)`, `paginated(res, rows, meta)`.
-- [ ] `shared/utils/pagination.js`: lee `page` y `limit` (por defecto 20, máximo 100), devuelve `{ limit, offset }` y construye `meta`.
+- [x] `shared/utils/pagination.js`: lee `page` y `limit` (por defecto 20, máximo 100), devuelve `{ limit, offset }` y construye `meta`.
 - [ ] `shared/utils/transaction.js`: `withTransaction(async (conn) => {...})` con commit/rollback y liberación de la conexión. Los repositorios aceptan un `conn` opcional (`conn ?? pool`).
-- [ ] `shared/utils/pick.js` (lista blanca de campos) y `sanitizeUsuario`.
+- [x] `shared/utils/pick.js` (lista blanca de campos) y `sanitizeUsuario`.
 - [ ] `shared/utils/mailer.js`: Nodemailer; en desarrollo, si no hay SMTP, registrar el correo y el enlace en consola.
 - [ ] `app.js`: helmet, cors con `CORS_ORIGINS`, `express.json({ limit: "1mb" })`, morgan en desarrollo, rate limit general y uno más estricto para `/auth/login`, `/auth/forgot-password` e invitaciones. Montar todo bajo `/api/v1`. Swagger en `/api/v1/docs` con `servers.url` actualizado. `notFound` y `errorHandler` al final.
 

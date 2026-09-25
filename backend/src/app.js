@@ -1,4 +1,5 @@
 import express from "express";
+import "./config/zod.js";
 
 // routes
 import authRoutes from "./modules/auth/auth.routes.js";
