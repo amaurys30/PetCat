@@ -37,6 +37,12 @@ export const createEmpleadoBody = z
 
 export const updateEmpleadoBody = conAlMenosUnCampo(z.strictObject(campos).partial());
 
+// El propietario como empleado: nombre, apellido y email salen de su cuenta.
+export const empleadoPropioBody = z
+  .strictObject(campos)
+  .omit({ nombre: true, apellido: true, email: true })
+  .partial();
+
 export const listEmpleadosQuery = paginationSchema.extend({
   activo: z
     .enum(["true", "false"], { error: "Debe ser true o false" })

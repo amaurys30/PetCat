@@ -58,7 +58,7 @@ export const findPageByNegocio = async (id_negocio, { activo, q, limit, offset }
 /** Empleado del negocio con ese email (sin distinguir mayúsculas), excepto `excluirId`. */
 export const findByEmailInNegocio = async (id_negocio, email, excluirId = 0, conn) => {
   const [rows] = await (conn ?? db).query(
-    "SELECT id_empleado, activo FROM empleados WHERE id_negocio = ? AND email = ? AND id_empleado <> ? LIMIT 1",
+    "SELECT id_empleado, activo, id_usuario FROM empleados WHERE id_negocio = ? AND email = ? AND id_empleado <> ? LIMIT 1",
     [id_negocio, email, excluirId]
   );
   return rows[0];

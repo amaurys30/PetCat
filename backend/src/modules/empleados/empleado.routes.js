@@ -2,6 +2,7 @@ import express from "express";
 import * as controller from "./empleado.controller.js";
 import {
   createEmpleadoBody,
+  empleadoPropioBody,
   idEmpleadoParams,
   listEmpleadosQuery,
   updateEmpleadoBody,
@@ -157,6 +158,76 @@ router.post(
   validate({ params: idNegocioParams, body: createEmpleadoBody }),
   authorize("empleados", "crear"),
   controller.createEmpleado
+);
+
+/**
+ * @swagger
+ * /negocios/{id_negocio}/empleados/yo:
+ *   post:
+ *     summary: Registrarse como empleado del propio negocio (propietario)
+ *     description: >
+ *       Solo el propietario del negocio (403 para cualquier otro, incluido el admin de plataforma).
+ *       Crea un empleado vinculado a su cuenta sin invitación, para que aparezca en la agenda y
+ *       atienda citas. Nombre, apellido y email salen de su cuenta. `id_rol` es opcional
+ *       (por defecto Administrador). Si ya existe un empleado sin cuenta con su email, lo vincula
+ *       y le aplica los datos enviados en lugar de crear otro (200). 409 si ya está registrado como
+ *       empleado del negocio o si el empleado con su email está inactivo.
+ *     tags: [Empleados]
+ *     parameters:
+ *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             additionalProperties: false
+ *             properties:
+ *               id_rol: { type: integer, description: Por defecto el rol del sistema Administrador }
+ *               telefono: { type: string, nullable: true }
+ *               documento: { type: string, maxLength: 30, nullable: true }
+ *               especialidad: { type: string, maxLength: 150, nullable: true, example: Medicina de pequeños animales }
+ *               titulo_profesional: { type: string, maxLength: 150, nullable: true, example: Médico Veterinario Zootecnista }
+ *               registro_profesional: { type: string, maxLength: 60, nullable: true }
+ *               foto_url: { type: string, format: uri, nullable: true }
+ *               notas: { type: string, maxLength: 2000, nullable: true }
+ *               fecha_vinculacion: { type: string, format: date }
+ *     responses:
+ *       201:
+ *         description: Empleado creado y vinculado a la cuenta del propietario
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Te registraste como empleado del negocio }
+ *                 data: { $ref: '#/components/schemas/Empleado' }
+ *       200:
+ *         description: Se vinculó el empleado que ya existía con su email
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Tu cuenta quedó vinculada al empleado que ya existía con tu email }
+ *                 data: { $ref: '#/components/schemas/Empleado' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       409:
+ *         description: Ya está registrado como empleado del negocio, o el empleado con su email está inactivo
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorResponse' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.post(
+  "/negocios/:id_negocio/empleados/yo",
+  authMiddleware,
+  validate({ params: idNegocioParams, body: empleadoPropioBody }),
+  authorize("empleados", "crear"),
+  controller.registrarPropietario
 );
 
 /**

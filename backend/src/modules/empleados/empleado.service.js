@@ -1,6 +1,7 @@
 import * as empleadoRepo from "./empleado.repository.js";
 import * as rolRepo from "../roles/rol.repository.js";
 import * as invitacionRepo from "../invitaciones/invitacion.repository.js";
+import * as usuarioRepo from "../usuarios/usuario.repository.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
 import { buildMeta } from "../../shared/utils/pagination.js";
 import { permisosIncluidos } from "../../shared/utils/permissions.js";
@@ -93,6 +94,63 @@ export const createEmpleado = async (id_negocio, data, acceso) => {
     return empleadoRepo.create(id_negocio, data, conn);
   });
   return getEmpleado(id_empleado);
+};
+
+/**
+ * El propietario se registra como empleado de su propio negocio, sin invitación
+ * (en negocios pequeños el dueño también atiende y debe aparecer en la agenda).
+ * Nombre, apellido y email salen de su cuenta; el rol por defecto es Administrador.
+ * - Ya vinculado como empleado del negocio: 409.
+ * - Existe un empleado sin cuenta con su email: lo vincula (y aplica los datos
+ *   enviados) en lugar de crear otro; si ese empleado está inactivo, 409.
+ * Devuelve { empleado, creado }.
+ */
+export const registrarPropietario = async (negocio, id_usuario, data) => {
+  if (negocio.id_usuario_propietario !== id_usuario) {
+    throw ApiError.forbidden("Solo el propietario puede registrarse como empleado de su negocio");
+  }
+  const rol =
+    data.id_rol !== undefined
+      ? await findRolAsignable(data.id_rol, negocio.id_negocio)
+      : await rolRepo.findSistemaByNombre("Administrador");
+
+  const { id_empleado, creado } = await withTransaction(async (conn) => {
+    const vinculado = await empleadoRepo.findAccesoByUsuarioAndNegocio(id_usuario, negocio.id_negocio, conn);
+    if (vinculado) {
+      throw ApiError.conflict(
+        vinculado.activo
+          ? "Ya estás registrado como empleado de este negocio"
+          : `Ya estás registrado como empleado de este negocio, pero inactivo (id_empleado ${vinculado.id_empleado}): reactívalo`
+      );
+    }
+
+    const usuario = await usuarioRepo.findById(id_usuario, conn);
+    const existente = await empleadoRepo.findByEmailInNegocio(negocio.id_negocio, usuario.email, 0, conn);
+    if (existente) {
+      if (existente.id_usuario) {
+        throw ApiError.conflict("Hay un empleado del negocio con tu email vinculado a otra cuenta");
+      }
+      if (!existente.activo) {
+        throw ApiError.conflict(
+          `Hay un empleado inactivo con tu email (id_empleado ${existente.id_empleado}): reactívalo antes de vincularlo`
+        );
+      }
+      await empleadoRepo.linkUsuario(existente.id_empleado, id_usuario, conn);
+      await empleadoRepo.update(existente.id_empleado, data, conn);
+      await invitacionRepo.invalidatePrevious(existente.id_empleado, conn);
+      return { id_empleado: existente.id_empleado, creado: false };
+    }
+
+    const id = await empleadoRepo.create(
+      negocio.id_negocio,
+      { ...data, id_rol: rol.id_rol, nombre: usuario.nombre, apellido: usuario.apellido, email: usuario.email },
+      conn
+    );
+    await empleadoRepo.linkUsuario(id, id_usuario, conn);
+    return { id_empleado: id, creado: true };
+  });
+
+  return { empleado: await getEmpleado(id_empleado), creado };
 };
 
 /**

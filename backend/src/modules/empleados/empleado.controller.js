@@ -15,6 +15,13 @@ export const createEmpleado = async (req, res) => {
   return created(res, empleado, "Empleado creado");
 };
 
+export const registrarPropietario = async (req, res) => {
+  const { empleado, creado } = await service.registrarPropietario(req.negocio, req.user.id_usuario, req.body);
+  return creado
+    ? created(res, empleado, "Te registraste como empleado del negocio")
+    : ok(res, empleado, "Tu cuenta quedó vinculada al empleado que ya existía con tu email");
+};
+
 export const updateEmpleado = async (req, res) => {
   const empleado = await service.updateEmpleado(req.params.id_empleado, req.body, req.acceso);
   return ok(res, empleado, "Empleado actualizado");

@@ -5,6 +5,14 @@ export const findById = async (id_rol, conn) => {
   return rows[0];
 };
 
+export const findSistemaByNombre = async (nombre, conn) => {
+  const [rows] = await (conn ?? db).query(
+    "SELECT * FROM roles WHERE nombre = ? AND es_sistema = TRUE AND id_negocio IS NULL",
+    [nombre]
+  );
+  return rows[0];
+};
+
 /**
  * Roles que puede usar un negocio: los del sistema y los propios, con cuántos
  * empleados activos del negocio tienen cada uno.
