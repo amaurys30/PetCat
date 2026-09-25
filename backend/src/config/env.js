@@ -60,6 +60,13 @@ const schema = z
         message: "Debe ser distinto de JWT_SECRET",
       });
     }
+    if (data.NODE_ENV === "production" && !data.SMTP_HOST) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["SMTP_HOST"],
+        message: "Obligatoria en producción (sin SMTP los correos solo se muestran en consola)",
+      });
+    }
     // Los tests borran y recrean datos: nunca deben apuntar a la base de desarrollo.
     if (data.NODE_ENV === "test" && !data.DB_NAME.endsWith("_test")) {
       ctx.addIssue({
