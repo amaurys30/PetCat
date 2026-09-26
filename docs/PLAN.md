@@ -250,6 +250,7 @@ Se hace en sub-bloques que se aprueban por separado: **1.1** auth completo · **
 - Sin `id_empleado`, cada horario libre lista los empleados disponibles; al reservar sin empleado se asigna el que tenga menos citas ese día.
 - Doble reserva: se bloquea la fila del servicio (si tiene `max_citas_dia`) y la del empleado, en ese orden, en lugar de `SELECT ... FOR UPDATE` sobre las citas del día (con la agenda vacía eso usa *gap locks* y termina en deadlock en vez de 409).
 - Estado inicial: citas de la app → `pendiente`; del panel → `confirmada`. Como el trigger `trg_citas_after_update` solo actúa en UPDATE, el servicio crea el recordatorio de las citas que nacen confirmadas.
+- Una mascota fallecida o eliminada no recibe citas nuevas (tampoco por reprogramación). Igual que con otras referencias del body (p. ej. `id_rol` en empleados), un `id_mascota` inexistente, eliminado o de otro dueño da 422 en `errors.id_mascota`; una mascota fallecida da 409, porque es el estado del recurso. La mascota se lee con `FOR UPDATE` dentro de la transacción de la reserva.
 - El dueño puede cancelar o reprogramar desde la app hasta 2 horas antes de la cita (`configuracion_global`); después, solo el negocio.
 - `confirmada → en_curso` y `no_asistio` solo desde la fecha de la cita en adelante.
 - `precio_estimado`: precio de oferta si está vigente; si no, `precio_base`.
