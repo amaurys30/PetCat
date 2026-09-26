@@ -95,11 +95,6 @@ export const errorHandler = (err, req, res, next) => {
   const mysql = fromMysql(err);
   if (mysql) return sendError(res, mysql.status, mysql.message, mysql.errors);
 
-  // Compatibilidad temporal: los módulos anteriores a 0.C lanzan `new Error()` con `.status`.
-  if (Number.isInteger(err.status) && err.status >= 400 && err.status < 500) {
-    return sendError(res, err.status, err.message);
-  }
-
   if (!isTest) console.error(err);
 
   return sendError(

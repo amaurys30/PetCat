@@ -97,12 +97,12 @@ describe("errorHandler", () => {
     }
   });
 
-  it("respeta error.status de los módulos anteriores a 0.C", async () => {
+  it("un Error común con .status no es un ApiError: responde 500", async () => {
     const res = await request(
       appThrowing(() => Object.assign(new Error("Empleado no encontrado"), { status: 404 }))
     ).get("/throw");
-    expect(res.status).toBe(404);
-    expect(res.body.message).toBe("Empleado no encontrado");
+    expect(res.status).toBe(500);
+    expect(res.body.message).toBe("Error interno del servidor");
   });
 
   it("error desconocido -> 500 sin exponer el stack", async () => {
