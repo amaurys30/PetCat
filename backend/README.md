@@ -87,14 +87,14 @@ Hay tres archivos, ninguno se sube al repositorio (solo sus plantillas `.example
 | `DB_HOST` / `DB_PORT` | | `localhost` / `3306` | Con compose: `localhost` y `3307` |
 | `DB_USER` / `DB_PASSWORD` / `DB_NAME` | Sí | | Usuario, contraseña y base (`petcat_db`; en tests debe terminar en `_test`) |
 | `JWT_SECRET` / `REFRESH_SECRET` | Sí | | Mínimo 32 caracteres y distintos entre sí |
-| `JWT_EXPIRES_IN` / `REFRESH_EXPIRES_IN` | | `1h` / `7d` | Vigencia del access token y del refresh token (y de la sesión) |
+| `JWT_EXPIRES_IN` / `REFRESH_EXPIRES_IN` | | `1h` / `30d` | Vigencia del access token y del refresh token (y de la sesión); el refresh token se renueva en cada uso |
 | `APP_URL` | | `http://localhost:3000` | URL pública de la API |
 | `FRONTEND_URL` | | `http://localhost:5173` | Panel web; base de los enlaces de los correos |
 | `CORS_ORIGINS` | | `http://localhost:5173` | Orígenes permitidos, separados por coma |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | En producción | puerto `587` | Sin `SMTP_HOST`, en desarrollo los correos se muestran en la consola |
 | `SMTP_TIMEOUT_MS` | | `10000` | Tiempo máximo del SMTP; si se supera, el envío responde 503 |
 | `MAIL_FROM` | | `PetCat <no-reply@petcat.co>` | Remitente de los correos |
-| `AUTH_RATE_LIMIT_MAX` | | 10 en producción, 100 en desarrollo | Máximo cada 15 min por IP en login, forgot-password e invitaciones |
+| `AUTH_RATE_LIMIT_MAX` | | 10 en producción, 100 en desarrollo | Máximo cada 15 min por IP en login, forgot-password, reset-password, verify-email, resend-verification e invitaciones |
 
 Cada variable nueva se agrega también a `backend/.env.example`.
 
@@ -246,11 +246,19 @@ Todas las respuestas son JSON con esta forma:
 
 1. `POST /auth/login` con `{ "email", "password" }` (la app puede enviar además `"dispositivo": "android"`). Responde `data: { access_token, refresh_token, usuario }`.
 2. En cada petición protegida: cabecera `Authorization: Bearer <access_token>`.
-3. El access token vence en 1 hora (`JWT_EXPIRES_IN`). Por ahora no hay endpoint de refresh (llega en la Fase 1 con `POST /auth/refresh-token`): con un 401, vuelve a hacer login. Guarda el refresh token desde ya.
-4. `POST /auth/logout` cierra solo la sesión de ese token.
-5. Tras 5 contraseñas erróneas seguidas la cuenta se bloquea 15 minutos (403).
+3. El access token vence en 1 hora (`JWT_EXPIRES_IN`). Con un 401 por token vencido, llama a `POST /auth/refresh-token` con `{ "refresh_token" }`: devuelve un access token y un refresh token **nuevos** (guarda los dos; los anteriores dejan de servir) y extiende la sesión 30 días más (`REFRESH_EXPIRES_IN`). Si el refresh también da 401, vuelve a hacer login. No lances dos renovaciones a la vez con el mismo refresh token: solo una funciona.
+4. `POST /auth/logout` cierra solo la sesión de ese token. `POST /auth/change-password` cierra las demás sesiones y mantiene la actual.
+5. Tras 5 contraseñas erróneas seguidas la cuenta se bloquea 15 minutos (403). Restablecer la contraseña la desbloquea.
+6. `GET /auth/me` devuelve el perfil, las preferencias y los negocios a los que puede entrar; `PATCH /auth/me` edita nombre, apellido, teléfono, idioma, zona horaria y notificaciones.
 
-Registro: `POST /auth/register` con `nombre`, `apellido`, `email`, `password` (8 a 72 caracteres, con letra y número), y opcionales `telefono` y `tipo_usuario` (`cliente` o `negocio`). No inicia sesión.
+Registro: `POST /auth/register` con `nombre`, `apellido`, `email`, `password` (8 a 72 caracteres, con letra y número), y opcionales `telefono` y `tipo_usuario` (`cliente` o `negocio`). No inicia sesión. Envía un correo de verificación; el email sin verificar no impide iniciar sesión ni reservar.
+
+Pantallas del frontend que abren los enlaces de los correos (el token va en la ruta):
+
+| Enlace | Qué hace la pantalla |
+|---|---|
+| `${FRONTEND_URL}/verificar-email/<token>` | Llama a `GET /auth/verify-email/:token` y muestra el resultado (400 = enlace vencido o ya usado). Reenviar el correo: `POST /auth/resend-verification` con la sesión iniciada. |
+| `${FRONTEND_URL}/restablecer-password/<token>` | Pide la contraseña nueva y envía `POST /auth/reset-password` con `{ "token", "password" }`. Luego, login. El enlace se pide con `POST /auth/forgot-password` (vigente 1 hora). |
 
 ### Acceso al panel de un negocio
 
@@ -259,13 +267,13 @@ Registro: `POST /auth/register` con `nombre`, `apellido`, `email`, `password` (8
 - Los empleados tienen permisos por rol (`{ modulo: [acciones] }`); el catálogo completo está en `GET /permisos`. Un 403 dice qué falta.
 - Invitaciones de empleados: el panel envía la invitación y el empleado recibe el enlace `${FRONTEND_URL}/invitacion/<token>`. La pantalla de ese enlace consulta `GET /invitaciones/:token` (dice si la cuenta ya existe) y acepta con `POST /invitaciones/:token/aceptar`, que devuelve la sesión igual que el login.
 
-### Endpoints actuales (Fase 0)
+### Endpoints actuales
 
 Detalle de cada uno en Swagger.
 
 | Módulo | Endpoints |
 |---|---|
-| Auth | `POST /auth/register`, `POST /auth/login`, `POST /auth/logout` |
+| Auth | `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, `POST /auth/refresh-token`, `GET` y `PATCH /auth/me`, `POST /auth/change-password`, `POST /auth/forgot-password`, `POST /auth/reset-password`, `GET /auth/verify-email/:token`, `POST /auth/resend-verification` |
 | Negocios | `POST /negocios`, `GET /negocios/mios`, `GET /negocios/:id_negocio` (público), `PATCH /negocios/:id_negocio` |
 | Sucursales | `GET` (público) y `POST /negocios/:id_negocio/sucursales`, `GET` (público), `PATCH` y `DELETE /sucursales/:id_sucursal` |
 | Horarios | `GET` (público) y `PUT /sucursales/:id_sucursal/horarios` |
@@ -291,5 +299,5 @@ Invitación pendiente de la recepcionista (`recepcionista@petcat.test`, sin cuen
 
 - El navegador solo puede llamar a la API desde los orígenes de `CORS_ORIGINS` (por defecto `http://localhost:5173`, el de Vite). Si el panel corre en otro puerto, agrégalo en `backend/.env`.
 - La app móvil no envía cabecera `Origin`, así que CORS no la afecta.
-- Límite general: 300 solicitudes cada 15 minutos por IP. Login, forgot-password e invitaciones tienen un límite más estricto (`AUTH_RATE_LIMIT_MAX`). Al superarlo: 429.
+- Límite general: 300 solicitudes cada 15 minutos por IP. Login, forgot-password, reset-password, verify-email, resend-verification e invitaciones tienen un límite más estricto (`AUTH_RATE_LIMIT_MAX`). Al superarlo: 429.
 - En desarrollo sin SMTP, los correos (por ejemplo, las invitaciones) se imprimen en la consola del backend (`docker compose logs -f backend` si corre en Docker).

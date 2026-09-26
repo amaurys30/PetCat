@@ -88,11 +88,11 @@ Se hace en sub-bloques que se aprueban por separado: **0.C.1** base de tests y s
 Se hace en sub-bloques que se aprueban por separado: **1.1** auth completo · **1.2** mascotas · **1.3** catálogo, servicios y búsqueda pública · **1.4** disponibilidad de empleados · **1.5** citas · **1.6** historial médico, vacunas y resumen de salud · **1.7** clientes. Las decisiones están en "Decisiones de la Fase 1".
 
 ### 1.1 Auth completo
-- [ ] Migración `004_tokens_usuario_y_sesiones.sql`: vencimiento propio para el token de verificación y el de recuperación (hoy comparten `token_expiracion`) e índices para buscar por esos tokens y por `sesiones.refresh_token`.
-- [ ] Migración `005_disponibilidad_rangos.sql`: `fecha_fin` en `disponibilidad_empleado` (vacaciones de varios días) y llave foránea de `id_sucursal` (se usa en 1.4).
-- [ ] `POST /auth/refresh-token` (rota el refresh token; 30 días renovados en cada uso), `GET /auth/me` (perfil + negocios a los que tiene acceso con su rol), `PATCH /auth/me`, `POST /auth/change-password` (cierra las demás sesiones).
-- [ ] `POST /auth/forgot-password`, `POST /auth/reset-password`: funcionan aunque la cuenta esté bloqueada por intentos fallidos; al restablecer la contraseña se reinician `intentos_login` y `bloqueado_hasta`.
-- [ ] `GET /auth/verify-email/:token`; el registro envía el correo de verificación; `POST /auth/resend-verification`.
+- [x] Migración `004_tokens_usuario_y_sesiones.sql`: vencimiento propio para el token de verificación y el de recuperación (hoy comparten `token_expiracion`) e índices para buscar por esos tokens y por `sesiones.refresh_token`.
+- [x] Migración `005_disponibilidad_rangos.sql`: `fecha_fin` en `disponibilidad_empleado` (vacaciones de varios días) y llave foránea de `id_sucursal` (se usa en 1.4).
+- [x] `POST /auth/refresh-token` (rota el refresh token; 30 días renovados en cada uso), `GET /auth/me` (perfil + negocios a los que tiene acceso con su rol), `PATCH /auth/me`, `POST /auth/change-password` (cierra las demás sesiones).
+- [x] `POST /auth/forgot-password`, `POST /auth/reset-password`: funcionan aunque la cuenta esté bloqueada por intentos fallidos; al restablecer la contraseña se reinician `intentos_login` y `bloqueado_hasta`.
+- [x] `GET /auth/verify-email/:token`; el registro envía el correo de verificación; `POST /auth/resend-verification`.
 
 ### 1.2 Mascotas (app)
 - [ ] `GET|POST /mascotas` (del usuario autenticado), `GET|PATCH|DELETE /mascotas/:id_mascota`.
@@ -215,7 +215,15 @@ Se hace en sub-bloques que se aprueban por separado: **1.1** auth completo · **
 - Refresh token de 30 días (`REFRESH_EXPIRES_IN=30d`), renovado en cada uso: `POST /auth/refresh-token` rota los dos tokens en la misma fila de `sesiones` (bloqueada con `FOR UPDATE`) y mueve `expira_en`. El refresh token y el access token anteriores dejan de servir. Sin detección de reutilización en el MVP.
 - El email sin verificar no bloquea el login ni las reservas en el MVP.
 - Tokens de verificación y de recuperación: 32 bytes aleatorios; en la base solo su SHA-256, cada uno con su propio vencimiento (migración 004). Los enlaces van al frontend: `${FRONTEND_URL}/verificar-email/<token>` y `${FRONTEND_URL}/restablecer-password/<token>`.
-- `PATCH /auth/me` no cambia el email (exigiría verificarlo de nuevo) ni la foto (Cloudinary, Fase 2).
+- `PATCH /auth/me` no cambia el email (exigiría verificarlo de nuevo) ni la foto (Cloudinary, Fase 2). Si cambia el teléfono, `telefono_verificado` vuelve a FALSE.
+- Vigencias: enlace de verificación 24 horas, enlace de recuperación 1 hora. Cada enlace nuevo invalida el anterior del mismo tipo. Máximo un correo por minuto por cuenta y tipo (se controla en el mismo `UPDATE` que guarda el token).
+- El registro y `forgot-password` envían el correo sin esperarlo: si el SMTP falla solo se registra el error, así `forgot-password` responde igual y en el mismo tiempo exista o no el email. `resend-verification` sí lo espera, dentro de la transacción: si falla, 503 y no guarda el token.
+- `forgot-password` no envía nada a cuentas desactivadas (misma respuesta). `reset-password` desbloquea la cuenta, marca el email como verificado (el enlace llegó a ese correo), cierra todas las sesiones y no inicia sesión.
+- Enlace de verificación o de recuperación inexistente, usado o vencido: 400. Token con formato inválido (no son 64 caracteres hexadecimales): 422.
+- `change-password`: contraseña actual incorrecta da 422 en `errors.password_actual`, no 401, para que el frontend no lo confunda con una sesión vencida. Los fallos cuentan para el bloqueo de 5 intentos; la nueva debe ser distinta de la actual.
+- `verificarPassword(usuario, password, errorSiFalla)` recibe el `ApiError` del fallo (401 en login e invitaciones, 422 en el cambio de contraseña).
+- La renovación de sesión funciona con la cuenta bloqueada por intentos (el bloqueo no cierra sesiones) y da 403 con la cuenta desactivada. Actualiza IP, user agent y `ultimo_acceso`.
+- Límite estricto de solicitudes también en reset-password, verify-email y resend-verification. No en refresh-token: las apps lo llaman a menudo y muchos usuarios pueden compartir IP (p. ej. la wifi de la universidad).
 
 **Servicios y agenda (1.3 a 1.5)**
 - Qué empleados atienden un servicio: tabla `empleado_servicios`. Un empleado sin servicios asignados no aparece en la agenda; un servicio sin empleados asignados no se puede reservar. Al crear o editar un servicio se pueden enviar los empleados asignados en el mismo body; el listado del panel indica `sin_empleados`.
