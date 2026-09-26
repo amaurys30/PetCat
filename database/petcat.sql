@@ -46,9 +46,11 @@ CREATE TABLE usuarios (
     -- Verificación y seguridad
     email_verificado     BOOLEAN         NOT NULL DEFAULT FALSE,
     telefono_verificado  BOOLEAN         NOT NULL DEFAULT FALSE,
+    -- Tokens guardados como SHA-256, cada uno con su vencimiento. Migración 004.
     token_verificacion   VARCHAR(100)    NULL,
+    token_verificacion_expira DATETIME   NULL,
     token_recuperacion   VARCHAR(100)    NULL,
-    token_expiracion     DATETIME        NULL,
+    token_recuperacion_expira DATETIME   NULL,
     intentos_login       TINYINT         NOT NULL DEFAULT 0,
     bloqueado_hasta      DATETIME        NULL,
     -- Preferencias
@@ -64,6 +66,8 @@ CREATE TABLE usuarios (
     fecha_actualizacion DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id_usuario),
     UNIQUE KEY uq_usuarios_email (email),
+    UNIQUE KEY uq_usuarios_token_verificacion (token_verificacion),
+    UNIQUE KEY uq_usuarios_token_recuperacion (token_recuperacion),
     INDEX idx_usuarios_tipo (tipo_usuario),
     INDEX idx_usuarios_activo (activo),
     INDEX idx_usuarios_email_verificado (email_verificado)
@@ -86,6 +90,7 @@ CREATE TABLE sesiones (
     INDEX idx_sesiones_usuario (id_usuario),
     INDEX idx_sesiones_token (token(50)),
     INDEX idx_sesiones_activa (activa),
+    INDEX idx_sesiones_refresh_token (refresh_token(64)),
     CONSTRAINT fk_sesiones_usuario
         FOREIGN KEY (id_usuario) REFERENCES usuarios (id_usuario)
         ON DELETE CASCADE ON UPDATE CASCADE
@@ -666,6 +671,7 @@ CREATE TABLE disponibilidad_empleado (
     tipo             ENUM('horario_normal','bloqueo','vacacion','evento_especial') NOT NULL,
     dia_semana       TINYINT UNSIGNED NULL COMMENT '0=Dom, 1=Lun..., para horarios normales',
     fecha_especifica DATE            NULL COMMENT 'Para bloqueos puntuales',
+    fecha_fin        DATE            NULL COMMENT 'Último día de un bloqueo o vacación de varios días; NULL = solo fecha_especifica',
     hora_inicio      TIME            NULL,
     hora_fin         TIME            NULL,
     motivo           VARCHAR(200)    NULL,
@@ -674,8 +680,13 @@ CREATE TABLE disponibilidad_empleado (
     PRIMARY KEY (id_disponibilidad),
     INDEX idx_disponibilidad_empleado (id_empleado),
     INDEX idx_disponibilidad_fecha (fecha_especifica),
+    INDEX idx_disponibilidad_sucursal (id_sucursal),
     CONSTRAINT fk_disponibilidad_empleado
         FOREIGN KEY (id_empleado) REFERENCES empleados (id_empleado)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    -- Migración 005. NULL = cualquier sucursal del negocio.
+    CONSTRAINT fk_disponibilidad_sucursal
+        FOREIGN KEY (id_sucursal) REFERENCES sucursales (id_sucursal)
         ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Disponibilidad horaria de cada empleado para el agendamiento automático';
@@ -1518,7 +1529,9 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 INSERT INTO schema_migrations (nombre) VALUES
 ('001_empleados_unicos_por_negocio.sql'),
 ('002_horarios_varios_rangos.sql'),
-('003_rol_administrador_permisos.sql');
+('003_rol_administrador_permisos.sql'),
+('004_tokens_usuario_y_sesiones.sql'),
+('005_disponibilidad_rangos.sql');
 
 
 SET FOREIGN_KEY_CHECKS = 1;

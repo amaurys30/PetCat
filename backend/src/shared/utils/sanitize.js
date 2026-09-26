@@ -2,8 +2,9 @@
 const USUARIO_PRIVATE_FIELDS = [
   "password_hash",
   "token_verificacion",
+  "token_verificacion_expira",
   "token_recuperacion",
-  "token_expiracion",
+  "token_recuperacion_expira",
   "refresh_token",
 ];
 
