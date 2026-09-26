@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { hoyISO } from "./fechas.js";
 
 /**
  * Piezas de esquemas Zod que se repiten entre módulos.
@@ -48,3 +49,9 @@ export const urlHttp = (max = 500) => z.url({ protocol: /^https?$/ }).max(max);
 
 /** Texto con espacios recortados, no vacío. */
 export const texto = (max) => z.string().trim().min(1).max(max);
+
+/** Fecha "YYYY-MM-DD" válida (rechaza 2026-02-30). */
+export const fecha = z.iso.date({ error: "Fecha inválida: usa YYYY-MM-DD" });
+
+/** Fecha que no está en el futuro (hoy en Bogotá). */
+export const fechaNoFutura = fecha.refine((valor) => valor <= hoyISO(), "No puede ser una fecha futura");
