@@ -1,0 +1,59 @@
+# Suite de tests del backend (Vitest + supertest) contra un MySQL 8 de servicio.
+# Corre en cada pull request y en cada push a main.
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (Node 24 + MySQL 8)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: petcat_ci
+          # Misma zona que en docker-compose.yml: las fechas en texto se interpretan igual.
+          TZ: America/Bogota
+        ports:
+          - 3307:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -ppetcat_ci --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      # Vitest lee backend/.env.test (no se sube al repositorio): se arma desde la plantilla.
+      # globalSetup crea petcat_test con database/petcat.sql y el seed en cada corrida.
+      - name: Crear backend/.env.test
+        run: |
+          cp .env.test.example .env.test
+          sed -i 's/^DB_PASSWORD=.*/DB_PASSWORD=petcat_ci/' .env.test
+
+      - name: Tests
+        run: npm test
