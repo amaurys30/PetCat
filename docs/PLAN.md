@@ -95,7 +95,7 @@ Se hace en sub-bloques que se aprueban por separado: **1.1** auth completo · **
 - [x] `GET /auth/verify-email/:token`; el registro envía el correo de verificación; `POST /auth/resend-verification`.
 
 ### 1.2 Mascotas (app)
-- [ ] `GET|POST /mascotas` (del usuario autenticado), `GET|PATCH|DELETE /mascotas/:id_mascota`.
+- [x] `GET|POST /mascotas` (del usuario autenticado), `GET|PATCH|DELETE /mascotas/:id_mascota`.
 
 ### 1.3 Catálogo, servicios y búsqueda pública
 - [ ] Migración: tabla `empleado_servicios (id_empleado, id_servicio)` y `servicios.margen_minutos` (por defecto 0).
@@ -224,6 +224,13 @@ Se hace en sub-bloques que se aprueban por separado: **1.1** auth completo · **
 - `verificarPassword(usuario, password, errorSiFalla)` recibe el `ApiError` del fallo (401 en login e invitaciones, 422 en el cambio de contraseña).
 - La renovación de sesión funciona con la cuenta bloqueada por intentos (el bloqueo no cierra sesiones) y da 403 con la cuenta desactivada. Actualiza IP, user agent y `ultimo_acceso`.
 - Límite estricto de solicitudes también en reset-password, verify-email y resend-verification. No en refresh-token: las apps lo llaman a menudo y muchos usuarios pueden compartir IP (p. ej. la wifi de la universidad).
+
+**Mascotas (1.2)**
+- Las rutas `/mascotas` son solo del dueño: una mascota de otro usuario da 403 (también para el admin de plataforma); inexistente o eliminada, 404. Los negocios verán las mascotas por sus citas (clientes, historial), no por estas rutas.
+- `GET /mascotas` no es paginado (un dueño tiene pocas mascotas): excluye las eliminadas y deja las fallecidas al final. Cada mascota trae `edad_meses`, calculada en MySQL; no se devuelve `activo`.
+- El body no acepta `id_usuario`, `activo` ni `foto_url` (la foto llega con Cloudinary en la Fase 2). El fallecimiento solo se registra al editar: `fallecido: true` con `fecha_fallecimiento` opcional (por defecto hoy, no futura ni anterior al nacimiento); `fallecido: false` borra la fecha. Una mascota fallecida no se queda sin fecha (422).
+- Eliminar (lógico) o registrar el fallecimiento da 409 si la mascota tiene citas futuras pendientes o confirmadas. Ambas operaciones bloquean la fila de la mascota (`FOR UPDATE`); al reservar (1.5) hay que leerla con bloqueo para no reservar sobre una mascota que se está eliminando.
+- Fechas "YYYY-MM-DD": `shared/utils/fechas.js` (`hoyISO`) y los esquemas `fecha` y `fechaNoFutura` de `shared/utils/schemas.js`.
 
 **Servicios y agenda (1.3 a 1.5)**
 - Qué empleados atienden un servicio: tabla `empleado_servicios`. Un empleado sin servicios asignados no aparece en la agenda; un servicio sin empleados asignados no se puede reservar. Al crear o editar un servicio se pueden enviar los empleados asignados en el mismo body; el listado del panel indica `sin_empleados`.

@@ -280,6 +280,7 @@ Detalle de cada uno en Swagger.
 | Roles y permisos | `GET /permisos`, `GET` y `POST /negocios/:id_negocio/roles`, `PATCH` y `DELETE /roles/:id_rol` |
 | Empleados | `GET` (paginado) y `POST /negocios/:id_negocio/empleados`, `POST /negocios/:id_negocio/empleados/yo`, `GET`, `PATCH` y `DELETE /empleados/:id_empleado`, `PATCH /empleados/:id_empleado/reactivar` |
 | Invitaciones | `POST /empleados/:id_empleado/invitacion`, `POST /empleados/:id_empleado/invitacion/reenviar`, `GET /invitaciones/:token` (público), `POST /invitaciones/:token/aceptar` (público) |
+| Mascotas (app) | `GET` y `POST /mascotas` (del usuario autenticado), `GET`, `PATCH` y `DELETE /mascotas/:id_mascota` |
 
 ### Usuarios de prueba
 
