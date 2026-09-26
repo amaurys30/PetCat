@@ -1,77 +1,21 @@
-// ================================
-// modules/roles/rol.controller.js
-// ================================
-import {
-  getRolesByNegocioService
-} from "./rol.service.js";
+import * as service from "./rol.service.js";
+import { ok, created } from "../../shared/utils/response.js";
 
-
-import * as rolService from "./rol.service.js";
-
-export const createRol = async (req, res) => {
-  try {
-    const { id_negocio } = req.params;
-
-    const {
-      nombre,
-      descripcion,
-      permisos_json
-    } = req.body;
-
-    const nuevoRol = await rolService.createRol({
-      id_negocio,
-      nombre,
-      descripcion,
-      permisos_json
-    });
-
-    return res.status(201).json({
-      ok: true,
-      message: "Rol creado correctamente",
-      data: nuevoRol
-    });
-
-  } catch (error) {
-    console.error("ERROR CREATE ROL:", error);
-
-    return res.status(error.statusCode || 500).json({
-      ok: false,
-      message: error.message || "Error al crear rol"
-    });
-  }
+export const getRoles = async (req, res) => {
+  return ok(res, await service.getRoles(req.negocio.id_negocio));
 };
 
-/**
- * GET - Obtener roles de un negocio
- */
-export const getRolesByNegocio = async (req, res) => {
-  try {
-    const { id_negocio } = req.params;
+export const createRol = async (req, res) => {
+  const rol = await service.createRol(req.negocio.id_negocio, req.body, req.acceso);
+  return created(res, rol, "Rol creado");
+};
 
-    const roles = await getRolesByNegocioService(
-      Number(id_negocio)
-    );
+export const updateRol = async (req, res) => {
+  const rol = await service.updateRol(req.params.id_rol, req.body, req.acceso);
+  return ok(res, rol, "Rol actualizado");
+};
 
-    return res.status(200).json({
-      ok: true,
-      message: "Roles obtenidos correctamente",
-      total: roles.length,
-      data: roles
-    });
-
-  } catch (error) {
-    console.error("ERROR GET ROLES:", error);
-
-    if (error.message === "NEGOCIO_NOT_FOUND") {
-      return res.status(404).json({
-        ok: false,
-        message: "Negocio no encontrado"
-      });
-    }
-
-    return res.status(500).json({
-      ok: false,
-      message: "Error interno del servidor"
-    });
-  }
+export const deleteRol = async (req, res) => {
+  await service.deleteRol(req.params.id_rol, req.acceso);
+  return ok(res, null, "Rol eliminado");
 };

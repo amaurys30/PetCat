@@ -13,63 +13,73 @@ Backend en JavaScript ESM + mysql2 con 7 módulos: auth, negocios, sucursales, h
 Objetivo: que todo módulo nuevo nazca con el mismo patrón y que los módulos existentes queden corregidos y normalizados. Se puede hacer en tres bloques (0.A, 0.B, 0.C), cada uno con sus commits.
 
 ### 0.A Proyecto y configuración
-- [ ] Inicializar Git (si no existe), crear rama `fase-0`. Verificar que `.env` y `node_modules` están en `.gitignore`.
-- [ ] Mover `petcat.sql` a `database/petcat.sql` y actualizar la ruta en `docker-compose.yml`. Crear `database/migrations/` y `database/seeds/`.
-- [ ] `docker-compose.yml`: sacar la contraseña de root a variables de entorno (archivo `.env` en la raíz o `env_file`), sin valores fijos en el YAML.
-- [ ] Crear `backend/.env.example` con todas las variables: `NODE_ENV, PORT, DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME, JWT_SECRET, JWT_EXPIRES_IN, REFRESH_SECRET, REFRESH_EXPIRES_IN, APP_URL, FRONTEND_URL, CORS_ORIGINS, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, MAIL_FROM`.
-- [ ] `src/config/env.js`: cargar y validar variables con Zod. Si falta una obligatoria (p. ej. `JWT_SECRET`), el servidor no arranca. Eliminar todos los secretos por defecto del código (`"petcat_secret_key"`, `"petcat_refresh_secret"`, contraseña `"2003"`).
-- [ ] `server.js`: `import "dotenv/config"` como **primera línea** (hoy `dotenv.config()` corre después de los imports y `jwt.js` firma con el secreto por defecto). `PORT` desde env. Quitar `dotenv.config()` de `app.js`.
-- [ ] `config/db.js`: usar `env.js`, `dateStrings: true`, `timezone: "-05:00"`, `charset: "utf8mb4"`. Exportar también `getConnection` para transacciones.
-- [ ] Dependencias: quitar `bcrypt` (dejar `bcryptjs`); agregar `zod, helmet, cors, express-rate-limit, morgan, nodemailer`; dev: `nodemon, vitest, supertest`. Scripts: `dev`, `start`, `test`.
-- [ ] Unificar `JWT_EXPIRES` → `JWT_EXPIRES_IN` (hoy el `.env` y el código usan nombres distintos).
+- [x] Inicializar Git (si no existe), crear rama `fase-0`. Verificar que `.env` y `node_modules` están en `.gitignore`.
+- [x] Mover `petcat.sql` a `database/petcat.sql` y actualizar la ruta en `docker-compose.yml`. Crear `database/migrations/` y `database/seeds/`.
+- [x] `docker-compose.yml`: sacar la contraseña de root a variables de entorno (archivo `.env` en la raíz o `env_file`), sin valores fijos en el YAML.
+- [x] Crear `backend/.env.example` con todas las variables: `NODE_ENV, PORT, DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME, JWT_SECRET, JWT_EXPIRES_IN, REFRESH_SECRET, REFRESH_EXPIRES_IN, APP_URL, FRONTEND_URL, CORS_ORIGINS, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, MAIL_FROM`.
+- [x] `src/config/env.js`: cargar y validar variables con Zod. Si falta una obligatoria (p. ej. `JWT_SECRET`), el servidor no arranca. Eliminar todos los secretos por defecto del código (`"petcat_secret_key"`, `"petcat_refresh_secret"`, contraseña `"2003"`).
+- [x] `server.js`: `import "dotenv/config"` como **primera línea** (hoy `dotenv.config()` corre después de los imports y `jwt.js` firma con el secreto por defecto). `PORT` desde env. Quitar `dotenv.config()` de `app.js`.
+- [x] `config/db.js`: usar `env.js`, `dateStrings: true`, `timezone: "-05:00"`, `charset: "utf8mb4"`. Exportar también `getConnection` para transacciones.
+- [x] Dependencias: quitar `bcrypt` (dejar `bcryptjs`); agregar `zod, helmet, cors, express-rate-limit, morgan, nodemailer`; dev: `nodemon, vitest, supertest`. Scripts: `dev`, `start`, `test`.
+- [x] Unificar `JWT_EXPIRES` → `JWT_EXPIRES_IN` (hoy el `.env` y el código usan nombres distintos).
 
 ### 0.B Infraestructura compartida
-- [ ] `shared/errors/ApiError.js` con estáticos: `badRequest, unauthorized, forbidden, notFound, conflict, unprocessable, tooMany, internal`.
-- [ ] `shared/middlewares/errorHandler.js` y `notFound.js` (ver reglas en `CLAUDE.md`).
-- [ ] `shared/middlewares/validate.js`: valida `{ body, params, query }` con Zod, reemplaza por los datos parseados y responde 422 con `errors` por campo.
-- [ ] `shared/utils/response.js`: `ok(res, data, message)`, `created(res, data, message)`, `paginated(res, rows, meta)`.
-- [ ] `shared/utils/pagination.js`: lee `page` y `limit` (por defecto 20, máximo 100), devuelve `{ limit, offset }` y construye `meta`.
-- [ ] `shared/utils/transaction.js`: `withTransaction(async (conn) => {...})` con commit/rollback y liberación de la conexión. Los repositorios aceptan un `conn` opcional (`conn ?? pool`).
-- [ ] `shared/utils/pick.js` (lista blanca de campos) y `sanitizeUsuario`.
-- [ ] `shared/utils/mailer.js`: Nodemailer; en desarrollo, si no hay SMTP, registrar el correo y el enlace en consola.
-- [ ] `app.js`: helmet, cors con `CORS_ORIGINS`, `express.json({ limit: "1mb" })`, morgan en desarrollo, rate limit general y uno más estricto para `/auth/login`, `/auth/forgot-password` e invitaciones. Montar todo bajo `/api/v1`. Swagger en `/api/v1/docs` con `servers.url` actualizado. `notFound` y `errorHandler` al final.
+- [x] `shared/errors/ApiError.js` con estáticos: `badRequest, unauthorized, forbidden, notFound, conflict, unprocessable, tooMany, internal`.
+- [x] `shared/middlewares/errorHandler.js` y `notFound.js` (ver reglas en `CLAUDE.md`).
+- [x] `shared/middlewares/validate.js`: valida `{ body, params, query }` con Zod, reemplaza por los datos parseados y responde 422 con `errors` por campo.
+- [x] `shared/utils/response.js`: `ok(res, data, message)`, `created(res, data, message)`, `paginated(res, rows, meta)`.
+- [x] `shared/utils/pagination.js`: lee `page` y `limit` (por defecto 20, máximo 100), devuelve `{ limit, offset }` y construye `meta`.
+- [x] `shared/utils/transaction.js`: `withTransaction(async (conn) => {...})` con commit/rollback y liberación de la conexión. Los repositorios aceptan un `conn` opcional (`conn ?? pool`).
+- [x] `shared/utils/pick.js` (lista blanca de campos) y `sanitizeUsuario`.
+- [x] `shared/utils/mailer.js`: Nodemailer; en desarrollo, si no hay SMTP, registrar el correo y el enlace en consola.
+- [x] `app.js`: helmet, cors con `CORS_ORIGINS`, `express.json({ limit: "1mb" })`, morgan en desarrollo, rate limit general y uno más estricto para `/auth/login`, `/auth/forgot-password` e invitaciones. Montar todo bajo `/api/v1`. Swagger en `/api/v1/docs` con `servers.url` actualizado. `notFound` y `errorHandler` al final.
 
 ### 0.C Corrección y normalización de módulos existentes
-Pasar cada módulo al patrón (schemas Zod, sin try/catch en controladores, `ApiError`, helpers de respuesta, Swagger actualizado).
+Pasar cada módulo al patrón (schemas Zod, sin try/catch en controladores, `ApiError`, helpers de respuesta, Swagger actualizado). Cada módulo normalizado queda con tests de integración (caso feliz, 401, 403, 404 y 422).
+
+Se hace en sub-bloques que se aprueban por separado: **0.C.1** base de tests y seed · **0.C.2** auth, authMiddleware y authorize · **0.C.3** negocios, sucursales, horarios y roles · **0.C.4** empleados · **0.C.5** invitaciones · **0.C.6** migraciones, README y cierre.
 
 **Bugs y riesgos a corregir**
-- [ ] Eliminar `src/routes/users.routes.js`: `GET /usuarios` es público y devuelve `password_hash`; `POST /usuarios` recibe el hash directo.
-- [ ] Eliminar `shared/middlewares/role.middleware.js` (duplica `authorize` y no se usa). Eliminar o completar `auth.validation.js` y `session.service.js` (están vacíos).
-- [ ] `empleado.service.js`: falta importar `hasPermission` (lanza `ReferenceError` cuando edita alguien que no es propietario). Además, esa verificación duplica la de `authorize`: quitarla.
-- [ ] `empleado.repository.js → update`: arma nombres de columna desde `req.body` (inyección SQL y asignación masiva de `id_negocio`, `id_usuario`, etc.). Usar lista blanca.
-- [ ] `authorize`: rechazar empleados con `activo = FALSE`; resolver el negocio también desde `:id_cita`, `:id_servicio`, `:id_rol`... mediante un mapa de resolvers para no repetir código.
-- [ ] `authMiddleware`: usar `verifyToken` de `utils/jwt.js`, validar el formato `Bearer`, comprobar `sesiones.expira_en` y que el usuario siga `activo`. Quitar la carga de permisos por `tipo_usuario === "negocio"` (toma el primer negocio encontrado; los permisos se resuelven por negocio en `authorize`).
-- [ ] Login: mismo mensaje para email inexistente y contraseña errónea ("Credenciales inválidas"); rechazar usuarios inactivos o bloqueados; registrar `ip_address` y `user_agent` reales; actualizar `ultimo_acceso`.
-- [ ] Logout: no fallar si el header viene mal formado.
-- [ ] Registro: validar con Zod; no permitir `tipo_usuario = "admin"` desde el endpoint público.
+- [x] Eliminar `src/routes/users.routes.js`: `GET /usuarios` es público y devuelve `password_hash`; `POST /usuarios` recibe el hash directo.
+- [x] Eliminar `shared/middlewares/role.middleware.js` (duplica `authorize` y no se usa). Eliminar o completar `auth.validation.js` y `session.service.js` (están vacíos).
+- [x] `empleado.service.js`: falta importar `hasPermission` (lanza `ReferenceError` cuando edita alguien que no es propietario). Además, esa verificación duplica la de `authorize`: quitarla.
+- [x] `empleado.repository.js → update`: arma nombres de columna desde `req.body` (inyección SQL y asignación masiva de `id_negocio`, `id_usuario`, etc.). Usar lista blanca.
+- [x] `authorize`: rechazar empleados con `activo = FALSE`; resolver el negocio también desde `:id_cita`, `:id_servicio`, `:id_rol`... mediante un mapa de resolvers para no repetir código.
+- [x] `authMiddleware`: usar `verifyToken` de `utils/jwt.js`, validar el formato `Bearer`, comprobar `sesiones.expira_en` y que el usuario siga `activo`. Quitar la carga de permisos por `tipo_usuario === "negocio"` (toma el primer negocio encontrado; los permisos se resuelven por negocio en `authorize`).
+- [x] Login: mismo mensaje para email inexistente y contraseña errónea ("Credenciales inválidas"); rechazar usuarios inactivos o bloqueados; registrar `ip_address` y `user_agent` reales; actualizar `ultimo_acceso`.
+- [x] Logout: no fallar si el header viene mal formado.
+- [x] Registro: validar con Zod; no permitir `tipo_usuario = "admin"` desde el endpoint público.
 
 **Rutas normalizadas**
-- [ ] Negocios: `POST /negocios`, `GET /negocios/mios`, `GET /negocios/:id_negocio` (perfil público), `PATCH /negocios/:id_negocio`. Al crear un negocio, crear en la misma transacción una suscripción al plan Gratuito.
-- [ ] Sucursales: `GET|POST /negocios/:id_negocio/sucursales`, `GET|PATCH|DELETE /sucursales/:id_sucursal`.
-- [ ] Horarios: `GET /sucursales/:id_sucursal/horarios`, `PUT /sucursales/:id_sucursal/horarios` (reemplaza la semana completa, en transacción).
-- [ ] Roles: `GET /negocios/:id_negocio/roles` (globales + propios), `POST /negocios/:id_negocio/roles`, `PATCH|DELETE /roles/:id_rol`. Los roles `es_sistema` no se editan ni se borran. Validar que `permisos_json` solo use módulos y acciones conocidos.
-- [ ] Empleados: `GET|POST /negocios/:id_negocio/empleados`, `GET|PATCH|DELETE /empleados/:id_empleado`, `PATCH /empleados/:id_empleado/reactivar`. Validar que el `id_rol` asignado sea global o del mismo negocio.
+- [x] Negocios: `POST /negocios`, `GET /negocios/mios`, `GET /negocios/:id_negocio` (perfil público), `PATCH /negocios/:id_negocio`. Al crear un negocio, crear en la misma transacción una suscripción al plan Gratuito.
+- [x] Sucursales: `GET|POST /negocios/:id_negocio/sucursales`, `GET|PATCH|DELETE /sucursales/:id_sucursal`.
+- [x] Horarios: `GET /sucursales/:id_sucursal/horarios`, `PUT /sucursales/:id_sucursal/horarios` (reemplaza la semana completa, en transacción). La semana llega como lista de rangos; se permiten varios rangos por día (horario partido) y el servicio valida que no se crucen.
+- [x] Roles: `GET /negocios/:id_negocio/roles` (globales + propios), `POST /negocios/:id_negocio/roles`, `PATCH|DELETE /roles/:id_rol`. Los roles `es_sistema` no se editan ni se borran. Validar que `permisos_json` solo use módulos y acciones conocidos.
+- [x] Empleados: `GET|POST /negocios/:id_negocio/empleados`, `GET|PATCH|DELETE /empleados/:id_empleado`, `PATCH /empleados/:id_empleado/reactivar`. Validar que el `id_rol` asignado sea global o del mismo negocio.
 
 **Flujo de invitaciones completo**
-- [ ] `POST /empleados/:id_empleado/invitacion` — enviar. `id_negocio` se toma del empleado (hoy viene del query sin validar). Rechazar si el empleado no tiene email, está inactivo o ya tiene `id_usuario`.
-- [ ] `POST /empleados/:id_empleado/invitacion/reenviar` — invalida las anteriores y crea una nueva; máximo 3 reenvíos usando `intentos_reenvio` (409 al superar el límite).
-- [ ] `GET /invitaciones/:token` — público. Valida el token y devuelve negocio, rol, nombre del empleado y si el email **ya tiene cuenta**, para que el frontend decida si pedir contraseña o solo confirmar.
-- [ ] `POST /invitaciones/:token/aceptar` — público. En **transacción**: crea el usuario o vincula el existente, asigna `empleados.id_usuario`, marca `usado` y `fecha_usado`. Si la cuenta ya existía, exigir su contraseña actual para vincular. Responde con access token, refresh token y sesión creada (auto-login), reutilizando la función de creación de sesión del login.
-- [ ] Guardar en BD el **hash SHA-256** del token, no el token en claro. El enlace del correo lleva el token real: `${FRONTEND_URL}/invitacion/<token>`.
-- [ ] Enviar el correo con `mailer.js`. No devolver el token en la respuesta de la API.
+- [x] `POST /empleados/:id_empleado/invitacion` — enviar. `id_negocio` se toma del empleado (hoy viene del query sin validar). Rechazar si el empleado no tiene email, está inactivo o ya tiene `id_usuario`.
+- [x] `POST /empleados/:id_empleado/invitacion/reenviar` — invalida las anteriores y crea una nueva; máximo 4 correos al mismo email en 24 horas, contando el envío (409 al superar el límite; pasada la ventana se puede volver a invitar).
+- [x] `GET /invitaciones/:token` — público. Valida el token y devuelve negocio, rol, nombre del empleado y si el email **ya tiene cuenta**, para que el frontend decida si pedir contraseña o solo confirmar.
+- [x] `POST /invitaciones/:token/aceptar` — público. En **transacción**: crea el usuario o vincula el existente, asigna `empleados.id_usuario`, marca `usado` y `fecha_usado`. Si la cuenta ya existía, exigir su contraseña actual para vincular. Responde con access token, refresh token y sesión creada (auto-login), reutilizando la función de creación de sesión del login.
+- [x] Guardar en BD el **hash SHA-256** del token, no el token en claro. El enlace del correo lleva el token real: `${FRONTEND_URL}/invitacion/<token>`.
+- [x] Enviar el correo con `mailer.js`. No devolver el token en la respuesta de la API.
+- [x] Propietario como empleado de su propio negocio, sin invitación (en veterinarias pequeñas el dueño es el veterinario y debe aparecer en la agenda). Implementado: `POST /negocios/:id_negocio/empleados/yo`, solo para el propietario: crea el empleado con `id_usuario` = su cuenta y nombre, apellido y email tomados de ella; el body lleva `id_rol` (por defecto Administrador) y los datos profesionales. Si ya existe un empleado sin cuenta con su email, lo vincula en lugar de crear otro; si ya está vinculado, 409 (lo garantiza también `UNIQUE(id_negocio, id_usuario)`). Es más explícito que vincular por email al crear un empleado, que mezclaría dos flujos en el mismo endpoint.
 
 **Base de datos, datos de prueba y tests**
-- [ ] Migración `001_empleados_email_por_negocio.sql`: `UNIQUE(id_negocio, email)` en `empleados`. Actualizar `petcat.sql`.
-- [ ] `database/seeds/dev_seed.sql`: admin de plataforma, un propietario con negocio (plan Gratuito), una sucursal con horarios, dos empleados (veterinario vinculado y recepcionista con invitación pendiente), un cliente con dos mascotas y algunos servicios. Contraseña común documentada (p. ej. `Petcat123!`).
-- [ ] Configurar Vitest + supertest con base `petcat_test`. Tests: health, registro, login, ruta protegida sin token (401), permisos (403), flujo completo de invitación (usuario nuevo y usuario existente).
-- [ ] `backend/README.md`: cómo levantar el proyecto, aplicar migraciones, cargar el seed y correr los tests.
+- [x] Migración `001_empleados_unicos_por_negocio.sql`: `UNIQUE(id_negocio, email)` y `UNIQUE(id_negocio, id_usuario)` en `empleados`. Actualizar `petcat.sql`. (Se aplica después de la 002 y la 003: son independientes.)
+- [x] Migración `002_horarios_varios_rangos.sql`: quitar `UNIQUE(id_sucursal, dia_semana)` de `horarios_negocio` para permitir horario partido. Actualizar `petcat.sql`. (Creada en 0.C.3; Amaurys la aplica en su base.)
+- [x] Migración `003_rol_administrador_permisos.sql`: el rol del sistema Administrador con el catálogo completo de permisos (le faltaban `historial_medico`, `vacunas`, `editar_stock` y `ver_basico`). Actualizar `petcat.sql`.
+- [x] `database/seeds/dev_seed.sql`: admin de plataforma, un propietario con negocio (plan Gratuito), una sucursal con horarios, dos empleados (veterinario vinculado y recepcionista con invitación pendiente), un cliente con dos mascotas y algunos servicios. Contraseña común documentada (p. ej. `Petcat123!`).
+- [x] Configurar Vitest + supertest con base `petcat_test`. Tests: health, registro, login, ruta protegida sin token (401), permisos (403), flujo completo de invitación (usuario nuevo y usuario existente).
+- [x] `backend/README.md`: cómo levantar el proyecto, aplicar migraciones, cargar el seed y correr los tests. Incluye una sección para el panel web y la app móvil sobre cómo consumir la API.
+- [x] `npm run db:migrate`: registra las migraciones aplicadas por **nombre de archivo** (tabla `schema_migrations`), no por el número más alto. En la base de Amaurys la 002 y la 003 se aplicaron antes que la 001: se marcan con `npm run db:migrate -- --baseline` (una sola vez). `--status` muestra el estado.
+- [x] Quitar del `errorHandler` la compatibilidad temporal con `error.status`.
+- [x] Workflow de GitHub Actions (`.github/workflows/tests.yml`): suite de tests con MySQL 8 de servicio en cada PR y push a `main`.
 
 **Cierre de fase:** todos los tests pasan, Swagger muestra todos los endpoints actuales y el servidor arranca desde cero con `docker compose up` + seed.
+
+- [x] Verificado el 26/09/2026 desde un clon limpio de `fase-0`, con un proyecto de compose aparte (otros nombres y puertos): MySQL y backend healthy, esquema y seed cargados con tildes correctas, login, perfil público, empleados, invitación enviada y aceptada, Swagger con 21 rutas y 31 operaciones sin referencias rotas, `db:migrate` al día. La suite (231 tests) pasa en el clon contra un MySQL 8 nuevo con los mismos pasos del workflow de CI. La verificación encontró que compose cargaba `petcat.sql` y el seed en latin1 (ver Decisiones).
 
 ---
 
@@ -77,6 +87,7 @@ Pasar cada módulo al patrón (schemas Zod, sin try/catch en controladores, `Api
 
 **Auth completo**
 - [ ] `POST /auth/refresh-token` (rota el refresh token), `GET /auth/me` (perfil + negocios a los que tiene acceso con su rol), `PATCH /auth/me`, `POST /auth/change-password` (cierra las demás sesiones), `POST /auth/forgot-password`, `POST /auth/reset-password`, `GET /auth/verify-email/:token`.
+- [ ] `forgot-password` y `reset-password` deben funcionar aunque la cuenta esté bloqueada por intentos fallidos; al restablecer la contraseña se reinician `intentos_login` y `bloqueado_hasta`.
 
 **Mascotas (app)**
 - [ ] `GET|POST /mascotas` (del usuario autenticado), `GET|PATCH|DELETE /mascotas/:id_mascota`, `GET /mascotas/:id_mascota/resumen-salud` (vacunas próximas o vencidas, último control, próximo control).
@@ -136,3 +147,52 @@ Pasar cada módulo al patrón (schemas Zod, sin try/catch en controladores, `Api
 - Un negocio ve el historial de una mascota solo si tiene al menos una cita con ella.
 - Tokens de invitación guardados como hash SHA-256.
 - MercadoPago como única pasarela del MVP; Expo Push en lugar de FCM directo.
+- Variables de entorno: `src/config/env.js` valida pero no carga archivos. `server.js` carga `backend/.env`; Vitest inyecta `backend/.env.test` desde `vitest.config.js` (los tests importan `app.js` sin `server.js`). Con `NODE_ENV=test`, `DB_NAME` debe terminar en `_test`.
+- Zona horaria: MySQL (contenedor con `TZ`) y el proceso Node (`env.js` fija `process.env.TZ`) usan `America/Bogota`, para que las fechas en texto (`dateStrings`) se interpreten igual en cualquier máquina.
+- Node 24 LTS (imagen `node:24`, `engines >=24`). Node 20 terminó su soporte en abril de 2026.
+- MySQL de docker compose publicado solo en `127.0.0.1:3307`.
+- Límites de solicitudes: 300 cada 15 min por IP en toda la API; estricto (`AUTH_RATE_LIMIT_MAX`, por defecto 10 en producción y 100 en desarrollo) con un contador propio por endpoint en login, forgot-password e invitaciones. Desactivados con `NODE_ENV=test`.
+- `GET /api/v1/health` comprueba la base (`SELECT 1`, 503 si no responde); lo usa el healthcheck del backend en compose. Health y Swagger quedan fuera del rate limit.
+- Swagger: `servers` relativo (`/api/v1`) para que "Try it out" funcione desde cualquier host; especificación en `/api/v1/docs.json`.
+
+### Decisiones de 0.C (septiembre 2026)
+- Base de tests: `petcat_test` se borra y recrea en cada corrida cargando `database/petcat.sql` con un cargador en Node (entiende `DELIMITER`). Cada test crea sus propios datos con emails únicos; no se limpia entre tests. El seed de desarrollo también se carga y se prueba en `petcat_test`.
+- Seed: `database/seeds/dev_seed.sql`, contraseña común `Petcat123!`. En volúmenes nuevos compose lo ejecuta después del esquema (`01_petcat.sql`, `02_dev_seed.sql`). `npm run db:reset -- --yes` recrea `petcat_db` con esquema y seed (se niega en producción y sin `--yes`).
+- Sesiones: se guarda el hash SHA-256 del access token y del refresh token, no los tokens en claro. La sesión dura lo mismo que el refresh token.
+- Login: 5 intentos fallidos seguidos bloquean la cuenta 15 minutos (`intentos_login`, `bloqueado_hasta`). Un login correcto reinicia el contador. Mismo mensaje "Credenciales inválidas" si el email no existe o la contraseña es errónea (con comparación contra un hash ficticio para no delatar emails). Cuenta inactiva o bloqueada: 403.
+- Respuesta del login y de aceptar invitación: `data: { access_token, refresh_token, usuario }` (snake_case, como el resto de campos).
+- `GET /negocios/mios` devuelve los negocios propios y aquellos donde el usuario es empleado activo, con `relacion: "propietario" | "empleado"` y su rol.
+- Sin escalada de privilegios: quien no es propietario no puede crear ni editar un rol con permisos que él no tiene, ni asignar ese rol, ni cambiar su propio rol (403).
+- Invitaciones: vigencia de 72 horas. Al aceptar, un usuario nuevo queda con `email_verificado = TRUE` (abrir el enlace prueba que el correo es suyo).
+- Suscripción Gratuita sin vencimiento: `fecha_fin = 9999-12-31`.
+- `GET /permisos`: catálogo de módulos y acciones para el editor de roles del panel. El mismo catálogo valida `permisos_json`.
+- Horario partido: `horarios_negocio` admite varios rangos por día (se quita `UNIQUE(id_sucursal, dia_semana)`, migración 002). El servicio valida que los rangos de un mismo día no se crucen. El cálculo de horarios libres de la Fase 1 debe recorrer todos los rangos del día.
+- Auth (0.C.2): los tokens llevan un `jti` aleatorio para que dos sesiones nunca tengan el mismo hash. `session.service.createSessionForUser(usuario, cliente, conn)` es la única forma de crear sesiones (login, invitaciones y `tokenDe` de los tests).
+- `authMiddleware` toma `req.user` de la base (no del token) y responde 403 si el usuario está inactivo. El bloqueo por intentos no cierra las sesiones abiertas: solo impide iniciar sesión.
+- Login: con la cuenta bloqueada no se evalúa la contraseña (403 directo); el intento que alcanza el límite ya responde 403. Al vencer el bloqueo el conteo empieza de nuevo. El registro no inicia sesión.
+- Contraseña de registro: 8 a 72 caracteres (límite de bcrypt), con al menos una letra y un número. El body de register y login es estricto: campos no previstos -> 422.
+- `authorize` deduce el negocio solo de parámetros de ruta (`:id_negocio` o un recurso del mapa de `negocio.repository`); si la ruta no tiene ninguno es un error de programación (500). Deja `req.negocio` y `req.acceso = { relacion, id_empleado?, id_rol?, permisos? }` para los servicios. Recursos globales (roles del sistema): solo el admin.
+- Negocios, sucursales y roles (0.C.3): los routers de estos módulos definen rutas completas (`/negocios/:id_negocio/sucursales`, `/sucursales/:id_sucursal`...) y se montan en la raíz de `/api/v1`. En las rutas protegidas el orden es `authMiddleware`, `validate`, `authorize` (un id inválido da 422 antes de consultar la base).
+- `authorize(modulo, accion)` lanza un error al cargar las rutas si el permiso no está en `CATALOGO_PERMISOS` (`shared/utils/permissions.js`). Si el catálogo cambia, actualizar los roles del sistema con una migración.
+- Lectura pública sin token: perfil del negocio, sus sucursales y los horarios. El perfil devuelve 404 si el negocio está inactivo y solo muestra sucursales activas (con sus horarios), servicios activos y con `visible_app`, y las 5 reseñas visibles más recientes (autor como "Nombre I."). No expone `nit`, `razon_social` ni el propietario.
+- Sucursal principal: la primera sucursal activa del negocio siempre queda como principal; marcar otra desmarca la anterior; desmarcar la principal da 409 (se marca otra). Eliminar (lógico) da 409 si hay citas futuras pendientes o confirmadas, o si es la principal y hay otras activas; la única sucursal sí se elimina. Estas operaciones bloquean las sucursales del negocio con `FOR UPDATE`.
+- Horarios: el PUT recibe `{ horarios: [{ dia_semana, hora_apertura, hora_cierre }] }`; horas HH:MM (acepta HH:MM:SS) y se devuelven HH:MM. Los rangos pueden tocarse (12:00–12:00) pero no cruzarse; el 422 indica el índice (`horarios.N`). Lista vacía = cerrado toda la semana.
+- Roles: nombre único en el negocio y distinto de los roles del sistema, sin distinguir mayúsculas (409). Los roles del sistema no se editan ni se borran, tampoco por el admin (403). Un rol con empleados asignados, activos o no, no se borra (409). Escalada: las reglas aplican a empleados; propietario y admin no tienen límite. Asignar un rol y cambiar el propio rol se controla en empleados (0.C.4).
+- PATCH de negocio, sucursal y rol: lista blanca estricta (campos desconocidos -> 422), al menos un campo; los opcionales se vacían con `null`. `latitud` y `longitud` van juntas (ambas con valor o ambas `null`).
+- Empleados (0.C.4): el body no acepta `id_usuario`, `id_negocio`, `activo` ni `fecha_retiro` (422). La cuenta se vincula solo con `empleadoRepo.linkUsuario` (invitaciones y, en 0.C.5, el propietario). `fecha_vinculacion` por defecto es hoy. `id_rol` debe ser del sistema o del mismo negocio (422 en `errors.id_rol`).
+- Email del empleado único por negocio sin distinguir mayúsculas (409). Si el email es de un empleado inactivo, el 409 lo dice con su `id_empleado` para reactivarlo. Cambiar el email (sin contar mayúsculas) o desactivar invalida las invitaciones pendientes en la misma transacción. Desactivar a un inactivo o reactivar a un activo: 409.
+- Listado de empleados: paginado, activos primero y luego apellido y nombre; filtros `activo` (true/false, sin filtro = todos) y `q` (nombre, apellido, nombre completo, email, documento). Cada fila trae `rol { id_rol, nombre }`, `tiene_cuenta` e `invitacion_pendiente` (sin usar y vigente); el detalle añade `rol.permisos_json`.
+- Escalada en empleados (solo cuando actúa un empleado): no asignar un rol con permisos que el suyo no tiene, no cambiar su propio rol, no desactivarse a sí mismo y no editar, desactivar ni reactivar a un empleado con permisos que él no tiene (403). Puede editar sus propios datos salvo el rol.
+- El propietario puede ser también empleado de su propio negocio (aparece en la agenda). En `authorize` y `/negocios/mios` cuenta como propietario, así que no le aplican las reglas de escalada: puede cambiar su propio rol de empleado o desactivarse como empleado sin perder el acceso.
+- Un usuario solo puede estar vinculado una vez a cada negocio: `UNIQUE(id_negocio, id_usuario)` (migración 001), además de las validaciones del servicio.
+- Invitaciones (0.C.5): token de 32 bytes aleatorios en hexadecimal; en la base solo su SHA-256. El token solo viaja en el correo (`${FRONTEND_URL}/invitacion/<token>`), nunca en respuestas. Vigencia de 72 horas; invalidar es poner `expiracion = NOW()`.
+- Enviar da 409 si el empleado no tiene email, está inactivo, ya tiene cuenta o ya tiene una invitación vigente. Reenviar invalida la vigente y da 409 si nunca se invitó a ese email. Límite: 4 correos al mismo email del negocio en una ventana móvil de 24 horas (envío y reenvíos cuentan igual); el 409 dice desde cuándo se puede volver a enviar. Cambiar el email del empleado empieza un conteo nuevo. `intentos_reenvio` guarda cuántos correos se habían enviado a ese email en la ventana.
+- El correo se envía dentro de la transacción que crea la invitación (con el empleado bloqueado): si falla, se deshace y responde 503. `SMTP_TIMEOUT_MS` (10 s por defecto) limita conexión, saludo e inactividad del SMTP para que la transacción no quede abierta.
+- `GET /invitaciones/:token` y `POST /invitaciones/:token/aceptar` son públicos y van con el límite estricto de solicitudes. Invitación usada, vencida o reemplazada, empleado o negocio inactivos, o empleado ya vinculado: 409 con un mensaje por caso (no se usa 410).
+- Aceptar: transacción con la invitación y el empleado bloqueados (`FOR UPDATE OF i, e`); el test de aceptaciones simultáneas con cuenta existente falla sin ese bloqueo. Con cuenta existente se exige la contraseña actual con las reglas del login (`auth.service.verificarPassword`: los fallos cuentan para el bloqueo de 5 intentos). Sin cuenta, se crea con `email_verificado = TRUE`, contraseña con las reglas del registro y nombre/apellido del empleado por defecto. Responde como el login e inicia sesión con `createSessionForUser`.
+- Enviar y reenviar no aplican las reglas de escalada: el rol y el email del empleado ya pasaron esos controles al crearlo o editarlo.
+- Propietario como empleado: `POST /negocios/:id_negocio/empleados/yo` solo para el propietario (se comprueba `negocios.id_usuario_propietario`, así que también funciona si el propietario es admin de plataforma). Rol por defecto Administrador. Si hay un empleado sin cuenta con su email lo vincula (200) y conserva su rol salvo que se envíe `id_rol`; si ese empleado está inactivo, 409 en lugar de reactivarlo.
+- Migraciones (0.C.6): `schema_migrations (nombre, aplicada_en)` registra cada archivo aplicado. `db:migrate` aplica las pendientes en orden de nombre y registra cada una tras ejecutarla; si una falla se detiene sin registrarla (el DDL de MySQL no se deshace: revisar a mano). `--status` solo lee. `--baseline` marca todas las existentes sin ejecutarlas y solo con la tabla vacía. `petcat.sql` crea la tabla con todas las migraciones registradas; un test exige que cada archivo de `database/migrations` esté en ese `INSERT`. Sin checksum de archivos: los finales de línea CRLF/LF darían falsas alarmas.
+- Codificación: `petcat.sql` y `dev_seed.sql` empiezan con `SET NAMES utf8mb4` (un test lo exige), porque el cliente `mysql` de compose usa latin1 y el texto con tildes quedaba codificado dos veces. Las bases creadas antes se reparan una sola vez con `database/scripts/reparar_codificacion_utf8.sql` (datos iniciales y trigger de citas; idempotente) o se recrean con `db:reset`. No es una migración porque una base nueva no la necesita. Los `COMMENT` de tablas y columnas de esas bases siguen dañados (solo documentación).
+- El `errorHandler` ya no traduce `error.status` de errores comunes: solo `ApiError`, `ZodError`, errores de MySQL y de `express.json()`; lo demás es 500.
+- CI: GitHub Actions con Node 24 y MySQL 8 de servicio (zona `America/Bogota`, puerto 3307); `backend/.env.test` se arma desde `.env.test.example` cambiando solo `DB_PASSWORD`.

@@ -1,41 +1,11 @@
-// ===============================
-// src/modules/horarios/horario.controller.js
-// ===============================
+import * as service from "./horario.service.js";
+import { ok } from "../../shared/utils/response.js";
 
-import { createHorarioService } from "./horario.service.js";
+export const getHorarios = async (req, res) => {
+  return ok(res, await service.getHorarios(req.params.id_sucursal));
+};
 
-export const createHorario = async (req, res) => {
-  try {
-    const { id_sucursal } = req.params;
-
-    const {
-      dia_semana,
-      hora_apertura,
-      hora_cierre
-    } = req.body;
-
-    const usuarioAuth = req.usuario;
-
-    const result = await createHorarioService({
-      id_sucursal,
-      dia_semana,
-      hora_apertura,
-      hora_cierre,
-      usuarioAuth
-    });
-
-    return res.status(201).json({
-      ok: true,
-      message: "Horario creado correctamente",
-      data: result
-    });
-
-  } catch (error) {
-    console.error("ERROR CREATE HORARIO:", error);
-
-    return res.status(error.statusCode || 500).json({
-      ok: false,
-      message: error.message || "Error interno del servidor"
-    });
-  }
+export const replaceHorarios = async (req, res) => {
+  const horarios = await service.replaceHorarios(req.params.id_sucursal, req.body.horarios);
+  return ok(res, horarios, "Horarios actualizados");
 };

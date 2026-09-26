@@ -1,134 +1,207 @@
-// ================================
-// modules/roles/rol.routes.js
-// ================================
-
 import express from "express";
-import { createRol, getRolesByNegocio } from "./rol.controller.js";
+import * as controller from "./rol.controller.js";
+import { createRolBody, idRolParams, updateRolBody } from "./rol.schemas.js";
+import { idNegocioParams } from "../negocios/negocio.schemas.js";
 import { authMiddleware } from "../../shared/middlewares/auth.middleware.js";
 import { authorize } from "../../shared/middlewares/authorize.middleware.js";
+import { validate } from "../../shared/middlewares/validate.js";
 
 const router = express.Router();
 
 /**
  * @swagger
- * tags:
- *   name: Roles
- *   description: Gestión de roles personalizados del negocio
+ * components:
+ *   schemas:
+ *     Permisos:
+ *       type: object
+ *       description: "`{ modulo: [acciones] }`. Solo módulos y acciones del catálogo (GET /permisos)."
+ *       additionalProperties: { type: array, items: { type: string } }
+ *       example: { citas: [ver, crear, editar], clientes: [ver] }
+ *     Rol:
+ *       type: object
+ *       properties:
+ *         id_rol: { type: integer, example: 8 }
+ *         id_negocio: { type: integer, nullable: true, description: null en los roles del sistema }
+ *         nombre: { type: string, example: Auxiliar de peluquería }
+ *         descripcion: { type: string, nullable: true }
+ *         permisos_json: { $ref: '#/components/schemas/Permisos' }
+ *         es_sistema: { type: boolean }
+ *         fecha_creacion: { type: string }
+ *     RolInput:
+ *       type: object
+ *       additionalProperties: false
+ *       properties:
+ *         nombre:
+ *           type: string
+ *           minLength: 2
+ *           maxLength: 60
+ *           description: Único en el negocio y distinto de los roles del sistema (sin distinguir mayúsculas)
+ *         descripcion: { type: string, maxLength: 200, nullable: true }
+ *         permisos_json: { $ref: '#/components/schemas/Permisos' }
  */
-
 
 /**
  * @swagger
- * /roles/register/{id_negocio}:
- *   post:
- *     summary: Crear rol personalizado para un negocio (Propietario o admin)
- *     description: |
- *       Permite crear un nuevo rol personalizado dentro de un negocio.
- *       
- *       Solo puede hacerlo:
- *       - El propietario del negocio
- *       - Un empleado con permiso roles.crear
- *       
- *       No se permite:
- *       - Crear roles duplicados dentro del mismo negocio
- *       - Modificar roles globales del sistema desde aquí
+ * /negocios/{id_negocio}/roles:
+ *   get:
+ *     summary: Roles disponibles en el negocio
+ *     description: Requiere `roles.ver`. Los del sistema primero y luego los propios, con cuántos empleados activos del negocio tienen cada uno.
  *     tags: [Roles]
- *     security:
- *       - bearerAuth: []
  *     parameters:
- *       - in: path
- *         name: id_negocio
- *         required: true
- *         schema:
- *           type: integer
- *         description: ID del negocio donde se creará el rol
+ *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
+ *     responses:
+ *       200:
+ *         description: Lista
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: OK }
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     allOf:
+ *                       - $ref: '#/components/schemas/Rol'
+ *                       - type: object
+ *                         properties:
+ *                           empleados_activos: { type: integer }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *   post:
+ *     summary: Crear un rol propio del negocio
+ *     description: >
+ *       Requiere `roles.crear`. Un empleado solo puede otorgar permisos que su propio rol tiene (403).
+ *       El propietario y el admin de plataforma no tienen ese límite.
+ *     tags: [Roles]
+ *     parameters:
+ *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - nombre
- *               - permisos_json
- *             properties:
- *               nombre:
- *                 type: string
- *                 example: Auxiliar Veterinario
- *                 description: Nombre único del rol dentro del negocio
- *               descripcion:
- *                 type: string
- *                 example: Puede apoyar en atención básica y gestión de citas
- *                 description: Descripción opcional del rol
- *               permisos_json:
- *                 type: object
- *                 example:
- *                   citas:
- *                     - ver
- *                     - crear
- *                     - editar
- *                   clientes:
- *                     - ver
- *                   mascotas:
- *                     - ver
- *                     - crear
- *                 description: Permisos granulares por módulo
+ *             allOf:
+ *               - $ref: '#/components/schemas/RolInput'
+ *               - required: [nombre, permisos_json]
  *     responses:
  *       201:
- *         description: Rol creado correctamente
- *       400:
- *         description: Datos inválidos o rol duplicado
- *       403:
- *         description: No autorizado para crear roles
- *       404:
- *         description: Negocio no encontrado
- *       500:
- *         description: Error interno del servidor
+ *         description: Rol creado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Rol creado }
+ *                 data: { $ref: '#/components/schemas/Rol' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       409:
+ *         description: Nombre repetido en el negocio o igual al de un rol del sistema
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorResponse' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
  */
-router.post(
-  "/register/:id_negocio",
+router.get(
+  "/negocios/:id_negocio/roles",
   authMiddleware,
-  authorize("roles", "crear"),
-  createRol
+  validate({ params: idNegocioParams }),
+  authorize("roles", "ver"),
+  controller.getRoles
 );
 
+router.post(
+  "/negocios/:id_negocio/roles",
+  authMiddleware,
+  validate({ params: idNegocioParams, body: createRolBody }),
+  authorize("roles", "crear"),
+  controller.createRol
+);
 
 /**
  * @swagger
- * /roles/negocio/{id_negocio}:
- *   get:
- *     summary: Obtener todos los roles disponibles de un negocio (Propietario o admin)
- *     description: |
- *       Retorna:
- *       - Roles globales del sistema
- *       - Roles personalizados creados por ese negocio
- *
- *       Solo propietario o empleados con permiso roles.ver
+ * /roles/{id_rol}:
+ *   patch:
+ *     summary: Actualizar un rol propio
+ *     description: >
+ *       Requiere `roles.editar`. Los roles del sistema no se editan (403). Un empleado no puede
+ *       editar su propio rol, ni un rol con permisos que él no tiene, ni otorgar permisos que
+ *       él no tiene (403). Al menos un campo.
  *     tags: [Roles]
- *     security:
- *       - bearerAuth: []
  *     parameters:
- *       - in: path
- *         name: id_negocio
- *         required: true
- *         schema:
- *           type: integer
- *         description: ID del negocio
+ *       - { in: path, name: id_rol, required: true, schema: { type: integer } }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema: { $ref: '#/components/schemas/RolInput' }
  *     responses:
  *       200:
- *         description: Lista de roles obtenida correctamente
- *       403:
- *         description: No autorizado
- *       404:
- *         description: Negocio no encontrado
- *       500:
- *         description: Error interno
+ *         description: Rol actualizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Rol actualizado }
+ *                 data: { $ref: '#/components/schemas/Rol' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       409:
+ *         description: Nombre repetido
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorResponse' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ *   delete:
+ *     summary: Eliminar un rol propio
+ *     description: >
+ *       Requiere `roles.eliminar`. Los roles del sistema no se eliminan (403); tampoco un rol con
+ *       empleados asignados (409). Mismas reglas de escalada que al editar.
+ *     tags: [Roles]
+ *     parameters:
+ *       - { in: path, name: id_rol, required: true, schema: { type: integer } }
+ *     responses:
+ *       200:
+ *         description: Rol eliminado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Rol eliminado }
+ *                 data: { nullable: true, example: null }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       409:
+ *         description: Hay empleados con este rol
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorResponse' }
  */
-router.get(
-  "/negocio/:id_negocio",
+router.patch(
+  "/roles/:id_rol",
   authMiddleware,
-  authorize("roles", "ver"),
-  getRolesByNegocio
+  validate({ params: idRolParams, body: updateRolBody }),
+  authorize("roles", "editar"),
+  controller.updateRol
+);
+
+router.delete(
+  "/roles/:id_rol",
+  authMiddleware,
+  validate({ params: idRolParams }),
+  authorize("roles", "eliminar"),
+  controller.deleteRol
 );
 
 export default router;

@@ -26,7 +26,7 @@ Reglas de dominio que guían el diseño:
 
 ## Stack (decidido — no cambiar sin consultar)
 
-- Node 20, Express 5, **JavaScript ES Modules** (no TypeScript).
+- Node 24 LTS, Express 5, **JavaScript ES Modules** (no TypeScript).
 - MySQL 8 con **`mysql2/promise` y SQL escrito a mano**. **No usar Prisma**: el esquema usa columnas `SET` (no soportadas por Prisma), triggers y vistas. `database/petcat.sql` es la fuente de verdad del esquema.
 - Validación: **Zod**. Auth: JWT access + refresh, `bcryptjs` (no `bcrypt`). Docs: swagger-jsdoc + swagger-ui-express.
 - Seguridad: helmet, cors, express-rate-limit. Logs: morgan.
@@ -51,9 +51,9 @@ PetCat/
 └── backend/
     ├── .env.example
     ├── src/
-    │   ├── server.js           # primera línea: import "dotenv/config"
+    │   ├── server.js           # primera línea: import "./config/loadEnv.js" (dotenv, quiet)
     │   ├── app.js
-    │   ├── config/             # env.js (validado con Zod), db.js
+    │   ├── config/             # loadEnv.js, env.js (validado con Zod), db.js, zod.js (mensajes en español)
     │   ├── docs/swagger.js
     │   ├── shared/
     │   │   ├── errors/ApiError.js
@@ -112,7 +112,7 @@ Formato `{ "modulo": ["accion", ...] }`. Módulos: `citas, servicios, inventario
 - Trabajar en la rama de la fase (`fase-0`, `fase-1`...). Un commit por tarea lógica, con mensaje en español (`feat(citas): cálculo de horarios libres`).
 - Antes de una tarea grande, mostrar el plan y esperar confirmación.
 - Después de cada cambio: arrancar el servidor y probar los endpoints afectados (tests o curl). No dar por terminado algo sin verificarlo.
-- **Cambios de esquema:** crear `database/migrations/NNN_descripcion.sql` **y** actualizar `database/petcat.sql` para que una instalación nueva quede igual. Avisar a Amaurys para que aplique la migración.
+- **Cambios de esquema:** crear `database/migrations/NNN_descripcion.sql` **y** actualizar `database/petcat.sql` para que una instalación nueva quede igual, incluido su nombre en el `INSERT INTO schema_migrations` del final (un test lo comprueba). Avisar a Amaurys para que la aplique con `npm run db:migrate`.
 - No leer ni modificar `backend/.env`; mantener `backend/.env.example` al día con cada variable nueva.
 - Al terminar una tarea, marcarla en `docs/PLAN.md`. Si surge una decisión de diseño nueva, anotarla en la sección "Decisiones" de `docs/PLAN.md`.
 
@@ -122,5 +122,19 @@ Formato `{ "modulo": ["accion", ...] }`. Módulos: `citas, servicios, inventario
 docker compose up -d mysql        # solo la base de datos
 cd backend && npm run dev         # API con nodemon en http://localhost:3000
 npm test                          # Vitest
+npm run db:migrate                # migraciones pendientes (--status para ver el estado)
+npm run db:reset -- --yes         # recrea la base de backend/.env con esquema y seed
 # Swagger: http://localhost:3000/api/v1/docs
 ```
+
+Más detalle en `backend/README.md`. No correr el contenedor `backend` y `npm run dev` a la vez (mismo puerto y misma base).
+
+**SQL en la terminal de Amaurys (PowerShell 5.1):** el SQL se pasa por tubería (`|`) al cliente de MySQL del contenedor, **no** con `-e "..."` (las comillas se rompen). Al darle comandos, usar este formato:
+
+```powershell
+$OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+"SELECT 1;" | docker compose exec -T mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" --default-character-set=utf8mb4 -t petcat_db'
+Get-Content ruta/archivo.sql -Raw -Encoding UTF8 | docker compose exec -T mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" --default-character-set=utf8mb4 petcat_db'
+```
+
+Para varias líneas, un here-string `@' ... '@` con el `'@` de cierre al inicio de la línea.

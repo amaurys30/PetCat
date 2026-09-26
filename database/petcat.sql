@@ -16,6 +16,10 @@
 --   10. Auditoría y configuración
 -- ═══════════════════════════════════════════════════════════════════════════
 
+-- El cliente mysql de docker compose (volumen nuevo) usa latin1 por defecto: sin esta
+-- línea, el texto con tildes queda codificado dos veces ("Vacunación" -> "VacunaciÃ³n").
+SET NAMES utf8mb4;
+
 CREATE DATABASE IF NOT EXISTS petcat_db
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
@@ -175,13 +179,14 @@ CREATE TABLE horarios_negocio (
     hora_cierre      TIME            NOT NULL,
     activo           BOOLEAN         NOT NULL DEFAULT TRUE,
     PRIMARY KEY (id_horario),
-    UNIQUE KEY uq_horario_sucursal_dia (id_sucursal, dia_semana),
     INDEX idx_horarios_sucursal (id_sucursal),
+    -- Varios rangos por día (horario partido): sin UNIQUE por día. Migración 002.
+    INDEX idx_horarios_sucursal_dia (id_sucursal, dia_semana),
     CONSTRAINT fk_horarios_sucursal
         FOREIGN KEY (id_sucursal) REFERENCES sucursales (id_sucursal)
         ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  COMMENT='Horarios de atención por día y sucursal';
+  COMMENT='Horarios de atención por sucursal: uno o varios rangos por día';
 
 
 CREATE TABLE roles (
@@ -238,6 +243,9 @@ CREATE TABLE empleados (
     INDEX idx_empleados_rol (id_rol),
     INDEX idx_empleados_usuario (id_usuario),
     INDEX idx_empleados_activo (activo),
+    -- Email único por negocio y un usuario vinculado una sola vez por negocio. Migración 001.
+    UNIQUE KEY uq_empleados_negocio_email (id_negocio, email),
+    UNIQUE KEY uq_empleados_negocio_usuario (id_negocio, id_usuario),
     CONSTRAINT fk_empleados_negocio
         FOREIGN KEY (id_negocio) REFERENCES negocios (id_negocio)
         ON DELETE CASCADE ON UPDATE CASCADE,
@@ -1308,7 +1316,7 @@ VALUES
 INSERT INTO roles (nombre, descripcion, permisos_json, es_sistema) VALUES
 ('Administrador',
  'Acceso total al panel del negocio. Puede editar todo.',
- '{"citas":["ver","crear","editar","cancelar"],"servicios":["ver","crear","editar","eliminar"],"inventario":["ver","crear","editar","eliminar"],"clientes":["ver","editar"],"empleados":["ver","crear","editar","eliminar"],"pagos":["ver","reembolsar"],"roles": ["ver", "crear", "editar", "eliminar"],"reportes":["ver","exportar"],"configuracion":["ver","editar"]}',
+ '{"citas":["ver","crear","editar","cancelar"],"servicios":["ver","crear","editar","eliminar"],"inventario":["ver","crear","editar","eliminar","editar_stock"],"clientes":["ver","editar"],"empleados":["ver","crear","editar","eliminar"],"pagos":["ver","ver_basico","reembolsar"],"roles":["ver","crear","editar","eliminar"],"reportes":["ver","exportar"],"configuracion":["ver","editar"],"historial_medico":["ver","crear","editar"],"vacunas":["ver","crear","editar"]}',
  TRUE),
 
 ('Veterinario',
@@ -1489,6 +1497,28 @@ FROM pagos p
 INNER JOIN negocios n ON p.id_negocio = n.id_negocio
 WHERE p.estado = 'aprobado'
 GROUP BY n.id_negocio, n.nombre, DATE_FORMAT(p.fecha_pago, '%Y-%m');
+
+
+
+-- ═══════════════════════════════════════════════════════════════════════════
+--  REGISTRO DE MIGRACIONES (npm run db:migrate)
+--  Una instalación nueva ya incluye todos los cambios de database/migrations,
+--  así que se registran como aplicadas. Al crear una migración nueva, añadir
+--  aquí su nombre de archivo además de aplicar el cambio en este script
+--  (un test lo comprueba).
+-- ═══════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    nombre      VARCHAR(255) NOT NULL,
+    aplicada_en DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (nombre)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Migraciones de database/migrations ya aplicadas (npm run db:migrate)';
+
+INSERT INTO schema_migrations (nombre) VALUES
+('001_empleados_unicos_por_negocio.sql'),
+('002_horarios_varios_rangos.sql'),
+('003_rol_administrador_permisos.sql');
 
 
 SET FOREIGN_KEY_CHECKS = 1;

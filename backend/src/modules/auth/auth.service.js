@@ -1,84 +1,76 @@
-import * as repo from "./auth.repository.js";
-import * as sessionRepo from "../sessions/session.repository.js";
+import * as usuarioRepo from "../usuarios/usuario.repository.js";
+import { createSessionForUser } from "../sessions/session.service.js";
 import { hashPassword, comparePassword } from "../../shared/utils/hash.js";
-import { generateToken } from "../../shared/utils/jwt.js";
-import { generateRefreshToken } from "../../shared/utils/tokens.js";
+import { usuarioPublico } from "../../shared/utils/sanitize.js";
+import { withTransaction } from "../../shared/utils/transaction.js";
+import { ApiError } from "../../shared/errors/ApiError.js";
 
-/**
- * REGISTRO
- */
-export const register = async (data) => {
-  const {
+export const MAX_INTENTOS_LOGIN = 5;
+export const MINUTOS_BLOQUEO = 15;
+
+const CREDENCIALES_INVALIDAS = "Credenciales inválidas";
+const CUENTA_BLOQUEADA = `Cuenta bloqueada por demasiados intentos fallidos. Intenta de nuevo en ${MINUTOS_BLOQUEO} minutos`;
+
+// Hash para comparar cuando el email no existe: la respuesta tarda lo mismo y no delata qué emails están registrados.
+let dummyHash;
+const getDummyHash = async () => (dummyHash ??= await hashPassword("petcat-usuario-inexistente"));
+
+export const register = async ({ nombre, apellido, email, password, telefono, tipo_usuario }) => {
+  if (await usuarioRepo.findByEmail(email)) {
+    throw ApiError.conflict("Ya existe una cuenta con ese correo", { email: "Ya está registrado" });
+  }
+
+  const id_usuario = await usuarioRepo.create({
     nombre,
     apellido,
     email,
-    password,
+    password_hash: await hashPassword(password),
+    telefono,
     tipo_usuario,
-    telefono
-  } = data;
-
-  const userExists = await repo.findUserByEmail(email);
-  if (userExists) throw new Error("Usuario ya existe");
-
-  const password_hash = await hashPassword(password);
-
-  const user = await repo.createUser({
-    nombre,
-    apellido,
-    email,
-    password_hash,
-    tipo_usuario,
-    telefono
   });
 
-  return {
-    id_usuario: user.id_usuario,
-    nombre,
-    apellido,
-    email,
-    tipo_usuario
-  };
+  return usuarioPublico(await usuarioRepo.findById(id_usuario));
 };
 
-export const login = async (email, password) => {
-  const user = await repo.findUserByEmail(email);
-  if (!user) throw new Error("Usuario no encontrado");
+/**
+ * Comprueba la contraseña con las reglas del login. Con la cuenta bloqueada no se
+ * evalúa: no se puede seguir probando (403). Un fallo suma al contador y al llegar
+ * al máximo bloquea la cuenta (403); si no, 401 con `mensajeError`. Cuenta inactiva: 403.
+ * La usan el login y aceptar una invitación con una cuenta existente.
+ * @param {object} usuario Fila de usuarioRepo.findForLogin (incluye `bloqueado`)
+ */
+export const verificarPassword = async (usuario, password, mensajeError = CREDENCIALES_INVALIDAS) => {
+  if (usuario.bloqueado) throw ApiError.forbidden(CUENTA_BLOQUEADA);
 
-  const valid = await comparePassword(password, user.password_hash);
-  if (!valid) throw new Error("Credenciales inválidas");
+  if (!(await comparePassword(password, usuario.password_hash))) {
+    const bloqueado = await usuarioRepo.registerFailedLogin(
+      usuario.id_usuario,
+      MAX_INTENTOS_LOGIN,
+      MINUTOS_BLOQUEO
+    );
+    if (bloqueado) throw ApiError.forbidden(CUENTA_BLOQUEADA);
+    throw ApiError.unauthorized(mensajeError);
+  }
 
-  // 🔐 payload único (importante para auth real)
-  const payload = {
-    id_usuario: user.id_usuario,
-    email: user.email,
-    tipo_usuario: user.tipo_usuario
-  };
+  if (!usuario.activo) throw ApiError.forbidden("La cuenta está desactivada");
+};
 
-  // 🔑 Access Token (corto)
-  const token = generateToken(payload);
+/**
+ * @param {{ email: string, password: string, dispositivo?: string }} credenciales
+ * @param {{ ip?: string, userAgent?: string }} cliente
+ */
+export const login = async ({ email, password, dispositivo }, cliente = {}) => {
+  const usuario = await usuarioRepo.findForLogin(email);
 
-  // 🔄 Refresh Token (largo)
-  const refreshToken = generateRefreshToken(payload);
+  if (!usuario) {
+    await comparePassword(password, await getDummyHash());
+    throw ApiError.unauthorized(CREDENCIALES_INVALIDAS);
+  }
 
-  await sessionRepo.createSession({
-    id_usuario: user.id_usuario,
-    token,
-    refresh_token: refreshToken,
-    dispositivo: "web",
-    ip_address: "unknown",
-    user_agent: "swagger",
-    expira_en: new Date(Date.now() + 60 * 60 * 1000) // 1h
+  await verificarPassword(usuario, password);
+
+  return withTransaction(async (conn) => {
+    await usuarioRepo.registerSuccessfulLogin(usuario.id_usuario, conn);
+    return createSessionForUser(usuario, { ...cliente, dispositivo }, conn);
   });
-
-  return {
-    token,
-    refreshToken,
-    user: {
-      id_usuario: user.id_usuario,
-      nombre: user.nombre,
-      apellido: user.apellido,
-      email: user.email,
-      tipo_usuario: user.tipo_usuario
-    }
-  };
 };

@@ -1,172 +1,96 @@
-import * as empleadoRepo from "../../modules/empleados/empleado.repository.js";
+import { ApiError } from "../errors/ApiError.js";
+import { existePermiso, hasPermission } from "../utils/permissions.js";
 import * as negocioRepo from "../../modules/negocios/negocio.repository.js";
-import * as rolRepo from "../../modules/roles/rol.repository.js";
-import * as sucursalRepo from "../../modules/sucursales/sucursal.repository.js";
-import { hasPermission } from "../utils/permissions.js";
+import * as empleadoRepo from "../../modules/empleados/empleado.repository.js";
 
-export const authorize = (modulo, accion) => {
-  return async (req, res, next) => {
-    try {
-      const user = req.user;
-      let { id_negocio } = req.params;
-
-      /*
-      =========================================================
-      1. ADMIN GLOBAL → acceso total
-      =========================================================
-      */
-      if (user.tipo_usuario === "admin") {
-        return next();
-      }
-
-      /*
-      =========================================================
-      2. Si no viene id_negocio pero sí id_empleado,
-         obtener negocio automáticamente
-      =========================================================
-      */
-      if (!id_negocio && req.params.id_empleado) {
-        const empleadoTarget = await empleadoRepo.findById(
-          req.params.id_empleado
-        );
-
-        if (!empleadoTarget) {
-          return res.status(404).json({
-            ok: false,
-            message: "Empleado no encontrado",
-          });
-        }
-
-        id_negocio = empleadoTarget.id_negocio;
-        req.empleadoTarget = empleadoTarget;
-      }
-
-
-      /*
-      =========================================================
-      3. Resolver negocio desde id_sucursal
-      =========================================================
-      */
-      if (!id_negocio && req.params.id_sucursal) {
-        const sucursal = await sucursalRepo.findById(
-          req.params.id_sucursal
-        );
-
-        if (!sucursal) {
-          return res.status(404).json({
-            ok: false,
-            message: "Sucursal no encontrada",
-          });
-        }
-
-        id_negocio = sucursal.id_negocio;
-        req.sucursal = sucursal;
-      }
-
-      /*
-      =========================================================
-      3. Validar que exista id_negocio
-      =========================================================
-      */
-      if (!id_negocio) {
-        return res.status(400).json({
-          ok: false,
-          message: "Debe especificar un negocio válido",
-        });
-      }
-
-      /*
-      =========================================================
-      4. Buscar negocio
-      =========================================================
-      */
-      const negocio = await negocioRepo.findById(id_negocio);
-
-      if (!negocio) {
-        return res.status(404).json({
-          ok: false,
-          message: "Negocio no encontrado",
-        });
-      }
-
-      /*
-      =========================================================
-      5. Propietario del negocio → acceso total
-      =========================================================
-      */
-      if (negocio.id_usuario_propietario === user.id_usuario) {
-        req.negocio = negocio;
-        return next();
-      }
-
-      /*
-      =========================================================
-      6. Buscar empleado dentro de ESE negocio
-      =========================================================
-      */
-      const empleado = await empleadoRepo.findByUserAndNegocio(
-        user.id_usuario,
-        id_negocio
-      );
-
-      if (!empleado) {
-        return res.status(403).json({
-          ok: false,
-          message: "No perteneces a este negocio",
-        });
-      }
-
-      /*
-      =========================================================
-      7. Obtener rol asignado
-      =========================================================
-      */
-      const rol = await rolRepo.findById(empleado.id_rol);
-
-      if (!rol) {
-        return res.status(403).json({
-          ok: false,
-          message: "Rol no válido",
-        });
-      }
-
-      /*
-      =========================================================
-      8. Validar permisos JSON
-      =========================================================
-      */
-      const allowed = hasPermission(
-        rol.permisos_json,
-        modulo,
-        accion
-      );
-
-      if (!allowed) {
-        return res.status(403).json({
-          ok: false,
-          message: "No tienes permisos para esta acción",
-        });
-      }
-
-      /*
-      =========================================================
-      9. Guardar contexto
-      =========================================================
-      */
-      req.negocio = negocio;
-      req.empleado = empleado;
-      req.rol = rol;
-
-      next();
-
-    } catch (error) {
-      console.error("ERROR AUTHORIZE:", error);
-
-      return res.status(500).json({
-        ok: false,
-        message: "Error validando permisos",
-        error: error.message,
-      });
-    }
-  };
+// Mensaje 404 de cada parámetro de ruta del que se puede deducir el negocio.
+const RECURSO_NO_ENCONTRADO = {
+  id_sucursal: "Sucursal no encontrada",
+  id_empleado: "Empleado no encontrado",
+  id_rol: "Rol no encontrado",
+  id_servicio: "Servicio no encontrado",
+  id_cita: "Cita no encontrada",
+  id_producto: "Producto no encontrado",
+  id_disponibilidad: "Disponibilidad no encontrada",
 };
+
+/**
+ * id_negocio de la petición: de `:id_negocio` o, si no viene, del recurso de la
+ * ruta (`:id_sucursal`, `:id_empleado`, `:id_rol`...). Nunca del body ni del query.
+ * Devuelve null si el recurso existe pero es global (rol del sistema).
+ */
+const resolveIdNegocio = async (params) => {
+  if (params.id_negocio !== undefined) return params.id_negocio;
+
+  const param = negocioRepo.RECURSOS_CON_NEGOCIO.find((name) => params[name] !== undefined);
+  if (!param) throw ApiError.internal("La ruta no indica a qué negocio pertenece el recurso");
+
+  const recurso = await negocioRepo.findNegocioDeRecurso(param, params[param]);
+  if (!recurso) throw ApiError.notFound(RECURSO_NO_ENCONTRADO[param]);
+  return recurso.id_negocio;
+};
+
+/**
+ * Permite el acceso al panel de un negocio por pertenencia:
+ * - admin de plataforma (`tipo_usuario = 'admin'`) y propietario del negocio: siempre;
+ * - empleado activo vinculado a su cuenta: si su rol tiene `permisos_json[modulo]` con `accion`.
+ * Va después de authMiddleware. Deja en la petición:
+ *   req.negocio = fila del negocio (no existe para recursos globales)
+ *   req.acceso  = { relacion: "admin" | "propietario" | "empleado", id_empleado?, id_rol?, permisos? }
+ *
+ *   router.patch("/:id_cita", authMiddleware, authorize("citas", "editar"), controller.update);
+ */
+export const authorize = (modulo, accion) => {
+  // Error de programación: falla al cargar las rutas, no en la primera petición.
+  if (!existePermiso(modulo, accion)) {
+    throw new Error(`authorize("${modulo}", "${accion}"): permiso fuera de CATALOGO_PERMISOS`);
+  }
+  return authorizeMiddleware(modulo, accion);
+};
+
+// eslint-disable-next-line no-unused-vars
+const authorizeMiddleware = (modulo, accion) => async (req, res, next) => {
+  if (!req.user) throw ApiError.unauthorized("Token requerido");
+  const { id_usuario, tipo_usuario } = req.user;
+  const esAdmin = tipo_usuario === "admin";
+
+  const id_negocio = await resolveIdNegocio(req.params);
+  if (id_negocio === null) {
+    // Recurso global (rol del sistema): solo el admin de plataforma.
+    if (!esAdmin) throw ApiError.forbidden();
+    req.acceso = { relacion: "admin" };
+    return next();
+  }
+
+  const negocio = await negocioRepo.findById(id_negocio);
+  if (!negocio) throw ApiError.notFound("Negocio no encontrado");
+  req.negocio = negocio;
+
+  if (esAdmin) {
+    req.acceso = { relacion: "admin" };
+    return next();
+  }
+
+  if (negocio.id_usuario_propietario === id_usuario) {
+    req.acceso = { relacion: "propietario" };
+    return next();
+  }
+
+  const empleado = await empleadoRepo.findAccesoByUsuarioAndNegocio(id_usuario, negocio.id_negocio);
+  if (!empleado) throw ApiError.forbidden("No perteneces a este negocio");
+  if (!empleado.activo) throw ApiError.forbidden("Tu acceso a este negocio está desactivado");
+
+  if (!hasPermission(empleado.permisos_json, modulo, accion)) {
+    throw ApiError.forbidden("No tienes permiso para realizar esta acción");
+  }
+
+  req.acceso = {
+    relacion: "empleado",
+    id_empleado: empleado.id_empleado,
+    id_rol: empleado.id_rol,
+    permisos: empleado.permisos_json,
+  };
+  next();
+};
+
+export default authorize;
