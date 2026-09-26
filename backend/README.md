@@ -140,6 +140,22 @@ npm run db:reset -- --yes --sin-seed # solo el esquema
 
 Se niega a correr con `NODE_ENV=production` o sin `--yes`.
 
+### Tildes dañadas en bases creadas antes del arreglo de codificación
+
+Hasta el cierre de la Fase 0, compose cargaba `petcat.sql` y el seed con el cliente `mysql` en latin1, y el texto con tildes quedaba codificado dos veces (`VacunaciÃ³n` en lugar de `Vacunación`). Afecta los datos iniciales (planes, roles del sistema, categorías, configuración), el mensaje del trigger de recordatorios de citas y, si se cargó, el seed. Los datos creados por la API están bien. Para comprobarlo:
+
+```powershell
+"SELECT nombre FROM categorias_servicio LIMIT 2;" | docker compose exec -T mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" --default-character-set=utf8mb4 -t petcat_db'
+```
+
+- **Base sin datos propios:** `npm run db:reset -- --yes`.
+- **Base con datos que hay que conservar:** aplica una sola vez `database/scripts/reparar_codificacion_utf8.sql`, que corrige esos datos iniciales y vuelve a crear el trigger (repetirlo no cambia nada). No es una migración: una base nueva no lo necesita. No corrige los datos del seed, que se recuperan con `db:reset`.
+
+```powershell
+$OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+Get-Content database/scripts/reparar_codificacion_utf8.sql -Raw -Encoding UTF8 | docker compose exec -T mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" --default-character-set=utf8mb4 petcat_db'
+```
+
 ### Ejecutar SQL a mano (PowerShell)
 
 En PowerShell el SQL se pasa por tubería (`|`) al cliente de MySQL del contenedor, no con `-e "..."`:

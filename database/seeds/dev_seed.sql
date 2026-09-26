@@ -14,6 +14,10 @@
 --      (en la base se guarda el SHA-256 del token, como en producción)
 -- ═══════════════════════════════════════════════════════════════════════════
 
+-- El cliente mysql de docker compose (volumen nuevo) usa latin1 por defecto: sin esta
+-- línea, el texto con tildes queda codificado dos veces ("Vacunación" -> "VacunaciÃ³n").
+SET NAMES utf8mb4;
+
 USE petcat_db;
 
 SET @password_hash = '$2b$10$HAfHOvaNuKTYLvz9ZclTruccGGuIo.RgjWjcBIoOQ2zQfRNqdqQIG';

@@ -16,6 +16,10 @@
 --   10. Auditoría y configuración
 -- ═══════════════════════════════════════════════════════════════════════════
 
+-- El cliente mysql de docker compose (volumen nuevo) usa latin1 por defecto: sin esta
+-- línea, el texto con tildes queda codificado dos veces ("Vacunación" -> "VacunaciÃ³n").
+SET NAMES utf8mb4;
+
 CREATE DATABASE IF NOT EXISTS petcat_db
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
