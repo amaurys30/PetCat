@@ -1495,6 +1495,28 @@ WHERE p.estado = 'aprobado'
 GROUP BY n.id_negocio, n.nombre, DATE_FORMAT(p.fecha_pago, '%Y-%m');
 
 
+
+-- ═══════════════════════════════════════════════════════════════════════════
+--  REGISTRO DE MIGRACIONES (npm run db:migrate)
+--  Una instalación nueva ya incluye todos los cambios de database/migrations,
+--  así que se registran como aplicadas. Al crear una migración nueva, añadir
+--  aquí su nombre de archivo además de aplicar el cambio en este script
+--  (un test lo comprueba).
+-- ═══════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    nombre      VARCHAR(255) NOT NULL,
+    aplicada_en DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (nombre)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Migraciones de database/migrations ya aplicadas (npm run db:migrate)';
+
+INSERT INTO schema_migrations (nombre) VALUES
+('001_empleados_unicos_por_negocio.sql'),
+('002_horarios_varios_rangos.sql'),
+('003_rol_administrador_permisos.sql');
+
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ═══════════════════════════════════════════════════════════════════════════

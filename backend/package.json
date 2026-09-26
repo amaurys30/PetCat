@@ -12,7 +12,8 @@
     "start": "node src/server.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "db:reset": "node scripts/db-reset.js"
+    "db:reset": "node scripts/db-reset.js",
+    "db:migrate": "node scripts/db-migrate.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
