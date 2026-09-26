@@ -27,7 +27,7 @@ describe("POST /auth/register", () => {
     const res = await api().post("/auth/register").send(datos);
 
     expect(res.status).toBe(201);
-    expect(res.body).toMatchObject({ success: true, message: "Cuenta creada" });
+    expect(res.body).toMatchObject({ success: true, message: "Cuenta creada. Te enviamos un correo para confirmar tu email" });
     expect(res.body.data).toEqual({
       id_usuario: expect.any(Number),
       nombre: "Ana",

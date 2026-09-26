@@ -59,3 +59,7 @@ export const sendMail = async ({ to, subject, text, html }) => {
   const info = await getTransporter().sendMail(mail);
   return { delivered: true, mode: "smtp", messageId: info.messageId };
 };
+
+/** Escapa texto para insertarlo en el HTML de un correo. */
+export const escapeHtml = (texto) =>
+  String(texto).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);

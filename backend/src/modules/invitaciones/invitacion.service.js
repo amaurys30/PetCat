@@ -142,7 +142,7 @@ export const aceptarInvitacion = async (token, { password, nombre, apellido, tel
 
     let usuario = await usuarioRepo.findForLogin(invitacion.email, conn);
     if (usuario) {
-      await verificarPassword(usuario, password, "Contraseña incorrecta");
+      await verificarPassword(usuario, password, ApiError.unauthorized("Contraseña incorrecta"));
     } else {
       const nueva = passwordNueva.safeParse(password);
       if (!nueva.success) {

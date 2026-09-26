@@ -61,6 +61,9 @@ v1.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, { customSiteTitle:
 v1.use(generalLimiter);
 v1.use("/auth/login", strictLimiter());
 v1.use("/auth/forgot-password", strictLimiter());
+v1.use("/auth/reset-password", strictLimiter());
+v1.use("/auth/verify-email", strictLimiter());
+v1.use("/auth/resend-verification", strictLimiter());
 v1.use("/invitaciones", strictLimiter());
 
 v1.use("/auth", authRoutes);
