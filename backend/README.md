@@ -288,6 +288,9 @@ Detalle de cada uno en Swagger.
 | Disponibilidad | `GET` y `POST /empleados/:id_empleado/disponibilidad`, `PUT /empleados/:id_empleado/horario-semanal`, `GET /empleados/:id_empleado/disponibilidad-efectiva`, `PATCH` y `DELETE /disponibilidad/:id_disponibilidad` |
 | Citas | `GET /citas/horarios-libres` (público), `POST /citas` y `GET /citas/mias` (app), `GET /citas/:id_cita`, `POST /citas/:id_cita/cancelar`, `POST /citas/:id_cita/reprogramar` y `GET /citas/:id_cita/historial` (dueño o negocio), `PATCH /citas/:id_cita` y `PATCH /citas/:id_cita/estado` (panel), `GET /negocios/:id_negocio/citas/horarios-libres`, `GET` (agenda) y `POST /negocios/:id_negocio/citas` (panel) |
 | Clientes (panel) | `GET /negocios/:id_negocio/clientes/buscar`, `POST /negocios/:id_negocio/clientes`, `POST /negocios/:id_negocio/clientes/:id_usuario/mascotas` |
+| Historial médico | `GET /mascotas/:id_mascota/historial` (dueño), `GET /negocios/:id_negocio/mascotas/:id_mascota/historial`, `POST /negocios/:id_negocio/historial`, `PATCH /historial/:id_historial` (panel) |
+| Vacunas | `GET` y `POST /mascotas/:id_mascota/vacunas` (dueño), `GET /negocios/:id_negocio/mascotas/:id_mascota/vacunas`, `POST /negocios/:id_negocio/vacunas` (panel), `PATCH /vacunas/:id_vacuna` (quien la registró) |
+| Resumen de salud | `GET /mascotas/:id_mascota/resumen-salud` (dueño) y `GET /negocios/:id_negocio/mascotas/:id_mascota/resumen-salud` (panel) |
 
 ### Disponibilidad de empleados
 
@@ -308,6 +311,14 @@ Detalle de cada uno en Swagger.
 - **Cambios:** el panel confirma, inicia, completa o marca inasistencia con `PATCH /citas/:id_cita/estado` y edita notas, prioridad, precio final o empleado con `PATCH /citas/:id_cita`. Dueño y negocio cancelan con `POST /citas/:id_cita/cancelar` (el negocio con motivo; si el dueño cancela a menos de 2 horas, `cancelacion.tardia: true`) y reprograman con `POST /citas/:id_cita/reprogramar` (el dueño hasta 2 horas antes; devuelve la cita nueva). `GET /citas/:id_cita/historial` muestra los cambios.
 - **Inasistencias:** el detalle de la cita en el panel trae `cliente.historial_cumplimiento` (completadas, inasistencias y cancelaciones tardías del cliente en ese negocio).
 - `PUT /sucursales/:id_sucursal/horarios` y `DELETE /empleados/:id_empleado` también responden `citas_afectadas`.
+
+### Salud de la mascota
+
+- El dueño ve el historial y las vacunas de sus mascotas en `/mascotas/:id_mascota/...` (sin notas internas). El panel usa `/negocios/:id_negocio/mascotas/:id_mascota/...` y solo funciona si la mascota tiene una cita con ese negocio que no esté cancelada ni reprogramada (403 si no).
+- `compartir_historial` (en `PATCH /mascotas/:id_mascota`, por defecto true): con false, cada negocio ve solo el historial clínico que él creó. Las **vacunas**, las alergias y las condiciones médicas siempre las ve cualquier negocio con cita.
+- En el carnet, `registrada_por: dueno` y `tiene_comprobante` distinguen las vacunas que registró el dueño de las de un profesional. `estado` ya viene calculado (`no_aplica` en dosis reemplazadas por una más reciente de la misma vacuna).
+- `archivos` del historial y `comprobante_url` aceptan solo URLs https (la subida de archivos llega en la Fase 2).
+- `resumen-salud` trae lo que la app necesita para la ficha: vacunas vencidas y próximas (30 días), último y próximo control, próxima cita y evolución del peso.
 
 ### Clientes sin app (panel)
 
