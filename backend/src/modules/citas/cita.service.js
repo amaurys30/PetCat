@@ -1,0 +1,273 @@
+import * as citaRepo from "./cita.repository.js";
+import * as servicioRepo from "../servicios/servicio.repository.js";
+import * as disponibilidadRepo from "../disponibilidad/disponibilidad.repository.js";
+import * as configuracionRepo from "../configuracion/configuracion.repository.js";
+import { combinarHorarios, iniciosLibres } from "./citas.calculo.js";
+import { aHora, aMinutos, calcularDisponibilidad, diaSemana } from "../disponibilidad/disponibilidad.calculo.js";
+import { withTransaction } from "../../shared/utils/transaction.js";
+import { hoyISO } from "../../shared/utils/fechas.js";
+import { toNumber } from "../../shared/utils/format.js";
+import { ApiError } from "../../shared/errors/ApiError.js";
+
+// Valores de servicios.dias_disponible (SET, sin tildes) y su nombre para mensajes.
+const DIAS_SET = ["domingo", "lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
+const DIAS_TEXTO = ["domingos", "lunes", "martes", "miércoles", "jueves", "viernes", "sábados"];
+
+const invalido = (campo, mensaje) => ApiError.unprocessable("Datos inválidos", { [campo]: mensaje });
+
+/** Parámetros de la agenda (configuracion_global), con valores por defecto. */
+const configAgenda = async () => {
+  const [intervalo, antelacion, horizonte] = await Promise.all([
+    configuracionRepo.getValor("intervalo_agenda_min", 15),
+    configuracionRepo.getValor("antelacion_minima_reserva_min", 60),
+    configuracionRepo.getValor("horizonte_reserva_dias", 60),
+  ]);
+  return { intervalo, antelacion, horizonte };
+};
+
+const sumarDias = (fechaISO, dias) => {
+  const fecha = new Date(`${fechaISO}T12:00:00`);
+  fecha.setDate(fecha.getDate() + dias);
+  return hoyISO(fecha);
+};
+
+/** Minuto actual del día (redondeado hacia arriba). */
+const minutoActual = () => {
+  const ahora = new Date();
+  return ahora.getHours() * 60 + ahora.getMinutes() + (ahora.getSeconds() > 0 || ahora.getMilliseconds() > 0 ? 1 : 0);
+};
+
+/**
+ * Validaciones comunes de horarios libres y reservas. `canal` "app" exige servicio
+ * visible y negocio activo y aplica la antelación mínima; "panel" admite servicios
+ * ocultos del propio negocio y solo exige que el horario sea futuro.
+ * Devuelve el servicio, los empleados candidatos, el primer minuto permitido y,
+ * si ese día no hay horarios por el servicio, `motivo`.
+ */
+const prepararDia = async ({ canal, id_negocio, id_servicio, id_sucursal, fecha, id_empleado }) => {
+  const config = await configAgenda();
+  const servicio = await servicioRepo.findById(id_servicio);
+  const visible =
+    servicio?.activo &&
+    (canal === "panel"
+      ? servicio.id_negocio === id_negocio
+      : servicio.visible_app && (await citaRepo.negocioActivo(servicio.id_negocio)));
+  if (!visible) throw invalido("id_servicio", "El servicio no existe o no está disponible");
+
+  const sucursales = await disponibilidadRepo.findSucursalesActivas(servicio.id_negocio);
+  const sucursal = sucursales.find((s) => s.id_sucursal === id_sucursal);
+  if (!sucursal) throw invalido("id_sucursal", "La sucursal no existe o no está activa en este negocio");
+
+  const hoy = hoyISO();
+  if (fecha < hoy) throw invalido("fecha", "No puede ser una fecha pasada");
+  const limite = sumarDias(hoy, config.horizonte);
+  if (fecha > limite) throw invalido("fecha", `Solo se puede reservar hasta el ${limite}`);
+
+  if (!servicio.requiere_cita) throw ApiError.conflict("Este servicio no requiere cita: se atiende por orden de llegada");
+  let empleados = await citaRepo.findEmpleadosAsignados(id_servicio);
+  if (empleados.length === 0) throw ApiError.conflict("El servicio no tiene profesionales asignados: no se puede reservar");
+  if (id_empleado !== undefined) {
+    empleados = empleados.filter((e) => e.id_empleado === id_empleado);
+    if (empleados.length === 0) throw invalido("id_empleado", "Ese empleado no atiende este servicio");
+  }
+
+  let motivo = null;
+  const dia = diaSemana(fecha);
+  if (servicio.dias_disponible && !servicio.dias_disponible.split(",").includes(DIAS_SET[dia])) {
+    motivo = `El servicio no se ofrece los ${DIAS_TEXTO[dia]}`;
+  } else if (servicio.max_citas_dia && (await citaRepo.countCupos({ id_servicio, id_sucursal, fecha })) >= servicio.max_citas_dia) {
+    motivo = "No quedan cupos para este servicio ese día";
+  }
+
+  const desde = fecha === hoy ? minutoActual() + (canal === "app" ? config.antelacion : 0) : 0;
+  return { servicio, sucursal, empleados, desde, motivo, intervalo: config.intervalo };
+};
+
+/**
+ * Inicios libres de cada empleado ese día en la sucursal: disponibilidad efectiva
+ * (1.4) menos sus citas (con margen), sobre la cuadrícula.
+ */
+const evaluarDia = async ({ servicio, id_sucursal, fecha, empleados, desde, intervalo }, conn) => {
+  const ids = empleados.map((e) => e.id_empleado);
+  const [horariosPorSucursal, ocupados] = await Promise.all([
+    disponibilidadRepo.findHorariosSucursales(servicio.id_negocio, conn),
+    citaRepo.findOcupadosDeEmpleados(ids, fecha, conn),
+  ]);
+  return Promise.all(
+    empleados.map(async (empleado) => {
+      const [horarioSemanal, excepciones] = await Promise.all([
+        disponibilidadRepo.findHorarioSemanal(empleado.id_empleado, conn),
+        disponibilidadRepo.findExcepciones(empleado.id_empleado, { desde: fecha, hasta: fecha }, conn),
+      ]);
+      const rangos = calcularDisponibilidad({
+        fecha,
+        id_sucursal,
+        horarioSucursal: horariosPorSucursal[id_sucursal] ?? [],
+        horarioSemanal,
+        excepciones,
+      });
+      const inicios = iniciosLibres({
+        rangos,
+        ocupados: ocupados[empleado.id_empleado] ?? [],
+        duracion: servicio.duracion_minutos,
+        margen: servicio.margen_minutos,
+        intervalo,
+        desde,
+      });
+      return { empleado, inicios };
+    })
+  );
+};
+
+/** Horarios libres de un servicio en una sucursal y una fecha (app o panel). */
+export const getHorariosLibres = async (canal, { id_negocio, ...query }) => {
+  const dia = await prepararDia({ canal, id_negocio, ...query });
+  const horarios = dia.motivo
+    ? []
+    : combinarHorarios(await evaluarDia({ ...dia, id_sucursal: query.id_sucursal, fecha: query.fecha }), dia.servicio.duracion_minutos);
+  return {
+    fecha: query.fecha,
+    servicio: {
+      id_servicio: dia.servicio.id_servicio,
+      nombre: dia.servicio.nombre,
+      duracion_minutos: dia.servicio.duracion_minutos,
+      precio_actual: toNumber(dia.servicio.precio_actual),
+    },
+    sucursal: dia.sucursal,
+    horarios: horarios.map((h) => ({ hora_inicio: aHora(h.inicio), hora_fin: aHora(h.fin), empleados: h.empleados })),
+    motivo_sin_horarios: horarios.length > 0 ? null : (dia.motivo ?? "No hay horarios disponibles para esa fecha"),
+  };
+};
+
+/** La mascota puede recibir este servicio: activa, del dueño, viva, de una especie y un peso admitidos. */
+const verificarMascota = (mascota, id_usuario, servicio) => {
+  if (!mascota?.activo || mascota.id_usuario !== id_usuario) {
+    throw invalido("id_mascota", "La mascota no existe o no pertenece al cliente");
+  }
+  if (mascota.fallecido) throw ApiError.conflict("La mascota está registrada como fallecida: no puede recibir citas");
+
+  const especies = servicio.tipo_mascota.split(",");
+  if (!especies.includes("todos") && !especies.includes(mascota.especie)) {
+    throw invalido("id_mascota", `El servicio no atiende la especie ${mascota.especie}`);
+  }
+  const peso = toNumber(mascota.peso);
+  const min = toNumber(servicio.peso_min_kg);
+  const max = toNumber(servicio.peso_max_kg);
+  if (peso !== null && ((min !== null && peso < min) || (max !== null && peso > max))) {
+    const rango = min !== null && max !== null ? `de ${min} a ${max} kg` : min !== null ? `de ${min} kg o más` : `de hasta ${max} kg`;
+    throw invalido("id_mascota", `El servicio es para mascotas ${rango}`);
+  }
+};
+
+/** Formato de la cita. `conNotasInternas` solo para el panel. */
+export const formatCita = (row, { conNotasInternas = false } = {}) => ({
+  id_cita: row.id_cita,
+  fecha: row.fecha,
+  hora_inicio: row.hora_inicio,
+  hora_fin: row.hora_fin,
+  estado: row.estado,
+  origen: row.origen,
+  prioridad: row.prioridad,
+  precio_estimado: toNumber(row.precio_estimado),
+  precio_final: toNumber(row.precio_final),
+  notas_cliente: row.notas_cliente,
+  ...(conNotasInternas && { notas_internas: row.notas_internas }),
+  id_cita_origen: row.id_cita_origen,
+  negocio: { id_negocio: row.id_negocio, nombre: row.negocio_nombre },
+  sucursal: row.id_sucursal ? { id_sucursal: row.id_sucursal, nombre: row.sucursal_nombre, direccion: row.sucursal_direccion } : null,
+  servicio: { id_servicio: row.id_servicio, nombre: row.servicio_nombre, duracion_minutos: row.duracion_minutos },
+  empleado: row.id_empleado ? { id_empleado: row.id_empleado, nombre: row.empleado_nombre, apellido: row.empleado_apellido } : null,
+  mascota: { id_mascota: row.id_mascota, nombre: row.mascota_nombre, especie: row.mascota_especie },
+  cliente: { id_usuario: row.id_usuario, nombre: row.cliente_nombre, apellido: row.cliente_apellido, telefono: row.cliente_telefono },
+  fecha_creacion: row.fecha_creacion,
+});
+
+/**
+ * Crea una cita desde la app ("app": pendiente, origen app_movil) o el panel
+ * ("panel": confirmada, con recordatorio). En una transacción bloquea, por clave
+ * primaria y en este orden, el servicio (si tiene max_citas_dia), los empleados
+ * candidatos y la mascota, y vuelve a comprobar el horario. Sin id_empleado asigna
+ * al empleado libre con menos citas ese día (a igualdad, el de menor id).
+ * @param {"app"|"panel"} canal
+ * @param {object} datos Body validado (+ id_usuario del cliente)
+ * @param {{ id_usuario, id_empleado?, ip? }} actor Quién reserva (para el historial)
+ * @param {number} [id_negocio] Negocio del panel
+ */
+export const crearCita = async (canal, datos, actor, id_negocio) => {
+  const dia = await prepararDia({ canal, id_negocio, ...datos });
+  const inicio = aMinutos(datos.hora_inicio);
+  if (inicio % dia.intervalo !== 0) {
+    throw invalido("hora_inicio", `Debe estar en la cuadrícula de ${dia.intervalo} minutos (p. ej. :00, :15, :30, :45)`);
+  }
+  if (dia.motivo) throw ApiError.conflict(dia.motivo);
+  const { servicio } = dia;
+  const hora_fin = `${aHora(inicio + servicio.duracion_minutos)}:00`;
+
+  const id_cita = await withTransaction(async (conn) => {
+    // Primero todos los bloqueos y después las lecturas: en REPEATABLE READ la primera
+    // lectura sin bloqueo fija la foto de la transacción, y debe ser posterior a la
+    // espera para ver las citas que otras reservas confirmaron mientras tanto.
+    if (servicio.max_citas_dia) await citaRepo.lockServicio(servicio.id_servicio, conn);
+    await citaRepo.lockEmpleados(
+      dia.empleados.map((e) => e.id_empleado),
+      conn
+    );
+    const mascota = await citaRepo.lockMascota(datos.id_mascota, conn);
+
+    if (servicio.max_citas_dia && (await citaRepo.countCupos(datos, conn)) >= servicio.max_citas_dia) {
+      throw ApiError.conflict("No quedan cupos para este servicio ese día");
+    }
+    verificarMascota(mascota, datos.id_usuario, servicio);
+
+    const libres = (await evaluarDia({ ...dia, id_sucursal: datos.id_sucursal, fecha: datos.fecha }, conn))
+      .filter(({ inicios }) => inicios.includes(inicio))
+      .map(({ empleado }) => empleado.id_empleado);
+    if (libres.length === 0) throw ApiError.conflict("El horario ya no está disponible: elige otro");
+
+    if (await citaRepo.mascotaTieneCruce({ ...datos, hora_fin }, conn)) {
+      throw ApiError.conflict("La mascota ya tiene otra cita a esa hora");
+    }
+
+    const carga = await citaRepo.countCitasDelDia(libres, datos.fecha, conn);
+    const [id_empleado] = [...libres].sort((a, b) => (carga[a] ?? 0) - (carga[b] ?? 0) || a - b);
+    const estado = canal === "app" ? "pendiente" : "confirmada";
+
+    const id = await citaRepo.create(
+      {
+        id_negocio: servicio.id_negocio,
+        id_sucursal: datos.id_sucursal,
+        id_usuario: datos.id_usuario,
+        id_mascota: datos.id_mascota,
+        id_servicio: servicio.id_servicio,
+        id_empleado,
+        fecha: datos.fecha,
+        hora_inicio: datos.hora_inicio,
+        hora_fin,
+        estado,
+        precio_estimado: servicio.precio_actual,
+        notas_cliente: datos.notas_cliente,
+        notas_internas: datos.notas_internas,
+        prioridad: datos.prioridad,
+        origen: canal === "app" ? "app_movil" : datos.origen,
+      },
+      conn
+    );
+    await citaRepo.insertHistorialCreacion(
+      { id_cita: id, id_empleado: actor.id_empleado ?? null, id_usuario: actor.id_usuario, estado, ip_address: actor.ip ?? null },
+      conn
+    );
+    if (estado === "confirmada") await citaRepo.insertRecordatorioConfirmada(id, conn);
+    return id;
+  });
+
+  return formatCita(await citaRepo.findDetalle(id_cita), { conNotasInternas: canal === "panel" });
+};
+
+export const crearCitaApp = (datos, usuario) =>
+  crearCita("app", { ...datos, id_usuario: usuario.id_usuario }, { id_usuario: usuario.id_usuario, ip: usuario.ip });
+
+/** Desde el panel: el cliente debe existir y estar activo. */
+export const crearCitaPanel = async (id_negocio, datos, actor) => {
+  if (!(await citaRepo.usuarioActivo(datos.id_usuario))) throw invalido("id_usuario", "El cliente no existe");
+  return crearCita("panel", datos, actor, id_negocio);
+};
