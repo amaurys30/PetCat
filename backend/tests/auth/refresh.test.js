@@ -66,10 +66,13 @@ describe("POST /auth/refresh-token", () => {
     expect(exp - Date.now() / 1000).toBeGreaterThan(24 * 3600);
   });
 
-  it("dos renovaciones simultáneas con el mismo token: solo una funciona", async () => {
-    const inicial = await iniciarSesion(await crearUsuario());
-    const respuestas = await Promise.all([renovar(inicial.refresh_token), renovar(inicial.refresh_token)]);
-    expect(respuestas.map((r) => r.status).sort()).toEqual([200, 401]);
+  it("varias renovaciones simultáneas con el mismo token: solo una funciona y las demás dan 401 (no 500)", async () => {
+    // Con el bloqueo por el índice de refresh_token, 5 simultáneas terminaban a veces en deadlock.
+    for (let ronda = 0; ronda < 8; ronda++) {
+      const inicial = await iniciarSesion(await crearUsuario());
+      const respuestas = await Promise.all(Array.from({ length: 5 }, () => renovar(inicial.refresh_token)));
+      expect(respuestas.map((r) => r.status).sort()).toEqual([200, 401, 401, 401, 401]);
+    }
   });
 
   it("sesión cerrada con logout -> 401", async () => {

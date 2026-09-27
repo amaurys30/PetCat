@@ -42,15 +42,23 @@ export const deactivate = async (id_sesion) => {
 /**
  * Sesión activa y vigente de un refresh token, bloqueada con FOR UPDATE: dos
  * renovaciones simultáneas con el mismo token no pueden pasar las dos.
+ *
+ * Se busca el id sin bloquear y luego se bloquea por clave primaria, repitiendo
+ * las condiciones sobre la versión más reciente de la fila. Bloquear directo por
+ * el índice de refresh_token toma gap locks en ese índice, y la renovación que va
+ * primero inserta en él al rotar: con varias simultáneas terminaba en deadlock (500).
  */
 export const findActiveByRefreshHashForUpdate = async (refresh_token_hash, conn) => {
+  const [candidatas] = await conn.query("SELECT id_sesion FROM sesiones WHERE refresh_token = ? LIMIT 1", [
+    refresh_token_hash,
+  ]);
+  if (!candidatas[0]) return undefined;
   const [rows] = await conn.query(
     `SELECT id_sesion, id_usuario
      FROM sesiones
-     WHERE refresh_token = ? AND activa = TRUE AND expira_en > NOW()
-     LIMIT 1
+     WHERE id_sesion = ? AND refresh_token = ? AND activa = TRUE AND expira_en > NOW()
      FOR UPDATE`,
-    [refresh_token_hash]
+    [candidatas[0].id_sesion, refresh_token_hash]
   );
   return rows[0];
 };
