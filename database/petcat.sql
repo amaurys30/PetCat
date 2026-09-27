@@ -615,6 +615,11 @@ CREATE TABLE citas (
     notas_cliente    TEXT            NULL COMMENT 'Instrucciones o notas del dueño',
     notas_internas   TEXT            NULL COMMENT 'Notas del veterinario (privadas)',
     motivo_cancelacion TEXT          NULL,
+    -- Migración 009.
+    cancelada_por    ENUM('dueno','negocio') NULL,
+    fecha_cancelacion DATETIME       NULL,
+    cancelacion_tardia BOOLEAN       NOT NULL DEFAULT FALSE
+                     COMMENT 'El dueño canceló a menos de antelacion_cancelacion_app_h horas',
     prioridad        ENUM('normal','alta','urgente') NOT NULL DEFAULT 'normal',
     -- Comunicación
     recordatorio_enviado BOOLEAN     NOT NULL DEFAULT FALSE,
@@ -657,6 +662,9 @@ CREATE TABLE citas (
         ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Tabla central de citas agendadas en la plataforma';
+
+-- Migración 009: contar inasistencias, cancelaciones y completadas por cliente y negocio.
+ALTER TABLE citas ADD INDEX idx_citas_negocio_usuario_estado (id_negocio, id_usuario, estado);
 
 
 CREATE TABLE historial_citas (
@@ -1588,7 +1596,8 @@ INSERT INTO schema_migrations (nombre) VALUES
 ('005_disponibilidad_rangos.sql'),
 ('006_servicios_empleados_y_margen.sql'),
 ('007_citas_configuracion_y_autorizaciones.sql'),
-('008_autorizaciones_canales.sql');
+('008_autorizaciones_canales.sql'),
+('009_citas_cancelacion_e_inasistencias.sql');
 
 
 SET FOREIGN_KEY_CHECKS = 1;
