@@ -81,6 +81,7 @@ VALUES (@id_negocio,
         (SELECT id_rol FROM roles WHERE nombre = 'Veterinario' AND es_sistema = TRUE),
         @id_usuario_vet, 'Carlos', 'Pérez', 'veterinario@petcat.test', '3002223344',
         'Medicina de pequeños animales', 'Médico Veterinario Zootecnista', 'MVZ-12345', CURDATE());
+SET @id_veterinario = LAST_INSERT_ID();
 
 INSERT INTO empleados (id_negocio, id_rol, nombre, apellido, email, telefono, fecha_vinculacion)
 VALUES (@id_negocio,
@@ -111,3 +112,10 @@ VALUES
  'Vacuna antirrábica', 'Aplicación de vacuna antirrábica con registro en el carnet.', 45000.00, 15, 'perro,gato'),
 (@id_negocio, (SELECT id_categoria FROM categorias_servicio WHERE nombre = 'Baño y estética'),
  'Baño y corte', 'Baño con champú hipoalergénico, corte de uñas y limpieza de oídos.', 55000.00, 60, 'perro');
+
+-- El veterinario atiende la consulta y la vacuna. "Baño y corte" queda sin
+-- empleados asignados: el panel lo muestra con sin_empleados y la app como no reservable.
+INSERT INTO empleado_servicios (id_empleado, id_servicio)
+SELECT @id_veterinario, id_servicio
+FROM servicios
+WHERE id_negocio = @id_negocio AND nombre IN ('Consulta general', 'Vacuna antirrábica');

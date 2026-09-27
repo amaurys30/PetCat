@@ -92,4 +92,21 @@ describe("seed de desarrollo", () => {
     );
     expect(total).toBe(3);
   });
+
+  it("el veterinario atiende la consulta y la vacuna; el baño no tiene empleados", async () => {
+    const [filas] = await pool.query(
+      `SELECT s.nombre, e.email
+       FROM servicios s
+       JOIN negocios n ON n.id_negocio = s.id_negocio
+       LEFT JOIN empleado_servicios es ON es.id_servicio = s.id_servicio
+       LEFT JOIN empleados e ON e.id_empleado = es.id_empleado
+       WHERE n.nombre = 'Clínica Veterinaria Patitas'
+       ORDER BY s.nombre`
+    );
+    expect(filas).toEqual([
+      { nombre: "Baño y corte", email: null },
+      { nombre: "Consulta general", email: "veterinario@petcat.test" },
+      { nombre: "Vacuna antirrábica", email: "veterinario@petcat.test" },
+    ]);
+  });
 });

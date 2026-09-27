@@ -534,6 +534,9 @@ CREATE TABLE servicios (
     precio_maximo    DECIMAL(12,2)   NULL COMMENT 'Para precios variables',
     tipo_precio      ENUM('fijo','por_hora','por_dia','variable') NOT NULL DEFAULT 'fijo',
     duracion_minutos SMALLINT UNSIGNED NOT NULL DEFAULT 30,
+    -- Migración 006.
+    margen_minutos   SMALLINT UNSIGNED NOT NULL DEFAULT 0
+                     COMMENT 'Minutos que ocupa la agenda del empleado después de la cita',
     -- Restricciones
     tipo_mascota     SET('perro','gato','conejo','ave','reptil','roedor','todos')
                      NOT NULL DEFAULT 'todos',
@@ -569,6 +572,23 @@ CREATE TABLE servicios (
         ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Servicios que ofrecen los negocios (baño, consulta, cirugía, etc.)';
+
+
+-- Migración 006.
+CREATE TABLE empleado_servicios (
+    id_empleado      INT UNSIGNED    NOT NULL,
+    id_servicio      INT UNSIGNED    NOT NULL,
+    fecha_asignacion DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id_empleado, id_servicio),
+    INDEX idx_empserv_servicio (id_servicio),
+    CONSTRAINT fk_empserv_empleado
+        FOREIGN KEY (id_empleado) REFERENCES empleados (id_empleado)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_empserv_servicio
+        FOREIGN KEY (id_servicio) REFERENCES servicios (id_servicio)
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Empleados que atienden cada servicio (agenda y reservas)';
 
 
 CREATE TABLE citas (
@@ -1531,7 +1551,8 @@ INSERT INTO schema_migrations (nombre) VALUES
 ('002_horarios_varios_rangos.sql'),
 ('003_rol_administrador_permisos.sql'),
 ('004_tokens_usuario_y_sesiones.sql'),
-('005_disponibilidad_rangos.sql');
+('005_disponibilidad_rangos.sql'),
+('006_servicios_empleados_y_margen.sql');
 
 
 SET FOREIGN_KEY_CHECKS = 1;
