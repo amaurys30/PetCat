@@ -69,8 +69,11 @@ export const authorizeAny = (permisos, { permitirSi } = {}) => {
   return authorizeMiddleware(permisos, permitirSi);
 };
 
-// eslint-disable-next-line no-unused-vars
-const authorizeMiddleware = (permisos, permitirSi) => async (req, res, next) => {
+/**
+ * Resuelve el acceso al panel del negocio de la ruta. Deja `req.negocio` y
+ * devuelve el acceso, o lanza 403/404 (ver authorize).
+ */
+const resolverAcceso = async (req, permisos, permitirSi) => {
   if (!req.user) throw ApiError.unauthorized("Token requerido");
   const { id_usuario, tipo_usuario } = req.user;
   const esAdmin = tipo_usuario === "admin";
@@ -79,23 +82,15 @@ const authorizeMiddleware = (permisos, permitirSi) => async (req, res, next) => 
   if (id_negocio === null) {
     // Recurso global (rol del sistema): solo el admin de plataforma.
     if (!esAdmin) throw ApiError.forbidden();
-    req.acceso = { relacion: "admin" };
-    return next();
+    return { relacion: "admin" };
   }
 
   const negocio = await negocioRepo.findById(id_negocio);
   if (!negocio) throw ApiError.notFound("Negocio no encontrado");
   req.negocio = negocio;
 
-  if (esAdmin) {
-    req.acceso = { relacion: "admin" };
-    return next();
-  }
-
-  if (negocio.id_usuario_propietario === id_usuario) {
-    req.acceso = { relacion: "propietario" };
-    return next();
-  }
+  if (esAdmin) return { relacion: "admin" };
+  if (negocio.id_usuario_propietario === id_usuario) return { relacion: "propietario" };
 
   const empleado = await empleadoRepo.findAccesoByUsuarioAndNegocio(id_usuario, negocio.id_negocio);
   if (!empleado) throw ApiError.forbidden("No perteneces a este negocio");
@@ -111,9 +106,41 @@ const authorizeMiddleware = (permisos, permitirSi) => async (req, res, next) => 
   if (!conPermiso && !permitirSi?.(req, acceso)) {
     throw ApiError.forbidden("No tienes permiso para realizar esta acción");
   }
+  return acceso;
+};
 
-  req.acceso = acceso;
+// eslint-disable-next-line no-unused-vars
+const authorizeMiddleware = (permisos, permitirSi) => async (req, res, next) => {
+  req.acceso = await resolverAcceso(req, permisos, permitirSi);
   next();
+};
+
+/**
+ * Para recursos que usan el dueño (app) y el negocio (panel), como una cita:
+ * - con acceso al panel del negocio del recurso y el permiso: `req.acceso` del panel;
+ * - si no, y `esDueno(req)` es true: `req.acceso = { relacion: "dueno" }` (sin `req.negocio`);
+ * - si no, 403. Un 404 del recurso o un 401 se propagan igual que en authorize.
+ * Si es personal del negocio y además dueño, gana la vista del panel.
+ *
+ *   authorizeDuenoO("citas", "ver", { esDueno: (req) => citaEsDelUsuario(req.params.id_cita, req.user.id_usuario) })
+ */
+export const authorizeDuenoO = (modulo, accion, { esDueno }) => {
+  verificarCatalogo([[modulo, accion]], `authorizeDuenoO("${modulo}", "${accion}")`);
+  // eslint-disable-next-line no-unused-vars
+  return async (req, res, next) => {
+    try {
+      req.acceso = await resolverAcceso(req, [[modulo, accion]]);
+      return next();
+    } catch (err) {
+      if (err.status !== 403) throw err;
+    }
+    if (await esDueno(req)) {
+      delete req.negocio;
+      req.acceso = { relacion: "dueno" };
+      return next();
+    }
+    throw ApiError.forbidden("No tienes acceso a este recurso");
+  };
 };
 
 export default authorize;
