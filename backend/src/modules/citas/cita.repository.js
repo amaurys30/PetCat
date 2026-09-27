@@ -25,9 +25,16 @@ export const lockServicio = async (id_servicio, conn) => {
   await conn.query("SELECT id_servicio FROM servicios WHERE id_servicio = ? FOR UPDATE", [id_servicio]);
 };
 
-/** Bloquea los empleados en orden de id (sin deadlocks entre reservas que comparten empleados). */
+/**
+ * Bloquea los empleados en orden de id (sin deadlocks entre reservas que comparten
+ * empleados) y devuelve los ids de los que siguen activos.
+ */
 export const lockEmpleados = async (ids, conn) => {
-  await conn.query("SELECT id_empleado FROM empleados WHERE id_empleado IN (?) ORDER BY id_empleado FOR UPDATE", [ids]);
+  const [rows] = await conn.query(
+    "SELECT id_empleado, activo FROM empleados WHERE id_empleado IN (?) ORDER BY id_empleado FOR UPDATE",
+    [ids]
+  );
+  return rows.filter((row) => row.activo).map((row) => row.id_empleado);
 };
 
 export const lockMascota = async (id_mascota, conn) => {
@@ -74,11 +81,11 @@ export const countCitasDelDia = async (ids, fecha, conn) => {
 };
 
 /** Citas del servicio en la sucursal ese día (para max_citas_dia). */
-export const countCupos = async ({ id_servicio, id_sucursal, fecha }, conn) => {
+export const countCupos = async ({ id_servicio, id_sucursal, fecha, excluirIdCita = 0 }, conn) => {
   const [[row]] = await (conn ?? db).query(
     `SELECT COUNT(*) AS total FROM citas c
-     WHERE c.id_servicio = ? AND c.id_sucursal = ? AND c.fecha = ? AND ${ESTADOS_CUENTAN}`,
-    [id_servicio, id_sucursal, fecha]
+     WHERE c.id_servicio = ? AND c.id_sucursal = ? AND c.fecha = ? AND ${ESTADOS_CUENTAN} AND c.id_cita <> ?`,
+    [id_servicio, id_sucursal, fecha, excluirIdCita]
   );
   return row.total;
 };
@@ -113,6 +120,7 @@ const COLUMNAS_CITA = [
   "notas_internas",
   "prioridad",
   "origen",
+  "id_cita_origen",
 ];
 
 export const create = async (data, conn) => {
@@ -125,12 +133,119 @@ export const create = async (data, conn) => {
 };
 
 /** Primer registro de historial_citas: la creación (estado de null al inicial). */
-export const insertHistorialCreacion = async ({ id_cita, id_empleado, id_usuario, estado, ip_address }, conn) => {
+/**
+ * Registra un cambio en historial_citas. `actor`: { id_usuario, id_empleado?, ip? }.
+ * Los valores se guardan como texto (null se conserva).
+ */
+export const insertHistorial = async ({ id_cita, actor, campo, anterior = null, nuevo = null, motivo = null }, conn) => {
+  const texto = (v) => (v === null || v === undefined ? null : String(v));
   await conn.query(
     `INSERT INTO historial_citas (id_cita, id_empleado, id_usuario, campo_modificado, valor_anterior, valor_nuevo, motivo, ip_address)
-     VALUES (?, ?, ?, 'estado', NULL, ?, 'Cita creada', ?)`,
-    [id_cita, id_empleado, id_usuario, estado, ip_address]
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id_cita, actor.id_empleado ?? null, actor.id_usuario, campo, texto(anterior), texto(nuevo), motivo, actor.ip ?? null]
   );
+};
+
+/** Primer registro de historial_citas: la creación (estado de null al inicial). */
+export const insertHistorialCreacion = ({ id_cita, actor, estado, motivo = "Cita creada" }, conn) =>
+  insertHistorial({ id_cita, actor, campo: "estado", nuevo: estado, motivo }, conn);
+
+/** Bloquea la cita (FOR UPDATE por clave primaria) y la devuelve con sus columnas. */
+export const lockCita = async (id_cita, conn) => {
+  const [rows] = await conn.query(
+    `SELECT id_cita, id_negocio, id_sucursal, id_usuario, id_mascota, id_servicio, id_empleado, fecha,
+            hora_inicio, hora_fin, estado, precio_estimado, precio_final, notas_cliente, notas_internas,
+            prioridad, origen, cancelacion_tardia
+     FROM citas WHERE id_cita = ? FOR UPDATE`,
+    [id_cita]
+  );
+  return rows[0];
+};
+
+/** Cita sin bloquear (para preparar una reprogramación antes de la transacción). */
+export const findCita = async (id_cita) => {
+  const [rows] = await db.query(
+    `SELECT id_cita, id_negocio, id_sucursal, id_usuario, id_mascota, id_servicio, id_empleado, fecha,
+            hora_inicio, hora_fin, estado, precio_estimado, notas_cliente, notas_internas, prioridad, origen
+     FROM citas WHERE id_cita = ?`,
+    [id_cita]
+  );
+  return rows[0];
+};
+
+const CAMPOS_ACTUALIZABLES = [
+  "estado",
+  "notas_internas",
+  "prioridad",
+  "precio_final",
+  "id_empleado",
+  "motivo_cancelacion",
+  "cancelada_por",
+  "cancelacion_tardia",
+];
+
+/** Actualiza la cita con la lista blanca; `fecha_cancelacion` se pone con NOW() si se pide. */
+export const update = async (id_cita, campos, conn, { conFechaCancelacion = false } = {}) => {
+  const columnas = CAMPOS_ACTUALIZABLES.filter((c) => campos[c] !== undefined);
+  const asignaciones = [...columnas.map((c) => `${c} = ?`), ...(conFechaCancelacion ? ["fecha_cancelacion = NOW()"] : [])];
+  if (asignaciones.length === 0) return;
+  await conn.query(`UPDATE citas SET ${asignaciones.join(", ")} WHERE id_cita = ?`, [
+    ...columnas.map((c) => campos[c]),
+    id_cita,
+  ]);
+};
+
+/** Los recordatorios pendientes de la cita ya no se envían (cancelada o reprogramada). */
+export const cancelarRecordatoriosPendientes = async (id_cita, conn) => {
+  await conn.query("UPDATE recordatorios SET estado = 'cancelado' WHERE id_cita = ? AND estado = 'pendiente'", [id_cita]);
+};
+
+/** Una cita completada suma al contador del negocio. */
+export const incrementTotalCitas = async (id_negocio, conn) => {
+  await conn.query("UPDATE negocios SET total_citas = total_citas + 1 WHERE id_negocio = ?", [id_negocio]);
+};
+
+/**
+ * Cumplimiento del cliente **en ese negocio** (nunca en otros): citas completadas,
+ * inasistencias y cancelaciones tardías. Usa el índice (id_negocio, id_usuario, estado).
+ */
+export const resumenCumplimiento = async (id_usuario, id_negocio, conn) => {
+  const [[row]] = await (conn ?? db).query(
+    `SELECT COALESCE(SUM(estado = 'completada'), 0) AS completadas,
+            COALESCE(SUM(estado = 'no_asistio'), 0) AS inasistencias,
+            COALESCE(SUM(estado = 'cancelada' AND cancelacion_tardia = TRUE), 0) AS cancelaciones_tardias
+     FROM citas
+     WHERE id_negocio = ? AND id_usuario = ?`,
+    [id_negocio, id_usuario]
+  );
+  return {
+    completadas: Number(row.completadas),
+    inasistencias: Number(row.inasistencias),
+    cancelaciones_tardias: Number(row.cancelaciones_tardias),
+  };
+};
+
+/** Historial de la cita, del más antiguo al más reciente, con quién hizo cada cambio. */
+export const findHistorial = async (id_cita) => {
+  const [rows] = await db.query(
+    `SELECT h.id_historial, h.fecha_cambio, h.campo_modificado, h.valor_anterior, h.valor_nuevo, h.motivo,
+            h.id_usuario, u.nombre AS usuario_nombre, u.apellido AS usuario_apellido,
+            h.id_empleado, e.nombre AS empleado_nombre, e.apellido AS empleado_apellido
+     FROM historial_citas h
+     LEFT JOIN usuarios u ON u.id_usuario = h.id_usuario
+     LEFT JOIN empleados e ON e.id_empleado = h.id_empleado
+     WHERE h.id_cita = ?
+     ORDER BY h.fecha_cambio, h.id_historial`,
+    [id_cita]
+  );
+  return rows;
+};
+
+/** Nombres de empleados por id (para mostrar los cambios de empleado del historial). */
+export const findNombresEmpleados = async (ids) => {
+  if (ids.length === 0) return {};
+  const [rows] = await db.query("SELECT id_empleado, nombre, apellido FROM empleados WHERE id_empleado IN (?)", [ids]);
+  return Object.fromEntries(rows.map((e) => [e.id_empleado, `${e.nombre} ${e.apellido}`]));
 };
 
 /**
@@ -158,6 +273,7 @@ const SELECT_CITA = `
          TIME_FORMAT(c.hora_inicio, '%H:%i') AS hora_inicio, TIME_FORMAT(c.hora_fin, '%H:%i') AS hora_fin,
          c.estado, c.origen, c.prioridad, c.precio_estimado, c.precio_final, c.notas_cliente, c.notas_internas,
          c.id_cita_origen, c.fecha_creacion,
+         c.motivo_cancelacion, c.cancelada_por, c.fecha_cancelacion, c.cancelacion_tardia,
          n.id_negocio, n.nombre AS negocio_nombre, n.logo_url AS negocio_logo_url,
          su.id_sucursal, su.nombre AS sucursal_nombre, su.direccion AS sucursal_direccion,
          su.telefono AS sucursal_telefono, su.latitud AS sucursal_latitud, su.longitud AS sucursal_longitud,

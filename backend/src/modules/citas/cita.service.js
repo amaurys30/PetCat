@@ -18,7 +18,7 @@ const DIAS_TEXTO = ["domingos", "lunes", "martes", "miércoles", "jueves", "vier
 const invalido = (campo, mensaje) => ApiError.unprocessable("Datos inválidos", { [campo]: mensaje });
 
 /** Parámetros de la agenda (configuracion_global), con valores por defecto. */
-const configAgenda = async () => {
+export const configAgenda = async () => {
   const [intervalo, antelacion, horizonte] = await Promise.all([
     configuracionRepo.getValor("intervalo_agenda_min", 15),
     configuracionRepo.getValor("antelacion_minima_reserva_min", 60),
@@ -46,7 +46,7 @@ const minutoActual = () => {
  * Devuelve el servicio, los empleados candidatos, el primer minuto permitido y,
  * si ese día no hay horarios por el servicio, `motivo`.
  */
-const prepararDia = async ({ canal, id_negocio, id_servicio, id_sucursal, fecha, id_empleado }) => {
+const prepararDia = async ({ canal, id_negocio, id_servicio, id_sucursal, fecha, id_empleado, excluirIdCita = 0 }) => {
   const config = await configAgenda();
   const servicio = await servicioRepo.findById(id_servicio);
   const visible =
@@ -77,7 +77,7 @@ const prepararDia = async ({ canal, id_negocio, id_servicio, id_sucursal, fecha,
   const dia = diaSemana(fecha);
   if (servicio.dias_disponible && !servicio.dias_disponible.split(",").includes(DIAS_SET[dia])) {
     motivo = `El servicio no se ofrece los ${DIAS_TEXTO[dia]}`;
-  } else if (servicio.max_citas_dia && (await citaRepo.countCupos({ id_servicio, id_sucursal, fecha })) >= servicio.max_citas_dia) {
+  } else if (servicio.max_citas_dia && (await citaRepo.countCupos({ id_servicio, id_sucursal, fecha, excluirIdCita })) >= servicio.max_citas_dia) {
     motivo = "No quedan cupos para este servicio ese día";
   }
 
@@ -89,7 +89,7 @@ const prepararDia = async ({ canal, id_negocio, id_servicio, id_sucursal, fecha,
  * Inicios libres de cada empleado ese día en la sucursal: disponibilidad efectiva
  * (1.4) menos sus citas (con margen), sobre la cuadrícula.
  */
-const evaluarDia = async ({ servicio, id_sucursal, fecha, empleados, desde, intervalo }, conn) => {
+export const evaluarDia = async ({ servicio, id_sucursal, fecha, empleados, desde, intervalo }, conn) => {
   const ids = empleados.map((e) => e.id_empleado);
   const [horariosPorSucursal, ocupados] = await Promise.all([
     disponibilidadRepo.findHorariosSucursales(servicio.id_negocio, conn),
@@ -175,6 +175,15 @@ export const formatCita = (row, { conNotasInternas = false } = {}) => ({
   notas_cliente: row.notas_cliente,
   ...(conNotasInternas && { notas_internas: row.notas_internas }),
   id_cita_origen: row.id_cita_origen,
+  cancelacion:
+    row.estado === "cancelada"
+      ? {
+          por: row.cancelada_por,
+          fecha: row.fecha_cancelacion,
+          tardia: Boolean(row.cancelacion_tardia),
+          motivo: row.motivo_cancelacion,
+        }
+      : null,
   negocio: { id_negocio: row.id_negocio, nombre: row.negocio_nombre, logo_url: row.negocio_logo_url },
   // Con teléfono y coordenadas: la app muestra dónde es la cita y ofrece "Cómo llegar".
   sucursal: row.id_sucursal
@@ -204,9 +213,12 @@ export const formatCita = (row, { conNotasInternas = false } = {}) => ({
  * @param {object} datos Body validado (+ id_usuario del cliente)
  * @param {{ id_usuario, id_empleado?, ip? }} actor Quién reserva (para el historial)
  * @param {number} [id_negocio] Negocio del panel
+ * @param {object} [reprogramacion] Para reprogramar: `excluirIdCita` (la original no cuenta en los cupos),
+ *   `antes(conn)` (bloquea y marca la original; va primero en la transacción), `despues(id, conn)`,
+ *   `precio_estimado` y `origen` (los de la original) y `motivoCreacion` (historial de la nueva).
  */
-export const crearCita = async (canal, datos, actor, id_negocio) => {
-  const dia = await prepararDia({ canal, id_negocio, ...datos });
+export const crearCita = async (canal, datos, actor, id_negocio, reprogramacion) => {
+  const dia = await prepararDia({ canal, id_negocio, ...datos, excluirIdCita: reprogramacion?.excluirIdCita });
   const inicio = aMinutos(datos.hora_inicio);
   if (inicio % dia.intervalo !== 0) {
     throw invalido("hora_inicio", `Debe estar en la cuadrícula de ${dia.intervalo} minutos (p. ej. :00, :15, :30, :45)`);
@@ -219,11 +231,15 @@ export const crearCita = async (canal, datos, actor, id_negocio) => {
     // Primero todos los bloqueos y después las lecturas: en REPEATABLE READ la primera
     // lectura sin bloqueo fija la foto de la transacción, y debe ser posterior a la
     // espera para ver las citas que otras reservas confirmaron mientras tanto.
+    // Orden: cita original (al reprogramar), servicio, empleados, mascota.
+    if (reprogramacion) await reprogramacion.antes(conn);
     if (servicio.max_citas_dia) await citaRepo.lockServicio(servicio.id_servicio, conn);
-    await citaRepo.lockEmpleados(
+    // Un empleado desactivado mientras tanto ya no cuenta (la desactivación bloquea la misma fila).
+    const activos = await citaRepo.lockEmpleados(
       dia.empleados.map((e) => e.id_empleado),
       conn
     );
+    const empleados = dia.empleados.filter((e) => activos.includes(e.id_empleado));
     const mascota = await citaRepo.lockMascota(datos.id_mascota, conn);
 
     if (servicio.max_citas_dia && (await citaRepo.countCupos(datos, conn)) >= servicio.max_citas_dia) {
@@ -231,7 +247,7 @@ export const crearCita = async (canal, datos, actor, id_negocio) => {
     }
     verificarMascota(mascota, datos.id_usuario, servicio);
 
-    const libres = (await evaluarDia({ ...dia, id_sucursal: datos.id_sucursal, fecha: datos.fecha }, conn))
+    const libres = (await evaluarDia({ ...dia, empleados, id_sucursal: datos.id_sucursal, fecha: datos.fecha }, conn))
       .filter(({ inicios }) => inicios.includes(inicio))
       .map(({ empleado }) => empleado.id_empleado);
     if (libres.length === 0) throw ApiError.conflict("El horario ya no está disponible: elige otro");
@@ -256,19 +272,18 @@ export const crearCita = async (canal, datos, actor, id_negocio) => {
         hora_inicio: datos.hora_inicio,
         hora_fin,
         estado,
-        precio_estimado: servicio.precio_actual,
+        precio_estimado: reprogramacion?.precio_estimado ?? servicio.precio_actual,
         notas_cliente: datos.notas_cliente,
         notas_internas: datos.notas_internas,
         prioridad: datos.prioridad,
-        origen: canal === "app" ? "app_movil" : datos.origen,
+        origen: reprogramacion?.origen ?? (canal === "app" ? "app_movil" : datos.origen),
+        id_cita_origen: reprogramacion?.id_cita_origen,
       },
       conn
     );
-    await citaRepo.insertHistorialCreacion(
-      { id_cita: id, id_empleado: actor.id_empleado ?? null, id_usuario: actor.id_usuario, estado, ip_address: actor.ip ?? null },
-      conn
-    );
+    await citaRepo.insertHistorialCreacion({ id_cita: id, actor, estado, motivo: reprogramacion?.motivoCreacion }, conn);
     if (estado === "confirmada") await citaRepo.insertRecordatorioConfirmada(id, conn);
+    if (reprogramacion) await reprogramacion.despues(id, conn);
     return id;
   });
 
@@ -379,11 +394,15 @@ export const getAgenda = async (negocio, id_usuario, { solo_mias, fuera_de_dispo
 
 /**
  * Detalle de una cita. Con acceso del panel (authorizeDuenoO): completa, con notas
- * internas y fuera_de_disponibilidad. Para el dueño: sin notas internas.
+ * internas, fuera_de_disponibilidad y el cumplimiento del cliente en ese negocio
+ * (cliente.historial_cumplimiento). Para el dueño: sin notas internas.
  */
 export const getCita = async (id_cita, acceso) => {
   const row = await citaRepo.findDetalle(id_cita);
   if (acceso.relacion === "dueno") return formatCita(row);
-  const [cita] = await conDisponibilidad([row], row.id_negocio, row.fecha, row.fecha);
-  return cita;
+  const [[cita], historial_cumplimiento] = await Promise.all([
+    conDisponibilidad([row], row.id_negocio, row.fecha, row.fecha),
+    citaRepo.resumenCumplimiento(row.id_usuario, row.id_negocio),
+  ]);
+  return { ...cita, cliente: { ...cita.cliente, historial_cumplimiento } };
 };

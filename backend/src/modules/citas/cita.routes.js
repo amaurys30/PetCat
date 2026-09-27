@@ -1,7 +1,11 @@
 import express from "express";
 import * as controller from "./cita.controller.js";
 import {
+  actualizarCitaBody,
   agendaQuery,
+  cambiarEstadoBody,
+  cancelarCitaBody,
+  reprogramarCitaBody,
   createCitaBody,
   createCitaPanelBody,
   horariosLibresQuery,
@@ -15,6 +19,9 @@ import { authorize, authorizeDuenoO } from "../../shared/middlewares/authorize.m
 import { validate } from "../../shared/middlewares/validate.js";
 
 const router = express.Router();
+
+// La cita es del usuario autenticado (vista del dueño en authorizeDuenoO).
+const esDuenoDeLaCita = (req) => citaRepo.esDelUsuario(req.params.id_cita, req.user.id_usuario);
 
 /**
  * @swagger
@@ -82,7 +89,16 @@ const router = express.Router();
  *         precio_final: { type: number, nullable: true }
  *         notas_cliente: { type: string, nullable: true }
  *         notas_internas: { type: string, nullable: true, description: Solo en el panel }
- *         id_cita_origen: { type: integer, nullable: true }
+ *         id_cita_origen: { type: integer, nullable: true, description: Cita original si esta es una reprogramación }
+ *         cancelacion:
+ *           type: object
+ *           nullable: true
+ *           description: Solo en citas canceladas
+ *           properties:
+ *             por: { type: string, enum: [dueno, negocio], nullable: true }
+ *             fecha: { type: string, nullable: true }
+ *             tardia: { type: boolean, description: El dueño canceló a menos de 2 horas de la cita }
+ *             motivo: { type: string, nullable: true }
  *         negocio:
  *           type: object
  *           properties: { id_negocio: { type: integer }, nombre: { type: string }, logo_url: { type: string, nullable: true } }
@@ -222,6 +238,22 @@ router.post("/citas", authMiddleware, validate({ body: createCitaBody }), contro
  *                 Cita futura pendiente o confirmada que ya no cabe en la disponibilidad de su empleado
  *                 (bloqueo, vacaciones, cambio de horario): hay que reprogramarla o reasignarla.
  *                 false en las demás.
+ *     CitaPanelDetalle:
+ *       description: Detalle de la cita para el panel (GET /citas/{id_cita} y respuestas de los cambios).
+ *       allOf:
+ *         - $ref: '#/components/schemas/CitaPanel'
+ *         - type: object
+ *           properties:
+ *             cliente:
+ *               type: object
+ *               properties:
+ *                 historial_cumplimiento:
+ *                   type: object
+ *                   description: Solo las citas del cliente con este negocio, nunca las de otros negocios
+ *                   properties:
+ *                     completadas: { type: integer }
+ *                     inasistencias: { type: integer }
+ *                     cancelaciones_tardias: { type: integer }
  */
 
 /**
@@ -282,7 +314,7 @@ router.get("/citas/mias", authMiddleware, validate({ query: misCitasQuery }), co
  *                 message: { type: string, example: OK }
  *                 data:
  *                   oneOf:
- *                     - $ref: '#/components/schemas/CitaPanel'
+ *                     - $ref: '#/components/schemas/CitaPanelDetalle'
  *                     - $ref: '#/components/schemas/Cita'
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       403: { $ref: '#/components/responses/Forbidden' }
@@ -293,8 +325,257 @@ router.get(
   "/citas/:id_cita",
   authMiddleware,
   validate({ params: idCitaParams }),
-  authorizeDuenoO("citas", "ver", { esDueno: (req) => citaRepo.esDelUsuario(req.params.id_cita, req.user.id_usuario) }),
+  authorizeDuenoO("citas", "ver", { esDueno: esDuenoDeLaCita }),
   controller.getCita
+);
+
+
+/**
+ * @swagger
+ * components:
+ *   responses:
+ *     CitaDetalleRespuesta:
+ *       description: La cita actualizada (vista del panel, o del dueño si actuó el dueño)
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               success: { type: boolean, example: true }
+ *               message: { type: string }
+ *               data:
+ *                 oneOf:
+ *                   - $ref: '#/components/schemas/CitaPanelDetalle'
+ *                   - $ref: '#/components/schemas/Cita'
+ *     CitaEstadoConflicto:
+ *       description: El cambio no es posible en el estado o el momento actual de la cita
+ *       content:
+ *         application/json:
+ *           schema: { $ref: '#/components/schemas/ErrorResponse' }
+ *           example: { success: false, message: "No se puede pasar de pendiente a completada: desde pendiente solo a confirmada" }
+ */
+
+/**
+ * @swagger
+ * /citas/{id_cita}/estado:
+ *   patch:
+ *     summary: Cambiar el estado de una cita (panel)
+ *     description: >
+ *       Requiere `citas.editar`. Transiciones: pendiente → confirmada (se programa el recordatorio);
+ *       confirmada → en_curso (desde la fecha de la cita) o no_asistio (desde la hora de inicio);
+ *       en_curso → completada (con `precio_final`, por defecto el estimado; suma al total de citas del
+ *       negocio); no_asistio → en_curso solo el mismo día (el cliente llegó tarde). completada, cancelada y
+ *       reprogramada son finales. Para cancelar o reprogramar hay endpoints propios. Queda en el historial.
+ *     tags: [Citas]
+ *     parameters:
+ *       - { in: path, name: id_cita, required: true, schema: { type: integer } }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             additionalProperties: false
+ *             required: [estado]
+ *             properties:
+ *               estado: { type: string, enum: [confirmada, en_curso, no_asistio, completada] }
+ *               motivo: { type: string, maxLength: 300 }
+ *               precio_final: { type: number, minimum: 0, description: Solo al completar }
+ *     responses:
+ *       200: { $ref: '#/components/responses/CitaDetalleRespuesta' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       409: { $ref: '#/components/responses/CitaEstadoConflicto' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.patch(
+  "/citas/:id_cita/estado",
+  authMiddleware,
+  validate({ params: idCitaParams, body: cambiarEstadoBody }),
+  authorize("citas", "editar"),
+  controller.cambiarEstado
+);
+
+/**
+ * @swagger
+ * /citas/{id_cita}/cancelar:
+ *   post:
+ *     summary: Cancelar una cita (dueño o negocio)
+ *     description: >
+ *       Solo citas pendientes o confirmadas. El dueño puede cancelar siempre que la cita no haya empezado
+ *       (409 después); si faltan menos de `antelacion_cancelacion_app_h` (2) horas queda como cancelación
+ *       tardía, que el panel ve. El negocio (`citas.cancelar`) exige motivo. Se guarda quién canceló y
+ *       cuándo, y se cancelan los recordatorios pendientes.
+ *     tags: [Citas]
+ *     parameters:
+ *       - { in: path, name: id_cita, required: true, schema: { type: integer } }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             additionalProperties: false
+ *             properties:
+ *               motivo: { type: string, maxLength: 300, description: Obligatorio si cancela el negocio }
+ *     responses:
+ *       200: { $ref: '#/components/responses/CitaDetalleRespuesta' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       409: { $ref: '#/components/responses/CitaEstadoConflicto' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.post(
+  "/citas/:id_cita/cancelar",
+  authMiddleware,
+  validate({ params: idCitaParams, body: cancelarCitaBody }),
+  authorizeDuenoO("citas", "cancelar", { esDueno: esDuenoDeLaCita }),
+  controller.cancelarCita
+);
+
+/**
+ * @swagger
+ * /citas/{id_cita}/reprogramar:
+ *   post:
+ *     summary: Reprogramar una cita (dueño o negocio)
+ *     description: >
+ *       Solo citas pendientes o confirmadas. Crea una cita nueva (con `id_cita_origen`) con el mismo cálculo
+ *       de horarios libres y la misma protección contra reservas simultáneas, y marca la original como
+ *       `reprogramada`, en una transacción: si el horario nuevo no está libre (409) la original no cambia.
+ *       El dueño lo hace con las reglas de la app y hasta 2 horas antes de la cita original; la nueva queda
+ *       `pendiente`. El negocio (`citas.editar`), en cualquier momento y con las reglas del panel; la nueva queda
+ *       `confirmada`. Conserva servicio, mascota, precio estimado, origen, notas y prioridad; por defecto la
+ *       misma sucursal. Una mascota fallecida no se reprograma (409).
+ *     tags: [Citas]
+ *     parameters:
+ *       - { in: path, name: id_cita, required: true, schema: { type: integer } }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             additionalProperties: false
+ *             required: [fecha, hora_inicio]
+ *             properties:
+ *               fecha: { type: string, format: date }
+ *               hora_inicio: { type: string, example: "10:30" }
+ *               id_empleado: { type: integer, description: Opcional; sin él se asigna al empleado libre con menos citas }
+ *               id_sucursal: { type: integer, description: Por defecto la de la cita original }
+ *               motivo: { type: string, maxLength: 300 }
+ *     responses:
+ *       201:
+ *         description: La cita nueva
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Cita reprogramada }
+ *                 data: { $ref: '#/components/schemas/Cita' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       409: { $ref: '#/components/responses/ReservaConflicto' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.post(
+  "/citas/:id_cita/reprogramar",
+  authMiddleware,
+  validate({ params: idCitaParams, body: reprogramarCitaBody }),
+  authorizeDuenoO("citas", "editar", { esDueno: esDuenoDeLaCita }),
+  controller.reprogramarCita
+);
+
+/**
+ * @swagger
+ * /citas/{id_cita}:
+ *   patch:
+ *     summary: Editar una cita (panel)
+ *     description: >
+ *       Requiere `citas.editar`. Al menos un campo. `precio_final` solo en citas en curso o completadas.
+ *       `id_empleado` (reasignar) solo en pendientes o confirmadas: el empleado debe atender el servicio y
+ *       estar libre a esa hora (disponibilidad y otras citas, con el mismo cálculo de la reserva); si no, 409.
+ *       Cada campo que cambia queda en el historial.
+ *     tags: [Citas]
+ *     parameters:
+ *       - { in: path, name: id_cita, required: true, schema: { type: integer } }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             additionalProperties: false
+ *             minProperties: 1
+ *             properties:
+ *               notas_internas: { type: string, nullable: true, maxLength: 2000 }
+ *               prioridad: { type: string, enum: [normal, alta, urgente] }
+ *               precio_final: { type: number, nullable: true, minimum: 0 }
+ *               id_empleado: { type: integer }
+ *     responses:
+ *       200: { $ref: '#/components/responses/CitaDetalleRespuesta' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       409: { $ref: '#/components/responses/CitaEstadoConflicto' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.patch(
+  "/citas/:id_cita",
+  authMiddleware,
+  validate({ params: idCitaParams, body: actualizarCitaBody }),
+  authorize("citas", "editar"),
+  controller.actualizarCita
+);
+
+/**
+ * @swagger
+ * /citas/{id_cita}/historial:
+ *   get:
+ *     summary: Historial de cambios de una cita (dueño o negocio)
+ *     description: >
+ *       Del más antiguo al más reciente. El personal del negocio con `citas.ver` ve todos los cambios con
+ *       el usuario y el empleado que los hizo. El dueño ve solo los cambios de estado y de empleado, con su
+ *       motivo, y `realizado_por` (dueno o negocio), sin nombres del personal.
+ *     tags: [Citas]
+ *     parameters:
+ *       - { in: path, name: id_cita, required: true, schema: { type: integer } }
+ *     responses:
+ *       200:
+ *         description: Historial
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: OK }
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       fecha_cambio: { type: string }
+ *                       campo: { type: string, enum: [estado, empleado, notas_internas, prioridad, precio_final] }
+ *                       valor_anterior: { type: string, nullable: true, description: En empleado, su nombre }
+ *                       valor_nuevo: { type: string, nullable: true }
+ *                       motivo: { type: string, nullable: true }
+ *                       realizado_por: { type: string, enum: [dueno, negocio] }
+ *                       usuario: { type: object, nullable: true, description: Solo en el panel }
+ *                       empleado: { type: object, nullable: true, description: Solo en el panel }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
+router.get(
+  "/citas/:id_cita/historial",
+  authMiddleware,
+  validate({ params: idCitaParams }),
+  authorizeDuenoO("citas", "ver", { esDueno: esDuenoDeLaCita }),
+  controller.getHistorial
 );
 
 /**

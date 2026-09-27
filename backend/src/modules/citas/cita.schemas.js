@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { fecha, hora, texto } from "../../shared/utils/schemas.js";
+import { conAlMenosUnCampo, fecha, hora, texto } from "../../shared/utils/schemas.js";
 import { paginationSchema } from "../../shared/utils/pagination.js";
 import { hoyISO } from "../../shared/utils/fechas.js";
 
@@ -87,3 +87,36 @@ export const agendaQuery = z
       ctx.addIssue({ code: "custom", path: ["hasta"], message: `El rango máximo es de ${MAX_DIAS_AGENDA} días` });
     }
   });
+
+// ---------- Cambios ----------
+
+const motivo = texto(300);
+
+export const cambiarEstadoBody = z.strictObject({
+  estado: z.enum(["confirmada", "en_curso", "no_asistio", "completada"], {
+    error: "Debe ser confirmada, en_curso, no_asistio o completada (para cancelar o reprogramar hay endpoints propios)",
+  }),
+  motivo: motivo.optional(),
+  precio_final: z.number().min(0).max(9999999999.99).optional(),
+});
+
+export const cancelarCitaBody = z.strictObject({ motivo: motivo.optional() });
+
+export const reprogramarCitaBody = z.strictObject({
+  fecha,
+  hora_inicio: hora,
+  id_empleado: id.optional(),
+  id_sucursal: id.optional(),
+  motivo: motivo.optional(),
+});
+
+export const actualizarCitaBody = conAlMenosUnCampo(
+  z
+    .strictObject({
+      notas_internas: texto(2000).nullable(),
+      prioridad: z.enum(PRIORIDADES, { error: `Debe ser una de: ${PRIORIDADES.join(", ")}` }),
+      precio_final: z.number().min(0).max(9999999999.99).nullable(),
+      id_empleado: id,
+    })
+    .partial()
+);
