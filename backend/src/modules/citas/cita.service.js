@@ -2,11 +2,13 @@ import * as citaRepo from "./cita.repository.js";
 import * as servicioRepo from "../servicios/servicio.repository.js";
 import * as disponibilidadRepo from "../disponibilidad/disponibilidad.repository.js";
 import * as configuracionRepo from "../configuracion/configuracion.repository.js";
+import * as empleadoRepo from "../empleados/empleado.repository.js";
 import { combinarHorarios, iniciosLibres } from "./citas.calculo.js";
-import { aHora, aMinutos, calcularDisponibilidad, diaSemana } from "../disponibilidad/disponibilidad.calculo.js";
+import { aHora, aMinutos, calcularDisponibilidad, citaCabe, diaSemana } from "../disponibilidad/disponibilidad.calculo.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
 import { hoyISO } from "../../shared/utils/fechas.js";
 import { toNumber } from "../../shared/utils/format.js";
+import { buildMeta } from "../../shared/utils/pagination.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
 
 // Valores de servicios.dias_disponible (SET, sin tildes) y su nombre para mensajes.
@@ -173,8 +175,18 @@ export const formatCita = (row, { conNotasInternas = false } = {}) => ({
   notas_cliente: row.notas_cliente,
   ...(conNotasInternas && { notas_internas: row.notas_internas }),
   id_cita_origen: row.id_cita_origen,
-  negocio: { id_negocio: row.id_negocio, nombre: row.negocio_nombre },
-  sucursal: row.id_sucursal ? { id_sucursal: row.id_sucursal, nombre: row.sucursal_nombre, direccion: row.sucursal_direccion } : null,
+  negocio: { id_negocio: row.id_negocio, nombre: row.negocio_nombre, logo_url: row.negocio_logo_url },
+  // Con teléfono y coordenadas: la app muestra dónde es la cita y ofrece "Cómo llegar".
+  sucursal: row.id_sucursal
+    ? {
+        id_sucursal: row.id_sucursal,
+        nombre: row.sucursal_nombre,
+        direccion: row.sucursal_direccion,
+        telefono: row.sucursal_telefono,
+        latitud: toNumber(row.sucursal_latitud),
+        longitud: toNumber(row.sucursal_longitud),
+      }
+    : null,
   servicio: { id_servicio: row.id_servicio, nombre: row.servicio_nombre, duracion_minutos: row.duracion_minutos },
   empleado: row.id_empleado ? { id_empleado: row.id_empleado, nombre: row.empleado_nombre, apellido: row.empleado_apellido } : null,
   mascota: { id_mascota: row.id_mascota, nombre: row.mascota_nombre, especie: row.mascota_especie },
@@ -270,4 +282,108 @@ export const crearCitaApp = (datos, usuario) =>
 export const crearCitaPanel = async (id_negocio, datos, actor) => {
   if (!(await citaRepo.usuarioActivo(datos.id_usuario))) throw invalido("id_usuario", "El cliente no existe");
   return crearCita("panel", datos, actor, id_negocio);
+};
+
+// ---------- Consultas ----------
+
+/** La cita puede quedar fuera de la disponibilidad del empleado: futura, pendiente o confirmada y con empleado. */
+const aplicaDisponibilidad = (row, hoy, ahora) =>
+  (row.estado === "pendiente" || row.estado === "confirmada") &&
+  row.id_empleado !== null &&
+  (row.fecha > hoy || (row.fecha === hoy && row.hora_inicio >= ahora));
+
+const horaActual = () => {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+};
+
+/**
+ * Marca `fuera_de_disponibilidad` en citas del panel: las que aplican y no caben en
+ * la disponibilidad de su empleado (1.4). Carga los datos de todos los empleados en lote.
+ */
+const conDisponibilidad = async (rows, id_negocio, desde, hasta) => {
+  const hoy = hoyISO();
+  const ahora = horaActual();
+  const aplican = rows.filter((row) => aplicaDisponibilidad(row, hoy, ahora));
+  const ids = [...new Set(aplican.map((row) => row.id_empleado))];
+  const [horariosPorSucursal, semanales, excepciones] = await Promise.all([
+    ids.length ? disponibilidadRepo.findHorariosSucursales(id_negocio) : {},
+    disponibilidadRepo.findHorarioSemanalDeEmpleados(ids),
+    disponibilidadRepo.findExcepcionesDeEmpleados(ids, desde, hasta),
+  ]);
+  const fuera = new Set(
+    aplican
+      .filter(
+        (row) =>
+          !citaCabe(row, {
+            horariosPorSucursal,
+            horarioSemanal: semanales[row.id_empleado] ?? [],
+            excepciones: excepciones[row.id_empleado] ?? [],
+          })
+      )
+      .map((row) => row.id_cita)
+  );
+  return rows.map((row) => ({ ...formatCita(row, { conNotasInternas: true }), fuera_de_disponibilidad: fuera.has(row.id_cita) }));
+};
+
+/** Citas del dueño (app), paginadas y sin notas internas. */
+export const getMisCitas = async (id_usuario, { page, limit, alcance, estado, id_mascota }) => {
+  const { rows, total } = await citaRepo.findPageDeUsuario(id_usuario, {
+    alcance,
+    estados: estado,
+    id_mascota,
+    limit,
+    offset: (page - 1) * limit,
+  });
+  return { rows: rows.map((row) => formatCita(row)), meta: buildMeta(total, page, limit) };
+};
+
+/** Los filtros de la agenda deben ser del negocio (422 si no), aunque estén inactivos. */
+const verificarFiltros = async (id_negocio, filtros) => {
+  const errors = {};
+  for (const [campo, tabla] of [
+    ["id_sucursal", "sucursales"],
+    ["id_empleado", "empleados"],
+    ["id_servicio", "servicios"],
+  ]) {
+    if (filtros[campo] !== undefined && !(await citaRepo.perteneceAlNegocio(tabla, filtros[campo], id_negocio))) {
+      errors[campo] = "No pertenece a este negocio";
+    }
+  }
+  if (Object.keys(errors).length > 0) throw ApiError.unprocessable("Datos inválidos", errors);
+};
+
+/**
+ * Agenda del negocio (sin paginar: el rango es de máximo 31 días). `solo_mias`
+ * limita a las citas del perfil de empleado de quien consulta en este negocio
+ * (también el propietario registrado como empleado); sin perfil, 422.
+ */
+export const getAgenda = async (negocio, id_usuario, { solo_mias, fuera_de_disponibilidad, estado, ...filtros }) => {
+  if (solo_mias) {
+    const empleado = await empleadoRepo.findAccesoByUsuarioAndNegocio(id_usuario, negocio.id_negocio);
+    if (!empleado?.activo) {
+      throw invalido("solo_mias", "No tienes un perfil de empleado activo en este negocio");
+    }
+    if (filtros.id_empleado !== undefined && filtros.id_empleado !== empleado.id_empleado) {
+      throw invalido("id_empleado", "No se combina con solo_mias");
+    }
+    filtros.id_empleado = empleado.id_empleado;
+  }
+  await verificarFiltros(negocio.id_negocio, filtros);
+
+  const rows = await citaRepo.findAgenda({ id_negocio: negocio.id_negocio, estados: estado, ...filtros });
+  let citas = await conDisponibilidad(rows, negocio.id_negocio, filtros.desde, filtros.hasta);
+  if (fuera_de_disponibilidad !== undefined) citas = citas.filter((c) => c.fuera_de_disponibilidad === fuera_de_disponibilidad);
+  return { rows: citas, meta: { total: citas.length, desde: filtros.desde, hasta: filtros.hasta } };
+};
+
+/**
+ * Detalle de una cita. Con acceso del panel (authorizeDuenoO): completa, con notas
+ * internas y fuera_de_disponibilidad. Para el dueño: sin notas internas.
+ */
+export const getCita = async (id_cita, acceso) => {
+  const row = await citaRepo.findDetalle(id_cita);
+  if (acceso.relacion === "dueno") return formatCita(row);
+  const [cita] = await conDisponibilidad([row], row.id_negocio, row.fecha, row.fecha);
+  return cita;
 };

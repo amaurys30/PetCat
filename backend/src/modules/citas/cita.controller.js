@@ -1,5 +1,5 @@
 import * as service from "./cita.service.js";
-import { ok, created } from "../../shared/utils/response.js";
+import { ok, created, paginated } from "../../shared/utils/response.js";
 
 export const getHorariosLibres = async (req, res) => {
   return ok(res, await service.getHorariosLibres("app", req.query));
@@ -21,4 +21,18 @@ export const createCitaPanel = async (req, res) => {
     ip: req.ip,
   });
   return created(res, cita, "Cita agendada y confirmada");
+};
+
+export const getMisCitas = async (req, res) => {
+  const { rows, meta } = await service.getMisCitas(req.user.id_usuario, req.query);
+  return paginated(res, rows, meta);
+};
+
+export const getAgenda = async (req, res) => {
+  const { rows, meta } = await service.getAgenda(req.negocio, req.user.id_usuario, req.query);
+  return paginated(res, rows, meta);
+};
+
+export const getCita = async (req, res) => {
+  return ok(res, await service.getCita(req.params.id_cita, req.acceso));
 };

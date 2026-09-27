@@ -1,9 +1,17 @@
 import express from "express";
 import * as controller from "./cita.controller.js";
-import { createCitaBody, createCitaPanelBody, horariosLibresQuery } from "./cita.schemas.js";
+import {
+  agendaQuery,
+  createCitaBody,
+  createCitaPanelBody,
+  horariosLibresQuery,
+  idCitaParams,
+  misCitasQuery,
+} from "./cita.schemas.js";
+import * as citaRepo from "./cita.repository.js";
 import { idNegocioParams } from "../negocios/negocio.schemas.js";
 import { authMiddleware } from "../../shared/middlewares/auth.middleware.js";
-import { authorize } from "../../shared/middlewares/authorize.middleware.js";
+import { authorize, authorizeDuenoO } from "../../shared/middlewares/authorize.middleware.js";
 import { validate } from "../../shared/middlewares/validate.js";
 
 const router = express.Router();
@@ -75,11 +83,20 @@ const router = express.Router();
  *         notas_cliente: { type: string, nullable: true }
  *         notas_internas: { type: string, nullable: true, description: Solo en el panel }
  *         id_cita_origen: { type: integer, nullable: true }
- *         negocio: { type: object, properties: { id_negocio: { type: integer }, nombre: { type: string } } }
+ *         negocio:
+ *           type: object
+ *           properties: { id_negocio: { type: integer }, nombre: { type: string }, logo_url: { type: string, nullable: true } }
  *         sucursal:
  *           type: object
  *           nullable: true
- *           properties: { id_sucursal: { type: integer }, nombre: { type: string }, direccion: { type: string } }
+ *           description: Dónde es la cita; con teléfono y coordenadas para "Cómo llegar"
+ *           properties:
+ *             id_sucursal: { type: integer }
+ *             nombre: { type: string }
+ *             direccion: { type: string }
+ *             telefono: { type: string, nullable: true }
+ *             latitud: { type: number, nullable: true }
+ *             longitud: { type: number, nullable: true }
  *         servicio:
  *           type: object
  *           properties: { id_servicio: { type: integer }, nombre: { type: string }, duracion_minutos: { type: integer } }
@@ -192,6 +209,96 @@ router.post("/citas", authMiddleware, validate({ body: createCitaBody }), contro
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     CitaPanel:
+ *       allOf:
+ *         - $ref: '#/components/schemas/Cita'
+ *         - type: object
+ *           properties:
+ *             fuera_de_disponibilidad:
+ *               type: boolean
+ *               description: >
+ *                 Cita futura pendiente o confirmada que ya no cabe en la disponibilidad de su empleado
+ *                 (bloqueo, vacaciones, cambio de horario): hay que reprogramarla o reasignarla.
+ *                 false en las demás.
+ */
+
+/**
+ * @swagger
+ * /citas/mias:
+ *   get:
+ *     summary: Mis citas (app)
+ *     description: >
+ *       Citas del usuario autenticado, paginadas, sin notas internas. `proximas` (por defecto: las que no
+ *       han terminado, de la más cercana a la más lejana), `pasadas` o `todas` (de la más reciente hacia atrás).
+ *       Cada cita trae el negocio (con logo) y la sucursal con teléfono y coordenadas.
+ *     tags: [Citas]
+ *     parameters:
+ *       - $ref: '#/components/parameters/page'
+ *       - $ref: '#/components/parameters/limit'
+ *       - { in: query, name: alcance, schema: { type: string, enum: [proximas, pasadas, todas], default: proximas } }
+ *       - { in: query, name: estado, schema: { type: string }, example: "pendiente,confirmada", description: Uno o varios estados separados por coma }
+ *       - { in: query, name: id_mascota, schema: { type: integer } }
+ *     responses:
+ *       200:
+ *         description: Página de citas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: OK }
+ *                 data: { type: array, items: { $ref: '#/components/schemas/Cita' } }
+ *                 meta: { $ref: '#/components/schemas/PaginationMeta' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.get("/citas/mias", authMiddleware, validate({ query: misCitasQuery }), controller.getMisCitas);
+
+/**
+ * @swagger
+ * /citas/{id_cita}:
+ *   get:
+ *     summary: Detalle de una cita (dueño o negocio)
+ *     description: >
+ *       El personal del negocio de la cita con `citas.ver` (y el propietario y el admin) recibe la vista
+ *       completa, con notas internas y `fuera_de_disponibilidad`. El dueño de la cita recibe la vista sin
+ *       notas internas. Si es personal y además dueño, recibe la del personal. Cualquier otro, incluido el
+ *       personal de otros negocios: 403.
+ *     tags: [Citas]
+ *     parameters:
+ *       - { in: path, name: id_cita, required: true, schema: { type: integer } }
+ *     responses:
+ *       200:
+ *         description: Cita
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: OK }
+ *                 data:
+ *                   oneOf:
+ *                     - $ref: '#/components/schemas/CitaPanel'
+ *                     - $ref: '#/components/schemas/Cita'
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.get(
+  "/citas/:id_cita",
+  authMiddleware,
+  validate({ params: idCitaParams }),
+  authorizeDuenoO("citas", "ver", { esDueno: (req) => citaRepo.esDelUsuario(req.params.id_cita, req.user.id_usuario) }),
+  controller.getCita
+);
+
+/**
+ * @swagger
  * /negocios/{id_negocio}/citas/horarios-libres:
  *   get:
  *     summary: Horarios libres para agendar (panel)
@@ -237,6 +344,46 @@ router.get(
 /**
  * @swagger
  * /negocios/{id_negocio}/citas:
+ *   get:
+ *     summary: Agenda del negocio (panel)
+ *     description: >
+ *       Requiere `citas.ver`. Citas del negocio entre `desde` y `hasta` (por defecto hoy; máximo 31 días),
+ *       por fecha y hora, sin paginar (`meta.total`). Filtros: estados, sucursal, empleado y servicio (deben
+ *       ser del negocio: 422 si no), `q` (nombre del cliente o de la mascota), `solo_mias` (las del perfil de
+ *       empleado de quien consulta en este negocio; 422 si no tiene) y `fuera_de_disponibilidad`.
+ *     tags: [Citas]
+ *     parameters:
+ *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
+ *       - { in: query, name: desde, schema: { type: string, format: date } }
+ *       - { in: query, name: hasta, schema: { type: string, format: date }, description: Máximo 31 días desde `desde` }
+ *       - { in: query, name: estado, schema: { type: string }, example: "pendiente,confirmada" }
+ *       - { in: query, name: id_sucursal, schema: { type: integer } }
+ *       - { in: query, name: id_empleado, schema: { type: integer } }
+ *       - { in: query, name: id_servicio, schema: { type: integer } }
+ *       - { in: query, name: q, schema: { type: string, maxLength: 100 } }
+ *       - { in: query, name: solo_mias, schema: { type: string, enum: ["true", "false"] } }
+ *       - { in: query, name: fuera_de_disponibilidad, schema: { type: string, enum: ["true", "false"] } }
+ *     responses:
+ *       200:
+ *         description: Agenda
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: OK }
+ *                 data: { type: array, items: { $ref: '#/components/schemas/CitaPanel' } }
+ *                 meta:
+ *                   type: object
+ *                   properties:
+ *                     total: { type: integer }
+ *                     desde: { type: string, format: date }
+ *                     hasta: { type: string, format: date }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
  *   post:
  *     summary: Agendar una cita desde el panel
  *     description: >
@@ -277,6 +424,14 @@ router.get(
  *       409: { $ref: '#/components/responses/ReservaConflicto' }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
+router.get(
+  "/negocios/:id_negocio/citas",
+  authMiddleware,
+  validate({ params: idNegocioParams, query: agendaQuery }),
+  authorize("citas", "ver"),
+  controller.getAgenda
+);
+
 router.post(
   "/negocios/:id_negocio/citas",
   authMiddleware,

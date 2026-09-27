@@ -1,4 +1,5 @@
 import db from "../../config/db.js";
+import { likeLiteral } from "../../shared/utils/sql.js";
 
 // Estados que ocupan la agenda del empleado y de la mascota.
 const ESTADOS_OCUPAN = "('pendiente', 'confirmada', 'en_curso')";
@@ -151,29 +152,106 @@ export const insertRecordatorioConfirmada = async (id_cita, conn) => {
 
 // ---------- Lectura ----------
 
+// Cita con negocio, sucursal (con ubicación para "Cómo llegar"), servicio, empleado, mascota y cliente.
+const SELECT_CITA = `
+  SELECT c.id_cita, c.fecha,
+         TIME_FORMAT(c.hora_inicio, '%H:%i') AS hora_inicio, TIME_FORMAT(c.hora_fin, '%H:%i') AS hora_fin,
+         c.estado, c.origen, c.prioridad, c.precio_estimado, c.precio_final, c.notas_cliente, c.notas_internas,
+         c.id_cita_origen, c.fecha_creacion,
+         n.id_negocio, n.nombre AS negocio_nombre, n.logo_url AS negocio_logo_url,
+         su.id_sucursal, su.nombre AS sucursal_nombre, su.direccion AS sucursal_direccion,
+         su.telefono AS sucursal_telefono, su.latitud AS sucursal_latitud, su.longitud AS sucursal_longitud,
+         sv.id_servicio, sv.nombre AS servicio_nombre, sv.duracion_minutos,
+         e.id_empleado, e.nombre AS empleado_nombre, e.apellido AS empleado_apellido,
+         m.id_mascota, m.nombre AS mascota_nombre, m.especie AS mascota_especie,
+         u.id_usuario, u.nombre AS cliente_nombre, u.apellido AS cliente_apellido, u.telefono AS cliente_telefono
+  FROM citas c
+  JOIN negocios n ON n.id_negocio = c.id_negocio
+  LEFT JOIN sucursales su ON su.id_sucursal = c.id_sucursal
+  JOIN servicios sv ON sv.id_servicio = c.id_servicio
+  LEFT JOIN empleados e ON e.id_empleado = c.id_empleado
+  JOIN mascotas m ON m.id_mascota = c.id_mascota
+  JOIN usuarios u ON u.id_usuario = c.id_usuario`;
+
 export const findDetalle = async (id_cita, conn) => {
-  const [rows] = await (conn ?? db).query(
-    `SELECT c.id_cita, c.fecha,
-            TIME_FORMAT(c.hora_inicio, '%H:%i') AS hora_inicio, TIME_FORMAT(c.hora_fin, '%H:%i') AS hora_fin,
-            c.estado, c.origen, c.prioridad, c.precio_estimado, c.precio_final, c.notas_cliente, c.notas_internas,
-            c.id_cita_origen, c.fecha_creacion,
-            n.id_negocio, n.nombre AS negocio_nombre,
-            su.id_sucursal, su.nombre AS sucursal_nombre, su.direccion AS sucursal_direccion,
-            sv.id_servicio, sv.nombre AS servicio_nombre, sv.duracion_minutos,
-            e.id_empleado, e.nombre AS empleado_nombre, e.apellido AS empleado_apellido,
-            m.id_mascota, m.nombre AS mascota_nombre, m.especie AS mascota_especie,
-            u.id_usuario, u.nombre AS cliente_nombre, u.apellido AS cliente_apellido, u.telefono AS cliente_telefono
-     FROM citas c
-     JOIN negocios n ON n.id_negocio = c.id_negocio
-     LEFT JOIN sucursales su ON su.id_sucursal = c.id_sucursal
-     JOIN servicios sv ON sv.id_servicio = c.id_servicio
-     LEFT JOIN empleados e ON e.id_empleado = c.id_empleado
-     JOIN mascotas m ON m.id_mascota = c.id_mascota
-     JOIN usuarios u ON u.id_usuario = c.id_usuario
-     WHERE c.id_cita = ?`,
-    [id_cita]
-  );
+  const [rows] = await (conn ?? db).query(`${SELECT_CITA} WHERE c.id_cita = ?`, [id_cita]);
   return rows[0];
+};
+
+/** La cita es de ese usuario (dueño de la mascota que la pidió). */
+export const esDelUsuario = async (id_cita, id_usuario) => {
+  const [rows] = await db.query("SELECT 1 FROM citas WHERE id_cita = ? AND id_usuario = ?", [id_cita, id_usuario]);
+  return rows.length > 0;
+};
+
+// Una cita es "próxima" mientras no termina.
+const SQL_PROXIMA = "(c.fecha > CURDATE() OR (c.fecha = CURDATE() AND c.hora_fin >= CURTIME()))";
+
+/**
+ * Citas del dueño, paginadas. `alcance`: proximas (de la más cercana a la más
+ * lejana), pasadas o todas (de la más reciente hacia atrás).
+ */
+export const findPageDeUsuario = async (id_usuario, { alcance, estados, id_mascota, limit, offset }) => {
+  const condiciones = ["c.id_usuario = ?"];
+  const valores = [id_usuario];
+  if (alcance === "proximas") condiciones.push(SQL_PROXIMA);
+  if (alcance === "pasadas") condiciones.push(`NOT ${SQL_PROXIMA}`);
+  if (estados) {
+    condiciones.push("c.estado IN (?)");
+    valores.push(estados);
+  }
+  if (id_mascota) {
+    condiciones.push("c.id_mascota = ?");
+    valores.push(id_mascota);
+  }
+  const where = `WHERE ${condiciones.join(" AND ")}`;
+  const orden = alcance === "proximas" ? "c.fecha, c.hora_inicio, c.id_cita" : "c.fecha DESC, c.hora_inicio DESC, c.id_cita DESC";
+
+  const [rows] = await db.query(`${SELECT_CITA} ${where} ORDER BY ${orden} LIMIT ? OFFSET ?`, [...valores, limit, offset]);
+  const [[{ total }]] = await db.query(`SELECT COUNT(*) AS total FROM citas c ${where}`, valores);
+  return { rows, total };
+};
+
+/**
+ * Agenda del negocio entre `desde` y `hasta` (el servicio limita el rango), por
+ * fecha y hora. Filtros opcionales: estados, sucursal, empleado, servicio y `q`
+ * (nombre del cliente o de la mascota).
+ */
+export const findAgenda = async ({ id_negocio, desde, hasta, estados, id_sucursal, id_empleado, id_servicio, q }) => {
+  const condiciones = ["c.id_negocio = ?", "c.fecha BETWEEN ? AND ?"];
+  const valores = [id_negocio, desde, hasta];
+  if (estados) {
+    condiciones.push("c.estado IN (?)");
+    valores.push(estados);
+  }
+  for (const [columna, valor] of [
+    ["c.id_sucursal", id_sucursal],
+    ["c.id_empleado", id_empleado],
+    ["c.id_servicio", id_servicio],
+  ]) {
+    if (valor !== undefined) {
+      condiciones.push(`${columna} = ?`);
+      valores.push(valor);
+    }
+  }
+  if (q) {
+    condiciones.push(
+      "(u.nombre LIKE ? OR u.apellido LIKE ? OR CONCAT(u.nombre, ' ', u.apellido) LIKE ? OR m.nombre LIKE ?)"
+    );
+    valores.push(...Array(4).fill(likeLiteral(q)));
+  }
+  const [rows] = await db.query(
+    `${SELECT_CITA} WHERE ${condiciones.join(" AND ")} ORDER BY c.fecha, c.hora_inicio, c.id_cita`,
+    valores
+  );
+  return rows;
+};
+
+/** El recurso (sucursal, empleado o servicio) es de ese negocio, activo o no. */
+export const perteneceAlNegocio = async (tabla, id, id_negocio) => {
+  const columnas = { sucursales: "id_sucursal", empleados: "id_empleado", servicios: "id_servicio" };
+  const [rows] = await db.query(`SELECT 1 FROM ${tabla} WHERE ${columnas[tabla]} = ? AND id_negocio = ?`, [id, id_negocio]);
+  return rows.length > 0;
 };
 
 /** Negocio activo (la app solo reserva en negocios activos). */

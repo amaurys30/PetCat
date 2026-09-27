@@ -168,3 +168,34 @@ export const findCitasFuturasActivas = async (id_empleado, conn) => {
   );
   return rows;
 };
+
+// ---------- En lote (agenda de varios empleados) ----------
+
+const agruparPorEmpleado = (rows) => {
+  const porEmpleado = {};
+  for (const row of rows) (porEmpleado[row.id_empleado] ??= []).push(row);
+  return porEmpleado;
+};
+
+/** `horario_normal` activo de varios empleados: { [id_empleado]: [rango] }. */
+export const findHorarioSemanalDeEmpleados = async (ids, conn) => {
+  if (ids.length === 0) return {};
+  const [rows] = await (conn ?? db).query(
+    `SELECT ${COLUMNAS} FROM disponibilidad_empleado d
+     WHERE d.id_empleado IN (?) AND d.tipo = 'horario_normal' AND d.activo = TRUE`,
+    [ids]
+  );
+  return agruparPorEmpleado(rows);
+};
+
+/** Excepciones activas de varios empleados que tocan [desde, hasta]: { [id_empleado]: [excepcion] }. */
+export const findExcepcionesDeEmpleados = async (ids, desde, hasta, conn) => {
+  if (ids.length === 0) return {};
+  const [rows] = await (conn ?? db).query(
+    `SELECT ${COLUMNAS} FROM disponibilidad_empleado d
+     WHERE d.id_empleado IN (?) AND d.tipo <> 'horario_normal' AND d.activo = TRUE
+       AND COALESCE(d.fecha_fin, d.fecha_especifica) >= ? AND d.fecha_especifica <= ?`,
+    [ids, desde, hasta]
+  );
+  return agruparPorEmpleado(rows);
+};
