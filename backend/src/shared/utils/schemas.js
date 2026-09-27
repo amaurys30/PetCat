@@ -50,6 +50,12 @@ export const urlHttp = (max = 500) => z.url({ protocol: /^https?$/ }).max(max);
 /** Texto con espacios recortados, no vacío. */
 export const texto = (max) => z.string().trim().min(1).max(max);
 
+/** Hora "08:00" o "08:00:00" (00:00 a 23:59); se guarda siempre con segundos. */
+export const hora = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/, "Hora inválida: usa HH:MM (00:00 a 23:59)")
+  .transform((valor) => (valor.length === 5 ? `${valor}:00` : valor));
+
 /** Fecha "YYYY-MM-DD" válida (rechaza 2026-02-30). */
 export const fecha = z.iso.date({ error: "Fecha inválida: usa YYYY-MM-DD" });
 
