@@ -67,6 +67,16 @@ const router = express.Router();
  *             id_rol: { type: integer }
  *             nombre: { type: string, example: Veterinario }
  *             permisos_json: { $ref: '#/components/schemas/Permisos' }
+ *         servicios:
+ *           type: array
+ *           description: >
+ *             Solo en el detalle (y en las respuestas de crear y editar): servicios activos que atiende.
+ *             Se asignan desde el servicio (`empleados` en POST/PATCH de servicios).
+ *           items:
+ *             type: object
+ *             properties:
+ *               id_servicio: { type: integer }
+ *               nombre: { type: string }
  *   responses:
  *     EmpleadoConflict:
  *       description: >

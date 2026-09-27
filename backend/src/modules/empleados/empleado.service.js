@@ -2,6 +2,7 @@ import * as empleadoRepo from "./empleado.repository.js";
 import * as rolRepo from "../roles/rol.repository.js";
 import * as invitacionRepo from "../invitaciones/invitacion.repository.js";
 import * as usuarioRepo from "../usuarios/usuario.repository.js";
+import * as servicioRepo from "../servicios/servicio.repository.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
 import { buildMeta } from "../../shared/utils/pagination.js";
 import { permisosIncluidos } from "../../shared/utils/permissions.js";
@@ -81,10 +82,12 @@ export const getEmpleados = async (id_negocio, { page, limit, activo, q }) => {
   return { rows: rows.map((row) => formatEmpleado(row)), meta: buildMeta(total, page, limit) };
 };
 
+/** Detalle: el rol con sus permisos y los servicios activos que atiende. */
 export const getEmpleado = async (id_empleado) => {
   const empleado = await empleadoRepo.findById(id_empleado);
   if (!empleado) throw ApiError.notFound(NO_ENCONTRADO);
-  return formatEmpleado(empleado, { conPermisos: true });
+  const servicios = await servicioRepo.findActivosDeEmpleado(id_empleado);
+  return { ...formatEmpleado(empleado, { conPermisos: true }), servicios };
 };
 
 export const createEmpleado = async (id_negocio, data, acceso) => {

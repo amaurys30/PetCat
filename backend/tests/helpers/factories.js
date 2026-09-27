@@ -161,7 +161,14 @@ export const crearServicio = async (negocio, overrides = {}) => {
   return findOne("servicios", "id_servicio", id);
 };
 
-const categoriaServicio = async (nombre) => {
+/** Asigna empleados a un servicio (tabla empleado_servicios). */
+export const asignarEmpleados = async (servicio, empleados) => {
+  for (const empleado of empleados) {
+    await insert("empleado_servicios", { id_empleado: empleado.id_empleado, id_servicio: servicio.id_servicio });
+  }
+};
+
+export const categoriaServicio = async (nombre) => {
   const [[row]] = await pool.query("SELECT id_categoria FROM categorias_servicio WHERE nombre = ?", [nombre]);
   return row.id_categoria;
 };

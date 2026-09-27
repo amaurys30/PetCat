@@ -17,6 +17,8 @@ import rolRoutes from "./modules/roles/rol.routes.js";
 import horarioRoutes from "./modules/horarios/horario.routes.js";
 import permisoRoutes from "./modules/permisos/permiso.routes.js";
 import mascotaRoutes from "./modules/mascotas/mascota.routes.js";
+import servicioRoutes from "./modules/servicios/servicio.routes.js";
+import busquedaRoutes from "./modules/busqueda/busqueda.routes.js";
 
 import { generalLimiter, strictLimiter } from "./shared/middlewares/rateLimit.js";
 import { notFound } from "./shared/middlewares/notFound.js";
@@ -76,6 +78,8 @@ v1.use(rolRoutes);
 v1.use(horarioRoutes);
 v1.use(permisoRoutes);
 v1.use(mascotaRoutes);
+v1.use(servicioRoutes);
+v1.use(busquedaRoutes);
 
 app.use("/api/v1", v1);
 
