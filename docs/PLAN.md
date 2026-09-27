@@ -121,7 +121,7 @@ En tres partes: **1.5.1** horarios libres, reservas y clientes del panel · **1.
 - [x] Migración `007_citas_configuracion_y_autorizaciones.sql`: claves de la agenda en `configuracion_global` y tabla `autorizaciones_datos`.
 - [x] `POST /auth/register` exige `acepta_politica_datos: true` y guarda la autorización (canal app).
 - [x] Panel: registrar otra mascota de un cliente con relación con el negocio (`POST /negocios/:id_negocio/clientes/:id_usuario/mascotas`).
-- [ ] `GET /citas/mias` (dueño), `GET /negocios/:id_negocio/citas` (agenda con filtros de fechas, estado, empleado y sucursal), `GET /citas/:id_cita` (dueño o negocio).
+- [x] `GET /citas/mias` (dueño), `GET /negocios/:id_negocio/citas` (agenda con filtros de fechas, estado, empleado y sucursal), `GET /citas/:id_cita` (dueño o negocio).
 - [ ] Máquina de estados: pendiente → confirmada | cancelada; confirmada → en_curso | cancelada | no_asistio; en_curso → completada. `PATCH /citas/:id_cita/estado`, `POST /citas/:id_cita/cancelar` (con motivo), `POST /citas/:id_cita/reprogramar` (crea una cita nueva con `id_cita_origen` y marca la original como `reprogramada`).
 - [ ] `PATCH /citas/:id_cita` (panel): `notas_internas`, `prioridad`, `precio_final` y reasignar el empleado.
 - [ ] Registrar cada cambio en `historial_citas`; `GET /citas/:id_cita/historial`.
@@ -311,6 +311,14 @@ En tres partes: **1.5.1** horarios libres, reservas y clientes del panel · **1.
 - Cliente sin app: usuario `cliente` con contraseña aleatoria que nadie conoce, su primera mascota y la autorización, en una transacción. Correo de bienvenida con el nombre del negocio, los datos guardados y su finalidad, la política (si hay URL) y un enlace de 7 días a `${FRONTEND_URL}/crear-password/<token>`, que usa el token de recuperación y `POST /auth/reset-password` (verifica el email). Se envía sin esperar; si falla, el cliente usa "Olvidé mi contraseña".
 - Búsqueda de clientes (`citas.crear` o `clientes.ver`): email o teléfono exactos (solo dígitos), uno de los dos; hasta 5 usuarios activos con sus mascotas activas y vivas. Con el límite estricto de solicitudes para que no se puedan recorrer teléfonos.
 - Otra mascota desde el panel (`citas.crear`): solo si el cliente tiene relación con el negocio, es decir, alguna cita con él (en cualquier estado) o una autorización registrada por ese negocio; si no, 403. Cliente inexistente o inactivo: 404.
+
+**Consultas y agenda (1.5.2)**
+- `GET /citas/mias`: paginado; `alcance` `proximas` (por defecto: las que no han terminado, de la más cercana a la más lejana), `pasadas` o `todas` (de la más reciente hacia atrás); filtros `estado` (lista separada por comas) e `id_mascota`.
+- Agenda `GET /negocios/:id_negocio/citas` (`citas.ver`): `desde` y `hasta` por defecto hoy, máximo 31 días (422); sin paginar, con `meta { total, desde, hasta }`. Filtros `estado`, `id_sucursal`, `id_empleado` e `id_servicio` (deben ser del negocio, activos o no: 422 si no), `q` (nombre del cliente o de la mascota), `solo_mias` y `fuera_de_disponibilidad`.
+- `solo_mias` es un filtro, no una restricción: limita a las citas del perfil de empleado activo de quien consulta en ese negocio (también el propietario registrado como empleado); sin perfil, 422; con otro `id_empleado`, 422. Si más adelante ciertos roles deben ver solo sus citas, se agrega un permiso (p. ej. `citas.ver_todas`).
+- `fuera_de_disponibilidad` solo aplica a citas futuras pendientes o confirmadas con empleado (las de hoy desde la hora actual, como `citas_afectadas`); en las demás es false. Se calcula con `citaCabe` cargando en lote la disponibilidad de los empleados del rango.
+- `GET /citas/:id_cita` con `authorizeDuenoO`: el personal del negocio de la cita con `citas.ver` (y propietario y admin) recibe la vista completa; el dueño, sin `notas_internas` ni `fuera_de_disponibilidad`; si es ambas cosas, gana la del personal; cualquier otro (también el personal de otros negocios), 403. El negocio se deduce de la cita, nunca de un parámetro.
+- Toda cita trae `negocio { id_negocio, nombre, logo_url }` y `sucursal { id_sucursal, nombre, direccion, telefono, latitud, longitud }` (para "Cómo llegar" en la app).
 
 **Historial y vacunas (1.6)**
 - La cita previa que da a un negocio acceso al historial es cualquier cita excepto cancelada o reprogramada.

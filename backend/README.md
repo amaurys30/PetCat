@@ -286,7 +286,7 @@ Detalle de cada uno en Swagger.
 | Servicios | `GET /categorias-servicio` (público), `GET` (paginado) y `POST /negocios/:id_negocio/servicios`, `GET /servicios/:id_servicio` (público), `PATCH` y `DELETE /servicios/:id_servicio`, `PATCH /servicios/:id_servicio/reactivar` |
 | Búsqueda (app) | `GET /negocios` y `GET /servicios` (públicos, paginados) |
 | Disponibilidad | `GET` y `POST /empleados/:id_empleado/disponibilidad`, `PUT /empleados/:id_empleado/horario-semanal`, `GET /empleados/:id_empleado/disponibilidad-efectiva`, `PATCH` y `DELETE /disponibilidad/:id_disponibilidad` |
-| Citas | `GET /citas/horarios-libres` (público), `POST /citas` (app), `GET /negocios/:id_negocio/citas/horarios-libres` y `POST /negocios/:id_negocio/citas` (panel) |
+| Citas | `GET /citas/horarios-libres` (público), `POST /citas` y `GET /citas/mias` (app), `GET /citas/:id_cita` (dueño o negocio), `GET /negocios/:id_negocio/citas/horarios-libres`, `GET` (agenda) y `POST /negocios/:id_negocio/citas` (panel) |
 | Clientes (panel) | `GET /negocios/:id_negocio/clientes/buscar`, `POST /negocios/:id_negocio/clientes`, `POST /negocios/:id_negocio/clientes/:id_usuario/mascotas` |
 
 ### Disponibilidad de empleados
@@ -302,6 +302,9 @@ Detalle de cada uno en Swagger.
 - **Panel:** mismos pasos con `/negocios/:id_negocio/citas/horarios-libres` y `POST /negocios/:id_negocio/citas` (lleva `id_usuario` del cliente y `origen`); permite servicios ocultos en la app y horarios desde ahora. La cita queda `confirmada`.
 - Sin `id_empleado`, cada horario lista quién puede atenderlo y la reserva se asigna al que tenga menos citas ese día.
 - Un 409 al reservar ("El horario ya no está disponible") significa que otra persona lo tomó: volver a pedir los horarios libres.
+- **Mis citas (app):** `GET /citas/mias?alcance=proximas|pasadas|todas`. Cada cita trae `negocio { id_negocio, nombre, logo_url }` y `sucursal { nombre, direccion, telefono, latitud, longitud }` para mostrar dónde es y ofrecer "Cómo llegar". El dueño nunca recibe `notas_internas`.
+- **Agenda (panel):** `GET /negocios/:id_negocio/citas?desde&hasta` (por defecto hoy; máximo 31 días; sin paginar). `solo_mias=true` muestra solo las citas de quien consulta como empleado. Las citas con `fuera_de_disponibilidad: true` hay que reprogramarlas o reasignarlas (`fuera_de_disponibilidad=true` las lista).
+- **Detalle:** `GET /citas/:id_cita` sirve para la app (dueño) y el panel (con notas internas).
 
 ### Clientes sin app (panel)
 
