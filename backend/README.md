@@ -251,7 +251,7 @@ Todas las respuestas son JSON con esta forma:
 5. Tras 5 contraseñas erróneas seguidas la cuenta se bloquea 15 minutos (403). Restablecer la contraseña la desbloquea.
 6. `GET /auth/me` devuelve el perfil, las preferencias y los negocios a los que puede entrar; `PATCH /auth/me` edita nombre, apellido, teléfono, idioma, zona horaria y notificaciones.
 
-Registro: `POST /auth/register` con `nombre`, `apellido`, `email`, `password` (8 a 72 caracteres, con letra y número), y opcionales `telefono` y `tipo_usuario` (`cliente` o `negocio`). No inicia sesión. Envía un correo de verificación; el email sin verificar no impide iniciar sesión ni reservar.
+Registro: `POST /auth/register` con `nombre`, `apellido`, `email`, `password` (8 a 72 caracteres, con letra y número), `acepta_politica_datos: true` (obligatorio: autorización de tratamiento de datos, Ley 1581 de 2012; la app debe mostrar la política y un check sin marcar) y opcionales `telefono` y `tipo_usuario` (`cliente` o `negocio`). No inicia sesión. Si el email ya existe (también cuando un negocio registró a esa persona desde el panel), el 409 sugiere usar "Olvidé mi contraseña". Envía un correo de verificación; el email sin verificar no impide iniciar sesión ni reservar.
 
 Pantallas del frontend que abren los enlaces de los correos (el token va en la ruta):
 
@@ -259,6 +259,7 @@ Pantallas del frontend que abren los enlaces de los correos (el token va en la r
 |---|---|
 | `${FRONTEND_URL}/verificar-email/<token>` | Llama a `GET /auth/verify-email/:token` y muestra el resultado (400 = enlace vencido o ya usado). Reenviar el correo: `POST /auth/resend-verification` con la sesión iniciada. |
 | `${FRONTEND_URL}/restablecer-password/<token>` | Pide la contraseña nueva y envía `POST /auth/reset-password` con `{ "token", "password" }`. Luego, login. El enlace se pide con `POST /auth/forgot-password` (vigente 1 hora). |
+| `${FRONTEND_URL}/crear-password/<token>` | Igual que la anterior, con otro texto ("Crea tu contraseña"): llega en el correo de bienvenida a un cliente que registró un negocio (vigente 7 días). Usa el mismo `POST /auth/reset-password`. |
 
 ### Acceso al panel de un negocio
 
@@ -284,6 +285,8 @@ Detalle de cada uno en Swagger.
 | Servicios | `GET /categorias-servicio` (público), `GET` (paginado) y `POST /negocios/:id_negocio/servicios`, `GET /servicios/:id_servicio` (público), `PATCH` y `DELETE /servicios/:id_servicio`, `PATCH /servicios/:id_servicio/reactivar` |
 | Búsqueda (app) | `GET /negocios` y `GET /servicios` (públicos, paginados) |
 | Disponibilidad | `GET` y `POST /empleados/:id_empleado/disponibilidad`, `PUT /empleados/:id_empleado/horario-semanal`, `GET /empleados/:id_empleado/disponibilidad-efectiva`, `PATCH` y `DELETE /disponibilidad/:id_disponibilidad` |
+| Citas | `GET /citas/horarios-libres` (público), `POST /citas` (app), `GET /negocios/:id_negocio/citas/horarios-libres` y `POST /negocios/:id_negocio/citas` (panel) |
+| Clientes (panel) | `GET /negocios/:id_negocio/clientes/buscar`, `POST /negocios/:id_negocio/clientes`, `POST /negocios/:id_negocio/clientes/:id_usuario/mascotas` |
 
 ### Disponibilidad de empleados
 
@@ -291,6 +294,20 @@ Detalle de cada uno en Swagger.
 - **Excepciones** (`POST .../disponibilidad`): `bloqueo` (con o sin horas, uno o varios días), `vacacion` (días completos) y `evento_especial` (un día, en una sucursal, que **suma** horas, incluso fuera del horario de la sucursal). Para que un día quede solo con el evento, se combina con un bloqueo **con horas** sobre el horario normal: un bloqueo de día completo también quita el evento.
 - `GET .../disponibilidad-efectiva?fecha=` devuelve los rangos resultantes por sucursal; sirve para pintar el calendario del empleado.
 - Toda escritura responde `data.citas_afectadas`: citas futuras pendientes o confirmadas que ya no caben en la disponibilidad del empleado. El cambio se guarda igual; el panel debe mostrarlas para reprogramarlas o reasignarlas.
+
+### Reservar citas
+
+- **App:** `GET /citas/horarios-libres?id_servicio&id_sucursal&fecha[&id_empleado]` (público) y luego `POST /citas` con el `hora_inicio` elegido. Los horarios son de 15 en 15 minutos y con al menos 1 hora de anticipación, hasta 60 días adelante. Si no hay, la lista viene vacía con `motivo_sin_horarios` para mostrarlo. La cita queda `pendiente` hasta que el negocio la confirme.
+- **Panel:** mismos pasos con `/negocios/:id_negocio/citas/horarios-libres` y `POST /negocios/:id_negocio/citas` (lleva `id_usuario` del cliente y `origen`); permite servicios ocultos en la app y horarios desde ahora. La cita queda `confirmada`.
+- Sin `id_empleado`, cada horario lista quién puede atenderlo y la reserva se asigna al que tenga menos citas ese día.
+- Un 409 al reservar ("El horario ya no está disponible") significa que otra persona lo tomó: volver a pedir los horarios libres.
+
+### Clientes sin app (panel)
+
+1. Buscar por email o teléfono exactos: `GET /negocios/:id_negocio/clientes/buscar?email=` o `?telefono=` (hasta 5 resultados con sus mascotas). Tiene el límite estricto de solicitudes.
+2. Si no existe, registrarlo: `POST /negocios/:id_negocio/clientes` con sus datos, su primera mascota y `autoriza_tratamiento_datos: true`. El panel debe pedir y registrar esa autorización al cliente (Ley 1581 de 2012). El cliente recibe un correo con el nombre del negocio y un enlace de 7 días para crear su contraseña.
+3. Si ya es cliente del negocio (tiene una cita con él o el negocio lo registró) y trae otra mascota: `POST /negocios/:id_negocio/clientes/:id_usuario/mascotas`.
+4. Agendar con `POST /negocios/:id_negocio/citas`.
 
 ### Servicios y búsqueda
 

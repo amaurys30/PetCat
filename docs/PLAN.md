@@ -110,11 +110,17 @@ Se hace en sub-bloques que se aprueban por separado: **1.1** auth completo · **
 - [x] `citas_afectadas` en las escrituras: citas futuras pendientes o confirmadas del empleado que no caben en su disponibilidad.
 
 ### 1.5 Citas
-- [ ] Claves nuevas en `configuracion_global`: intervalo de la agenda, antelación mínima, horizonte máximo y antelación para cancelar o reprogramar desde la app.
-- [ ] `GET /citas/horarios-libres?id_servicio&id_sucursal&fecha[&id_empleado]`: cruza horario de sucursal, disponibilidad del empleado, bloqueos, citas existentes, duración y margen del servicio y `max_citas_dia` (reglas en Decisiones).
-- [ ] `POST /citas` (dueño desde la app; valida que la mascota sea suya y compatible con el servicio) y `POST /negocios/:id_negocio/citas` (panel; origen presencial o teléfono).
-- [ ] Panel: buscar un cliente por email o teléfono exactos (datos mínimos y mascotas activas) y registrar un cliente sin app con su mascota (email obligatorio).
-- [ ] Evitar dobles reservas: transacción que bloquea la fila del servicio (si tiene `max_citas_dia`) y la del empleado, siempre en ese orden; 409 si el horario ya se ocupó.
+
+En tres partes: **1.5.1** horarios libres, reservas y clientes del panel · **1.5.2** consultas y agenda · **1.5.3** cambios sobre las citas.
+
+- [x] Claves nuevas en `configuracion_global`: intervalo de la agenda, antelación mínima, horizonte máximo y antelación para cancelar o reprogramar desde la app.
+- [x] `GET /citas/horarios-libres?id_servicio&id_sucursal&fecha[&id_empleado]`: cruza horario de sucursal, disponibilidad del empleado, bloqueos, citas existentes, duración y margen del servicio y `max_citas_dia` (reglas en Decisiones).
+- [x] `POST /citas` (dueño desde la app; valida que la mascota sea suya y compatible con el servicio) y `POST /negocios/:id_negocio/citas` (panel; origen presencial o teléfono).
+- [x] Panel: buscar un cliente por email o teléfono exactos (datos mínimos y mascotas activas) y registrar un cliente sin app con su mascota (email obligatorio).
+- [x] Evitar dobles reservas: transacción que bloquea la fila del servicio (si tiene `max_citas_dia`) y la del empleado, siempre en ese orden; 409 si el horario ya se ocupó.
+- [x] Migración `007_citas_configuracion_y_autorizaciones.sql`: claves de la agenda en `configuracion_global` y tabla `autorizaciones_datos`.
+- [x] `POST /auth/register` exige `acepta_politica_datos: true` y guarda la autorización (canal app).
+- [x] Panel: registrar otra mascota de un cliente con relación con el negocio (`POST /negocios/:id_negocio/clientes/:id_usuario/mascotas`).
 - [ ] `GET /citas/mias` (dueño), `GET /negocios/:id_negocio/citas` (agenda con filtros de fechas, estado, empleado y sucursal), `GET /citas/:id_cita` (dueño o negocio).
 - [ ] Máquina de estados: pendiente → confirmada | cancelada; confirmada → en_curso | cancelada | no_asistio; en_curso → completada. `PATCH /citas/:id_cita/estado`, `POST /citas/:id_cita/cancelar` (con motivo), `POST /citas/:id_cita/reprogramar` (crea una cita nueva con `id_cita_origen` y marca la original como `reprogramada`).
 - [ ] `PATCH /citas/:id_cita` (panel): `notas_internas`, `prioridad`, `precio_final` y reasignar el empleado.
@@ -287,6 +293,21 @@ Se hace en sub-bloques que se aprueban por separado: **1.1** auth completo · **
 - `precio_estimado`: precio de oferta si está vigente; si no, `precio_base`.
 - Panel sin cliente previo: búsqueda por email o teléfono exactos (datos mínimos y mascotas activas) y registro de un cliente sin app: se crea el usuario con email obligatorio y contraseña aleatoria (la reclama con `forgot-password`) y su mascota.
 - `/citas/:id_cita`, el historial y las vacunas los usan el dueño y el negocio: hace falta un middleware "dueño o negocio autorizado" y resolvers de `id_historial` e `id_vacuna`.
+
+**Reservas y clientes del panel (1.5.1)**
+- Horarios libres en dos endpoints: `GET /citas/horarios-libres` (público, para la app) y `GET /negocios/:id_negocio/citas/horarios-libres` (`citas.crear`), que admite servicios ocultos del propio negocio y no aplica la antelación mínima (solo que el horario sea futuro). Lo mismo al reservar (`POST /citas` y `POST /negocios/:id_negocio/citas`).
+- Configuración (`configuracion_global`, migración 007): `intervalo_agenda_min` 15, `antelacion_minima_reserva_min` 60, `horizonte_reserva_dias` 60, `antelacion_cancelacion_app_h` 2 (para 1.5.3) y `politica_datos_url`.
+- El margen solo cuenta para los cruces entre citas (la nueva ocupa [t, t + duración + margen] y cada existente [inicio, fin + el margen de su servicio]); no tiene que caber en la disponibilidad. Ocupan agenda las citas pendientes, confirmadas y en curso, en cualquier sucursal.
+- Día sin horarios: 200 con lista vacía y `motivo_sin_horarios` (día no ofrecido, sin cupos, sin disponibilidad). Fecha pasada o después del horizonte: 422. Servicio que no requiere cita o sin profesionales asignados: 409.
+- Reserva: `hora_inicio` en la cuadrícula (422 si no). Mascota inexistente, eliminada o de otro dueño: 422 en `errors.id_mascota`; fallecida: 409; especie o peso fuera del servicio: 422 (sin peso registrado se permite). La mascota no puede tener otra cita que se cruce, en ningún negocio (409). Horario ya tomado o día sin cupos: 409.
+- Transacción de la reserva: primero **todos** los bloqueos por clave primaria (servicio si tiene `max_citas_dia`, empleados candidatos en orden de id, mascota) y después las lecturas. En REPEATABLE READ la primera lectura sin bloqueo fija la foto de la transacción: si se leía algo antes de esperar un bloqueo, la reserva no veía la cita que otra transacción confirmó mientras tanto y reservaba encima (lo reproduce un test).
+- Sin `id_empleado`, se asigna al empleado libre con menos citas ese día (todas menos canceladas y reprogramadas; a igualdad, el de menor id). `precio_estimado` = `precio_actual` del servicio.
+- App: estado `pendiente`, origen `app_movil`. Panel: `confirmada`, origen `panel_web`, `presencial`, `telefono` o `whatsapp`, y el servicio inserta el recordatorio igual que el trigger (2 horas antes). La creación queda en `historial_citas` (`estado`: null → inicial, con el usuario y, si actuó un empleado, su `id_empleado`).
+- Autorización de datos (Ley 1581 de 2012) en la tabla `autorizaciones_datos`, una fila por autorización: titular, canal (`app` o `panel`), negocio, quién la registró, versión de la política (`terminos_version`), fecha e IP; `revocada_en` queda para la revocación. `POST /auth/register` exige `acepta_politica_datos: true` (canal app); `POST /negocios/:id_negocio/clientes` exige `autoriza_tratamiento_datos: true` (canal panel). Aún no se guarda autorización al aceptar una invitación de empleado.
+- Registro de `POST /auth/register` con un email existente: el 409 sugiere usar "Olvidé mi contraseña" (la cuenta pudo crearla un negocio).
+- Cliente sin app: usuario `cliente` con contraseña aleatoria que nadie conoce, su primera mascota y la autorización, en una transacción. Correo de bienvenida con el nombre del negocio, los datos guardados y su finalidad, la política (si hay URL) y un enlace de 7 días a `${FRONTEND_URL}/crear-password/<token>`, que usa el token de recuperación y `POST /auth/reset-password` (verifica el email). Se envía sin esperar; si falla, el cliente usa "Olvidé mi contraseña".
+- Búsqueda de clientes (`citas.crear` o `clientes.ver`): email o teléfono exactos (solo dígitos), uno de los dos; hasta 5 usuarios activos con sus mascotas activas y vivas. Con el límite estricto de solicitudes para que no se puedan recorrer teléfonos.
+- Otra mascota desde el panel (`citas.crear`): solo si el cliente tiene relación con el negocio, es decir, alguna cita con él (en cualquier estado) o una autorización registrada por ese negocio; si no, 403. Cliente inexistente o inactivo: 404.
 
 **Historial y vacunas (1.6)**
 - La cita previa que da a un negocio acceso al historial es cualquier cita excepto cancelada o reprogramada.
