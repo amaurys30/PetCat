@@ -11,7 +11,7 @@ const registrar = async () => {
   const email = `verifica_${unique()}@petcat.test`;
   const res = await api()
     .post("/auth/register")
-    .send({ nombre: "Ana", apellido: "Ruiz", email, password: "Clave1234" });
+    .send({ nombre: "Ana", apellido: "Ruiz", email, password: "Clave1234", acepta_politica_datos: true });
   expect(res.status).toBe(201);
   return { ...res.body.data, token: tokenDelCorreo(outbox.at(-1)) };
 };

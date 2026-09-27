@@ -5,7 +5,7 @@ import { ok, created } from "../../shared/utils/response.js";
 import { clienteDe } from "../../shared/utils/cliente.js";
 
 export const register = async (req, res) => {
-  const usuario = await service.register(req.body);
+  const usuario = await service.register(req.body, clienteDe(req));
   return created(res, usuario, "Cuenta creada. Te enviamos un correo para confirmar tu email");
 };
 

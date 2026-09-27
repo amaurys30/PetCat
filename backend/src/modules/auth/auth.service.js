@@ -1,9 +1,11 @@
 import { randomBytes } from "node:crypto";
 import * as usuarioRepo from "../usuarios/usuario.repository.js";
 import * as sessionRepo from "../sessions/session.repository.js";
+import * as autorizacionRepo from "../autorizaciones/autorizacion.repository.js";
+import * as configuracionRepo from "../configuracion/configuracion.repository.js";
 import { createSessionForUser } from "../sessions/session.service.js";
 import { getMisNegocios } from "../negocios/negocio.service.js";
-import { correoRecuperacion, correoVerificacion } from "./auth.mail.js";
+import { correoBienvenida, correoRecuperacion, correoVerificacion } from "./auth.mail.js";
 import { hashPassword, comparePassword, hashToken } from "../../shared/utils/hash.js";
 import { usuarioPublico } from "../../shared/utils/sanitize.js";
 import { castFields } from "../../shared/utils/format.js";
@@ -41,16 +43,32 @@ const enviarSinEsperar = (mail, contexto) => {
   });
 };
 
-/** El registro deja un token de verificación y envía el correo; si el envío falla, se pide otro con resend-verification. */
-export const register = async ({ nombre, apellido, email, password, telefono, tipo_usuario }) => {
+/** Versión vigente de la política de datos que acepta el titular. */
+export const versionPolitica = () => configuracionRepo.getValor("terminos_version", "1.0");
+
+/**
+ * El registro exige aceptar la política de datos y la guarda (canal app), deja
+ * un token de verificación y envía el correo; si el envío falla, se pide otro
+ * con resend-verification. Email existente: 409 que sugiere "Olvidé mi
+ * contraseña" (la cuenta pudo crearla un negocio desde el panel).
+ */
+export const register = async ({ nombre, apellido, email, password, telefono, tipo_usuario }, cliente = {}) => {
   if (await usuarioRepo.findByEmail(email)) {
-    throw ApiError.conflict("Ya existe una cuenta con ese correo", { email: "Ya está registrado" });
+    throw ApiError.conflict(
+      "Ya existe una cuenta con ese correo. Si no recuerdas la contraseña o un negocio te registró, usa \"Olvidé mi contraseña\" para activarla",
+      { email: "Ya está registrado" }
+    );
   }
 
   const { token, token_hash } = nuevoToken();
+  const version_politica = await versionPolitica();
   const id_usuario = await withTransaction(async (conn) => {
     const id = await usuarioRepo.create(
       { nombre, apellido, email, password_hash: await hashPassword(password), telefono, tipo_usuario },
+      conn
+    );
+    await autorizacionRepo.create(
+      { id_usuario: id, canal: "app", id_usuario_registro: id, version_politica, ip_address: cliente.ip ?? null },
       conn
     );
     await usuarioRepo.setToken(id, "verificacion", { token_hash, minutos: MINUTOS_VERIFICACION }, conn);
@@ -208,6 +226,33 @@ export const resetPassword = async ({ token, password }) => {
     await usuarioRepo.markEmailVerificado(usuario.id_usuario, conn);
     await sessionRepo.deactivateByUsuario(usuario.id_usuario, {}, conn);
   });
+};
+
+// ---------- Clientes registrados por un negocio ----------
+
+/** Vigencia del enlace de bienvenida para crear la contraseña: 7 días. */
+export const MINUTOS_BIENVENIDA = 7 * 24 * 60;
+
+/**
+ * Deja el token para que un cliente registrado por un negocio cree su contraseña
+ * (mismo flujo que restablecer, con vigencia de 7 días). Devuelve el token real.
+ */
+export const emitirEnlaceBienvenida = async (id_usuario, conn) => {
+  const { token, token_hash } = nuevoToken();
+  await usuarioRepo.setToken(id_usuario, "recuperacion", { token_hash, minutos: MINUTOS_BIENVENIDA }, conn);
+  return token;
+};
+
+/** Correo de bienvenida con el nombre del negocio; se envía sin esperar. */
+export const enviarBienvenida = async ({ token, email, nombre, negocio }) => {
+  const [politicaUrl, soporte] = await Promise.all([
+    configuracionRepo.getValor("politica_datos_url", ""),
+    configuracionRepo.getValor("contacto_soporte", "soporte@petcat.com.co"),
+  ]);
+  enviarSinEsperar(
+    correoBienvenida({ token, email, nombre, negocio, minutos: MINUTOS_BIENVENIDA, politicaUrl, soporte }),
+    "bienvenida"
+  );
 };
 
 // ---------- Verificación de email ----------

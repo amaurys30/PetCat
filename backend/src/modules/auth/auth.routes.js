@@ -63,8 +63,14 @@ const router = express.Router();
  *           schema:
  *             type: object
  *             additionalProperties: false
- *             required: [nombre, apellido, email, password]
+ *             required: [nombre, apellido, email, password, acepta_politica_datos]
  *             properties:
+ *               acepta_politica_datos:
+ *                 type: boolean
+ *                 enum: [true]
+ *                 description: >
+ *                   Autorización del titular para el tratamiento de sus datos (Ley 1581 de 2012). Debe ser
+ *                   `true`; se guarda con la fecha, la IP y la versión vigente de la política.
  *               nombre: { type: string, minLength: 2, maxLength: 80, example: Sofía }
  *               apellido: { type: string, minLength: 2, maxLength: 80, example: Gómez }
  *               email: { type: string, format: email, maxLength: 150, example: sofia@correo.com }
@@ -88,11 +94,16 @@ const router = express.Router();
  *                 message: { type: string, example: Cuenta creada. Te enviamos un correo para confirmar tu email }
  *                 data: { $ref: '#/components/schemas/Usuario' }
  *       409:
- *         description: Ya existe una cuenta con ese correo
+ *         description: >
+ *           Ya existe una cuenta con ese correo (también si un negocio la creó desde el panel): el mensaje
+ *           sugiere usar "Olvidé mi contraseña" para activarla.
  *         content:
  *           application/json:
  *             schema: { $ref: '#/components/schemas/ErrorResponse' }
- *             example: { success: false, message: Ya existe una cuenta con ese correo, errors: { email: Ya está registrado } }
+ *             example:
+ *               success: false
+ *               message: Ya existe una cuenta con ese correo. Si no recuerdas la contraseña o un negocio te registró, usa "Olvidé mi contraseña" para activarla
+ *               errors: { email: Ya está registrado }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
 router.post("/register", validate({ body: registerBody }), controller.register);

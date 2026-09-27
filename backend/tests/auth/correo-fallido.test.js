@@ -15,7 +15,7 @@ describe("auth con el correo caído", () => {
   it("el registro crea la cuenta igual (el correo se reenvía después)", async () => {
     const res = await api()
       .post("/auth/register")
-      .send({ nombre: "Ana", apellido: "Ruiz", email: `caido_${unique()}@petcat.test`, password: "Clave1234" });
+      .send({ nombre: "Ana", apellido: "Ruiz", email: `caido_${unique()}@petcat.test`, password: "Clave1234", acepta_politica_datos: true });
     expect(res.status).toBe(201);
   });
 

@@ -18,6 +18,7 @@ const datosRegistro = (overrides = {}) => ({
   apellido: "Ruiz",
   email: `registro_${unique()}@petcat.test`,
   password: "Clave1234",
+  acepta_politica_datos: true,
   ...overrides,
 });
 
@@ -73,7 +74,14 @@ describe("POST /auth/register", () => {
       .post("/auth/register")
       .send({ nombre: "A", email: "no-es-email", password: "corta", telefono: "abc" });
     expect(res.status).toBe(422);
-    expect(Object.keys(res.body.errors).sort()).toEqual(["apellido", "email", "nombre", "password", "telefono"]);
+    expect(Object.keys(res.body.errors).sort()).toEqual([
+      "acepta_politica_datos",
+      "apellido",
+      "email",
+      "nombre",
+      "password",
+      "telefono",
+    ]);
     expect(res.body.errors.apellido).toBe("Campo obligatorio");
     expect(res.body.errors.email).toBe("Correo electrónico inválido");
   });
@@ -93,7 +101,41 @@ describe("POST /auth/register", () => {
       .post("/auth/register")
       .send(datosRegistro({ email: existente.email.toUpperCase() }));
     expect(res.status).toBe(409);
-    expect(res.body).toMatchObject({ success: false, errors: { email: "Ya está registrado" } });
+    expect(res.body).toEqual({
+      success: false,
+      message:
+        "Ya existe una cuenta con ese correo. Si no recuerdas la contraseña o un negocio te registró, usa \"Olvidé mi contraseña\" para activarla",
+      errors: { email: "Ya está registrado" },
+    });
+  });
+
+  it("exige aceptar la política de datos (true) y guarda la autorización con canal app, fecha e IP", async () => {
+    for (const acepta_politica_datos of [undefined, false, "true"]) {
+      const res = await api().post("/auth/register").send(datosRegistro({ acepta_politica_datos }));
+      expect(res.status).toBe(422);
+      expect(res.body.errors).toEqual({
+        acepta_politica_datos: "Debes aceptar la política de tratamiento de datos (Ley 1581 de 2012)",
+      });
+    }
+
+    const res = await api().post("/auth/register").send(datosRegistro());
+    expect(res.status).toBe(201);
+    const [autorizaciones] = await pool.query(
+      `SELECT canal, id_negocio, id_usuario_registro, version_politica, ip_address,
+              fecha_autorizacion IS NOT NULL AS con_fecha
+       FROM autorizaciones_datos WHERE id_usuario = ?`,
+      [res.body.data.id_usuario]
+    );
+    expect(autorizaciones).toEqual([
+      {
+        canal: "app",
+        id_negocio: null,
+        id_usuario_registro: res.body.data.id_usuario,
+        version_politica: "1.0",
+        ip_address: expect.any(String),
+        con_fecha: 1,
+      },
+    ]);
   });
 });
 

@@ -47,6 +47,9 @@ export const email = z.string().trim().toLowerCase().pipe(z.email().max(150));
 /** URL http o https (sin javascript:, data:, etc.). */
 export const urlHttp = (max = 500) => z.url({ protocol: /^https?$/ }).max(max);
 
+/** Autorización de tratamiento de datos (Ley 1581 de 2012): obligatoria y exactamente `true`. */
+export const autorizacionDatos = (mensaje) => z.literal(true, { error: mensaje });
+
 /** Texto con espacios recortados, no vacío. */
 export const texto = (max) => z.string().trim().min(1).max(max);
 

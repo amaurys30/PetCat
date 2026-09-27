@@ -1,6 +1,6 @@
 import { z } from "zod";
 // El email se normaliza antes de validar: se guarda y se busca en minúsculas.
-import { conAlMenosUnCampo, email, telefono } from "../../shared/utils/schemas.js";
+import { autorizacionDatos, conAlMenosUnCampo, email, telefono } from "../../shared/utils/schemas.js";
 
 const nombre = z.string().trim().min(2).max(80);
 
@@ -22,6 +22,7 @@ export const registerBody = z.strictObject({
   tipo_usuario: z
     .enum(["cliente", "negocio"], { error: "Debe ser 'cliente' o 'negocio'" })
     .default("cliente"),
+  acepta_politica_datos: autorizacionDatos("Debes aceptar la política de tratamiento de datos (Ley 1581 de 2012)"),
 });
 
 export const loginBody = z.strictObject({
