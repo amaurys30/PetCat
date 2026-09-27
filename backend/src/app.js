@@ -23,6 +23,7 @@ import disponibilidadRoutes from "./modules/disponibilidad/disponibilidad.routes
 import citaRoutes from "./modules/citas/cita.routes.js";
 import historialRoutes from "./modules/historial/historial.routes.js";
 import vacunaRoutes from "./modules/vacunas/vacuna.routes.js";
+import saludRoutes from "./modules/salud/salud.routes.js";
 import clienteRoutes from "./modules/clientes/cliente.routes.js";
 
 import { generalLimiter, strictLimiter } from "./shared/middlewares/rateLimit.js";
@@ -91,6 +92,7 @@ v1.use(disponibilidadRoutes);
 v1.use(citaRoutes);
 v1.use(historialRoutes);
 v1.use(vacunaRoutes);
+v1.use(saludRoutes);
 v1.use(clienteRoutes);
 
 app.use("/api/v1", v1);
