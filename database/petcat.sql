@@ -401,6 +401,9 @@ CREATE TABLE mascotas (
     tiene_alergias   BOOLEAN         NOT NULL DEFAULT FALSE,
     alergias_detalle TEXT            NULL,
     condiciones_medicas TEXT         NULL,
+    -- Migración 010: FALSE = cada negocio ve solo el historial clínico que creó.
+    compartir_historial BOOLEAN      NOT NULL DEFAULT TRUE
+                     COMMENT 'FALSE: cada negocio ve solo el historial clínico que creó',
     tipo_sangre      VARCHAR(10)     NULL,
     -- Media
     foto_url         VARCHAR(500)    NULL,
@@ -460,6 +463,10 @@ CREATE TABLE historial_medico (
     CONSTRAINT fk_historial_empleado
         FOREIGN KEY (id_empleado) REFERENCES empleados (id_empleado)
         ON DELETE SET NULL ON UPDATE CASCADE,
+    -- Migración 010.
+    CONSTRAINT fk_historial_cita
+        FOREIGN KEY (id_cita) REFERENCES citas (id_cita)
+        ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT fk_historial_negocio
         FOREIGN KEY (id_negocio) REFERENCES negocios (id_negocio)
         ON DELETE SET NULL ON UPDATE CASCADE
@@ -473,6 +480,9 @@ CREATE TABLE vacunas (
     id_historial_medico BIGINT UNSIGNED NULL,
     id_empleado      INT UNSIGNED    NULL,
     id_negocio       INT UNSIGNED    NULL,
+    -- Migración 010: las vacunas del dueño se distinguen de las de un profesional.
+    registrada_por   ENUM('dueno','negocio') NOT NULL DEFAULT 'negocio',
+    id_usuario_registro INT UNSIGNED NULL,
     nombre_vacuna    VARCHAR(150)    NOT NULL,
     enfermedad_objetivo VARCHAR(150) NULL,
     laboratorio      VARCHAR(100)    NULL,
@@ -502,6 +512,10 @@ CREATE TABLE vacunas (
         ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT fk_vacunas_negocio
         FOREIGN KEY (id_negocio) REFERENCES negocios (id_negocio)
+        ON DELETE SET NULL ON UPDATE CASCADE,
+    -- Migración 010.
+    CONSTRAINT fk_vacunas_usuario_registro
+        FOREIGN KEY (id_usuario_registro) REFERENCES usuarios (id_usuario)
         ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Registro de vacunas con trazabilidad de lote y laboratorio';
@@ -1443,7 +1457,9 @@ INSERT INTO configuracion_global (clave, valor, tipo, descripcion) VALUES
 ('antelacion_minima_reserva_min', '60', 'integer', 'Minutos mínimos de anticipación para reservar desde la app'),
 ('horizonte_reserva_dias',        '60', 'integer', 'Días hacia adelante en que se puede reservar'),
 ('antelacion_cancelacion_app_h',  '2',  'integer', 'Horas antes de la cita hasta las que el dueño cancela o reprograma desde la app'),
-('politica_datos_url',            '',   'string',  'URL de la política de tratamiento de datos (correo de bienvenida)');
+('politica_datos_url',            '',   'string',  'URL de la política de tratamiento de datos (correo de bienvenida)'),
+-- Migración 010.
+('dias_aviso_vacuna',             '30', 'integer', 'Días antes de fecha_proxima en que una vacuna cuenta como próxima');
 
 
 -- ═══════════════════════════════════════════════════════════════════════════
@@ -1597,7 +1613,8 @@ INSERT INTO schema_migrations (nombre) VALUES
 ('006_servicios_empleados_y_margen.sql'),
 ('007_citas_configuracion_y_autorizaciones.sql'),
 ('008_autorizaciones_canales.sql'),
-('009_citas_cancelacion_e_inasistencias.sql');
+('009_citas_cancelacion_e_inasistencias.sql'),
+('010_historial_vacunas_y_privacidad.sql');
 
 
 SET FOREIGN_KEY_CHECKS = 1;

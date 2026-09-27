@@ -130,10 +130,10 @@ En tres partes: **1.5.1** horarios libres, reservas y clientes del panel · **1.
 - [x] `citas_afectadas` al cambiar el horario de una sucursal (`PUT /sucursales/:id_sucursal/horarios`) y al desactivar un empleado (`DELETE /empleados/:id_empleado`).
 
 ### 1.6 Historial médico, vacunas y resumen de salud
-- [ ] `GET /mascotas/:id_mascota/historial` (dueño o negocio con cita previa).
-- [ ] `POST /negocios/:id_negocio/historial` (veterinario, opcionalmente ligado a `id_cita`), `PATCH /historial/:id_historial`.
-- [ ] `GET /mascotas/:id_mascota/vacunas`; `POST /mascotas/:id_mascota/vacunas` (dueño registra una vacuna externa con comprobante) y `POST /negocios/:id_negocio/vacunas` (veterinario); `PATCH /vacunas/:id_vacuna`. Calcular `estado` según `fecha_proxima`.
-- [ ] `GET /mascotas/:id_mascota/resumen-salud` (vacunas próximas o vencidas, último control, próximo control). Se movió desde 1.2 porque depende de vacunas e historial.
+- [ ] Migración `010_historial_vacunas_y_privacidad.sql`: `mascotas.compartir_historial`, `vacunas.registrada_por` e `id_usuario_registro`, llave foránea de `historial_medico.id_cita` y `dias_aviso_vacuna` en `configuracion_global`.
+- [ ] Dueño: `GET /mascotas/:id_mascota/historial`, `GET|POST /mascotas/:id_mascota/vacunas` (vacuna externa, marcada como del dueño, con comprobante opcional), `GET /mascotas/:id_mascota/resumen-salud` y `compartir_historial` en `PATCH /mascotas/:id_mascota`.
+- [ ] Panel (negocio con cita válida): `GET /negocios/:id_negocio/mascotas/:id_mascota/historial`, `/vacunas` y `/resumen-salud`; `POST /negocios/:id_negocio/historial` (opcionalmente ligado a `id_cita`), `PATCH /historial/:id_historial`, `POST /negocios/:id_negocio/vacunas`.
+- [ ] `PATCH /vacunas/:id_vacuna` (la del dueño la edita el dueño; la de un negocio, ese negocio). Estado según `fecha_proxima`, con las dosis anteriores de la misma vacuna en `no_aplica`.
 
 ### 1.7 Clientes (panel)
 - [ ] `GET /negocios/:id_negocio/clientes` y `GET /negocios/:id_negocio/clientes/:id_usuario` (datos de contacto, mascotas y citas con ese negocio).
@@ -338,6 +338,13 @@ En tres partes: **1.5.1** horarios libres, reservas y clientes del panel · **1.
 - `notas_internas` nunca se muestran al dueño ni a un negocio distinto del que las escribió.
 - El historial médico lo edita solo el negocio que lo creó, sin límite de tiempo en el MVP.
 - Al registrar una dosis nueva de la misma vacuna (mismo nombre sin distinguir mayúsculas), las anteriores cuentan como `no_aplica`, para que no aparezcan vencidas para siempre. El estado se calcula al leer y se guarda al escribir.
+- Rutas: el dueño usa `/mascotas/:id_mascota/...`; el panel, `/negocios/:id_negocio/mascotas/:id_mascota/...`, porque la mascota no es de un negocio y un usuario puede ser personal de varios (el negocio no se toma de la query). Una mascota eliminada da 404 también al negocio.
+- `compartir_historial` (migración 010, por defecto TRUE): con FALSE, cada negocio ve solo el **historial clínico** que creó (consultas, diagnósticos, tratamientos y archivos). Las **vacunas** son siempre visibles para un negocio con cita válida (evita revacunaciones innecesarias), y el estado de las vacunas se calcula sobre **todas**. Las alergias y condiciones médicas de la mascota también son siempre visibles. El dueño ve todo lo suyo, siempre sin `notas_internas`.
+- Vacunas: `registrada_por` (`dueno` o `negocio`) e `id_usuario_registro` (migración 010); cada vacuna trae `tiene_comprobante` (calculado de `comprobante_url`) para que el veterinario distinga las que registró el dueño. La del dueño solo la edita el dueño; la de un negocio, solo ese negocio (`vacunas.editar`).
+- Estado de una vacuna: se agrupan las dosis por nombre sin distinguir mayúsculas, tildes ni espacios; solo la más reciente (`fecha_aplicacion`) está vigente y las anteriores son `no_aplica`. La vigente es `vencido` si `fecha_proxima` < hoy, `proximo` si cae dentro de `dias_aviso_vacuna` (30) y `al_dia` en otro caso, también sin `fecha_proxima` (dosis única).
+- `archivos` del historial y `comprobante_url` de las vacunas aceptan **solo URLs https** desde ya; la subida con Cloudinary (Fase 2) llenará esos mismos campos.
+- Al crear un registro con `peso_registro` que sea el más reciente de la mascota, se actualiza `mascotas.peso`.
+- Resumen de salud (sobre lo visible para quien consulta): `vacunas_vencidas` (vigentes con `fecha_proxima` < hoy, con `dias_vencida`), `vacunas_proximas` (hoy ≤ `fecha_proxima` ≤ hoy + 30, con `dias_restantes`), `ultimo_control` (el registro de historial más reciente con fecha ≤ hoy o, si no hay, la última cita completada), `proximo_control` (el `proximo_control` más cercano ≥ hoy), `proxima_cita` (la pendiente o confirmada más cercana que no terminó: de cualquier negocio para el dueño, solo las suyas para un negocio) y `evolucion_peso` (puntos del historial de los últimos 24 meses, máximo 24, más el peso actual; `variacion_kg`, `variacion_pct` y `tendencia` sube/baja/estable con umbral de 5 %). Una mascota fallecida no trae alertas de vacunas ni próxima cita.
 
 **Pendientes**
 - Fase 2: cancelación automática de citas pendientes sin confirmar y opción por negocio para confirmar automáticamente.
