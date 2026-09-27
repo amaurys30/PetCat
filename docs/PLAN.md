@@ -122,10 +122,12 @@ En tres partes: **1.5.1** horarios libres, reservas y clientes del panel · **1.
 - [x] `POST /auth/register` exige `acepta_politica_datos: true` y guarda la autorización (canal app).
 - [x] Panel: registrar otra mascota de un cliente con relación con el negocio (`POST /negocios/:id_negocio/clientes/:id_usuario/mascotas`).
 - [x] `GET /citas/mias` (dueño), `GET /negocios/:id_negocio/citas` (agenda con filtros de fechas, estado, empleado y sucursal), `GET /citas/:id_cita` (dueño o negocio).
-- [ ] Máquina de estados: pendiente → confirmada | cancelada; confirmada → en_curso | cancelada | no_asistio; en_curso → completada. `PATCH /citas/:id_cita/estado`, `POST /citas/:id_cita/cancelar` (con motivo), `POST /citas/:id_cita/reprogramar` (crea una cita nueva con `id_cita_origen` y marca la original como `reprogramada`).
-- [ ] `PATCH /citas/:id_cita` (panel): `notas_internas`, `prioridad`, `precio_final` y reasignar el empleado.
-- [ ] Registrar cada cambio en `historial_citas`; `GET /citas/:id_cita/historial`.
-- [ ] Al completar una cita, incrementar `negocios.total_citas`.
+- [x] Máquina de estados: pendiente → confirmada | cancelada; confirmada → en_curso | cancelada | no_asistio; en_curso → completada. `PATCH /citas/:id_cita/estado`, `POST /citas/:id_cita/cancelar` (con motivo), `POST /citas/:id_cita/reprogramar` (crea una cita nueva con `id_cita_origen` y marca la original como `reprogramada`).
+- [x] `PATCH /citas/:id_cita` (panel): `notas_internas`, `prioridad`, `precio_final` y reasignar el empleado.
+- [x] Registrar cada cambio en `historial_citas`; `GET /citas/:id_cita/historial`.
+- [x] Al completar una cita, incrementar `negocios.total_citas`.
+- [x] Migración `009_citas_cancelacion_e_inasistencias.sql`: `cancelada_por`, `fecha_cancelacion`, `cancelacion_tardia` e índice para contar inasistencias por cliente y negocio.
+- [x] `citas_afectadas` al cambiar el horario de una sucursal (`PUT /sucursales/:id_sucursal/horarios`) y al desactivar un empleado (`DELETE /empleados/:id_empleado`).
 
 ### 1.6 Historial médico, vacunas y resumen de salud
 - [ ] `GET /mascotas/:id_mascota/historial` (dueño o negocio con cita previa).
@@ -319,6 +321,17 @@ En tres partes: **1.5.1** horarios libres, reservas y clientes del panel · **1.
 - `fuera_de_disponibilidad` solo aplica a citas futuras pendientes o confirmadas con empleado (las de hoy desde la hora actual, como `citas_afectadas`); en las demás es false. Se calcula con `citaCabe` cargando en lote la disponibilidad de los empleados del rango.
 - `GET /citas/:id_cita` con `authorizeDuenoO`: el personal del negocio de la cita con `citas.ver` (y propietario y admin) recibe la vista completa; el dueño, sin `notas_internas` ni `fuera_de_disponibilidad`; si es ambas cosas, gana la del personal; cualquier otro (también el personal de otros negocios), 403. El negocio se deduce de la cita, nunca de un parámetro.
 - Toda cita trae `negocio { id_negocio, nombre, logo_url }` y `sucursal { id_sucursal, nombre, direccion, telefono, latitud, longitud }` (para "Cómo llegar" en la app).
+
+**Cambios sobre citas (1.5.3)**
+- Máquina de estados del panel (`PATCH /citas/:id_cita/estado`, `citas.editar`): pendiente → confirmada (el trigger programa el recordatorio); confirmada → en_curso (desde la fecha de la cita) o no_asistio (desde la **hora de inicio**); en_curso → completada (con `precio_final`, por defecto el estimado, y suma `negocios.total_citas` en la misma transacción); no_asistio → en_curso **solo el mismo día** (el cliente llegó tarde). completada, cancelada y reprogramada son finales. Cancelar y reprogramar tienen endpoints propios. Cualquier otro paso: 409 con las transiciones posibles.
+- Cancelación (`POST /citas/:id_cita/cancelar`, dueño o `citas.cancelar`): solo pendientes o confirmadas. El dueño cancela siempre que la cita no haya empezado (409 después); a menos de `antelacion_cancelacion_app_h` horas queda `cancelacion_tardia`. El negocio exige motivo y puede cancelar también citas pasadas; nunca es tardía. Se guardan `cancelada_por`, `fecha_cancelacion` y `motivo_cancelacion` (migración 009) y se cancelan los recordatorios pendientes. `cancelacion_tardia` es columna, no se deduce del historial: se lee directo en el panel y se cuenta como las inasistencias.
+- Reprogramación (`POST /citas/:id_cita/reprogramar`, dueño o `citas.editar`): solo pendientes o confirmadas; el dueño, hasta 2 horas antes de la cita original y con las reglas de la app (la nueva queda `pendiente`); el negocio, en cualquier momento y con las del panel (la nueva queda `confirmada`, con recordatorio). Usa `crearCita` con el mismo cálculo y los mismos bloqueos, en una transacción que primero bloquea y marca la original como `reprogramada` (así libera su horario y su cupo): si el horario nuevo no está libre, se deshace todo. Conserva servicio, mascota, precio estimado, origen, notas y prioridad; por defecto la misma sucursal. Una mascota fallecida no se reprograma (409). Historial en las dos citas.
+- Edición del panel (`PATCH /citas/:id_cita`): `precio_final` solo en curso o completada; reasignar `id_empleado` solo pendiente o confirmada, bloqueando al empleado y comprobando su disponibilidad y cruces con `evaluarDia` (el mismo cálculo de la reserva). Solo los campos que cambian van al historial.
+- Historial (`GET /citas/:id_cita/historial`): el panel ve todo con usuario y empleado; el dueño solo estado y empleado, con motivo y `realizado_por` (`dueno` o `negocio`), sin nombres del personal. Los cambios de empleado muestran nombres.
+- Orden de bloqueo en toda la agenda: cita → servicio (si tiene `max_citas_dia`) → empleados (por id) → mascota, siempre por clave primaria y antes de cualquier lectura. La reserva descarta a los empleados que se desactivaron mientras esperaba el bloqueo (lo reproduce un test); la desactivación bloquea la fila del empleado.
+- Inasistencias para la Fase 2: sin contador guardado; índice (id_negocio, id_usuario, estado) y `citaRepo.resumenCumplimiento(id_usuario, id_negocio)`, que cuenta **solo** las citas de ese negocio (completadas, inasistencias, cancelaciones tardías). El detalle de la cita en el panel lo trae como `cliente.historial_cumplimiento`; el dueño no lo ve.
+- `PUT /sucursales/:id_sucursal/horarios` responde `{ horarios, citas_afectadas }` y `DELETE /empleados/:id_empleado` responde `{ empleado, citas_afectadas }` (todas las citas futuras activas del empleado).
+- Notificaciones a la otra parte (el negocio cancela o reprograma, el dueño cancela): Fase 2.
 
 **Historial y vacunas (1.6)**
 - La cita previa que da a un negocio acceso al historial es cualquier cita excepto cancelada o reprogramada.

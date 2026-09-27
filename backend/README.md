@@ -286,7 +286,7 @@ Detalle de cada uno en Swagger.
 | Servicios | `GET /categorias-servicio` (público), `GET` (paginado) y `POST /negocios/:id_negocio/servicios`, `GET /servicios/:id_servicio` (público), `PATCH` y `DELETE /servicios/:id_servicio`, `PATCH /servicios/:id_servicio/reactivar` |
 | Búsqueda (app) | `GET /negocios` y `GET /servicios` (públicos, paginados) |
 | Disponibilidad | `GET` y `POST /empleados/:id_empleado/disponibilidad`, `PUT /empleados/:id_empleado/horario-semanal`, `GET /empleados/:id_empleado/disponibilidad-efectiva`, `PATCH` y `DELETE /disponibilidad/:id_disponibilidad` |
-| Citas | `GET /citas/horarios-libres` (público), `POST /citas` y `GET /citas/mias` (app), `GET /citas/:id_cita` (dueño o negocio), `GET /negocios/:id_negocio/citas/horarios-libres`, `GET` (agenda) y `POST /negocios/:id_negocio/citas` (panel) |
+| Citas | `GET /citas/horarios-libres` (público), `POST /citas` y `GET /citas/mias` (app), `GET /citas/:id_cita`, `POST /citas/:id_cita/cancelar`, `POST /citas/:id_cita/reprogramar` y `GET /citas/:id_cita/historial` (dueño o negocio), `PATCH /citas/:id_cita` y `PATCH /citas/:id_cita/estado` (panel), `GET /negocios/:id_negocio/citas/horarios-libres`, `GET` (agenda) y `POST /negocios/:id_negocio/citas` (panel) |
 | Clientes (panel) | `GET /negocios/:id_negocio/clientes/buscar`, `POST /negocios/:id_negocio/clientes`, `POST /negocios/:id_negocio/clientes/:id_usuario/mascotas` |
 
 ### Disponibilidad de empleados
@@ -305,6 +305,9 @@ Detalle de cada uno en Swagger.
 - **Mis citas (app):** `GET /citas/mias?alcance=proximas|pasadas|todas`. Cada cita trae `negocio { id_negocio, nombre, logo_url }` y `sucursal { nombre, direccion, telefono, latitud, longitud }` para mostrar dónde es y ofrecer "Cómo llegar". El dueño nunca recibe `notas_internas`.
 - **Agenda (panel):** `GET /negocios/:id_negocio/citas?desde&hasta` (por defecto hoy; máximo 31 días; sin paginar). `solo_mias=true` muestra solo las citas de quien consulta como empleado. Las citas con `fuera_de_disponibilidad: true` hay que reprogramarlas o reasignarlas (`fuera_de_disponibilidad=true` las lista).
 - **Detalle:** `GET /citas/:id_cita` sirve para la app (dueño) y el panel (con notas internas).
+- **Cambios:** el panel confirma, inicia, completa o marca inasistencia con `PATCH /citas/:id_cita/estado` y edita notas, prioridad, precio final o empleado con `PATCH /citas/:id_cita`. Dueño y negocio cancelan con `POST /citas/:id_cita/cancelar` (el negocio con motivo; si el dueño cancela a menos de 2 horas, `cancelacion.tardia: true`) y reprograman con `POST /citas/:id_cita/reprogramar` (el dueño hasta 2 horas antes; devuelve la cita nueva). `GET /citas/:id_cita/historial` muestra los cambios.
+- **Inasistencias:** el detalle de la cita en el panel trae `cliente.historial_cumplimiento` (completadas, inasistencias y cancelaciones tardías del cliente en ese negocio).
+- `PUT /sucursales/:id_sucursal/horarios` y `DELETE /empleados/:id_empleado` también responden `citas_afectadas`.
 
 ### Clientes sin app (panel)
 
