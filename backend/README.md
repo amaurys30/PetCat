@@ -283,6 +283,14 @@ Detalle de cada uno en Swagger.
 | Mascotas (app) | `GET` y `POST /mascotas` (del usuario autenticado), `GET`, `PATCH` y `DELETE /mascotas/:id_mascota` |
 | Servicios | `GET /categorias-servicio` (público), `GET` (paginado) y `POST /negocios/:id_negocio/servicios`, `GET /servicios/:id_servicio` (público), `PATCH` y `DELETE /servicios/:id_servicio`, `PATCH /servicios/:id_servicio/reactivar` |
 | Búsqueda (app) | `GET /negocios` y `GET /servicios` (públicos, paginados) |
+| Disponibilidad | `GET` y `POST /empleados/:id_empleado/disponibilidad`, `PUT /empleados/:id_empleado/horario-semanal`, `GET /empleados/:id_empleado/disponibilidad-efectiva`, `PATCH` y `DELETE /disponibilidad/:id_disponibilidad` |
+
+### Disponibilidad de empleados
+
+- **Horario semanal** (`PUT .../horario-semanal`, la semana completa en un solo guardado). Si un empleado no tiene horario semanal, sigue el de la sucursal; en cuanto se le carga uno, solo trabaja en esos rangos. Un rango sin `id_sucursal` vale para cualquier sucursal.
+- **Excepciones** (`POST .../disponibilidad`): `bloqueo` (con o sin horas, uno o varios días), `vacacion` (días completos) y `evento_especial` (un día, en una sucursal, que **suma** horas, incluso fuera del horario de la sucursal). Para que un día quede solo con el evento, se combina con un bloqueo **con horas** sobre el horario normal: un bloqueo de día completo también quita el evento.
+- `GET .../disponibilidad-efectiva?fecha=` devuelve los rangos resultantes por sucursal; sirve para pintar el calendario del empleado.
+- Toda escritura responde `data.citas_afectadas`: citas futuras pendientes o confirmadas que ya no caben en la disponibilidad del empleado. El cambio se guarda igual; el panel debe mostrarlas para reprogramarlas o reasignarlas.
 
 ### Servicios y búsqueda
 

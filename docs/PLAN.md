@@ -104,7 +104,10 @@ Se hace en sub-bloques que se aprueban por separado: **1.1** auth completo · **
 - [x] Públicos para la app: `GET /negocios` (buscar por `q`, `tipo`, `id_categoria`, `lat`/`lng`/`radio_km`, paginado) y `GET /servicios` (búsqueda por texto, categoría, especie, negocio, oferta y cercanía).
 
 ### 1.4 Disponibilidad
-- [ ] `GET|POST /empleados/:id_empleado/disponibilidad`, `PATCH|DELETE /disponibilidad/:id_disponibilidad` (horario normal, bloqueos, vacaciones, eventos especiales).
+- [x] `authorizeAny`: acceso con cualquiera de varios permisos y una excepción opcional (el mismo empleado).
+- [x] `GET /empleados/:id_empleado/disponibilidad` (horario semanal y excepciones), `PUT /empleados/:id_empleado/horario-semanal` (reemplaza el `horario_normal`), `POST /empleados/:id_empleado/disponibilidad` (bloqueo, vacación o evento especial), `PATCH|DELETE /disponibilidad/:id_disponibilidad`.
+- [x] Cálculo de la disponibilidad efectiva (función pura que reutiliza 1.5) y `GET /empleados/:id_empleado/disponibilidad-efectiva?fecha[&id_sucursal]`.
+- [x] `citas_afectadas` en las escrituras: citas futuras pendientes o confirmadas del empleado que no caben en su disponibilidad.
 
 ### 1.5 Citas
 - [ ] Claves nuevas en `configuracion_global`: intervalo de la agenda, antelación mínima, horizonte máximo y antelación para cancelar o reprogramar desde la app.
@@ -244,6 +247,16 @@ Se hace en sub-bloques que se aprueban por separado: **1.1** auth completo · **
 - Orden de `GET /negocios`: destacados primero; luego distancia (con coordenadas) o calificación y número de reseñas. Orden de `GET /servicios`: reservables primero; luego distancia (con coordenadas), negocio destacado, calificación del negocio y nombre.
 - `especie` en `GET /servicios` encuentra los servicios de esa especie y los de `todos`. `en_oferta` filtra por oferta vigente hoy. `q` usa `LIKE` con `%` y `_` escapados (`shared/utils/sql.js`); la collation ignora tildes y mayúsculas.
 
+**Disponibilidad (1.4)**
+- El horario semanal (`horario_normal`) se reemplaza completo con `PUT /empleados/:id_empleado/horario-semanal` (como los horarios de sucursal: borra y vuelve a insertar esos registros). Bloqueos, vacaciones y eventos especiales son excepciones con fecha: `POST`, `PATCH` y `DELETE` (lógico); `PATCH` o `DELETE` sobre un registro del horario semanal da 409.
+- Reglas por tipo: los rangos semanales de un mismo día no se cruzan, aunque sean de sucursales distintas (pueden tocarse; `id_sucursal` null = cualquier sucursal). `bloqueo`: uno o varios días, con horas opcionales y juntas (sin horas = días completos; con horas, ese rango cada día). `vacacion`: días completos. `evento_especial`: un solo día, con horas e `id_sucursal` obligatorios; no se cruza con otros eventos del empleado ese día en ninguna sucursal (422). Período máximo de 366 días. Al crear, el último día debe ser hoy o posterior. `recurrente` no se usa. Con el empleado inactivo, las escrituras dan 409. `PATCH` combina el body con la fila y lo valida con el esquema del tipo (el tipo no cambia; un campo de otro tipo da 422).
+- Cálculo: `disponibilidad.calculo.js`, funciones puras sobre rangos en minutos (`calcularDisponibilidad`, `citaCabe`) que reutilizará 1.5. Reglas en la decisión del evento especial de más abajo. Un empleado inactivo no tiene disponibilidad.
+- `citas_afectadas` viene en todas las escrituras (vacía si no hay): las citas futuras pendientes o confirmadas del empleado (las de hoy desde la hora actual) que **después del cambio** no caben en su disponibilidad, incluidas las que ya no cabían antes. Una cita sin sucursal solo se compara con bloqueos y vacaciones. El cambio se guarda igual.
+- Lectura (`GET` de disponibilidad y de disponibilidad efectiva): `configuracion.ver`, `citas.ver` o el propio empleado, con `authorizeAny(permisos, { permitirSi })`. Escrituras: `configuracion.editar`. El empleado no registra sus propios bloqueos en el MVP.
+- Las escrituras bloquean la fila del empleado (`FOR UPDATE` por clave primaria); en 1.5 las reservas bloquean la misma fila, así que un cambio de disponibilidad y una reserva del mismo empleado no se cruzan.
+- Bloqueos con `FOR UPDATE`: bloquear por clave primaria, no por un índice secundario que la misma transacción modifica. La renovación del refresh token lo hacía y con 5 solicitudes simultáneas terminaba en deadlock (500); se corrigió buscando el id sin bloquear y bloqueando por id.
+- Pendiente para 1.5: la agenda marca cada cita con `fuera_de_disponibilidad` y admite el filtro `fuera_de_disponibilidad=true`; cambiar el horario de una sucursal o desactivar un empleado también devuelve `citas_afectadas`.
+
 **Servicios y agenda (1.3 a 1.5)**
 - Qué empleados atienden un servicio: tabla `empleado_servicios`. Un empleado sin servicios asignados no aparece en la agenda; un servicio sin empleados asignados no se puede reservar. Al crear o editar un servicio se pueden enviar los empleados asignados en el mismo body; el listado del panel indica `sin_empleados`.
 - Los servicios son del negocio y se ofrecen en todas sus sucursales. Las especies `pez` y `otro` solo son compatibles con servicios `todos`.
@@ -258,7 +271,13 @@ Se hace en sub-bloques que se aprueban por separado: **1.1** auth completo · **
   6. no se cruza, contando el margen, con otra cita del empleado en cualquier sucursal en estado pendiente, confirmada o en curso;
   7. no se alcanzó `max_citas_dia`, que es por sucursal y día y cuenta todos los estados menos cancelada y reprogramada;
   8. la misma mascota no tiene otra cita a esa hora (409).
-- `evento_especial` reemplaza el horario normal del empleado en esa fecha y puede salirse del horario de la sucursal (p. ej. una jornada de vacunación un domingo).
+- `evento_especial` **suma** su rango a la disponibilidad del día, no la reemplaza (un veterinario que trabaja de 8 a 12 y agrega una jornada de 14 a 17 conserva su mañana). Para una sucursal y una fecha:
+  1. base: los rangos `horario_normal` del día (de esa sucursal o con sucursal NULL), recortados por el horario de la sucursal; si el empleado no tiene ningún `horario_normal`, el horario de la sucursal;
+  2. los eventos del empleado en **otra** sucursal ese día se restan de la base (el evento manda en ese rango);
+  3. se suman los eventos en esta sucursal, sin recortarlos por el horario de la sucursal (p. ej. una jornada de vacunación un domingo);
+  4. bloqueos y vacaciones restan al final, también sobre los eventos.
+
+  Para reemplazar el día completo se combina un bloqueo **con horas** sobre el horario normal y el evento: un bloqueo de día completo también quita el evento.
 - Sin `id_empleado`, cada horario libre lista los empleados disponibles; al reservar sin empleado se asigna el que tenga menos citas ese día.
 - Doble reserva: se bloquea la fila del servicio (si tiene `max_citas_dia`) y la del empleado, en ese orden, en lugar de `SELECT ... FOR UPDATE` sobre las citas del día (con la agenda vacía eso usa *gap locks* y termina en deadlock en vez de 409).
 - Estado inicial: citas de la app → `pendiente`; del panel → `confirmada`. Como el trigger `trg_citas_after_update` solo actúa en UPDATE, el servicio crea el recordatorio de las citas que nacen confirmadas.
