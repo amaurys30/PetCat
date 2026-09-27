@@ -1,0 +1,241 @@
+import express from "express";
+import * as controller from "./historial.controller.js";
+import {
+  createHistorialBody,
+  idHistorialParams,
+  listHistorialQuery,
+  mascotaDeNegocioParams,
+  updateHistorialBody,
+} from "./historial.schemas.js";
+import { idMascotaParams } from "../mascotas/mascota.schemas.js";
+import { idNegocioParams } from "../negocios/negocio.schemas.js";
+import { authMiddleware } from "../../shared/middlewares/auth.middleware.js";
+import { authorize } from "../../shared/middlewares/authorize.middleware.js";
+import { validate } from "../../shared/middlewares/validate.js";
+
+const router = express.Router();
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     HistorialInput:
+ *       type: object
+ *       additionalProperties: false
+ *       description: Campos opcionales con `null` se vacían. `proximo_control` no puede ser anterior a `fecha`.
+ *       properties:
+ *         tipo: { type: string, enum: [consulta_general, cirugia, vacunacion, examen_laboratorio, radiografia, ecografia, hospitalizacion, urgencia, desparasitacion, otro] }
+ *         fecha: { type: string, format: date, description: Por defecto hoy; no puede ser futura }
+ *         motivo_consulta: { type: string, maxLength: 2000, nullable: true }
+ *         diagnostico: { type: string, maxLength: 2000, nullable: true }
+ *         tratamiento: { type: string, maxLength: 2000, nullable: true }
+ *         medicamentos_prescritos: { type: string, maxLength: 2000, nullable: true }
+ *         indicaciones: { type: string, maxLength: 2000, nullable: true }
+ *         proximo_control: { type: string, format: date, nullable: true }
+ *         peso_registro: { type: number, nullable: true, description: En kg; si es el registro más reciente, actualiza el peso de la mascota }
+ *         temperatura: { type: number, minimum: 25, maximum: 45, nullable: true }
+ *         frecuencia_cardiaca: { type: integer, nullable: true }
+ *         frecuencia_respiratoria: { type: integer, nullable: true }
+ *         archivos: { type: array, maxItems: 10, nullable: true, items: { type: string, format: uri, pattern: "^https://" }, description: Solo https }
+ *         notas_internas: { type: string, maxLength: 2000, nullable: true, description: Solo las ve el negocio que creó el registro }
+ *         id_empleado: { type: integer, nullable: true, description: Quien atendió; por defecto el perfil de empleado de quien registra }
+ *     RegistroHistorial:
+ *       type: object
+ *       properties:
+ *         id_historial: { type: integer }
+ *         id_mascota: { type: integer }
+ *         id_cita: { type: integer, nullable: true }
+ *         fecha: { type: string, format: date }
+ *         tipo: { type: string }
+ *         motivo_consulta: { type: string, nullable: true }
+ *         diagnostico: { type: string, nullable: true }
+ *         tratamiento: { type: string, nullable: true }
+ *         medicamentos_prescritos: { type: string, nullable: true }
+ *         indicaciones: { type: string, nullable: true }
+ *         proximo_control: { type: string, format: date, nullable: true }
+ *         peso_registro: { type: number, nullable: true }
+ *         temperatura: { type: number, nullable: true }
+ *         frecuencia_cardiaca: { type: integer, nullable: true }
+ *         frecuencia_respiratoria: { type: integer, nullable: true }
+ *         archivos: { type: array, items: { type: string } }
+ *         negocio: { type: object, nullable: true, properties: { id_negocio: { type: integer }, nombre: { type: string } } }
+ *         empleado:
+ *           type: object
+ *           nullable: true
+ *           properties: { id_empleado: { type: integer }, nombre: { type: string }, apellido: { type: string } }
+ *         es_propio: { type: boolean, description: Solo en el panel; lo creó el negocio que consulta }
+ *         notas_internas: { type: string, nullable: true, description: Solo en los registros del negocio que consulta }
+ *         fecha_creacion: { type: string }
+ *     HistorialPagina:
+ *       type: object
+ *       properties:
+ *         success: { type: boolean, example: true }
+ *         message: { type: string, example: OK }
+ *         data: { type: array, items: { $ref: '#/components/schemas/RegistroHistorial' } }
+ *         meta: { $ref: '#/components/schemas/PaginationMeta' }
+ *   parameters:
+ *     historialTipo: { in: query, name: tipo, schema: { type: string } }
+ *     historialDesde: { in: query, name: desde, schema: { type: string, format: date } }
+ *     historialHasta: { in: query, name: hasta, schema: { type: string, format: date } }
+ */
+
+/**
+ * @swagger
+ * /mascotas/{id_mascota}/historial:
+ *   get:
+ *     summary: Historial médico de una mascota propia (app)
+ *     description: De todos los negocios, del más reciente al más antiguo, sin notas internas. Paginado.
+ *     tags: [Historial médico]
+ *     parameters:
+ *       - { in: path, name: id_mascota, required: true, schema: { type: integer } }
+ *       - $ref: '#/components/parameters/page'
+ *       - $ref: '#/components/parameters/limit'
+ *       - $ref: '#/components/parameters/historialTipo'
+ *       - $ref: '#/components/parameters/historialDesde'
+ *       - $ref: '#/components/parameters/historialHasta'
+ *     responses:
+ *       200:
+ *         description: Página del historial
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/HistorialPagina' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/MascotaAjena' }
+ *       404: { $ref: '#/components/responses/MascotaNoEncontrada' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.get(
+  "/mascotas/:id_mascota/historial",
+  authMiddleware,
+  validate({ params: idMascotaParams, query: listHistorialQuery }),
+  controller.getHistorialDueno
+);
+
+/**
+ * @swagger
+ * /negocios/{id_negocio}/mascotas/{id_mascota}/historial:
+ *   get:
+ *     summary: Historial médico de una mascota (panel)
+ *     description: >
+ *       Requiere `historial_medico.ver` y que la mascota tenga una cita con el negocio que no esté
+ *       cancelada ni reprogramada (403 si no). Si el dueño desactivó `compartir_historial`, solo se ven
+ *       los registros de este negocio. Las notas internas solo aparecen en los registros propios.
+ *     tags: [Historial médico]
+ *     parameters:
+ *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
+ *       - { in: path, name: id_mascota, required: true, schema: { type: integer } }
+ *       - $ref: '#/components/parameters/page'
+ *       - $ref: '#/components/parameters/limit'
+ *       - $ref: '#/components/parameters/historialTipo'
+ *       - $ref: '#/components/parameters/historialDesde'
+ *       - $ref: '#/components/parameters/historialHasta'
+ *     responses:
+ *       200:
+ *         description: Página del historial
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/HistorialPagina' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.get(
+  "/negocios/:id_negocio/mascotas/:id_mascota/historial",
+  authMiddleware,
+  validate({ params: mascotaDeNegocioParams, query: listHistorialQuery }),
+  authorize("historial_medico", "ver"),
+  controller.getHistorialNegocio
+);
+
+/**
+ * @swagger
+ * /negocios/{id_negocio}/historial:
+ *   post:
+ *     summary: Crear un registro del historial médico (panel)
+ *     description: >
+ *       Requiere `historial_medico.crear`. La mascota debe tener una cita válida con el negocio.
+ *       `id_cita` (opcional) debe ser del negocio, de esa mascota y no estar cancelada ni reprogramada.
+ *     tags: [Historial médico]
+ *     parameters:
+ *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             allOf:
+ *               - $ref: '#/components/schemas/HistorialInput'
+ *               - type: object
+ *                 required: [id_mascota, tipo]
+ *                 properties:
+ *                   id_mascota: { type: integer }
+ *                   id_cita: { type: integer }
+ *     responses:
+ *       201:
+ *         description: Registro creado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Registro de historial creado }
+ *                 data: { $ref: '#/components/schemas/RegistroHistorial' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.post(
+  "/negocios/:id_negocio/historial",
+  authMiddleware,
+  validate({ params: idNegocioParams, body: createHistorialBody }),
+  authorize("historial_medico", "crear"),
+  controller.crearRegistro
+);
+
+/**
+ * @swagger
+ * /historial/{id_historial}:
+ *   patch:
+ *     summary: Editar un registro del historial médico (panel)
+ *     description: >
+ *       Requiere `historial_medico.editar` en el negocio que creó el registro (otro negocio: 403). Sin
+ *       límite de tiempo. Al menos un campo; la mascota, la cita y el negocio no cambian.
+ *     tags: [Historial médico]
+ *     parameters:
+ *       - { in: path, name: id_historial, required: true, schema: { type: integer } }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             allOf:
+ *               - $ref: '#/components/schemas/HistorialInput'
+ *               - minProperties: 1
+ *     responses:
+ *       200:
+ *         description: Registro actualizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Registro actualizado }
+ *                 data: { $ref: '#/components/schemas/RegistroHistorial' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.patch(
+  "/historial/:id_historial",
+  authMiddleware,
+  validate({ params: idHistorialParams, body: updateHistorialBody }),
+  authorize("historial_medico", "editar"),
+  controller.actualizarRegistro
+);
+
+export default router;

@@ -26,6 +26,8 @@ const campos = {
   sexo: z.enum(SEXOS, { error: `Debe ser uno de: ${SEXOS.join(", ")}` }),
   esterilizado: z.boolean(),
   tiene_alergias: z.boolean(),
+  // FALSE: cada negocio ve solo el historial clínico que creó (las vacunas siguen visibles).
+  compartir_historial: z.boolean(),
   ...opcionales,
 };
 

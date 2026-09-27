@@ -21,6 +21,7 @@ import servicioRoutes from "./modules/servicios/servicio.routes.js";
 import busquedaRoutes from "./modules/busqueda/busqueda.routes.js";
 import disponibilidadRoutes from "./modules/disponibilidad/disponibilidad.routes.js";
 import citaRoutes from "./modules/citas/cita.routes.js";
+import historialRoutes from "./modules/historial/historial.routes.js";
 import clienteRoutes from "./modules/clientes/cliente.routes.js";
 
 import { generalLimiter, strictLimiter } from "./shared/middlewares/rateLimit.js";
@@ -87,6 +88,7 @@ v1.use(servicioRoutes);
 v1.use(busquedaRoutes);
 v1.use(disponibilidadRoutes);
 v1.use(citaRoutes);
+v1.use(historialRoutes);
 v1.use(clienteRoutes);
 
 app.use("/api/v1", v1);

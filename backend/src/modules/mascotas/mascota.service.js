@@ -8,7 +8,7 @@ export const formatMascota = (mascota) => {
   if (!mascota) return mascota;
   // eslint-disable-next-line no-unused-vars
   const { activo, ...datos } = castFields(mascota, {
-    bools: ["esterilizado", "tiene_alergias", "fallecido"],
+    bools: ["esterilizado", "tiene_alergias", "fallecido", "compartir_historial"],
     numbers: ["peso", "edad_meses"],
   });
   return datos;

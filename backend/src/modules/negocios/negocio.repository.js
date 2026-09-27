@@ -135,6 +135,9 @@ const NEGOCIO_DE_RECURSO = {
   id_servicio: "SELECT id_negocio FROM servicios WHERE id_servicio = ?",
   id_cita: "SELECT id_negocio FROM citas WHERE id_cita = ?",
   id_producto: "SELECT id_negocio FROM productos WHERE id_producto = ?",
+  // NULL = registro sin negocio (vacuna del dueño): recurso global para authorize.
+  id_historial: "SELECT id_negocio FROM historial_medico WHERE id_historial = ?",
+  id_vacuna: "SELECT id_negocio FROM vacunas WHERE id_vacuna = ?",
   id_disponibilidad: `SELECT e.id_negocio
                       FROM disponibilidad_empleado d
                       JOIN empleados e ON e.id_empleado = d.id_empleado

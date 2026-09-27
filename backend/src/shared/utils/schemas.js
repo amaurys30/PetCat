@@ -44,6 +44,9 @@ export const conAlMenosUnCampo = (schema) =>
 /** Email normalizado (sin espacios y en minúsculas) antes de validar. */
 export const email = z.string().trim().toLowerCase().pipe(z.email().max(150));
 
+/** URL solo https (archivos del historial y comprobantes de vacunas). */
+export const urlHttps = (max = 500) => z.url({ protocol: /^https$/, error: "Debe ser una URL https" }).max(max);
+
 /** URL http o https (sin javascript:, data:, etc.). */
 export const urlHttp = (max = 500) => z.url({ protocol: /^https?$/ }).max(max);
 

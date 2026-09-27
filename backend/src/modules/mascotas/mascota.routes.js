@@ -26,6 +26,12 @@ const router = express.Router();
  *         numero_registro: { type: string, maxLength: 60, nullable: true }
  *         esterilizado: { type: boolean, default: false }
  *         tiene_alergias: { type: boolean, default: false }
+ *         compartir_historial:
+ *           type: boolean
+ *           default: true
+ *           description: >
+ *             Si es false, cada negocio ve solo el historial clínico que él creó. Las vacunas, las
+ *             alergias y las condiciones médicas siguen visibles para los negocios con cita.
  *         alergias_detalle: { type: string, maxLength: 2000, nullable: true }
  *         condiciones_medicas: { type: string, maxLength: 2000, nullable: true }
  *         tipo_sangre: { type: string, maxLength: 10, nullable: true }
@@ -46,6 +52,7 @@ const router = express.Router();
  *         numero_registro: { type: string, nullable: true }
  *         esterilizado: { type: boolean }
  *         tiene_alergias: { type: boolean }
+ *         compartir_historial: { type: boolean }
  *         alergias_detalle: { type: string, nullable: true }
  *         condiciones_medicas: { type: string, nullable: true }
  *         tipo_sangre: { type: string, nullable: true }

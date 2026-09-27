@@ -6,7 +6,7 @@ import { CAMPOS_MASCOTA } from "./mascota.schemas.js";
 const COLUMNAS = `id_mascota, id_usuario, nombre, especie, raza, color, fecha_nacimiento,
                   TIMESTAMPDIFF(MONTH, fecha_nacimiento, CURDATE()) AS edad_meses,
                   sexo, peso, microchip, numero_registro, esterilizado, tiene_alergias,
-                  alergias_detalle, condiciones_medicas, tipo_sangre, foto_url,
+                  alergias_detalle, condiciones_medicas, compartir_historial, tipo_sangre, foto_url,
                   fallecido, fecha_fallecimiento, activo, fecha_registro, fecha_actualizacion`;
 
 /** Mascota por id, activa o no. Con `forUpdate` bloquea la fila. */

@@ -193,6 +193,31 @@ export const crearCita = async (negocio, { cliente, mascota, servicio, ...overri
   return findOne("citas", "id_cita", id);
 };
 
+/** Registro del historial médico de la mascota creado por el negocio (por defecto consulta de hoy). */
+export const crearHistorial = async (negocio, mascota, overrides = {}) => {
+  const [[{ hoy }]] = await pool.query("SELECT DATE_FORMAT(CURDATE(), '%Y-%m-%d') AS hoy");
+  const id = await insert("historial_medico", {
+    id_mascota: mascota.id_mascota,
+    id_negocio: negocio?.id_negocio ?? null,
+    tipo: "consulta_general",
+    fecha: hoy,
+    ...overrides,
+  });
+  return findOne("historial_medico", "id_historial", id);
+};
+
+/** Vacuna de la mascota (por defecto registrada por el dueño, sin negocio). */
+export const crearVacuna = async (mascota, overrides = {}) => {
+  const id = await insert("vacunas", {
+    id_mascota: mascota.id_mascota,
+    nombre_vacuna: "Antirrábica",
+    fecha_aplicacion: "2026-01-10",
+    registrada_por: overrides.id_negocio ? "negocio" : "dueno",
+    ...overrides,
+  });
+  return findOne("vacunas", "id_vacuna", id);
+};
+
 export const crearResena = async (negocio, overrides = {}) => {
   const autor = await crearUsuario();
   const id = await insert("resenas", {
