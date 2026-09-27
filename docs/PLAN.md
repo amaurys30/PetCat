@@ -98,10 +98,10 @@ Se hace en sub-bloques que se aprueban por separado: **1.1** auth completo · **
 - [x] `GET|POST /mascotas` (del usuario autenticado), `GET|PATCH|DELETE /mascotas/:id_mascota`.
 
 ### 1.3 Catálogo, servicios y búsqueda pública
-- [ ] Migración: tabla `empleado_servicios (id_empleado, id_servicio)` y `servicios.margen_minutos` (por defecto 0).
-- [ ] `GET /categorias-servicio`.
-- [ ] `GET|POST /negocios/:id_negocio/servicios`, `GET|PATCH|DELETE /servicios/:id_servicio`. El body de crear y editar acepta los empleados asignados; el listado del panel indica `sin_empleados`.
-- [ ] Públicos para la app: `GET /negocios` (buscar por `q`, `tipo`, `lat`/`lng`/`radio_km`, paginado) y `GET /servicios` (búsqueda por texto, categoría y especie).
+- [x] Migración `006_servicios_empleados_y_margen.sql`: tabla `empleado_servicios (id_empleado, id_servicio)` y `servicios.margen_minutos` (por defecto 0).
+- [x] `GET /categorias-servicio`.
+- [x] `GET|POST /negocios/:id_negocio/servicios`, `GET|PATCH|DELETE /servicios/:id_servicio`, `PATCH /servicios/:id_servicio/reactivar`. El body de crear y editar acepta los empleados asignados; el listado del panel indica `sin_empleados`.
+- [x] Públicos para la app: `GET /negocios` (buscar por `q`, `tipo`, `id_categoria`, `lat`/`lng`/`radio_km`, paginado) y `GET /servicios` (búsqueda por texto, categoría, especie, negocio, oferta y cercanía).
 
 ### 1.4 Disponibilidad
 - [ ] `GET|POST /empleados/:id_empleado/disponibilidad`, `PATCH|DELETE /disponibilidad/:id_disponibilidad` (horario normal, bloqueos, vacaciones, eventos especiales).
@@ -232,10 +232,22 @@ Se hace en sub-bloques que se aprueban por separado: **1.1** auth completo · **
 - Eliminar (lógico) o registrar el fallecimiento da 409 si la mascota tiene citas futuras pendientes o confirmadas. Ambas operaciones bloquean la fila de la mascota (`FOR UPDATE`); al reservar (1.5) hay que leerla con bloqueo para no reservar sobre una mascota que se está eliminando.
 - Fechas "YYYY-MM-DD": `shared/utils/fechas.js` (`hoyISO`) y los esquemas `fecha` y `fechaNoFutura` de `shared/utils/schemas.js`.
 
+**Servicios y búsqueda (1.3)**
+- Servicios en la app sin empleados: se muestran igual con `reservable: false` (no requiere cita, o la requiere y tiene al menos un empleado activo asignado). También en el perfil público, junto con `precio_actual` y `oferta_vigente`.
+- `GET /servicios/:id_servicio` es solo la vista pública (activo, visible y de negocio activo; 404 si no). El panel no tiene una ruta de detalle: su listado trae todos los datos, también de servicios eliminados u ocultos, y `PATCH` devuelve el servicio completo.
+- `empleados` en el body: solo empleados activos del mismo negocio (422 en `errors.empleados` con los ids inválidos). Al editar reemplaza los empleados **activos** asignados; las asignaciones de empleados inactivos se conservan y vuelven a contar si se reactivan. `sin_empleados` y `reservable` solo cuentan empleados activos. Eliminar un servicio conserva sus asignaciones.
+- `GET /empleados/:id_empleado` (y las respuestas de crear y editar empleado) trae `servicios`: los activos que atiende. Las asignaciones solo se editan desde el servicio.
+- Nombre único entre los servicios activos del negocio, sin distinguir mayúsculas (409 en `errors.nombre`); se comprueba bloqueando la fila del negocio. Se puede editar un servicio eliminado; su nombre se comprueba al reactivarlo (409 si está ocupado o si ya está activo).
+- Reglas entre campos (422), validadas contra los valores actuales al editar: `precio_maximo >= precio_base`, `peso_min_kg <= peso_max_kg`, con `en_oferta` se exige `precio_oferta < precio_base`, y `fecha_fin_oferta >= fecha_inicio_oferta`. `duracion_minutos` de 5 a 1440 y `margen_minutos` de 0 a 240, ambos múltiplos de 5. `tipo_mascota` y `dias_disponible` son arreglos (`todos` no se combina); `etiquetas` (hasta 10) se guarda en `etiquetas_json`.
+- Eliminar un servicio (lógico) da 409 si tiene citas futuras pendientes o confirmadas; ya eliminado, 404.
+- Búsqueda pública: solo negocios activos con al menos una sucursal activa. Con `lat`/`lng`, la distancia es la de la sucursal activa más cercana con coordenadas (`ST_Distance_Sphere`, con un recuadro previo); si ninguna sucursal activa tiene coordenadas se usan las del negocio (con su sucursal principal como `sucursal_cercana`), y los negocios sin coordenadas en ningún lado quedan fuera. Radio por defecto `configuracion_global.radio_busqueda_km` (10), máximo 50. `lat` y `lng` van juntas; `radio_km` exige ambas.
+- Orden de `GET /negocios`: destacados primero; luego distancia (con coordenadas) o calificación y número de reseñas. Orden de `GET /servicios`: reservables primero; luego distancia (con coordenadas), negocio destacado, calificación del negocio y nombre.
+- `especie` en `GET /servicios` encuentra los servicios de esa especie y los de `todos`. `en_oferta` filtra por oferta vigente hoy. `q` usa `LIKE` con `%` y `_` escapados (`shared/utils/sql.js`); la collation ignora tildes y mayúsculas.
+
 **Servicios y agenda (1.3 a 1.5)**
 - Qué empleados atienden un servicio: tabla `empleado_servicios`. Un empleado sin servicios asignados no aparece en la agenda; un servicio sin empleados asignados no se puede reservar. Al crear o editar un servicio se pueden enviar los empleados asignados en el mismo body; el listado del panel indica `sin_empleados`.
 - Los servicios son del negocio y se ofrecen en todas sus sucursales. Las especies `pez` y `otro` solo son compatibles con servicios `todos`.
-- Intervalo de la agenda: 15 minutos, alineados a :00, :15, :30 y :45 (`configuracion_global`).
+- Intervalo de la agenda: 15 minutos, alineados a :00, :15, :30 y :45 (`configuracion_global`). Los horarios candidatos son siempre de esa cuadrícula, aunque la duración del servicio sea de 5 en 5 minutos (p. ej. 10): `hora_fin` más el margen solo se usa para comprobar el cruce con otras citas, no para calcular el siguiente horario.
 - Margen entre citas: `servicios.margen_minutos` (por defecto 0). Ocupa la agenda del empleado después de la cita, pero no cambia la `hora_fin` que ve el cliente.
 - Un horario de inicio *t* es válido si:
   1. es futuro, con antelación mínima y horizonte máximo configurables;

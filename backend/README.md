@@ -281,6 +281,15 @@ Detalle de cada uno en Swagger.
 | Empleados | `GET` (paginado) y `POST /negocios/:id_negocio/empleados`, `POST /negocios/:id_negocio/empleados/yo`, `GET`, `PATCH` y `DELETE /empleados/:id_empleado`, `PATCH /empleados/:id_empleado/reactivar` |
 | Invitaciones | `POST /empleados/:id_empleado/invitacion`, `POST /empleados/:id_empleado/invitacion/reenviar`, `GET /invitaciones/:token` (público), `POST /invitaciones/:token/aceptar` (público) |
 | Mascotas (app) | `GET` y `POST /mascotas` (del usuario autenticado), `GET`, `PATCH` y `DELETE /mascotas/:id_mascota` |
+| Servicios | `GET /categorias-servicio` (público), `GET` (paginado) y `POST /negocios/:id_negocio/servicios`, `GET /servicios/:id_servicio` (público), `PATCH` y `DELETE /servicios/:id_servicio`, `PATCH /servicios/:id_servicio/reactivar` |
+| Búsqueda (app) | `GET /negocios` y `GET /servicios` (públicos, paginados) |
+
+### Servicios y búsqueda
+
+- Cada servicio tiene sus **empleados asignados** (`empleados: [id_empleado]` en el body de crear y editar; al editar reemplaza el conjunto). En el listado del panel, `sin_empleados: true` avisa que el servicio no se puede reservar: conviene mostrar una alerta para que el negocio asigne a alguien. El detalle de un empleado (`GET /empleados/:id_empleado`) trae los `servicios` que atiende.
+- En la app, los servicios no reservables se muestran igual con `reservable: false` (deshabilitar el botón de reservar). `precio_actual` ya tiene en cuenta la oferta vigente.
+- `GET /negocios` y `GET /servicios` aceptan `lat`, `lng` y `radio_km` (por defecto 10 km, máximo 50). **Con coordenadas, los negocios que no tienen coordenadas en ninguna sucursal activa ni en el negocio quedan fuera de los resultados.** El panel debería pedir la ubicación al crear una sucursal y avisar al negocio si ninguna la tiene, porque sin ella no aparece en "cerca de mí". La distancia (`distancia_km`) es la de la sucursal más cercana (`sucursal_cercana`).
+- Los textos de búsqueda (`q`) no distinguen tildes ni mayúsculas: "bano" encuentra "Baño".
 
 ### Usuarios de prueba
 
