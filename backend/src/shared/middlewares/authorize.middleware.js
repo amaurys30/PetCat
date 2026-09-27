@@ -30,6 +30,15 @@ const resolveIdNegocio = async (params) => {
   return recurso.id_negocio;
 };
 
+// Error de programación: falla al cargar las rutas, no en la primera petición.
+const verificarCatalogo = (permisos, llamada) => {
+  for (const [modulo, accion] of permisos) {
+    if (!existePermiso(modulo, accion)) {
+      throw new Error(`${llamada}: permiso "${modulo}.${accion}" fuera de CATALOGO_PERMISOS`);
+    }
+  }
+};
+
 /**
  * Permite el acceso al panel de un negocio por pertenencia:
  * - admin de plataforma (`tipo_usuario = 'admin'`) y propietario del negocio: siempre;
@@ -41,15 +50,27 @@ const resolveIdNegocio = async (params) => {
  *   router.patch("/:id_cita", authMiddleware, authorize("citas", "editar"), controller.update);
  */
 export const authorize = (modulo, accion) => {
-  // Error de programación: falla al cargar las rutas, no en la primera petición.
-  if (!existePermiso(modulo, accion)) {
-    throw new Error(`authorize("${modulo}", "${accion}"): permiso fuera de CATALOGO_PERMISOS`);
-  }
-  return authorizeMiddleware(modulo, accion);
+  verificarCatalogo([[modulo, accion]], `authorize("${modulo}", "${accion}")`);
+  return authorizeMiddleware([[modulo, accion]]);
+};
+
+/**
+ * Como authorize, pero el empleado pasa con **cualquiera** de los permisos. Con
+ * `permitirSi(req, acceso)`, un empleado sin ninguno también pasa si la función
+ * devuelve true (p. ej. ver su propia disponibilidad).
+ *
+ *   authorizeAny([["configuracion", "ver"], ["citas", "ver"]], {
+ *     permitirSi: (req, acceso) => acceso.id_empleado === req.params.id_empleado,
+ *   })
+ */
+export const authorizeAny = (permisos, { permitirSi } = {}) => {
+  if (permisos.length === 0) throw new Error("authorizeAny: indica al menos un permiso");
+  verificarCatalogo(permisos, "authorizeAny");
+  return authorizeMiddleware(permisos, permitirSi);
 };
 
 // eslint-disable-next-line no-unused-vars
-const authorizeMiddleware = (modulo, accion) => async (req, res, next) => {
+const authorizeMiddleware = (permisos, permitirSi) => async (req, res, next) => {
   if (!req.user) throw ApiError.unauthorized("Token requerido");
   const { id_usuario, tipo_usuario } = req.user;
   const esAdmin = tipo_usuario === "admin";
@@ -80,16 +101,18 @@ const authorizeMiddleware = (modulo, accion) => async (req, res, next) => {
   if (!empleado) throw ApiError.forbidden("No perteneces a este negocio");
   if (!empleado.activo) throw ApiError.forbidden("Tu acceso a este negocio está desactivado");
 
-  if (!hasPermission(empleado.permisos_json, modulo, accion)) {
-    throw ApiError.forbidden("No tienes permiso para realizar esta acción");
-  }
-
-  req.acceso = {
+  const acceso = {
     relacion: "empleado",
     id_empleado: empleado.id_empleado,
     id_rol: empleado.id_rol,
     permisos: empleado.permisos_json,
   };
+  const conPermiso = permisos.some(([modulo, accion]) => hasPermission(empleado.permisos_json, modulo, accion));
+  if (!conPermiso && !permitirSi?.(req, acceso)) {
+    throw ApiError.forbidden("No tienes permiso para realizar esta acción");
+  }
+
+  req.acceso = acceso;
   next();
 };
 
