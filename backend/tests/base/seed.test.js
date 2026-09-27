@@ -93,6 +93,19 @@ describe("seed de desarrollo", () => {
     expect(total).toBe(3);
   });
 
+  it("cada usuario del seed tiene su autorización de datos para la versión vigente", async () => {
+    const [filas] = await pool.query(
+      `SELECT u.email, COUNT(a.id_autorizacion) AS autorizaciones
+       FROM usuarios u
+       LEFT JOIN autorizaciones_datos a ON a.id_usuario = u.id_usuario
+         AND a.version_politica = (SELECT valor FROM configuracion_global WHERE clave = 'terminos_version')
+       WHERE u.email IN ('admin@petcat.test', 'propietario@petcat.test', 'veterinario@petcat.test', 'cliente@petcat.test')
+       GROUP BY u.email`
+    );
+    expect(filas).toHaveLength(4);
+    expect(filas.every((f) => f.autorizaciones === 1)).toBe(true);
+  });
+
   it("el veterinario atiende la consulta y la vacuna; el baño no tiene empleados", async () => {
     const [filas] = await pool.query(
       `SELECT s.nombre, e.email

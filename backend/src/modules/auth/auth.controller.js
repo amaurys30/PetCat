@@ -57,3 +57,8 @@ export const resendVerification = async (req, res) => {
   const data = await service.resendVerification(req.user.id_usuario);
   return ok(res, data, "Te enviamos un nuevo enlace de verificación");
 };
+
+export const aceptarPolitica = async (req, res) => {
+  const { autorizacion, nueva } = await service.aceptarPolitica(req.user.id_usuario, clienteDe(req));
+  return ok(res, autorizacion, nueva ? "Política de datos aceptada" : "Ya habías aceptado esta versión de la política");
+};

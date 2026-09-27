@@ -4,6 +4,10 @@ import { autorizacionDatos, conAlMenosUnCampo, email, telefono } from "../../sha
 
 const nombre = z.string().trim().min(2).max(80);
 
+/** Autorización de tratamiento de datos del titular (registro, invitaciones y cuentas existentes). */
+export const MENSAJE_POLITICA = "Debes aceptar la política de tratamiento de datos (Ley 1581 de 2012)";
+export const aceptaPolitica = autorizacionDatos(MENSAJE_POLITICA);
+
 /** Contraseña de una cuenta nueva (registro y aceptar invitación). bcrypt solo usa los primeros 72 bytes. */
 export const passwordNueva = z
   .string()
@@ -22,7 +26,7 @@ export const registerBody = z.strictObject({
   tipo_usuario: z
     .enum(["cliente", "negocio"], { error: "Debe ser 'cliente' o 'negocio'" })
     .default("cliente"),
-  acepta_politica_datos: autorizacionDatos("Debes aceptar la política de tratamiento de datos (Ley 1581 de 2012)"),
+  acepta_politica_datos: aceptaPolitica,
 });
 
 export const loginBody = z.strictObject({
@@ -76,3 +80,7 @@ export const resetPasswordBody = z.strictObject({
 });
 
 export const verifyEmailParams = z.object({ token: tokenCorreo });
+
+export const aceptarPoliticaBody = z.strictObject({
+  acepta_politica_datos: aceptaPolitica,
+});

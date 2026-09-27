@@ -17,11 +17,15 @@ export const create = async (
   return result.insertId;
 };
 
-/** El negocio registró una autorización de ese usuario (lo registró desde el panel). */
-export const existsDeNegocio = async (id_usuario, id_negocio, conn) => {
+/** Autorización no revocada del usuario para esa versión de la política (la más reciente). */
+export const findVigente = async (id_usuario, version_politica, conn) => {
   const [rows] = await (conn ?? db).query(
-    "SELECT 1 FROM autorizaciones_datos WHERE id_usuario = ? AND id_negocio = ? LIMIT 1",
-    [id_usuario, id_negocio]
+    `SELECT id_autorizacion, canal, version_politica, fecha_autorizacion
+     FROM autorizaciones_datos
+     WHERE id_usuario = ? AND version_politica = ? AND revocada_en IS NULL
+     ORDER BY fecha_autorizacion DESC, id_autorizacion DESC
+     LIMIT 1`,
+    [id_usuario, version_politica]
   );
-  return rows.length > 0;
+  return rows[0];
 };

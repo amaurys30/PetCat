@@ -149,10 +149,36 @@ const perfilPropio = (usuario) => ({
   ),
 });
 
-/** Perfil y negocios a los que el usuario puede entrar (mismo formato que GET /negocios/mios). */
+/**
+ * Perfil y negocios a los que el usuario puede entrar (mismo formato que GET /negocios/mios).
+ * `requiere_aceptar_politica`: no tiene una autorización vigente para la versión actual de la política.
+ */
 export const getMe = async (id_usuario) => {
-  const [usuario, negocios] = await Promise.all([usuarioRepo.findById(id_usuario), getMisNegocios(id_usuario)]);
-  return { ...perfilPropio(usuario), negocios };
+  const version = await versionPolitica();
+  const [usuario, negocios, vigente] = await Promise.all([
+    usuarioRepo.findById(id_usuario),
+    getMisNegocios(id_usuario),
+    autorizacionRepo.findVigente(id_usuario, version),
+  ]);
+  return { ...perfilPropio(usuario), requiere_aceptar_politica: !vigente, negocios };
+};
+
+/**
+ * Una cuenta existente acepta la versión vigente de la política (canal aceptacion).
+ * Si ya la había aceptado no crea otra fila. Devuelve la autorización y si es nueva.
+ */
+export const aceptarPolitica = async (id_usuario, cliente = {}) => {
+  const version_politica = await versionPolitica();
+  const existente = await autorizacionRepo.findVigente(id_usuario, version_politica);
+  if (existente) return { autorizacion: existente, nueva: false };
+  await autorizacionRepo.create({
+    id_usuario,
+    canal: "aceptacion",
+    id_usuario_registro: id_usuario,
+    version_politica,
+    ip_address: cliente.ip ?? null,
+  });
+  return { autorizacion: await autorizacionRepo.findVigente(id_usuario, version_politica), nueva: true };
 };
 
 export const updateMe = async (id_usuario, data) => {

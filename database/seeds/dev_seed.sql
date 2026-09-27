@@ -40,6 +40,12 @@ INSERT INTO usuarios (nombre, apellido, email, password_hash, telefono, tipo_usu
 VALUES ('Sofía', 'Gómez', 'cliente@petcat.test', @password_hash, '3003334455', 'cliente', TRUE);
 SET @id_cliente = LAST_INSERT_ID();
 
+-- Toda cuenta registra su autorización de tratamiento de datos (versión vigente de la política).
+INSERT INTO autorizaciones_datos (id_usuario, canal, id_usuario_registro, version_politica)
+SELECT id_usuario, 'app', id_usuario, (SELECT valor FROM configuracion_global WHERE clave = 'terminos_version')
+FROM usuarios
+WHERE email IN ('admin@petcat.test', 'propietario@petcat.test', 'veterinario@petcat.test', 'cliente@petcat.test');
+
 -- ---------------------------------------------------------------------------
 -- Negocio con suscripción Gratuita (sin vencimiento)
 -- ---------------------------------------------------------------------------

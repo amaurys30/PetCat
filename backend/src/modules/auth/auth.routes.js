@@ -9,6 +9,7 @@ import {
   forgotPasswordBody,
   resetPasswordBody,
   verifyEmailParams,
+  aceptarPoliticaBody,
 } from "./auth.schemas.js";
 import { authMiddleware } from "../../shared/middlewares/auth.middleware.js";
 import { validate } from "../../shared/middlewares/validate.js";
@@ -277,6 +278,11 @@ router.post("/refresh-token", validate({ body: refreshTokenBody }), controller.r
  *                     - $ref: '#/components/schemas/PerfilPropio'
  *                     - type: object
  *                       properties:
+ *                         requiere_aceptar_politica:
+ *                           type: boolean
+ *                           description: >
+ *                             No tiene una autorización de datos vigente para la versión actual de la política:
+ *                             la app o el panel deben pedirla y enviarla a POST /auth/politica-datos/aceptar.
  *                         negocios: { type: array, items: { $ref: '#/components/schemas/NegocioMio' } }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *   patch:
@@ -316,6 +322,53 @@ router.post("/refresh-token", validate({ body: refreshTokenBody }), controller.r
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
+/**
+ * @swagger
+ * /auth/politica-datos/aceptar:
+ *   post:
+ *     summary: Aceptar la versión vigente de la política de datos
+ *     description: >
+ *       Para cuentas que ya existían o que no tienen una autorización para la versión actual
+ *       (`GET /auth/me` devuelve `requiere_aceptar_politica: true`). Guarda la autorización (canal
+ *       `aceptacion`, versión vigente, fecha e IP). Si ya la había aceptado no crea otra y responde 200 igual.
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             additionalProperties: false
+ *             required: [acepta_politica_datos]
+ *             properties:
+ *               acepta_politica_datos: { type: boolean, enum: [true] }
+ *     responses:
+ *       200:
+ *         description: Aceptada (o ya aceptada)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Política de datos aceptada }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id_autorizacion: { type: integer }
+ *                     canal: { type: string, enum: [app, panel, invitacion, aceptacion] }
+ *                     version_politica: { type: string, example: "1.0" }
+ *                     fecha_autorizacion: { type: string, example: "2026-09-27 10:00:00" }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.post(
+  "/politica-datos/aceptar",
+  authMiddleware,
+  validate({ body: aceptarPoliticaBody }),
+  controller.aceptarPolitica
+);
+
 router.get("/me", authMiddleware, controller.getMe);
 router.patch("/me", authMiddleware, validate({ body: updateMeBody }), controller.updateMe);
 

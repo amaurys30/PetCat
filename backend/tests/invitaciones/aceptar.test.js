@@ -38,6 +38,7 @@ describe("GET /invitaciones/:token", () => {
       empleado: { nombre: "Ana", apellido: "Rodríguez" },
       email: empleado.email,
       cuenta_existente: false,
+      requiere_aceptar_politica: true,
     });
     expect(JSON.stringify(res.body)).not.toContain(token);
   });
@@ -45,7 +46,10 @@ describe("GET /invitaciones/:token", () => {
   it("cuenta_existente es true si el email ya tiene cuenta", async () => {
     const usuario = await crearUsuario();
     const { token } = await invitar({ email: usuario.email });
-    expect((await api().get(`/invitaciones/${token}`)).body.data.cuenta_existente).toBe(true);
+    expect((await api().get(`/invitaciones/${token}`)).body.data).toMatchObject({
+      cuenta_existente: true,
+      requiere_aceptar_politica: false,
+    });
   });
 
   it("la invitación demo del seed funciona con su token documentado", async () => {
@@ -80,7 +84,7 @@ describe("POST /invitaciones/:token/aceptar", () => {
     const res = await api()
       .post(`/invitaciones/${token}/aceptar`)
       .set("User-Agent", "PanelWeb/1.0")
-      .send({ password: "NuevaClave1", telefono: "3004445566" });
+      .send({ password: "NuevaClave1", acepta_politica_datos: true, telefono: "3004445566" });
 
     expect(res.status).toBe(200);
     expect(res.body.message).toBe("Invitación aceptada");
@@ -105,6 +109,14 @@ describe("POST /invitaciones/:token/aceptar", () => {
     expect(invitacion.usado).toBe(1);
     expect(invitacion.fecha_usado).not.toBeNull();
 
+    const [autorizaciones] = await pool.query(
+      "SELECT canal, id_negocio, id_usuario_registro, version_politica FROM autorizaciones_datos WHERE id_usuario = ?",
+      [usuario.id_usuario]
+    );
+    expect(autorizaciones).toEqual([
+      { canal: "invitacion", id_negocio: negocio.id_negocio, id_usuario_registro: usuario.id_usuario, version_politica: "1.0" },
+    ]);
+
     // Auto-login: el token entra al panel con los permisos de su rol.
     const panel = await api(res.body.data.access_token).get(`/negocios/${negocio.id_negocio}/empleados`);
     expect(panel.status).toBe(403); // Recepcionista no tiene empleados.ver
@@ -116,11 +128,11 @@ describe("POST /invitaciones/:token/aceptar", () => {
 
   it("sin cuenta: nombre y apellido enviados reemplazan los del empleado; contraseña débil -> 422", async () => {
     const { token } = await invitar();
-    const debil = await api().post(`/invitaciones/${token}/aceptar`).send({ password: "corta" });
+    const debil = await api().post(`/invitaciones/${token}/aceptar`).send({ password: "corta", acepta_politica_datos: true });
     expect(debil.status).toBe(422);
     expect(debil.body.errors).toHaveProperty("password");
 
-    const res = await api().post(`/invitaciones/${token}/aceptar`).send({ password: "NuevaClave1", nombre: "Anita", apellido: "Ruiz" });
+    const res = await api().post(`/invitaciones/${token}/aceptar`).send({ password: "NuevaClave1", acepta_politica_datos: true, nombre: "Anita", apellido: "Ruiz" });
     expect(res.status).toBe(200);
     expect(res.body.data.usuario).toMatchObject({ nombre: "Anita", apellido: "Ruiz" });
   });
@@ -158,10 +170,39 @@ describe("POST /invitaciones/:token/aceptar", () => {
     expect((await api().post(`/invitaciones/${token}/aceptar`).send({ password: PASSWORD })).status).toBe(403);
   });
 
+  it("sin cuenta: exige acepta_politica_datos: true junto con la contraseña -> 422 con los dos errores", async () => {
+    const { empleado, token } = await invitar();
+    const res = await api().post(`/invitaciones/${token}/aceptar`).send({ password: "corta" });
+    expect(res.status).toBe(422);
+    expect(Object.keys(res.body.errors).sort()).toEqual(["acepta_politica_datos", "password"]);
+    const falso = await api().post(`/invitaciones/${token}/aceptar`).send({ password: "NuevaClave1", acepta_politica_datos: false });
+    expect(falso.status).toBe(422);
+    const [usuarios] = await pool.query("SELECT 1 FROM usuarios WHERE email = ?", [empleado.email]);
+    expect(usuarios).toHaveLength(0);
+  });
+
+  it("con cuenta existente no se exige; si la envía y no tenía una vigente, se registra", async () => {
+    const sinEnviar = await crearUsuario();
+    const a = await invitar({ email: sinEnviar.email });
+    expect((await api().post(`/invitaciones/${a.token}/aceptar`).send({ password: PASSWORD })).status).toBe(200);
+
+    const enviando = await crearUsuario();
+    const b = await invitar({ email: enviando.email });
+    expect(
+      (await api().post(`/invitaciones/${b.token}/aceptar`).send({ password: PASSWORD, acepta_politica_datos: true })).status
+    ).toBe(200);
+
+    const [filas] = await pool.query(
+      "SELECT id_usuario, canal FROM autorizaciones_datos WHERE id_usuario IN (?, ?)",
+      [sinEnviar.id_usuario, enviando.id_usuario]
+    );
+    expect(filas).toEqual([{ id_usuario: enviando.id_usuario, canal: "invitacion" }]);
+  });
+
   it("el mismo enlace no se puede usar dos veces", async () => {
     const { token } = await invitar();
-    expect((await api().post(`/invitaciones/${token}/aceptar`).send({ password: "NuevaClave1" })).status).toBe(200);
-    const otra = await api().post(`/invitaciones/${token}/aceptar`).send({ password: "NuevaClave1" });
+    expect((await api().post(`/invitaciones/${token}/aceptar`).send({ password: "NuevaClave1", acepta_politica_datos: true })).status).toBe(200);
+    const otra = await api().post(`/invitaciones/${token}/aceptar`).send({ password: "NuevaClave1", acepta_politica_datos: true });
     expect(otra.status).toBe(409);
     expect(otra.body.message).toBe("Esta invitación ya fue utilizada");
     expect((await api().get(`/invitaciones/${token}`)).status).toBe(409);
@@ -182,8 +223,8 @@ describe("POST /invitaciones/:token/aceptar", () => {
   it("dos aceptaciones simultáneas sin cuenta: se crea un solo usuario", async () => {
     const { empleado, token } = await invitar();
     const [a, b] = await Promise.all([
-      api().post(`/invitaciones/${token}/aceptar`).send({ password: "NuevaClave1" }),
-      api().post(`/invitaciones/${token}/aceptar`).send({ password: "NuevaClave1" }),
+      api().post(`/invitaciones/${token}/aceptar`).send({ password: "NuevaClave1", acepta_politica_datos: true }),
+      api().post(`/invitaciones/${token}/aceptar`).send({ password: "NuevaClave1", acepta_politica_datos: true }),
     ]);
     expect([a.status, b.status].sort()).toEqual([200, 409]);
     const [usuarios] = await pool.query("SELECT id_usuario FROM usuarios WHERE email = ?", [empleado.email]);
@@ -193,7 +234,7 @@ describe("POST /invitaciones/:token/aceptar", () => {
   it("invitación vencida -> 409 y no crea la cuenta", async () => {
     const { empleado, token } = await invitar();
     await pool.query("UPDATE invitaciones_empleado SET expiracion = NOW() - INTERVAL 1 MINUTE WHERE id_empleado = ?", [empleado.id_empleado]);
-    expect((await api().post(`/invitaciones/${token}/aceptar`).send({ password: "NuevaClave1" })).status).toBe(409);
+    expect((await api().post(`/invitaciones/${token}/aceptar`).send({ password: "NuevaClave1", acepta_politica_datos: true })).status).toBe(409);
     const [usuarios] = await pool.query("SELECT 1 FROM usuarios WHERE email = ?", [empleado.email]);
     expect(usuarios).toHaveLength(0);
   });
@@ -215,6 +256,6 @@ describe("POST /invitaciones/:token/aceptar", () => {
   it("body con campos desconocidos o sin password -> 422", async () => {
     const { token } = await invitar();
     expect((await api().post(`/invitaciones/${token}/aceptar`).send({})).status).toBe(422);
-    expect((await api().post(`/invitaciones/${token}/aceptar`).send({ password: "NuevaClave1", email: "otro@x.co" })).status).toBe(422);
+    expect((await api().post(`/invitaciones/${token}/aceptar`).send({ password: "NuevaClave1", acepta_politica_datos: true, email: "otro@x.co" })).status).toBe(422);
   });
 });

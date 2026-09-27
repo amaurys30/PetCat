@@ -170,6 +170,9 @@ router.post(
  *                     email: { type: string, example: recepcionista@petcat.test }
  *                     expiracion: { type: string, example: "2026-09-28 10:00:00" }
  *                     cuenta_existente: { type: boolean }
+ *                     requiere_aceptar_politica:
+ *                       type: boolean
+ *                       description: Sin cuenta, aceptar exige acepta_politica_datos true (mostrar la política y un check)
  *       404: { $ref: '#/components/responses/NotFound' }
  *       409: { $ref: '#/components/responses/InvitacionNoUsable' }
  *       422: { $ref: '#/components/responses/ValidationError' }
@@ -189,6 +192,10 @@ router.get("/invitaciones/:token", validate({ params: tokenParams }), controller
  *         `nombre`, `apellido` y `telefono` se ignoran.
  *       - Si no tiene cuenta: se crea con `password` (8 a 72 caracteres, con letra y número) y el
  *         email queda verificado. `nombre` y `apellido` son opcionales: por defecto, los del empleado.
+ *         `acepta_politica_datos: true` es obligatorio: se guarda la autorización de datos (canal
+ *         `invitacion`, con el negocio que invitó).
+ *       - Con cuenta existente `acepta_politica_datos` es opcional; si se envía y no tenía una
+ *         autorización vigente, se registra.
  *
  *       Todo ocurre en una transacción con la invitación bloqueada: el mismo enlace no se puede usar
  *       dos veces, ni siquiera en solicitudes simultáneas.
@@ -209,6 +216,10 @@ router.get("/invitaciones/:token", validate({ params: tokenParams }), controller
  *               nombre: { type: string, minLength: 2, maxLength: 80 }
  *               apellido: { type: string, minLength: 2, maxLength: 80 }
  *               telefono: { type: string, example: "3004445566" }
+ *               acepta_politica_datos:
+ *                 type: boolean
+ *                 enum: [true]
+ *                 description: Obligatorio si el email no tiene cuenta (requiere_aceptar_politica en GET /invitaciones/{token})
  *     responses:
  *       200:
  *         description: Invitación aceptada y sesión iniciada
