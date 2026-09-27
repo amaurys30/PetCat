@@ -300,7 +300,8 @@ router.post(
  *       Requiere `empleados.eliminar`. Marca `activo = false` y `fecha_retiro` = hoy, e invalida sus
  *       invitaciones pendientes; pierde el acceso al panel del negocio. 409 si ya está inactivo.
  *       Un empleado no puede desactivarse a sí mismo ni desactivar a uno con permisos que él no
- *       tiene (403).
+ *       tiene (403). La respuesta trae `citas_afectadas`: todas sus citas futuras pendientes o
+ *       confirmadas, que hay que reasignar o reprogramar (el empleado se desactiva igual).
  *     tags: [Empleados]
  *     parameters:
  *       - { in: path, name: id_empleado, required: true, schema: { type: integer } }
@@ -313,8 +314,12 @@ router.post(
  *               type: object
  *               properties:
  *                 success: { type: boolean, example: true }
- *                 message: { type: string, example: Empleado desactivado }
- *                 data: { $ref: '#/components/schemas/Empleado' }
+ *                 message: { type: string, example: Empleado desactivado. 2 citas quedan fuera de la disponibilidad del empleado }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     empleado: { $ref: '#/components/schemas/Empleado' }
+ *                     citas_afectadas: { $ref: '#/components/schemas/CitasAfectadas' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       403: { $ref: '#/components/responses/Forbidden' }
  *       404: { $ref: '#/components/responses/NotFound' }

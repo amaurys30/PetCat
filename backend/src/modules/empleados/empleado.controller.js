@@ -1,5 +1,6 @@
 import * as service from "./empleado.service.js";
 import { ok, created, paginated } from "../../shared/utils/response.js";
+import { mensajeConAfectadas } from "../disponibilidad/disponibilidad.service.js";
 
 export const getEmpleados = async (req, res) => {
   const { rows, meta } = await service.getEmpleados(req.negocio.id_negocio, req.query);
@@ -28,8 +29,8 @@ export const updateEmpleado = async (req, res) => {
 };
 
 export const desactivarEmpleado = async (req, res) => {
-  const empleado = await service.desactivarEmpleado(req.params.id_empleado, req.acceso);
-  return ok(res, empleado, "Empleado desactivado");
+  const data = await service.desactivarEmpleado(req.params.id_empleado, req.acceso);
+  return ok(res, data, mensajeConAfectadas("Empleado desactivado", data.citas_afectadas));
 };
 
 export const reactivarEmpleado = async (req, res) => {

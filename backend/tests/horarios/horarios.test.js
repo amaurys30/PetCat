@@ -58,7 +58,8 @@ describe("PUT /sucursales/:id_sucursal/horarios", () => {
     const res = await api(token).put(`/sucursales/${sucursal.id_sucursal}/horarios`).send({ horarios: semana });
     expect(res.status).toBe(200);
     expect(res.body.message).toBe("Horarios actualizados");
-    expect(res.body.data.map(({ id_horario, ...r }) => r)).toEqual([
+    expect(res.body.data.citas_afectadas).toEqual([]);
+    expect(res.body.data.horarios.map(({ id_horario, ...r }) => r)).toEqual([
       rango(1, "08:00", "12:00"),
       rango(1, "14:00", "18:00"),
       rango(6, "08:00", "12:00"),
@@ -78,7 +79,7 @@ describe("PUT /sucursales/:id_sucursal/horarios", () => {
 
     const vacia = await api(token).put(`/sucursales/${sucursal.id_sucursal}/horarios`).send({ horarios: [] });
     expect(vacia.status).toBe(200);
-    expect(vacia.body.data).toEqual([]);
+    expect(vacia.body.data).toEqual({ horarios: [], citas_afectadas: [] });
   });
 
   it("rangos que se cruzan el mismo día -> 422 indicando el rango, sin tocar lo guardado", async () => {

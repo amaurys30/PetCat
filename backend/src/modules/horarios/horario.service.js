@@ -2,6 +2,7 @@ import * as horarioRepo from "./horario.repository.js";
 import * as sucursalRepo from "../sucursales/sucursal.repository.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
+import { citasAfectadasDeSucursal } from "../disponibilidad/disponibilidad.service.js";
 
 const DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 const hhmm = (hora) => hora.slice(0, 5);
@@ -38,13 +39,20 @@ export const getHorarios = async (id_sucursal) => {
   return horarioRepo.findBySucursal(id_sucursal);
 };
 
-/** Reemplaza la semana completa en una transacción. authorize ya verificó el permiso. */
+/**
+ * Reemplaza la semana completa en una transacción. authorize ya verificó el permiso.
+ * Devuelve los horarios y `citas_afectadas`: citas futuras pendientes o confirmadas de
+ * la sucursal que ya no caben (el cambio se guarda igual).
+ */
 export const replaceHorarios = async (id_sucursal, horarios) => {
   validarRangos(horarios);
   return withTransaction(async (conn) => {
     const sucursal = await sucursalRepo.findById(id_sucursal, conn);
     if (!sucursal?.activo) throw ApiError.notFound("Sucursal no encontrada");
     await horarioRepo.replaceBySucursal(id_sucursal, horarios, conn);
-    return horarioRepo.findBySucursal(id_sucursal, conn);
+    return {
+      horarios: await horarioRepo.findBySucursal(id_sucursal, conn),
+      citas_afectadas: await citasAfectadasDeSucursal(id_sucursal, sucursal.id_negocio, conn),
+    };
   });
 };

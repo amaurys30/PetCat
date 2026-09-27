@@ -134,6 +134,36 @@ const citasAfectadas = async (empleado, conn) => {
     .map(formatCitaAfectada);
 };
 
+/**
+ * Citas futuras pendientes o confirmadas de una sucursal que, con el horario actual
+ * de la sucursal, ya no caben en la disponibilidad de su empleado (PUT de horarios).
+ * Las citas sin empleado se comparan solo con el horario de la sucursal.
+ */
+export const citasAfectadasDeSucursal = async (id_sucursal, id_negocio, conn) => {
+  const citas = await disponibilidadRepo.findCitasFuturasActivasDeSucursal(id_sucursal, conn);
+  if (citas.length === 0) return [];
+  const ids = [...new Set(citas.map((c) => c.id_empleado).filter((id) => id !== null))];
+  const [horariosPorSucursal, semanales, excepciones] = await Promise.all([
+    disponibilidadRepo.findHorariosSucursales(id_negocio, conn),
+    disponibilidadRepo.findHorarioSemanalDeEmpleados(ids, conn),
+    disponibilidadRepo.findExcepcionesDeEmpleados(ids, hoyISO(), "9999-12-31", conn),
+  ]);
+  return citas
+    .filter(
+      (cita) =>
+        !citaCabe(cita, {
+          horariosPorSucursal,
+          horarioSemanal: semanales[cita.id_empleado] ?? [],
+          excepciones: excepciones[cita.id_empleado] ?? [],
+        })
+    )
+    .map(formatCitaAfectada);
+};
+
+/** Todas las citas futuras pendientes o confirmadas del empleado (al desactivarlo ya no tiene disponibilidad). */
+export const citasFuturasDeEmpleado = async (id_empleado, conn) =>
+  (await disponibilidadRepo.findCitasFuturasActivas(id_empleado, conn)).map(formatCitaAfectada);
+
 // ---------- Lectura ----------
 
 /** Horario semanal y excepciones (por defecto, las que terminan hoy o después). */

@@ -147,9 +147,15 @@ export const findHorariosSucursales = async (id_negocio, conn) => {
  * Citas pendientes o confirmadas del empleado desde este momento, con los datos
  * que necesita el panel para reprogramarlas o reasignarlas.
  */
-export const findCitasFuturasActivas = async (id_empleado, conn) => {
+export const findCitasFuturasActivas = async (id_empleado, conn) => findCitasFuturas({ id_empleado }, conn);
+
+/** Como findCitasFuturasActivas, de una sucursal (todas sus citas, de cualquier empleado). */
+export const findCitasFuturasActivasDeSucursal = async (id_sucursal, conn) => findCitasFuturas({ id_sucursal }, conn);
+
+const findCitasFuturas = async ({ id_empleado, id_sucursal }, conn) => {
+  const [columna, valor] = id_empleado !== undefined ? ["c.id_empleado", id_empleado] : ["c.id_sucursal", id_sucursal];
   const [rows] = await (conn ?? db).query(
-    `SELECT c.id_cita, c.fecha,
+    `SELECT c.id_cita, c.fecha, c.id_empleado,
             TIME_FORMAT(c.hora_inicio, '%H:%i') AS hora_inicio, TIME_FORMAT(c.hora_fin, '%H:%i') AS hora_fin,
             c.estado, c.id_sucursal, su.nombre AS sucursal_nombre,
             sv.id_servicio, sv.nombre AS servicio_nombre,
@@ -160,11 +166,11 @@ export const findCitasFuturasActivas = async (id_empleado, conn) => {
      JOIN servicios sv ON sv.id_servicio = c.id_servicio
      JOIN mascotas m ON m.id_mascota = c.id_mascota
      JOIN usuarios u ON u.id_usuario = c.id_usuario
-     WHERE c.id_empleado = ?
+     WHERE ${columna} = ?
        AND c.estado IN ('pendiente', 'confirmada')
        AND (c.fecha > CURDATE() OR (c.fecha = CURDATE() AND c.hora_inicio >= CURTIME()))
      ORDER BY c.fecha, c.hora_inicio, c.id_cita`,
-    [id_empleado]
+    [valor]
   );
   return rows;
 };
