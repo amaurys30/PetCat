@@ -21,6 +21,7 @@ import servicioRoutes from "./modules/servicios/servicio.routes.js";
 import busquedaRoutes from "./modules/busqueda/busqueda.routes.js";
 import disponibilidadRoutes from "./modules/disponibilidad/disponibilidad.routes.js";
 import citaRoutes from "./modules/citas/cita.routes.js";
+import clienteRoutes from "./modules/clientes/cliente.routes.js";
 
 import { generalLimiter, strictLimiter } from "./shared/middlewares/rateLimit.js";
 import { notFound } from "./shared/middlewares/notFound.js";
@@ -70,6 +71,8 @@ v1.use("/auth/reset-password", strictLimiter());
 v1.use("/auth/verify-email", strictLimiter());
 v1.use("/auth/resend-verification", strictLimiter());
 v1.use("/invitaciones", strictLimiter());
+// Búsqueda exacta de clientes: sin límite estricto se podrían recorrer teléfonos.
+v1.use("/negocios/:id_negocio/clientes/buscar", strictLimiter());
 
 v1.use("/auth", authRoutes);
 v1.use(negocioRoutes);
@@ -84,6 +87,7 @@ v1.use(servicioRoutes);
 v1.use(busquedaRoutes);
 v1.use(disponibilidadRoutes);
 v1.use(citaRoutes);
+v1.use(clienteRoutes);
 
 app.use("/api/v1", v1);
 
