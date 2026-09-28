@@ -1402,7 +1402,7 @@ INSERT INTO roles (nombre, descripcion, permisos_json, es_sistema) VALUES
 
 ('Veterinario',
  'Puede gestionar citas, mascotas, historial médico y servicios.',
- '{"citas":["ver","crear","editar"],"servicios":["ver"],"inventario":["ver","editar_stock"],"clientes":["ver"],"historial_medico":["ver","crear","editar"],"vacunas":["ver","crear"]}',
+ '{"citas":["ver","crear","editar"],"servicios":["ver"],"inventario":["ver","editar_stock"],"clientes":["ver"],"historial_medico":["ver","crear","editar"],"vacunas":["ver","crear","editar"]}',
  TRUE),
 
 ('Recepcionista',
@@ -1614,7 +1614,8 @@ INSERT INTO schema_migrations (nombre) VALUES
 ('007_citas_configuracion_y_autorizaciones.sql'),
 ('008_autorizaciones_canales.sql'),
 ('009_citas_cancelacion_e_inasistencias.sql'),
-('010_historial_vacunas_y_privacidad.sql');
+('010_historial_vacunas_y_privacidad.sql'),
+('011_rol_veterinario_vacunas_editar.sql');
 
 
 SET FOREIGN_KEY_CHECKS = 1;

@@ -200,9 +200,8 @@ describe("PATCH /vacunas/:id_vacuna", () => {
     expect(duenoSobreNegocio.body.message).toBe("Solo el negocio que la registró puede editar esta vacuna");
 
     expect((await api(ctx.tokenB).patch(`/vacunas/${deA.id_vacuna}`).send({ lote: "X" })).status).toBe(403);
-    // El rol Veterinario del sistema no tiene vacunas.editar.
-    expect((await api(ctx.tokenVet).patch(`/vacunas/${deA.id_vacuna}`).send({ lote: "X" })).status).toBe(403);
-    const propia = await api(ctx.tokenA).patch(`/vacunas/${deA.id_vacuna}`).send({ lote: "L-9" });
+    // El rol Veterinario del sistema tiene vacunas.editar (migración 011).
+    const propia = await api(ctx.tokenVet).patch(`/vacunas/${deA.id_vacuna}`).send({ lote: "L-9" });
     expect(propia.status).toBe(200);
     expect(propia.body.data.lote).toBe("L-9");
     expect((await api(ctx.tokenA).patch("/vacunas/999999999").send({ lote: "X" })).status).toBe(404);
