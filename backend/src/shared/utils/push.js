@@ -35,7 +35,8 @@ const crearExpo = () => {
 
 /**
  * En memoria: guarda los mensajes en `enviados`. Los tests simulan tokens dados de baja
- * (`noRegistrados`), un fallo de red (`fallarAlEnviar`) y recibos con error (`recibosConError`).
+ * (`noRegistrados`), un fallo de red (`fallarAlEnviar`), recibos con error (`recibosConError`)
+ * y la latencia de Expo (`retrasoMs`, para que dos procesadores se solapen).
  */
 const crearMemoria = () => {
   let contador = 0;
@@ -44,8 +45,10 @@ const crearMemoria = () => {
     noRegistrados: new Set(),
     recibosConError: new Map(),
     fallarAlEnviar: false,
+    retrasoMs: 0,
 
     enviar: async (mensajes) => {
+      if (memoria.retrasoMs) await new Promise((r) => setTimeout(r, memoria.retrasoMs));
       if (memoria.fallarAlEnviar) throw new Error("Fallo simulado de Expo");
       return mensajes.map((mensaje) => {
         if (memoria.noRegistrados.has(mensaje.to)) {
@@ -71,6 +74,7 @@ const crearMemoria = () => {
       memoria.noRegistrados.clear();
       memoria.recibosConError.clear();
       memoria.fallarAlEnviar = false;
+      memoria.retrasoMs = 0;
     },
   };
   return memoria;

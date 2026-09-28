@@ -58,6 +58,12 @@ export const existeDesde = async ({ tipo, id_negocio, desde }, conn) => {
  * Toma el envío para procesarlo: suma un intento y lo aparta hasta `hasta` (si el proceso
  * se cae a mitad, el job lo retoma después). Solo si sigue pendiente y ya le tocaba.
  * Devuelve false si otro proceso lo tomó o aún no toca.
+ *
+ * Es la exclusión entre procesos (p. ej. dos instancias durante un despliegue, o el job y
+ * el despacho después del commit): el UPDATE condicional es atómico en InnoDB; si dos lo
+ * intentan a la vez, el segundo espera el bloqueo de la fila, vuelve a evaluar el WHERE con
+ * `programado_para` ya movido a `hasta` y no afecta filas. El apartado (5 minutos) debe ser
+ * mayor que el tiempo máximo de un envío (SMTP_TIMEOUT_MS, 10 s; Expo, segundos).
  */
 export const reclamarEnvio = async (id_envio, ahora, hasta) => {
   const [result] = await db.query(
