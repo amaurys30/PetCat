@@ -146,7 +146,7 @@ En tres partes: **1.5.1** horarios libres, reservas y clientes del panel · **1.
   - Prueba de humo sobre el seed: búsqueda geográfica (4 negocios, el destacado primero), servicios en oferta vigente, login de los 11 usuarios, citas y resumen de salud de la dueña, agenda de hoy con la cita en curso, cita fuera de disponibilidad, clientes con inasistencias, horarios libres, reserva y cancelación desde la app, y rechazo de la mascota fallecida.
   - Swagger con 65 rutas y 89 operaciones (las mismas que registran los routers), todas con resumen y respuestas y sin referencias rotas.
   - La suite (507 tests) pasa en el clon contra un MySQL 8 nuevo con los mismos pasos del workflow de CI.
-- [ ] PR de `fase-1` a `main` con el resumen de la fase y la guía para actualizar un entorno existente.
+- [x] PR de `fase-1` a `main` con el resumen de la fase y la guía para actualizar un entorno existente (#2).
 
 ---
 
