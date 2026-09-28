@@ -145,4 +145,17 @@ export const authorizeDuenoO = (modulo, accion, { esDueno }) => {
   };
 };
 
+/**
+ * Solo el admin de plataforma (`tipo_usuario = 'admin'`). Va después de authMiddleware.
+ * Para operaciones de la plataforma sobre un negocio, como asignar un plan.
+ */
+// eslint-disable-next-line no-unused-vars
+export const soloAdmin = async (req, res, next) => {
+  if (!req.user) throw ApiError.unauthorized("Token requerido");
+  if (req.user.tipo_usuario !== "admin") {
+    throw ApiError.forbidden("Solo el administrador de la plataforma puede realizar esta acción");
+  }
+  next();
+};
+
 export default authorize;

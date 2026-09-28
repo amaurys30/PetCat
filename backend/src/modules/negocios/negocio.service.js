@@ -1,5 +1,6 @@
 import * as negocioRepo from "./negocio.repository.js";
 import * as suscripcionRepo from "../suscripciones/suscripcion.repository.js";
+import { getPlanesDeNegocios } from "../suscripciones/suscripcion.service.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
 import { castFields } from "../../shared/utils/format.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
@@ -35,10 +36,12 @@ export const createNegocio = async (id_usuario, data) => {
 
 export const getMisNegocios = async (id_usuario) => {
   const rows = await negocioRepo.findMios(id_usuario);
+  const planes = await getPlanesDeNegocios(rows.map((row) => row.id_negocio));
   return rows.map(({ id_empleado, id_rol, rol_nombre, ...negocio }) => ({
     ...formatNegocio(negocio),
     id_empleado,
     rol: id_rol === null ? null : { id_rol, nombre: rol_nombre },
+    plan: planes[negocio.id_negocio],
   }));
 };
 

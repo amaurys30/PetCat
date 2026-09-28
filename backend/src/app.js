@@ -25,6 +25,7 @@ import historialRoutes from "./modules/historial/historial.routes.js";
 import vacunaRoutes from "./modules/vacunas/vacuna.routes.js";
 import saludRoutes from "./modules/salud/salud.routes.js";
 import clienteRoutes from "./modules/clientes/cliente.routes.js";
+import suscripcionRoutes from "./modules/suscripciones/suscripcion.routes.js";
 
 import { generalLimiter, strictLimiter } from "./shared/middlewares/rateLimit.js";
 import { notFound } from "./shared/middlewares/notFound.js";
@@ -94,6 +95,7 @@ v1.use(historialRoutes);
 v1.use(vacunaRoutes);
 v1.use(saludRoutes);
 v1.use(clienteRoutes);
+v1.use(suscripcionRoutes);
 
 app.use("/api/v1", v1);
 

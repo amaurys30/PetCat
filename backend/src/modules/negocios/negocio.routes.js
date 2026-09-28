@@ -70,6 +70,13 @@ const router = express.Router();
  *           properties:
  *             id_rol: { type: integer }
  *             nombre: { type: string, example: Veterinario }
+ *         plan:
+ *           type: object
+ *           description: Plan efectivo (el Gratuito si la prueba o el plan pago vencieron)
+ *           properties:
+ *             id_plan: { type: integer }
+ *             nombre: { type: string, example: Pro }
+ *             en_prueba: { type: boolean }
  *     HorarioRango:
  *       type: object
  *       properties:
