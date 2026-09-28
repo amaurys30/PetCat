@@ -1,4 +1,5 @@
 import db from "../../config/db.js";
+import { likeLiteral } from "../../shared/utils/sql.js";
 
 export const MAX_RESULTADOS_BUSQUEDA = 5;
 
@@ -53,4 +54,105 @@ export const tieneRelacion = async (id_usuario, id_negocio, conn) => {
     [id_usuario, id_negocio, id_usuario, id_negocio]
   );
   return Boolean(rows[0].relacion);
+};
+
+// ---------- Clientes del negocio (1.7) ----------
+// Cliente = usuario activo con alguna cita con el negocio (cualquier estado) o con una
+// autorización de datos que registró ese negocio.
+
+// Agregados de las citas del negocio por cliente (alias `st`).
+const SQL_ESTADISTICAS = `
+  SELECT c.id_usuario,
+         COUNT(*) AS total_citas,
+         MAX(c.fecha) AS ultima_actividad,
+         MAX(CASE WHEN c.estado NOT IN ('cancelada', 'reprogramada')
+                   AND (c.fecha < CURDATE() OR (c.fecha = CURDATE() AND c.hora_fin < CURTIME()))
+                  THEN c.fecha END) AS ultima_cita,
+         MIN(CASE WHEN c.estado IN ('pendiente', 'confirmada')
+                   AND (c.fecha > CURDATE() OR (c.fecha = CURDATE() AND c.hora_fin >= CURTIME()))
+                  THEN c.fecha END) AS proxima_cita,
+         SUM(c.estado = 'no_asistio') AS inasistencias
+  FROM citas c
+  WHERE c.id_negocio = ?
+  GROUP BY c.id_usuario`;
+
+const ORDENES = {
+  ultima_cita: "st.ultima_actividad IS NULL, st.ultima_actividad DESC, u.apellido, u.nombre, u.id_usuario",
+  nombre: "u.apellido, u.nombre, u.id_usuario",
+  inasistencias: "inasistencias DESC, u.apellido, u.nombre, u.id_usuario",
+};
+
+/**
+ * Página de clientes del negocio. `q` busca en nombre, apellido, nombre completo,
+ * email, dígitos del teléfono (con 3 o más) y nombre de sus mascotas activas.
+ */
+export const findPageDeNegocio = async (id_negocio, { q, orden = "ultima_cita", limit, offset }) => {
+  const condiciones = [
+    "u.activo = TRUE",
+    "(st.id_usuario IS NOT NULL OR EXISTS (SELECT 1 FROM autorizaciones_datos a WHERE a.id_usuario = u.id_usuario AND a.id_negocio = ?))",
+  ];
+  const valores = [id_negocio];
+  if (q) {
+    const patron = likeLiteral(q);
+    const digitos = q.replace(/\D/g, "");
+    condiciones.push(`(u.nombre LIKE ? OR u.apellido LIKE ? OR CONCAT(u.nombre, ' ', u.apellido) LIKE ? OR u.email LIKE ?
+      ${digitos.length >= 3 ? "OR REGEXP_REPLACE(u.telefono, '[^0-9]', '') LIKE ?" : ""}
+      OR EXISTS (SELECT 1 FROM mascotas m WHERE m.id_usuario = u.id_usuario AND m.activo = TRUE AND m.nombre LIKE ?))`);
+    valores.push(patron, patron, patron, patron, ...(digitos.length >= 3 ? [likeLiteral(digitos)] : []), patron);
+  }
+  const from = `FROM usuarios u LEFT JOIN (${SQL_ESTADISTICAS}) st ON st.id_usuario = u.id_usuario`;
+  const where = `WHERE ${condiciones.join(" AND ")}`;
+
+  const [rows] = await db.query(
+    `SELECT u.id_usuario, u.nombre, u.apellido, u.email, u.telefono,
+            COALESCE(st.total_citas, 0) AS total_citas, st.ultima_cita, st.proxima_cita,
+            COALESCE(st.inasistencias, 0) AS inasistencias
+     ${from} ${where}
+     ORDER BY ${ORDENES[orden]}
+     LIMIT ? OFFSET ?`,
+    [id_negocio, ...valores, limit, offset]
+  );
+  const [[{ total }]] = await db.query(`SELECT COUNT(*) AS total ${from} ${where}`, [id_negocio, ...valores]);
+  return { rows, total };
+};
+
+/**
+ * Datos del cliente en el negocio, o undefined si no es cliente (o su cuenta está
+ * desactivada): contacto, desde cuándo, si lo registró el negocio y si usa la app.
+ */
+export const findClienteDeNegocio = async (id_usuario, id_negocio) => {
+  const [rows] = await db.query(
+    `SELECT u.id_usuario, u.nombre, u.apellido, u.email, u.telefono, u.ultimo_acceso,
+            (SELECT MIN(c.fecha) FROM citas c WHERE c.id_usuario = u.id_usuario AND c.id_negocio = ?) AS primera_cita,
+            (SELECT MIN(DATE(a.fecha_autorizacion)) FROM autorizaciones_datos a
+             WHERE a.id_usuario = u.id_usuario AND a.id_negocio = ?) AS primera_autorizacion,
+            EXISTS (SELECT 1 FROM autorizaciones_datos a
+                    WHERE a.id_usuario = u.id_usuario AND a.id_negocio = ? AND a.canal = 'panel') AS registrado_por_el_negocio
+     FROM usuarios u
+     WHERE u.id_usuario = ? AND u.activo = TRUE`,
+    [id_negocio, id_negocio, id_negocio, id_usuario]
+  );
+  const row = rows[0];
+  if (!row || (row.primera_cita === null && row.primera_autorizacion === null)) return undefined;
+  return row;
+};
+
+/**
+ * Mascotas activas del cliente (también las fallecidas, marcadas), con cuántas citas
+ * tienen con el negocio y si el negocio puede abrir su historial (cita válida).
+ */
+export const findMascotasDeCliente = async (id_usuario, id_negocio) => {
+  const [rows] = await db.query(
+    `SELECT m.id_mascota, m.nombre, m.especie, m.raza, m.sexo, m.fecha_nacimiento,
+            TIMESTAMPDIFF(MONTH, m.fecha_nacimiento, CURDATE()) AS edad_meses, m.peso,
+            m.tiene_alergias, m.alergias_detalle, m.condiciones_medicas, m.fallecido,
+            (SELECT COUNT(*) FROM citas c WHERE c.id_mascota = m.id_mascota AND c.id_negocio = ?) AS citas_con_negocio,
+            EXISTS (SELECT 1 FROM citas c WHERE c.id_mascota = m.id_mascota AND c.id_negocio = ?
+                      AND c.estado NOT IN ('cancelada', 'reprogramada')) AS acceso_historial
+     FROM mascotas m
+     WHERE m.id_usuario = ? AND m.activo = TRUE
+     ORDER BY m.fallecido, m.nombre, m.id_mascota`,
+    [id_negocio, id_negocio, id_usuario]
+  );
+  return rows;
 };

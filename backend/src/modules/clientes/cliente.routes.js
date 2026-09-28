@@ -1,6 +1,13 @@
 import express from "express";
 import * as controller from "./cliente.controller.js";
-import { agregarMascotaBody, buscarClienteQuery, clienteParams, registrarClienteBody } from "./cliente.schemas.js";
+import {
+  agregarMascotaBody,
+  buscarClienteQuery,
+  citasClienteQuery,
+  clienteParams,
+  listClientesQuery,
+  registrarClienteBody,
+} from "./cliente.schemas.js";
 import { idNegocioParams } from "../negocios/negocio.schemas.js";
 import { authMiddleware } from "../../shared/middlewares/auth.middleware.js";
 import { authorize, authorizeAny } from "../../shared/middlewares/authorize.middleware.js";
@@ -138,6 +145,177 @@ router.get(
  *             schema: { $ref: '#/components/schemas/ErrorResponse' }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     ClienteFila:
+ *       allOf:
+ *         - $ref: '#/components/schemas/ClienteContacto'
+ *         - type: object
+ *           properties:
+ *             total_citas: { type: integer, description: Con este negocio, en cualquier estado }
+ *             ultima_cita: { type: string, format: date, nullable: true, description: Última cita ya pasada (sin canceladas ni reprogramadas) }
+ *             proxima_cita: { type: string, format: date, nullable: true }
+ *             inasistencias: { type: integer, description: Con este negocio }
+ *     ClienteDetalle:
+ *       type: object
+ *       properties:
+ *         cliente:
+ *           allOf:
+ *             - $ref: '#/components/schemas/ClienteContacto'
+ *             - type: object
+ *               properties:
+ *                 cliente_desde: { type: string, format: date, description: Primera cita o autorización registrada por el negocio }
+ *                 registrado_por_el_negocio: { type: boolean }
+ *                 usa_app: { type: boolean, description: Alguna vez inició sesión }
+ *         historial_cumplimiento:
+ *           type: object
+ *           description: Solo las citas del cliente con este negocio
+ *           properties:
+ *             completadas: { type: integer }
+ *             inasistencias: { type: integer }
+ *             cancelaciones_tardias: { type: integer }
+ *         mascotas:
+ *           type: array
+ *           items:
+ *             type: object
+ *             properties:
+ *               id_mascota: { type: integer }
+ *               nombre: { type: string }
+ *               especie: { type: string }
+ *               raza: { type: string, nullable: true }
+ *               edad_meses: { type: integer, nullable: true }
+ *               peso: { type: number, nullable: true }
+ *               tiene_alergias: { type: boolean }
+ *               alergias_detalle: { type: string, nullable: true }
+ *               condiciones_medicas: { type: string, nullable: true }
+ *               fallecido: { type: boolean }
+ *               citas_con_negocio: { type: integer }
+ *               acceso_historial: { type: boolean, description: Tiene una cita válida con el negocio (se puede abrir su historial y vacunas) }
+ *         citas:
+ *           type: object
+ *           properties:
+ *             proximas: { type: array, items: { $ref: '#/components/schemas/CitaPanel' } }
+ *             recientes: { type: array, description: Las últimas 10, items: { $ref: '#/components/schemas/CitaPanel' } }
+ */
+
+/**
+ * @swagger
+ * /negocios/{id_negocio}/clientes:
+ *   get:
+ *     summary: Clientes del negocio (panel)
+ *     description: >
+ *       Requiere `clientes.ver`. Cliente = usuario activo con alguna cita con el negocio (en cualquier estado)
+ *       o registrado desde este panel. Todos los conteos son solo de este negocio. `q` busca en nombre,
+ *       apellido, email, teléfono (dígitos) y nombre de sus mascotas.
+ *     tags: [Clientes]
+ *     parameters:
+ *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
+ *       - $ref: '#/components/parameters/page'
+ *       - $ref: '#/components/parameters/limit'
+ *       - { in: query, name: q, schema: { type: string, maxLength: 100 } }
+ *       - { in: query, name: orden, schema: { type: string, enum: [ultima_cita, nombre, inasistencias], default: ultima_cita } }
+ *     responses:
+ *       200:
+ *         description: Página de clientes
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: OK }
+ *                 data: { type: array, items: { $ref: '#/components/schemas/ClienteFila' } }
+ *                 meta: { $ref: '#/components/schemas/PaginationMeta' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.get(
+  "/negocios/:id_negocio/clientes",
+  authMiddleware,
+  validate({ params: idNegocioParams, query: listClientesQuery }),
+  authorize("clientes", "ver"),
+  controller.listarClientes
+);
+
+/**
+ * @swagger
+ * /negocios/{id_negocio}/clientes/{id_usuario}:
+ *   get:
+ *     summary: Detalle de un cliente del negocio (panel)
+ *     description: >
+ *       Requiere `clientes.ver`. Contacto, cumplimiento (completadas, inasistencias y cancelaciones tardías),
+ *       mascotas y citas próximas y recientes, todo solo con este negocio. 404 si el usuario no es cliente del
+ *       negocio (no se revela si la cuenta existe).
+ *     tags: [Clientes]
+ *     parameters:
+ *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
+ *       - { in: path, name: id_usuario, required: true, schema: { type: integer } }
+ *     responses:
+ *       200:
+ *         description: Cliente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: OK }
+ *                 data: { $ref: '#/components/schemas/ClienteDetalle' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.get(
+  "/negocios/:id_negocio/clientes/:id_usuario",
+  authMiddleware,
+  validate({ params: clienteParams }),
+  authorize("clientes", "ver"),
+  controller.getCliente
+);
+
+/**
+ * @swagger
+ * /negocios/{id_negocio}/clientes/{id_usuario}/citas:
+ *   get:
+ *     summary: Todas las citas de un cliente con el negocio (panel)
+ *     description: Requiere `clientes.ver`. Paginadas, de la más reciente hacia atrás. 404 si no es cliente del negocio.
+ *     tags: [Clientes]
+ *     parameters:
+ *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
+ *       - { in: path, name: id_usuario, required: true, schema: { type: integer } }
+ *       - $ref: '#/components/parameters/page'
+ *       - $ref: '#/components/parameters/limit'
+ *       - { in: query, name: estado, schema: { type: string }, example: "no_asistio,cancelada" }
+ *     responses:
+ *       200:
+ *         description: Página de citas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: OK }
+ *                 data: { type: array, items: { $ref: '#/components/schemas/CitaPanel' } }
+ *                 meta: { $ref: '#/components/schemas/PaginationMeta' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.get(
+  "/negocios/:id_negocio/clientes/:id_usuario/citas",
+  authMiddleware,
+  validate({ params: clienteParams, query: citasClienteQuery }),
+  authorize("clientes", "ver"),
+  controller.getCitasCliente
+);
+
 router.post(
   "/negocios/:id_negocio/clientes",
   authMiddleware,

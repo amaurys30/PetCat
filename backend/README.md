@@ -287,7 +287,7 @@ Detalle de cada uno en Swagger.
 | Búsqueda (app) | `GET /negocios` y `GET /servicios` (públicos, paginados) |
 | Disponibilidad | `GET` y `POST /empleados/:id_empleado/disponibilidad`, `PUT /empleados/:id_empleado/horario-semanal`, `GET /empleados/:id_empleado/disponibilidad-efectiva`, `PATCH` y `DELETE /disponibilidad/:id_disponibilidad` |
 | Citas | `GET /citas/horarios-libres` (público), `POST /citas` y `GET /citas/mias` (app), `GET /citas/:id_cita`, `POST /citas/:id_cita/cancelar`, `POST /citas/:id_cita/reprogramar` y `GET /citas/:id_cita/historial` (dueño o negocio), `PATCH /citas/:id_cita` y `PATCH /citas/:id_cita/estado` (panel), `GET /negocios/:id_negocio/citas/horarios-libres`, `GET` (agenda) y `POST /negocios/:id_negocio/citas` (panel) |
-| Clientes (panel) | `GET /negocios/:id_negocio/clientes/buscar`, `POST /negocios/:id_negocio/clientes`, `POST /negocios/:id_negocio/clientes/:id_usuario/mascotas` |
+| Clientes (panel) | `GET` (listado) y `POST /negocios/:id_negocio/clientes`, `GET /negocios/:id_negocio/clientes/buscar`, `GET /negocios/:id_negocio/clientes/:id_usuario` (detalle), `GET /negocios/:id_negocio/clientes/:id_usuario/citas`, `POST /negocios/:id_negocio/clientes/:id_usuario/mascotas` |
 | Historial médico | `GET /mascotas/:id_mascota/historial` (dueño), `GET /negocios/:id_negocio/mascotas/:id_mascota/historial`, `POST /negocios/:id_negocio/historial`, `PATCH /historial/:id_historial` (panel) |
 | Vacunas | `GET` y `POST /mascotas/:id_mascota/vacunas` (dueño), `GET /negocios/:id_negocio/mascotas/:id_mascota/vacunas`, `POST /negocios/:id_negocio/vacunas` (panel), `PATCH /vacunas/:id_vacuna` (quien la registró) |
 | Resumen de salud | `GET /mascotas/:id_mascota/resumen-salud` (dueño) y `GET /negocios/:id_negocio/mascotas/:id_mascota/resumen-salud` (panel) |
@@ -326,6 +326,8 @@ Detalle de cada uno en Swagger.
 2. Si no existe, registrarlo: `POST /negocios/:id_negocio/clientes` con sus datos, su primera mascota y `autoriza_tratamiento_datos: true`. El panel debe pedir y registrar esa autorización al cliente (Ley 1581 de 2012). El cliente recibe un correo con el nombre del negocio y un enlace de 7 días para crear su contraseña.
 3. Si ya es cliente del negocio (tiene una cita con él o el negocio lo registró) y trae otra mascota: `POST /negocios/:id_negocio/clientes/:id_usuario/mascotas`.
 4. Agendar con `POST /negocios/:id_negocio/citas`.
+
+La sección de clientes del panel usa `GET /negocios/:id_negocio/clientes` (con `inasistencias` por fila para mostrar una alerta) y `GET /negocios/:id_negocio/clientes/:id_usuario` (contacto, cumplimiento, mascotas y citas; todo solo con ese negocio).
 
 ### Servicios y búsqueda
 

@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { autorizacionDatos, email, idParam, telefono } from "../../shared/utils/schemas.js";
 import { createMascotaBody } from "../mascotas/mascota.schemas.js";
+import { ESTADOS_CITA } from "../citas/cita.schemas.js";
+import { paginationSchema } from "../../shared/utils/pagination.js";
 
 const soloDigitos = (valor) => valor.replace(/\D/g, "");
 
@@ -41,3 +43,16 @@ export const registrarClienteBody = z.strictObject({
 export const agregarMascotaBody = createMascotaBody;
 
 export const clienteParams = idParam("id_negocio").extend({ id_usuario: z.coerce.number().int().positive() });
+
+export const listClientesQuery = paginationSchema.extend({
+  q: z.string().trim().min(1).max(100).optional(),
+  orden: z.enum(["ultima_cita", "nombre", "inasistencias"], { error: "Debe ser ultima_cita, nombre o inasistencias" }).default("ultima_cita"),
+});
+
+export const citasClienteQuery = paginationSchema.extend({
+  estado: z
+    .string()
+    .transform((valor) => [...new Set(valor.split(",").map((e) => e.trim()).filter(Boolean))])
+    .pipe(z.array(z.enum(ESTADOS_CITA, { error: `Estados válidos: ${ESTADOS_CITA.join(", ")}` })).min(1))
+    .optional(),
+});

@@ -136,7 +136,8 @@ En tres partes: **1.5.1** horarios libres, reservas y clientes del panel · **1.
 - [x] `PATCH /vacunas/:id_vacuna` (la del dueño la edita el dueño; la de un negocio, ese negocio). Estado según `fecha_proxima`, con las dosis anteriores de la misma vacuna en `no_aplica`.
 
 ### 1.7 Clientes (panel)
-- [ ] `GET /negocios/:id_negocio/clientes` y `GET /negocios/:id_negocio/clientes/:id_usuario` (datos de contacto, mascotas y citas con ese negocio).
+- [x] `GET /negocios/:id_negocio/clientes` y `GET /negocios/:id_negocio/clientes/:id_usuario` (datos de contacto, mascotas y citas con ese negocio).
+- [x] `GET /negocios/:id_negocio/clientes/:id_usuario/citas` (todas las citas del cliente con el negocio, paginadas) y `historial_cumplimiento` en el detalle.
 
 ---
 
@@ -348,6 +349,12 @@ En tres partes: **1.5.1** horarios libres, reservas y clientes del panel · **1.
 - Bloqueos de la salud de una mascota: siempre mascota y luego registro o vacuna (por clave primaria), con la mascota de un registro buscada fuera de la transacción. Así el alta de una vacuna ligada a un registro (la llave foránea bloquea el registro) y la edición de ese registro no se cruzan en deadlock, y el recálculo de estados no se pisa con un alta simultánea.
 - Resumen de salud (sobre lo visible para quien consulta): `vacunas_vencidas` (vigentes con `fecha_proxima` < hoy, con `dias_vencida`), `vacunas_proximas` (hoy ≤ `fecha_proxima` ≤ hoy + 30, con `dias_restantes`), `ultimo_control` (el registro de historial más reciente con fecha ≤ hoy o, si no hay, la última cita completada), `proximo_control` (el `proximo_control` más cercano ≥ hoy), `proxima_cita` (la pendiente o confirmada más cercana que no terminó: de cualquier negocio para el dueño, solo las suyas para un negocio) y `evolucion_peso` (puntos del historial de los últimos 24 meses, máximo 24, más el peso actual; `variacion_kg`, `variacion_pct` y `tendencia` sube/baja/estable con umbral de 5 %). Una mascota fallecida no trae alertas de vacunas ni próxima cita.
 
+**Clientes (1.7)**
+- Cliente de un negocio: usuario **activo** con alguna cita con el negocio (en cualquier estado, también canceladas: un cliente que solo canceló tarde es información legítima) o con una autorización de datos registrada por ese negocio (registrado en el panel, aún sin citas). Es la misma relación que exige agregar una mascota desde el panel. El acceso al historial y a las vacunas de la mascota sigue exigiendo una cita no cancelada ni reprogramada (`acceso_historial` en el detalle).
+- Listado (`clientes.ver`): paginado, `q` (nombre, apellido, email, dígitos del teléfono, nombre de sus mascotas) y `orden` (`ultima_cita` por actividad más reciente, `nombre` o `inasistencias`); cada fila con `total_citas`, `ultima_cita`, `proxima_cita` e `inasistencias`, solo con ese negocio (una consulta con agregados sobre el índice de la migración 009).
+- Detalle: `cliente` (contacto, `cliente_desde`, `registrado_por_el_negocio`, `usa_app`), `historial_cumplimiento`, `mascotas` activas (fallecidas marcadas) con `citas_con_negocio` y `acceso_historial`, y `citas` `proximas` y `recientes` (10) en el formato de la agenda. `GET .../clientes/:id_usuario/citas` las trae todas, paginadas. Un usuario que no es cliente del negocio da **404** (no se revela si la cuenta existe).
+
 **Pendientes**
 - Fase 2: cancelación automática de citas pendientes sin confirmar y opción por negocio para confirmar automáticamente.
+- Fase 2: notas del negocio sobre el cliente (una tabla por negocio, visibles solo para ese negocio), que le dan uso al permiso `clientes.editar`.
 - Por decidir: clientes que solo tienen teléfono (hoy el email es obligatorio para registrarlos desde el panel).

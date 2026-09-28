@@ -317,6 +317,7 @@ const horaActual = () => {
  * la disponibilidad de su empleado (1.4). Carga los datos de todos los empleados en lote.
  */
 const conDisponibilidad = async (rows, id_negocio, desde, hasta) => {
+  if (rows.length === 0) return [];
   const hoy = hoyISO();
   const ahora = horaActual();
   const aplican = rows.filter((row) => aplicaDisponibilidad(row, hoy, ahora));
@@ -405,4 +406,10 @@ export const getCita = async (id_cita, acceso) => {
     citaRepo.resumenCumplimiento(row.id_usuario, row.id_negocio),
   ]);
   return { ...cita, cliente: { ...cita.cliente, historial_cumplimiento } };
+};
+
+/** Citas en el formato del panel (con notas internas y fuera_de_disponibilidad), de un mismo negocio. */
+export const formatCitasPanel = (rows, id_negocio) => {
+  const fechas = rows.map((r) => r.fecha).sort();
+  return conDisponibilidad(rows, id_negocio, fechas[0], fechas.at(-1));
 };

@@ -307,9 +307,14 @@ const SQL_PROXIMA = "(c.fecha > CURDATE() OR (c.fecha = CURDATE() AND c.hora_fin
  * Citas del dueño, paginadas. `alcance`: proximas (de la más cercana a la más
  * lejana), pasadas o todas (de la más reciente hacia atrás).
  */
-export const findPageDeUsuario = async (id_usuario, { alcance, estados, id_mascota, limit, offset }) => {
+export const findPageDeUsuario = async (id_usuario, { alcance, estados, id_mascota, id_negocio, limit, offset }) => {
   const condiciones = ["c.id_usuario = ?"];
   const valores = [id_usuario];
+  // Citas del cliente con un negocio (detalle del cliente en el panel).
+  if (id_negocio) {
+    condiciones.push("c.id_negocio = ?");
+    valores.push(id_negocio);
+  }
   if (alcance === "proximas") condiciones.push(SQL_PROXIMA);
   if (alcance === "pasadas") condiciones.push(`NOT ${SQL_PROXIMA}`);
   if (estados) {
