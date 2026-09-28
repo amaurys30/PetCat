@@ -44,6 +44,12 @@ export const configSilencio = async () =>
     fin: await configuracionRepo.getValor("silencio_fin", "07:00"),
   });
 
+/** Contacto de soporte de los avisos del plan; vacío = no configurado (esa línea se omite). */
+export const configSoporte = async () => ({
+  email: String(await configuracionRepo.getValor("soporte_email", "")).trim(),
+  whatsapp: String(await configuracionRepo.getValor("soporte_whatsapp", "")).trim(),
+});
+
 // Si un usuario es propietario y además empleado, cuenta como propietario.
 const PRIORIDAD_ROL = { propietario: 2, dueno: 1, personal: 0 };
 
@@ -69,6 +75,8 @@ const unicos = (destinatarios, excluir) => {
  */
 export const notificar = async (eventos, conn, { ahora = new Date() } = {}) => {
   const silencio = await configSilencio();
+  // Los tipos con `soporte` (avisos del plan) reciben el contacto de soporte en sus datos.
+  const soporte = eventos.some((e) => TIPOS[e.tipo]?.soporte) ? await configSoporte() : null;
   const creadas = [];
 
   for (const evento of eventos) {
@@ -88,7 +96,8 @@ export const notificar = async (eventos, conn, { ahora = new Date() } = {}) => {
     for (const destinatario of destinatarios) {
       const usuario = usuarios[destinatario.id_usuario];
       if (!usuario?.activo) continue;
-      const contenido = tipo.contenido(evento.datos, destinatario.rol === "dueno" ? "dueno" : "negocio");
+      const datos = tipo.soporte ? { ...evento.datos, soporte } : evento.datos;
+      const contenido = tipo.contenido(datos, destinatario.rol === "dueno" ? "dueno" : "negocio");
       const enlace = { tipo: evento.tipo, ...(evento.enlace ?? {}) };
       const id_notificacion = await notificacionRepo.createNotificacion(
         {

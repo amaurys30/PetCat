@@ -6,6 +6,7 @@ import { citaCercana, inicioDeCita } from "./silencio.js";
  *   activo ("dueno", el dueño de la mascota; "propietario", el del negocio). El resto
  *   del personal nunca recibe correo.
  * - `urgente(datos, finSilencio)`: si no puede esperar al fin del horario de silencio.
+ * - `soporte`: notificar() agrega a `datos.soporte` el contacto de soporte ({ email, whatsapp }).
  * - `contenido(datos, rol)`: textos por nivel de detalle. `rol` es "dueno" o "negocio".
  *     titulo  — el de la push y el de la notificación en la app
  *     push    — genérico (pantalla de bloqueo): sin mascota, motivo, diagnósticos, notas ni precios
@@ -47,6 +48,24 @@ const correoCitaDueno = (d, primero, indicaciones = null) => [
   ...(indicaciones ? [`Indicaciones del negocio: ${conPunto(indicaciones)}`] : []),
   "Si tienes preguntas o no puedes asistir, comunícate con el negocio.",
 ];
+
+/**
+ * Cómo comunicarse con PetCat según soporte_email y soporte_whatsapp, o null si ninguno
+ * está configurado (la línea se omite).
+ */
+export const lineaSoporte = (soporte) => {
+  const { email, whatsapp } = soporte ?? {};
+  if (email && whatsapp) return `Escríbenos a ${email} o por WhatsApp al ${whatsapp}.`;
+  if (email) return `Escríbenos a ${email}.`;
+  if (whatsapp) return `Escríbenos por WhatsApp al ${whatsapp}.`;
+  return null;
+};
+
+/** Los párrafos con la línea de contacto al final, si hay contacto configurado. */
+const conSoporte = (parrafos, soporte) => {
+  const linea = lineaSoporte(soporte);
+  return linea ? [...parrafos, linea] : parrafos;
+};
 
 /** Párrafos de correo de un recordatorio de vacuna (sin mascota ni vacuna, como la push). */
 const correoVacuna = (primero) => [
@@ -209,60 +228,83 @@ export const TIPOS = {
     }),
   },
 
+  // Avisos del plan (`soporte: true`): notificar() agrega en `d.soporte` el contacto de soporte
+  // (soporte_email y soporte_whatsapp); la línea de contacto va en la app y el correo, no en la push.
+
   // Job de suscripciones. El panel es web y no recibe push: el propietario sin dispositivo recibe correo.
   plan_prueba_por_vencer: {
     correo: ["propietario"],
+    soporte: true,
     contenido: (d) => {
       const cuandoTermina = d.dias === 0 ? "hoy" : d.dias === 1 ? "mañana" : `en ${d.dias} días`;
+      const parrafos = conSoporte(
+        [
+          `La prueba gratuita del plan ${d.plan} de ${d.negocio} termina el ${fechaLegible(d.fecha_fin)}.`,
+          "Después, el negocio pasa al plan Gratuito con sus límites de sucursales, empleados y citas al mes.",
+          `Para seguir con el plan ${d.plan}, comunícate con PetCat.`,
+        ],
+        d.soporte
+      );
       return {
         titulo: `Tu prueba del plan ${d.plan} termina ${cuandoTermina}`,
         push: `La prueba del plan ${d.plan} de ${d.negocio} termina ${cuandoTermina}.`,
-        mensaje: `La prueba gratuita del plan ${d.plan} de ${d.negocio} termina el ${fechaLegible(d.fecha_fin)}. Después, el negocio pasa al plan Gratuito con sus límites de sucursales, empleados y citas al mes. Para seguir con el plan ${d.plan}, comunícate con PetCat.`,
-        correo: {
-          asunto: `Tu prueba del plan ${d.plan} en PetCat termina ${cuandoTermina}`,
-          parrafos: [
-            `La prueba gratuita del plan ${d.plan} de ${d.negocio} termina el ${fechaLegible(d.fecha_fin)}.`,
-            "Después, el negocio pasa al plan Gratuito con sus límites de sucursales, empleados y citas al mes.",
-            `Para seguir con el plan ${d.plan}, comunícate con PetCat.`,
-          ],
-        },
+        mensaje: parrafos.join(" "),
+        correo: { asunto: `Tu prueba del plan ${d.plan} en PetCat termina ${cuandoTermina}`, parrafos },
       };
     },
   },
 
   plan_vencido: {
     correo: ["propietario"],
+    soporte: true,
     contenido: (d) => {
       const que = d.prueba ? `Terminó la prueba gratuita del plan ${d.plan}` : `Venció el plan ${d.plan}`;
-      const limites =
-        "Lo que ya tienes se conserva, pero no puedes agregar sucursales ni empleados por encima de sus límites y las reservas del mes tienen tope.";
+      const parrafos = conSoporte(
+        [
+          `${que} de ${d.negocio} y el negocio pasó al plan Gratuito.`,
+          "Lo que ya tienes se conserva, pero no puedes agregar sucursales ni empleados por encima de sus límites y las reservas del mes tienen tope.",
+          `Para volver al plan ${d.plan}, comunícate con PetCat.`,
+        ],
+        d.soporte
+      );
       return {
         titulo: d.prueba ? `Terminó tu prueba del plan ${d.plan}` : `Venció tu plan ${d.plan}`,
         push: `${que} de ${d.negocio}. El negocio pasó al plan Gratuito.`,
-        mensaje: `${que} de ${d.negocio} y el negocio pasó al plan Gratuito. ${limites} Para volver al plan ${d.plan}, comunícate con PetCat.`,
-        correo: {
-          asunto: d.prueba ? `Terminó tu prueba del plan ${d.plan} en PetCat` : `Venció tu plan ${d.plan} en PetCat`,
-          parrafos: [`${que} de ${d.negocio} y el negocio pasó al plan Gratuito.`, limites, `Para volver al plan ${d.plan}, comunícate con PetCat.`],
-        },
+        mensaje: parrafos.join(" "),
+        correo: { asunto: d.prueba ? `Terminó tu prueba del plan ${d.plan} en PetCat` : `Venció tu plan ${d.plan} en PetCat`, parrafos },
       };
     },
   },
 
   plan_limite_alcanzado: {
     correo: [],
+    soporte: true,
     contenido: (d) => ({
       titulo: "Límite de citas del plan",
       push: `Se rechazó una reserva: tu negocio alcanzó las ${d.maximo} citas de ${mesLegible(d.mes)} de su plan.`,
-      mensaje: `Tu negocio alcanzó las ${d.maximo} citas de ${mesLegible(d.mes)} del plan ${d.plan} y la app ya no muestra horarios de ese mes. Mejora tu plan para seguir recibiendo reservas.`,
+      mensaje: conSoporte(
+        [
+          `Tu negocio alcanzó las ${d.maximo} citas de ${mesLegible(d.mes)} del plan ${d.plan} y la app ya no muestra horarios de ese mes.`,
+          "Para mejorar tu plan y seguir recibiendo reservas, comunícate con PetCat.",
+        ],
+        d.soporte
+      ).join(" "),
     }),
   },
 
   plan_limite_80: {
     correo: [],
+    soporte: true,
     contenido: (d) => ({
       titulo: "Te quedan pocas citas este mes",
       push: `Tu negocio lleva ${d.usadas} de ${d.maximo} citas de ${mesLegible(d.mes)} de su plan.`,
-      mensaje: `Tu negocio lleva ${d.usadas} de las ${d.maximo} citas de ${mesLegible(d.mes)} que permite el plan ${d.plan}. Al llegar al límite, la app deja de mostrar horarios. Considera mejorar tu plan.`,
+      mensaje: conSoporte(
+        [
+          `Tu negocio lleva ${d.usadas} de las ${d.maximo} citas de ${mesLegible(d.mes)} que permite el plan ${d.plan}.`,
+          "Al llegar al límite, la app deja de mostrar horarios. Para mejorar tu plan, comunícate con PetCat.",
+        ],
+        d.soporte
+      ).join(" "),
     }),
   },
 };

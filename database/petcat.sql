@@ -1575,7 +1575,7 @@ INSERT INTO configuracion_global (clave, valor, tipo, descripcion) VALUES
 ('recordatorio_cita_h',     '2',                                'integer', 'Horas antes de la cita para el recordatorio'),
 ('ia_modelo',               'gpt-4o-mini',                      'string',  'Modelo de IA para recomendaciones'),
 ('mantenimiento',           'false',                            'boolean', 'Modo mantenimiento activo/inactivo'),
-('contacto_soporte',        'soporte@petcat.com.co',            'string',  'Email de soporte de la plataforma'),
+('soporte_email',           'soporte@petcat.com.co',            'string',  'Correo de soporte de la plataforma: avisos del plan y correo de bienvenida (vacío = no se muestra)'),
 ('terminos_version',        '1.0',                              'string',  'Versión actual de los términos de uso'),
 -- Migración 007.
 ('intervalo_agenda_min',          '15', 'integer', 'Cuadrícula de horarios de la agenda (minutos)'),
@@ -1589,7 +1589,9 @@ INSERT INTO configuracion_global (clave, valor, tipo, descripcion) VALUES
 ('silencio_inicio', '21:00', 'string', 'Inicio del horario de silencio de push y correos no urgentes (hora de Bogotá, HH:MM)'),
 ('silencio_fin',    '07:00', 'string', 'Fin del horario de silencio (HH:MM); igual al inicio = sin silencio'),
 -- Migración 014.
-('recordatorio_dia_anterior_hora', '19:00', 'string', 'Hora del recordatorio del día anterior a la cita (hora de Bogotá, HH:MM)');
+('recordatorio_dia_anterior_hora', '19:00', 'string', 'Hora del recordatorio del día anterior a la cita (hora de Bogotá, HH:MM)'),
+-- Migración 016 (soporte_email era contacto_soporte).
+('soporte_whatsapp', '', 'string', 'WhatsApp de soporte para los avisos del plan, p. ej. +57 300 123 4567 (vacío = no se muestra)');
 
 
 -- ═══════════════════════════════════════════════════════════════════════════
@@ -1749,7 +1751,8 @@ INSERT INTO schema_migrations (nombre) VALUES
 ('012_archivos.sql'),
 ('013_notificaciones.sql'),
 ('014_recordatorios_y_jobs.sql'),
-('015_servicios_indicaciones_previas.sql');
+('015_servicios_indicaciones_previas.sql'),
+('016_soporte_contacto.sql');
 
 
 SET FOREIGN_KEY_CHECKS = 1;

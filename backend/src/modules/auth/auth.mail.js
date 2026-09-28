@@ -63,6 +63,8 @@ export const enlaceCrearPassword = (token) => `${env.FRONTEND_URL}/crear-passwor
 export const correoBienvenida = ({ token, email, nombre, negocio, minutos, politicaUrl, soporte }) => {
   const enlace = enlaceCrearPassword(token);
   const vigencia = vigenciaTexto(minutos);
+  // Sin soporte_email configurado, el cliente acude al negocio que lo registró.
+  const noReconoces = soporte ? `escríbenos a ${soporte}` : `comunícate con ${negocio}`;
   const subject = `${negocio} te registró en PetCat`;
   const text = [
     `Hola ${nombre},`,
@@ -76,7 +78,7 @@ export const correoBienvenida = ({ token, email, nombre, negocio, minutos, polit
     enlace,
     "",
     `El enlace vence en ${vigencia}. Después puedes usar "Olvidé mi contraseña" en la app.`,
-    `Si no reconoces este registro, escríbenos a ${soporte}.`,
+    `Si no reconoces este registro, ${noReconoces}.`,
   ].join("\n");
   const html = `
     <p>Hola ${escapeHtml(nombre)},</p>
@@ -85,6 +87,6 @@ export const correoBienvenida = ({ token, email, nombre, negocio, minutos, polit
        ${politicaUrl ? `Consulta la <a href="${escapeHtml(politicaUrl)}">política de tratamiento de datos</a>.` : ""}</p>
     <p><a href="${enlace}">Crear mi contraseña</a></p>
     <p>El enlace vence en ${vigencia}. Después puedes usar "Olvidé mi contraseña" en la app.
-       Si no reconoces este registro, escríbenos a ${escapeHtml(soporte)}.</p>`;
+       Si no reconoces este registro, ${escapeHtml(noReconoces)}.</p>`;
   return { to: email, subject, text, html };
 };

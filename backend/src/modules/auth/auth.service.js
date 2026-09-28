@@ -300,7 +300,7 @@ export const emitirEnlaceBienvenida = async (id_usuario, conn) => {
 export const enviarBienvenida = async ({ token, email, nombre, negocio }) => {
   const [politicaUrl, soporte] = await Promise.all([
     configuracionRepo.getValor("politica_datos_url", ""),
-    configuracionRepo.getValor("contacto_soporte", "soporte@petcat.com.co"),
+    configuracionRepo.getValor("soporte_email", ""),
   ]);
   enviarSinEsperar(
     correoBienvenida({ token, email, nombre, negocio, minutos: MINUTOS_BIENVENIDA, politicaUrl, soporte }),
