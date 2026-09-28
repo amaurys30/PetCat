@@ -2,6 +2,8 @@ import cron from "node-cron";
 import { procesarEnviosPendientes, revisarRecibos } from "../modules/notificaciones/notificacion.service.js";
 import { enviarRecordatoriosCitas, enviarRecordatoriosVacunas } from "../modules/recordatorios/recordatorio.service.js";
 import { refrescarEstados as refrescarEstadosVacunas } from "../modules/vacunas/vacuna.service.js";
+import { vencerSuscripciones } from "../modules/suscripciones/suscripcion.jobs.js";
+import { limpiarSesiones } from "../modules/sessions/session.service.js";
 
 /**
  * Tareas programadas (node-cron, hora de Bogotá). Cada job es una función exportada de
@@ -20,6 +22,10 @@ export const JOBS = [
   { nombre: "estado-vacunas", cada: "5 0 * * *", tarea: () => refrescarEstadosVacunas() },
   // Vacunas 7 días antes, el día y 7 días después de fecha_proxima (fuera del horario de silencio).
   { nombre: "recordatorios-vacunas", cada: "0 9 * * *", tarea: () => enviarRecordatoriosVacunas() },
+  // Pruebas y planes vencidos pasan a `vencida` (plan_vencido) y aviso de prueba por terminar.
+  { nombre: "suscripciones", cada: "10 0 * * *", tarea: () => vencerSuscripciones() },
+  // Sesiones vencidas hace más de 30 días y tokens de correo vencidos.
+  { nombre: "sesiones", cada: "30 3 * * *", tarea: () => limpiarSesiones() },
 ];
 
 export const iniciarJobs = () =>

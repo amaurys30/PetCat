@@ -209,6 +209,45 @@ export const TIPOS = {
     }),
   },
 
+  // Job de suscripciones. El panel es web y no recibe push: el propietario sin dispositivo recibe correo.
+  plan_prueba_por_vencer: {
+    correo: ["propietario"],
+    contenido: (d) => {
+      const cuandoTermina = d.dias === 0 ? "hoy" : d.dias === 1 ? "mañana" : `en ${d.dias} días`;
+      return {
+        titulo: `Tu prueba del plan ${d.plan} termina ${cuandoTermina}`,
+        push: `La prueba del plan ${d.plan} de ${d.negocio} termina ${cuandoTermina}.`,
+        mensaje: `La prueba gratuita del plan ${d.plan} de ${d.negocio} termina el ${fechaLegible(d.fecha_fin)}. Después, el negocio pasa al plan Gratuito con sus límites de sucursales, empleados y citas al mes. Para seguir con el plan ${d.plan}, comunícate con PetCat.`,
+        correo: {
+          asunto: `Tu prueba del plan ${d.plan} en PetCat termina ${cuandoTermina}`,
+          parrafos: [
+            `La prueba gratuita del plan ${d.plan} de ${d.negocio} termina el ${fechaLegible(d.fecha_fin)}.`,
+            "Después, el negocio pasa al plan Gratuito con sus límites de sucursales, empleados y citas al mes.",
+            `Para seguir con el plan ${d.plan}, comunícate con PetCat.`,
+          ],
+        },
+      };
+    },
+  },
+
+  plan_vencido: {
+    correo: ["propietario"],
+    contenido: (d) => {
+      const que = d.prueba ? `Terminó la prueba gratuita del plan ${d.plan}` : `Venció el plan ${d.plan}`;
+      const limites =
+        "Lo que ya tienes se conserva, pero no puedes agregar sucursales ni empleados por encima de sus límites y las reservas del mes tienen tope.";
+      return {
+        titulo: d.prueba ? `Terminó tu prueba del plan ${d.plan}` : `Venció tu plan ${d.plan}`,
+        push: `${que} de ${d.negocio}. El negocio pasó al plan Gratuito.`,
+        mensaje: `${que} de ${d.negocio} y el negocio pasó al plan Gratuito. ${limites} Para volver al plan ${d.plan}, comunícate con PetCat.`,
+        correo: {
+          asunto: d.prueba ? `Terminó tu prueba del plan ${d.plan} en PetCat` : `Venció tu plan ${d.plan} en PetCat`,
+          parrafos: [`${que} de ${d.negocio} y el negocio pasó al plan Gratuito.`, limites, `Para volver al plan ${d.plan}, comunícate con PetCat.`],
+        },
+      };
+    },
+  },
+
   plan_limite_alcanzado: {
     correo: [],
     contenido: (d) => ({

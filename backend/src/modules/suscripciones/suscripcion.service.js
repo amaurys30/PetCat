@@ -2,7 +2,7 @@ import * as suscripcionRepo from "./suscripcion.repository.js";
 import * as negocioRepo from "../negocios/negocio.repository.js";
 import * as configuracionRepo from "../configuracion/configuracion.repository.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
-import { hoyISO } from "../../shared/utils/fechas.js";
+import { diasEntre, hoyISO } from "../../shared/utils/fechas.js";
 import { toBool, toNumber } from "../../shared/utils/format.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
 
@@ -54,7 +54,7 @@ export const RECURSOS_CON_LIMITE = Object.keys(RECURSOS);
 
 // ---------- Plan efectivo ----------
 
-const esVigente = (s) => s.estado === "activa" || s.estado === "en_prueba";
+export const esVigente = (s) => s.estado === "activa" || s.estado === "en_prueba";
 
 /** La prueba vence al terminar `fecha_prueba_fin`; cualquier suscripción, al terminar `fecha_fin`. */
 export const estaVencida = (suscripcion, hoy = hoyISO()) =>
@@ -121,10 +121,6 @@ export const formatPlan = (plan) => ({
   },
   caracteristicas: Object.fromEntries(CARACTERISTICAS.map((c) => [c, toBool(plan[c])])),
 });
-
-/** Días entre dos fechas "YYYY-MM-DD". */
-const diasEntre = (desde, hasta) =>
-  Math.round((new Date(`${hasta}T12:00:00`) - new Date(`${desde}T12:00:00`)) / 86_400_000);
 
 const formatSuscripcion = ({ suscripcion, vencida, planContratado }, hoy) => ({
   id_suscripcion: suscripcion.id_suscripcion,

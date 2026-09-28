@@ -96,3 +96,13 @@ export const deactivateByUsuario = async (id_usuario, { exceptoIdSesion = null }
     [id_usuario, exceptoIdSesion, exceptoIdSesion]
   );
 };
+
+/**
+ * Borra hasta `limite` sesiones que vencieron antes de `antesDe` (activas o cerradas: una
+ * cerrada también tiene su vencimiento). El id_sesion de sus dispositivos queda en NULL
+ * (ON DELETE SET NULL) y el dispositivo sigue activo. Devuelve cuántas borró.
+ */
+export const deleteVencidasAntesDe = async (antesDe, limite) => {
+  const [result] = await pool.query("DELETE FROM sesiones WHERE expira_en < ? ORDER BY id_sesion LIMIT ?", [antesDe, limite]);
+  return result.affectedRows;
+};

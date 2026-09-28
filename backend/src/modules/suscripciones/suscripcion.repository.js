@@ -75,6 +75,22 @@ export const findByNegocios = async (ids) => {
   return porNegocio;
 };
 
+/**
+ * Negocios con una suscripción vigente que ya venció o con una prueba que termina en los
+ * próximos `diasAviso` días (para el job de suscripciones). Sin bloqueo.
+ */
+export const findNegociosPorRevisar = async (hoy, diasAviso, limite) => {
+  const [rows] = await pool.query(
+    `SELECT DISTINCT id_negocio FROM suscripciones
+     WHERE estado IN ('activa', 'en_prueba')
+       AND (fecha_fin < ? OR (estado = 'en_prueba' AND fecha_prueba_fin <= ? + INTERVAL ? DAY))
+     ORDER BY id_negocio
+     LIMIT ?`,
+    [hoy, hoy, diasAviso, limite]
+  );
+  return rows.map((row) => row.id_negocio);
+};
+
 /** Cierra la suscripción vigente al cambiar de plan: `vencida` si ya había vencido, si no `cancelada` desde hoy. */
 export const cerrar = async (suscripcion, vencida, conn) => {
   await conn.query(

@@ -7,6 +7,7 @@ import { generateRefreshToken, verifyRefreshToken } from "../../shared/utils/tok
 import { hashToken } from "../../shared/utils/hash.js";
 import { usuarioPublico } from "../../shared/utils/sanitize.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
+import { aDatetimeSQL } from "../../shared/utils/fechas.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
 
 /**
@@ -98,4 +99,26 @@ export const refreshSession = async (refresh_token, cliente = {}) => {
       usuario: usuarioPublico(usuario),
     };
   });
+};
+
+// Las sesiones vencidas se conservan este tiempo (consultas de soporte) antes de borrarse.
+const RETENCION_SESIONES_DIAS = 30;
+const LOTE = 1000;
+
+/**
+ * Job diario (03:30): borra por lotes las sesiones vencidas hace más de 30 días y quita los
+ * tokens de correo vencidos. Idempotente: dos instancias a la vez solo se reparten los lotes.
+ * No desactiva dispositivos: quien no abre la app en 30 días sigue recibiendo sus
+ * recordatorios (el logout sí los desactiva). Devuelve cuántas sesiones y tokens limpió.
+ */
+export const limpiarSesiones = async ({ ahora = new Date() } = {}) => {
+  const antesDe = aDatetimeSQL(new Date(ahora.getTime() - RETENCION_SESIONES_DIAS * 86_400_000));
+  let sesiones = 0;
+  for (;;) {
+    const borradas = await sessionRepo.deleteVencidasAntesDe(antesDe, LOTE);
+    sesiones += borradas;
+    if (borradas < LOTE) break;
+  }
+  const tokens = await usuarioRepo.limpiarTokensVencidos(aDatetimeSQL(ahora));
+  return { sesiones, tokens };
 };

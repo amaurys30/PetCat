@@ -183,3 +183,16 @@ export const updatePerfil = async (id_usuario, data, conn) => {
     [...("telefono" in campos ? [campos.telefono] : []), ...Object.values(campos), id_usuario]
   );
 };
+
+/** Quita los tokens de verificación y de recuperación ya vencidos (el enlace da 400 igual). */
+export const limpiarTokensVencidos = async (ahora) => {
+  const [verificacion] = await pool.query(
+    "UPDATE usuarios SET token_verificacion = NULL, token_verificacion_expira = NULL WHERE token_verificacion_expira < ?",
+    [ahora]
+  );
+  const [recuperacion] = await pool.query(
+    "UPDATE usuarios SET token_recuperacion = NULL, token_recuperacion_expira = NULL WHERE token_recuperacion_expira < ?",
+    [ahora]
+  );
+  return verificacion.affectedRows + recuperacion.affectedRows;
+};
