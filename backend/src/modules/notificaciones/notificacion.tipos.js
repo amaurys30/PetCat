@@ -36,11 +36,15 @@ const mesLegible = (mes) =>
 
 const donde = (d) => [d.sucursal, d.direccion].filter(Boolean).join(", ");
 
-/** Párrafos de correo de una cita para el dueño: cuándo, dónde y qué hacer. */
-const correoCitaDueno = (d, primero) => [
+/** Texto libre del negocio con punto final, para que no se pegue a la frase siguiente. */
+const conPunto = (texto) => (/[.!?…]$/.test(texto) ? texto : `${texto}.`);
+
+/** Párrafos de correo de una cita para el dueño: cuándo, dónde, indicaciones (si hay) y qué hacer. */
+const correoCitaDueno = (d, primero, indicaciones = null) => [
   primero,
   `Cuándo: ${cuando(d.fecha, d.hora_inicio)}.`,
   ...(donde(d) ? [`Dónde: ${d.negocio} — ${donde(d)}.`] : [`Negocio: ${d.negocio}.`]),
+  ...(indicaciones ? [`Indicaciones del negocio: ${conPunto(indicaciones)}`] : []),
   "Si tienes preguntas o no puedes asistir, comunícate con el negocio.",
 ];
 
@@ -132,10 +136,15 @@ export const TIPOS = {
     contenido: (d) => ({
       titulo: "Tu cita es mañana",
       push: `Mañana a las ${horaLegible(d.hora_inicio)} tienes una cita con ${d.negocio}.`,
-      mensaje: `Mañana, ${cuando(d.fecha, d.hora_inicio)}, ${d.mascota} tiene ${d.servicio} en ${d.negocio} (${donde(d)}). Si necesita ayuno o alguna preparación, tenlo en cuenta. Si no puedes asistir, cancela o reprograma desde la app.`,
+      mensaje: [
+        `Mañana, ${cuando(d.fecha, d.hora_inicio)}, ${d.mascota} tiene ${d.servicio} en ${d.negocio} (${donde(d)}).`,
+        ...(d.indicaciones ? [`Indicaciones del negocio: ${conPunto(d.indicaciones)}`] : []),
+        "Si no puedes asistir, cancela o reprograma desde la app.",
+      ].join(" "),
+      // Las indicaciones son del servicio (no de la mascota): van en el correo, no en la push.
       correo: {
         asunto: `Recordatorio: tu cita de mañana en ${d.negocio}`,
-        parrafos: correoCitaDueno(d, "Te recordamos tu cita de mañana."),
+        parrafos: correoCitaDueno(d, "Te recordamos tu cita de mañana.", d.indicaciones),
       },
     }),
   },

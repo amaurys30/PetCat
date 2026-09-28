@@ -544,6 +544,9 @@ CREATE TABLE servicios (
     id_categoria     INT UNSIGNED    NOT NULL,
     nombre           VARCHAR(150)    NOT NULL,
     descripcion      TEXT            NULL,
+    -- Migración 015.
+    indicaciones_previas VARCHAR(500) NULL
+        COMMENT 'Preparación antes de la cita (ayuno, carnet...); va en el recordatorio del día anterior',
     precio_base      DECIMAL(12,2)   NOT NULL DEFAULT 0.00,
     precio_maximo    DECIMAL(12,2)   NULL COMMENT 'Para precios variables',
     tipo_precio      ENUM('fijo','por_hora','por_dia','variable') NOT NULL DEFAULT 'fijo',
@@ -1745,7 +1748,8 @@ INSERT INTO schema_migrations (nombre) VALUES
 ('011_rol_veterinario_vacunas_editar.sql'),
 ('012_archivos.sql'),
 ('013_notificaciones.sql'),
-('014_recordatorios_y_jobs.sql');
+('014_recordatorios_y_jobs.sql'),
+('015_servicios_indicaciones_previas.sql');
 
 
 SET FOREIGN_KEY_CHECKS = 1;

@@ -277,6 +277,7 @@ const SELECT_CITA = `
          su.id_sucursal, su.nombre AS sucursal_nombre, su.direccion AS sucursal_direccion,
          su.telefono AS sucursal_telefono, su.latitud AS sucursal_latitud, su.longitud AS sucursal_longitud,
          sv.id_servicio, sv.nombre AS servicio_nombre, sv.duracion_minutos,
+         sv.indicaciones_previas AS servicio_indicaciones_previas,
          e.id_empleado, e.nombre AS empleado_nombre, e.apellido AS empleado_apellido,
          m.id_mascota, m.nombre AS mascota_nombre, m.especie AS mascota_especie,
          u.id_usuario, u.nombre AS cliente_nombre, u.apellido AS cliente_apellido, u.telefono AS cliente_telefono

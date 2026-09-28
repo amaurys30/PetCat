@@ -87,7 +87,7 @@ export const buscarNegocios = async ({ q, tipo, id_categoria, geo, limit, offset
 
 // ---------- Servicios ----------
 
-const COLUMNAS_SERVICIO = `s.id_servicio, s.nombre, s.descripcion,
+const COLUMNAS_SERVICIO = `s.id_servicio, s.nombre, s.descripcion, s.indicaciones_previas,
   c.id_categoria, c.nombre AS categoria_nombre, c.icono AS categoria_icono,
   n.id_negocio, n.nombre AS negocio_nombre, n.tipo AS negocio_tipo, n.logo_url AS negocio_logo_url,
   n.calificacion_promedio AS negocio_calificacion, n.verificado AS negocio_verificado,

@@ -32,6 +32,7 @@ const formatServicio = (row) => ({
   id_servicio: row.id_servicio,
   nombre: row.nombre,
   descripcion: row.descripcion,
+  indicaciones_previas: row.indicaciones_previas,
   categoria: { id_categoria: row.id_categoria, nombre: row.categoria_nombre, icono: row.categoria_icono },
   negocio: {
     id_negocio: row.id_negocio,

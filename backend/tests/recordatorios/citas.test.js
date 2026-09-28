@@ -33,10 +33,10 @@ afterEach(() => pushSender.reiniciar());
 const a = (fecha, hora) => new Date(`${fecha}T${hora}`);
 
 /** Cita confirmada con sus recordatorios programados por el trigger, de un cliente propio. */
-const citaConfirmada = async (fecha, hora_inicio, { conDispositivo = true } = {}) => {
+const citaConfirmada = async (fecha, hora_inicio, { conDispositivo = true, indicaciones = null } = {}) => {
   const negocio = await crearNegocio(null, { nombre: "Clínica Patitas" });
   const sucursal = await crearSucursal(negocio, { nombre: "Sede Centro", direccion: "Calle 23 # 18-45" });
-  const servicio = await crearServicio(negocio, { nombre: "Consulta general" });
+  const servicio = await crearServicio(negocio, { nombre: "Consulta general", indicaciones_previas: indicaciones });
   const cliente = await crearUsuario();
   const mascota = await crearMascota(cliente, { nombre: "Max" });
   const dispositivo = conDispositivo ? await crearDispositivo(cliente) : null;
@@ -78,7 +78,10 @@ describe("recordatorios de citas", () => {
       expect.objectContaining({ tipo: "cita_dia_anterior", titulo: "Tu cita es mañana" }),
     ]);
     const [notificacion] = await notificacionesDe(cliente);
-    expect(notificacion.mensaje).toContain("Max tiene Consulta general en Clínica Patitas (Sede Centro, Calle 23 # 18-45)");
+    expect(notificacion.mensaje).toBe(
+      "Mañana, martes, 11 de marzo a las 9:00 a. m., Max tiene Consulta general en Clínica Patitas (Sede Centro, Calle 23 # 18-45). " +
+        "Si no puedes asistir, cancela o reprograma desde la app."
+    );
     expect(pushSender.enviados).toEqual([
       expect.objectContaining({
         to: dispositivo.token_expo,
@@ -122,6 +125,23 @@ describe("recordatorios de citas", () => {
     expect(outbox).toHaveLength(1);
     expect(outbox[0]).toMatchObject({ to: cliente.email, subject: "Recordatorio: tu cita de mañana en Clínica Patitas" });
     expect(outbox[0].text).toContain("Dónde: Clínica Patitas — Sede Centro, Calle 23 # 18-45.");
+  });
+
+  it("el del día anterior muestra las indicaciones previas del servicio en la app y el correo, no en la push", async () => {
+    const conApp = await citaConfirmada("2031-03-27", "10:00", { indicaciones: "Ayuno de 8 horas (agua sí)" });
+    const sinApp = await citaConfirmada("2031-03-27", "11:00", { conDispositivo: false, indicaciones: "Trae el carnet de vacunas." });
+    await enviarRecordatoriosCitas({ ahora: a("2031-03-26", "19:00:30") });
+
+    const [notificacion] = await notificacionesDe(conApp.cliente);
+    expect(notificacion.mensaje).toContain(
+      "(Sede Centro, Calle 23 # 18-45). Indicaciones del negocio: Ayuno de 8 horas (agua sí). Si no puedes asistir"
+    );
+    const push = pushSender.enviados.find((m) => m.to === conApp.dispositivo.token_expo);
+    expect(push.body).toBe("Mañana a las 10:00 a. m. tienes una cita con Clínica Patitas.");
+
+    const correo = outbox.find((c) => c.to === sinApp.cliente.email);
+    expect(correo.text).toContain("Indicaciones del negocio: Trae el carnet de vacunas.");
+    expect(correo.text).not.toContain("vacunas..");
   });
 
   it("una cita que ya no está confirmada: el recordatorio se cancela sin avisar", async () => {

@@ -22,6 +22,8 @@ const datosDeCita = (row) => ({
   mascota: row.mascota_nombre,
   servicio: row.servicio_nombre,
   cliente: `${row.cliente_nombre} ${row.cliente_apellido}`,
+  // Solo la usa el recordatorio del día anterior (en la app y el correo, no en la push).
+  indicaciones: row.servicio_indicaciones_previas ?? null,
 });
 
 /**

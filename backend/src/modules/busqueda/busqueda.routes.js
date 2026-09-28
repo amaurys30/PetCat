@@ -59,6 +59,7 @@ const router = express.Router();
  *         id_servicio: { type: integer }
  *         nombre: { type: string }
  *         descripcion: { type: string, nullable: true }
+ *         indicaciones_previas: { type: string, nullable: true, description: Preparación antes de la cita (ayuno, carnet...) }
  *         categoria:
  *           type: object
  *           properties:

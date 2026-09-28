@@ -23,7 +23,7 @@ export const SQL_CON_EMPLEADOS = `EXISTS (
 export const SQL_RESERVABLE = `(s.requiere_cita = FALSE OR ${SQL_CON_EMPLEADOS})`;
 
 const COLUMNAS_PANEL = `s.id_servicio, s.id_negocio, s.id_categoria, c.nombre AS categoria_nombre,
-  s.nombre, s.descripcion, s.precio_base, s.precio_maximo, s.tipo_precio, s.duracion_minutos,
+  s.nombre, s.descripcion, s.indicaciones_previas, s.precio_base, s.precio_maximo, s.tipo_precio, s.duracion_minutos,
   s.margen_minutos, s.tipo_mascota, s.peso_min_kg, s.peso_max_kg, s.requiere_cita, s.max_citas_dia,
   s.dias_disponible, s.visible_app, s.en_oferta, s.precio_oferta, s.fecha_inicio_oferta,
   s.fecha_fin_oferta, s.etiquetas_json, s.activo, s.fecha_creacion, s.fecha_actualizacion,
