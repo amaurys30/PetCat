@@ -167,13 +167,14 @@ Se hace en sub-bloques que se aprueban por separado: **2.1** planes y suscripcio
 - [x] README (sección para la app): convertir HEIC a JPEG antes de subir y volver a pedir el registro cuando vence la URL firmada.
 
 ### 2.3 Notificaciones
-- [ ] Migración de tokens de Expo por dispositivo; `POST|DELETE /dispositivos` (el logout borra el token del dispositivo).
-- [ ] `GET /notificaciones`, marcar como leída, marcar todas y contador de no leídas.
-- [ ] Servicio `notificar()`: fila en `notificaciones` + Socket.IO (salas `usuario:<id>`, JWT en el handshake) + Expo Push (según `notif_push`) + correo (ver Decisiones).
-- [ ] Eventos: nueva cita (al negocio), confirmación, cancelación y reprogramación (a la otra parte); reserva rechazada por el límite del plan y 80 % del límite de citas del mes (al negocio).
+- [x] Migración `013_notificaciones.sql` (`dispositivos`, `notificaciones_envios`, índice de no leídas y claves del horario de silencio); `POST|DELETE /dispositivos`; el logout desactiva el dispositivo de la sesión.
+- [ ] Catálogo de tipos; `notificar()` guarda en la transacción y el despacho (push de Expo, correo) va después del commit (outbox); horario de silencio; enlace firmado para dejar de recibir correos; base de node-cron con los jobs de envíos pendientes y recibos de Expo.
+- [ ] Socket.IO (autenticación por sesión, salas `usuario:<id>` y `sesion:<id>`, desconexión en logout, change-password y reset-password); `GET /notificaciones`, `GET /notificaciones/no-leidas`, `PATCH /notificaciones/:id_notificacion/leida` y `POST /notificaciones/leer-todas`.
+- [ ] Eventos: `cita_nueva`, `cita_agendada`, `cita_confirmada`, `cita_cancelada`, `cita_reprogramada`, `plan_limite_alcanzado` y `plan_limite_80` (con deduplicación).
+- [ ] README: Socket.IO, notificaciones y cómo probar push reales desde la app.
 
 ### 2.4 Jobs con node-cron
-- [ ] Jobs como funciones exportadas que los tests llaman directo; el cron no arranca con `NODE_ENV=test`.
+- [ ] Jobs sobre la base de node-cron de la 2.3 (funciones exportadas que los tests llaman directo; el cron no arranca con `NODE_ENV=test`).
 - [ ] Envío de recordatorios pendientes (push o correo, reintentos y `fallido`); migración para que el trigger de citas no use el canal `whatsapp`.
 - [ ] Recordatorios de vacunas próximas o vencidas y refresco de `vacunas.estado`.
 - [ ] Vencimiento de pruebas y planes pagos, y limpieza de sesiones expiradas.
@@ -182,7 +183,7 @@ Se hace en sub-bloques que se aprueban por separado: **2.1** planes y suscripcio
 ### 2.5 Confirmación y cancelación automáticas
 - [ ] Migración: `negocios.confirmacion_automatica` y clave de plazo en `configuracion_global`.
 - [ ] Con la opción activa, las citas de la app nacen `confirmada` con recordatorio.
-- [ ] Aviso al negocio a mitad del plazo con las citas pendientes por confirmar; cancelación automática al vencer el plazo, con aviso a las dos partes.
+- [ ] Aviso al negocio a mitad del plazo con las citas pendientes por confirmar (también por correo al propietario sin dispositivo activo, como `cita_nueva`); cancelación automática al vencer el plazo, con aviso a las dos partes.
 
 ### 2.6 Reseñas
 - [ ] `POST /citas/:id_cita/resena` (solo el dueño, cita completada, 409 si ya existe), `GET /negocios/:id_negocio/resenas` (público, paginado) y listado del panel.
@@ -440,3 +441,14 @@ Se hace en sub-bloques que se aprueban por separado: **2.1** planes y suscripcio
 - Imágenes públicas: la columna `*_url` guarda la variante `media` (800 px; el banner, la `ancha` de 1600 px) y las respuestas agregan `foto_miniatura_url` / `logo_miniatura_url` (200 px, recorte cuadrado) derivadas de esa URL, así las listas no necesitan el `public_id`. Una URL externa anterior se repite como miniatura. Las tres variantes se generan al subir (eager). La foto del empleado la cambian `empleados.editar` (con las reglas de escalada) o el propio empleado. Límite: 30 subidas cada 15 minutos por usuario.
 - Archivos privados: el comprobante subido y los archivos del historial viven solo en `archivos` (no en `comprobante_url` ni `archivos_json`, que quedan para las URLs externas anteriores, de solo lectura). La vacuna trae `comprobante` (`{ id_archivo, tipo, nombre, bytes, url, url_expira_en, externo: false }`, o `{ url, externo: true }` si es una URL anterior, o null) y el registro trae `archivos` con el mismo formato. Subir un comprobante quita el anterior, también la URL externa. Los archivos del historial los agrega y borra solo el negocio que creó el registro, con las reglas de editarlo; se ven con las mismas reglas del registro (incluido `compartir_historial`). El cupo de 10 por registro se comprueba antes de subir y otra vez con mascota y registro bloqueados (orden de la salud de la mascota).
 - Cloudinary: carpeta por entorno (`CLOUDINARY_FOLDER`, p. ej. `petcat-dev`), `public_id` aleatorio (el nombre original solo en la base). Sin credenciales, las subidas dan 503 en desarrollo; en producción son obligatorias. Los tests usan un almacenamiento en memoria.
+
+**Notificaciones (2.3)**
+- Outbox: `notificar()` guarda, en la misma transacción del cambio, una fila de `notificaciones` por destinatario y sus envíos (`notificaciones_envios`: push o correo, con `programado_para`). Después del commit se emite por Socket.IO y se procesan los envíos vencidos; un fallo al enviar no rompe la respuesta y queda pendiente para el job. La reserva rechazada por el límite (cuya transacción se deshace) guarda su aviso en una transacción aparte.
+- La base de node-cron entra en la 2.3 (jobs de envíos pendientes cada minuto y de recibos de Expo cada 15 minutos); la 2.4 agrega los suyos.
+- Textos por nivel: la push es genérica (tipo, fecha y hora de la cita y negocio; sin mascota, motivo, diagnósticos, notas ni precios) y su `data` solo lleva ids; el detalle completo está en la notificación dentro de la app; el correo es igual de discreto más sede y dirección, sin el motivo.
+- Horario de silencio de 21:00 a 07:00, hora de Bogotá (`silencio_inicio`, `silencio_fin` en `configuracion_global`): push y correo no urgentes quedan programados para el fin del silencio; la notificación en la app y Socket.IO son inmediatos. Urgente: cancelación o reprogramación de una cita que empieza durante el silencio o antes del fin del silencio + 3 h del día siguiente.
+- Canales: con dispositivo activo y `notif_push`, push. Sin dispositivo y con `notif_email`, correo en los tipos que lo admiten: los de citas para el dueño y `cita_nueva` para el **propietario** del negocio (el panel es web y no recibe push; una cita pendiente que pasa inadvertida se cancelaría sola en la 2.5). Los demás empleados no reciben correo.
+- Todo correo de notificación trae "Dejar de recibir estos correos": enlace con un token firmado (JWT con propósito propio, sin vencimiento corto) que pone `notif_email = false` sin iniciar sesión, porque los clientes sin app no tienen otra forma de hacerlo.
+- Destinatarios del negocio: una fila por persona con el permiso del evento (`citas.ver` para citas; `configuracion.editar` para los avisos del plan), el propietario siempre; nunca quien hizo la acción. Avisos del plan deduplicados: rechazo una vez por negocio y día, 80 % una vez por negocio y mes.
+- Sockets: el handshake valida el access token como `authMiddleware` (sesión activa y vigente, usuario activo); salas `usuario:<id>` y `sesion:<id>`. Logout desconecta su sesión, change-password las demás y reset-password todas. La renovación del token no cambia la sesión. Un solo proceso: salas en memoria (sin Redis en el MVP).
+- Dispositivos ligados a la sesión: el logout desactiva el de esa sesión; un token que llega desde otra cuenta se reasigna; `DeviceNotRegistered` de Expo desactiva el token.
