@@ -2,6 +2,8 @@ import * as empleadoRepo from "./empleado.repository.js";
 import * as rolRepo from "../roles/rol.repository.js";
 import * as invitacionRepo from "../invitaciones/invitacion.repository.js";
 import * as usuarioRepo from "../usuarios/usuario.repository.js";
+import * as servicioRepo from "../servicios/servicio.repository.js";
+import { citasFuturasDeEmpleado } from "../disponibilidad/disponibilidad.service.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
 import { buildMeta } from "../../shared/utils/pagination.js";
 import { permisosIncluidos } from "../../shared/utils/permissions.js";
@@ -81,10 +83,12 @@ export const getEmpleados = async (id_negocio, { page, limit, activo, q }) => {
   return { rows: rows.map((row) => formatEmpleado(row)), meta: buildMeta(total, page, limit) };
 };
 
+/** Detalle: el rol con sus permisos y los servicios activos que atiende. */
 export const getEmpleado = async (id_empleado) => {
   const empleado = await empleadoRepo.findById(id_empleado);
   if (!empleado) throw ApiError.notFound(NO_ENCONTRADO);
-  return formatEmpleado(empleado, { conPermisos: true });
+  const servicios = await servicioRepo.findActivosDeEmpleado(id_empleado);
+  return { ...formatEmpleado(empleado, { conPermisos: true }), servicios };
 };
 
 export const createEmpleado = async (id_negocio, data, acceso) => {
@@ -180,9 +184,14 @@ export const updateEmpleado = async (id_empleado, data, acceso) => {
 };
 
 /** Borrado lógico: activo = FALSE, fecha_retiro = hoy e invitaciones pendientes invalidadas. */
+/**
+ * Desactiva al empleado con su fila bloqueada (las reservas bloquean la misma fila) y
+ * devuelve `citas_afectadas`: todas sus citas futuras pendientes o confirmadas, porque un
+ * empleado inactivo no tiene disponibilidad. Hay que reasignarlas o reprogramarlas.
+ */
 export const desactivarEmpleado = async (id_empleado, acceso) => {
-  await withTransaction(async (conn) => {
-    const empleado = await empleadoRepo.findById(id_empleado, conn);
+  const citas_afectadas = await withTransaction(async (conn) => {
+    const empleado = await empleadoRepo.findById(id_empleado, conn, { forUpdate: true });
     if (!empleado) throw ApiError.notFound(NO_ENCONTRADO);
     if (!empleado.activo) throw ApiError.conflict("El empleado ya está inactivo");
     if (esElMismo(empleado, acceso)) throw ApiError.forbidden("No puedes desactivarte a ti mismo");
@@ -190,8 +199,9 @@ export const desactivarEmpleado = async (id_empleado, acceso) => {
 
     await empleadoRepo.desactivar(id_empleado, conn);
     await invitacionRepo.invalidatePrevious(id_empleado, conn);
+    return citasFuturasDeEmpleado(id_empleado, conn);
   });
-  return getEmpleado(id_empleado);
+  return { empleado: await getEmpleado(id_empleado), citas_afectadas };
 };
 
 export const reactivarEmpleado = async (id_empleado, acceso) => {

@@ -83,8 +83,9 @@ describe("pick y sanitizeUsuario", () => {
       email: "a@b.co",
       password_hash: "h",
       token_verificacion: "t",
+      token_verificacion_expira: "2026-01-01",
       token_recuperacion: "t",
-      token_expiracion: "2026-01-01",
+      token_recuperacion_expira: "2026-01-01",
       refresh_token: "r",
     };
     expect(sanitizeUsuario(usuario)).toEqual({ id_usuario: 1, email: "a@b.co" });

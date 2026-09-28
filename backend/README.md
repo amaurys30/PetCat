@@ -87,14 +87,14 @@ Hay tres archivos, ninguno se sube al repositorio (solo sus plantillas `.example
 | `DB_HOST` / `DB_PORT` | | `localhost` / `3306` | Con compose: `localhost` y `3307` |
 | `DB_USER` / `DB_PASSWORD` / `DB_NAME` | Sí | | Usuario, contraseña y base (`petcat_db`; en tests debe terminar en `_test`) |
 | `JWT_SECRET` / `REFRESH_SECRET` | Sí | | Mínimo 32 caracteres y distintos entre sí |
-| `JWT_EXPIRES_IN` / `REFRESH_EXPIRES_IN` | | `1h` / `7d` | Vigencia del access token y del refresh token (y de la sesión) |
+| `JWT_EXPIRES_IN` / `REFRESH_EXPIRES_IN` | | `1h` / `30d` | Vigencia del access token y del refresh token (y de la sesión); el refresh token se renueva en cada uso |
 | `APP_URL` | | `http://localhost:3000` | URL pública de la API |
 | `FRONTEND_URL` | | `http://localhost:5173` | Panel web; base de los enlaces de los correos |
 | `CORS_ORIGINS` | | `http://localhost:5173` | Orígenes permitidos, separados por coma |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | En producción | puerto `587` | Sin `SMTP_HOST`, en desarrollo los correos se muestran en la consola |
 | `SMTP_TIMEOUT_MS` | | `10000` | Tiempo máximo del SMTP; si se supera, el envío responde 503 |
 | `MAIL_FROM` | | `PetCat <no-reply@petcat.co>` | Remitente de los correos |
-| `AUTH_RATE_LIMIT_MAX` | | 10 en producción, 100 en desarrollo | Máximo cada 15 min por IP en login, forgot-password e invitaciones |
+| `AUTH_RATE_LIMIT_MAX` | | 10 en producción, 100 en desarrollo | Máximo cada 15 min por IP en login, forgot-password, reset-password, verify-email, resend-verification e invitaciones |
 
 Cada variable nueva se agrega también a `backend/.env.example`.
 
@@ -129,7 +129,25 @@ Marca como aplicadas todas las migraciones que hay en `database/migrations` sin 
 
 ### Seed de desarrollo
 
-`database/seeds/dev_seed.sql` crea el negocio de ejemplo "Clínica Veterinaria Patitas" (plan Gratuito, una sucursal con horario partido, servicios), sus empleados, un cliente con dos mascotas y los usuarios de la [sección 6](#usuarios-de-prueba). Se carga solo con un volumen nuevo de compose o con `db:reset`.
+`database/seeds/dev_seed.sql` carga datos realistas para diseñar el panel y la app, con los usuarios de la [sección 6](#usuarios-de-prueba). Se carga solo con un volumen nuevo de compose o con `db:reset`. **Las fechas son relativas al día en que se carga** (citas "hace 15 días", "en 3 días"...), así que un `db:reset` deja la agenda vigente otra vez. Las citas futuras caen en días en que abre su sucursal.
+
+**Negocios** (todos en Sincelejo, con coordenadas y una reseña cada uno):
+
+| Negocio | Tipo y plan | Qué sirve para ver |
+|---|---|---|
+| Clínica Veterinaria Patitas (Centro) | veterinaria, Gratuito | Horario partido; "Vacuna antirrábica" con oferta vigente; "Baño y corte" sin empleados (no reservable); bloqueo de Carlos una tarde; recepcionista con invitación pendiente. |
+| Peluquería Canina Huellitas (Venecia) | peluquería, Gratuito | Rol propio "Estilista"; servicios con margen de 15 min; "Baño y corte premium" en oferta; "Spa felino" solo sábados; empleada sin cuenta. Calificación 4. |
+| Guardería Patas Felices (Boston) | guardería, Gratuito | Lunes a viernes; servicios por día con cupo diario (`max_citas_dia` 8); "Adiestramiento básico" sin entrenador. Sin verificar. |
+| Centro Veterinario Salud Animal 24h | clínica, **Pro en prueba**, destacado | Sede Norte (todos los días 7-21) y Sede Sur (horario partido); veterinaria con horario semanal por sede, vacaciones en unos 20 días y jornada especial el próximo domingo; urgencias con precio variable; "Desparasitación" con oferta **vencida**; "Hospitalización" sin cita. |
+
+**Clientes y mascotas:**
+
+- **Sofía** (`cliente@petcat.test`): Max (dos consultas en Patitas con evolución de peso y control pendiente; antirrábica **vencida**, parvovirus **próxima**, una dosis antigua subida por ella) y Luna (triple felina registrada por la dueña con comprobante). En Patitas tiene una inasistencia y una **cancelación tardía**; próximas: vacuna de Max (confirmada), consulta de Luna (pendiente) y un baño en Huellitas. El negocio le canceló otro baño.
+- **Camilo** (`camilo@petcat.test`): Rocky (alérgico al pollo, **no comparte su historial**: cada negocio ve solo lo que registró; atendido en Patitas, Huellitas, la guardería y urgencias de Salud Animal) y Mía (spa el sábado, consulta en 2 días). Una cita de Rocky cae en las vacaciones de la veterinaria: la agenda la marca `fuera_de_disponibilidad`.
+- **Valeria** (`valeria@petcat.test`, correo sin verificar): Copito (conejo; mixomatosis próxima en 5 días; una cita **reprogramada** con su nueva cita pendiente) y Nala (**fallecida**, con una cita antigua en la guardería).
+- **Jorge** (`jorge@petcat.test`): cliente **sin app** registrado desde el panel de Salud Animal; Toby tiene una cita **en curso hoy** y una inasistencia.
+
+Hay citas en los siete estados (`pendiente`, `confirmada`, `en_curso`, `completada`, `cancelada`, `no_asistio`, `reprogramada`), pasadas y futuras.
 
 ### Reiniciar la base
 
@@ -246,32 +264,95 @@ Todas las respuestas son JSON con esta forma:
 
 1. `POST /auth/login` con `{ "email", "password" }` (la app puede enviar además `"dispositivo": "android"`). Responde `data: { access_token, refresh_token, usuario }`.
 2. En cada petición protegida: cabecera `Authorization: Bearer <access_token>`.
-3. El access token vence en 1 hora (`JWT_EXPIRES_IN`). Por ahora no hay endpoint de refresh (llega en la Fase 1 con `POST /auth/refresh-token`): con un 401, vuelve a hacer login. Guarda el refresh token desde ya.
-4. `POST /auth/logout` cierra solo la sesión de ese token.
-5. Tras 5 contraseñas erróneas seguidas la cuenta se bloquea 15 minutos (403).
+3. El access token vence en 1 hora (`JWT_EXPIRES_IN`). Con un 401 por token vencido, llama a `POST /auth/refresh-token` con `{ "refresh_token" }`: devuelve un access token y un refresh token **nuevos** (guarda los dos; los anteriores dejan de servir) y extiende la sesión 30 días más (`REFRESH_EXPIRES_IN`). Si el refresh también da 401, vuelve a hacer login. No lances dos renovaciones a la vez con el mismo refresh token: solo una funciona.
+4. `POST /auth/logout` cierra solo la sesión de ese token. `POST /auth/change-password` cierra las demás sesiones y mantiene la actual.
+5. Tras 5 contraseñas erróneas seguidas la cuenta se bloquea 15 minutos (403). Restablecer la contraseña la desbloquea.
+6. `GET /auth/me` devuelve el perfil, las preferencias y los negocios a los que puede entrar; `PATCH /auth/me` edita nombre, apellido, teléfono, idioma, zona horaria y notificaciones.
+7. Si `GET /auth/me` trae `requiere_aceptar_politica: true` (cuenta sin autorización de datos para la versión vigente de la política), mostrar la política y enviar `POST /auth/politica-datos/aceptar` con `{ "acepta_politica_datos": true }`.
 
-Registro: `POST /auth/register` con `nombre`, `apellido`, `email`, `password` (8 a 72 caracteres, con letra y número), y opcionales `telefono` y `tipo_usuario` (`cliente` o `negocio`). No inicia sesión.
+Registro: `POST /auth/register` con `nombre`, `apellido`, `email`, `password` (8 a 72 caracteres, con letra y número), `acepta_politica_datos: true` (obligatorio: autorización de tratamiento de datos, Ley 1581 de 2012; la app debe mostrar la política y un check sin marcar) y opcionales `telefono` y `tipo_usuario` (`cliente` o `negocio`). No inicia sesión. Si el email ya existe (también cuando un negocio registró a esa persona desde el panel), el 409 sugiere usar "Olvidé mi contraseña". Envía un correo de verificación; el email sin verificar no impide iniciar sesión ni reservar.
+
+Pantallas del frontend que abren los enlaces de los correos (el token va en la ruta):
+
+| Enlace | Qué hace la pantalla |
+|---|---|
+| `${FRONTEND_URL}/verificar-email/<token>` | Llama a `GET /auth/verify-email/:token` y muestra el resultado (400 = enlace vencido o ya usado). Reenviar el correo: `POST /auth/resend-verification` con la sesión iniciada. |
+| `${FRONTEND_URL}/restablecer-password/<token>` | Pide la contraseña nueva y envía `POST /auth/reset-password` con `{ "token", "password" }`. Luego, login. El enlace se pide con `POST /auth/forgot-password` (vigente 1 hora). |
+| `${FRONTEND_URL}/crear-password/<token>` | Igual que la anterior, con otro texto ("Crea tu contraseña"): llega en el correo de bienvenida a un cliente que registró un negocio (vigente 7 días). Usa el mismo `POST /auth/reset-password`. |
 
 ### Acceso al panel de un negocio
 
 - El acceso se decide por **pertenencia**, no por `tipo_usuario`: el usuario es propietario del negocio o empleado activo con su cuenta vinculada. Cualquier usuario puede crear un negocio (`POST /negocios`).
 - `GET /negocios/mios` devuelve los negocios a los que el usuario puede entrar, con `relacion` (`propietario` o `empleado`) y su `rol`. Úsalo para el selector de negocio del panel.
 - Los empleados tienen permisos por rol (`{ modulo: [acciones] }`); el catálogo completo está en `GET /permisos`. Un 403 dice qué falta.
-- Invitaciones de empleados: el panel envía la invitación y el empleado recibe el enlace `${FRONTEND_URL}/invitacion/<token>`. La pantalla de ese enlace consulta `GET /invitaciones/:token` (dice si la cuenta ya existe) y acepta con `POST /invitaciones/:token/aceptar`, que devuelve la sesión igual que el login.
+- Invitaciones de empleados: el panel envía la invitación y el empleado recibe el enlace `${FRONTEND_URL}/invitacion/<token>`. La pantalla de ese enlace consulta `GET /invitaciones/:token` (dice si la cuenta ya existe y, con `requiere_aceptar_politica`, si hay que pedir la autorización de datos) y acepta con `POST /invitaciones/:token/aceptar`, que devuelve la sesión igual que el login. Si se crea una cuenta nueva, el body lleva `acepta_politica_datos: true`.
 
-### Endpoints actuales (Fase 0)
+### Endpoints actuales
 
 Detalle de cada uno en Swagger.
 
 | Módulo | Endpoints |
 |---|---|
-| Auth | `POST /auth/register`, `POST /auth/login`, `POST /auth/logout` |
+| Auth | `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, `POST /auth/refresh-token`, `GET` y `PATCH /auth/me`, `POST /auth/politica-datos/aceptar`, `POST /auth/change-password`, `POST /auth/forgot-password`, `POST /auth/reset-password`, `GET /auth/verify-email/:token`, `POST /auth/resend-verification` |
 | Negocios | `POST /negocios`, `GET /negocios/mios`, `GET /negocios/:id_negocio` (público), `PATCH /negocios/:id_negocio` |
 | Sucursales | `GET` (público) y `POST /negocios/:id_negocio/sucursales`, `GET` (público), `PATCH` y `DELETE /sucursales/:id_sucursal` |
 | Horarios | `GET` (público) y `PUT /sucursales/:id_sucursal/horarios` |
 | Roles y permisos | `GET /permisos`, `GET` y `POST /negocios/:id_negocio/roles`, `PATCH` y `DELETE /roles/:id_rol` |
 | Empleados | `GET` (paginado) y `POST /negocios/:id_negocio/empleados`, `POST /negocios/:id_negocio/empleados/yo`, `GET`, `PATCH` y `DELETE /empleados/:id_empleado`, `PATCH /empleados/:id_empleado/reactivar` |
 | Invitaciones | `POST /empleados/:id_empleado/invitacion`, `POST /empleados/:id_empleado/invitacion/reenviar`, `GET /invitaciones/:token` (público), `POST /invitaciones/:token/aceptar` (público) |
+| Mascotas (app) | `GET` y `POST /mascotas` (del usuario autenticado), `GET`, `PATCH` y `DELETE /mascotas/:id_mascota` |
+| Servicios | `GET /categorias-servicio` (público), `GET` (paginado) y `POST /negocios/:id_negocio/servicios`, `GET /servicios/:id_servicio` (público), `PATCH` y `DELETE /servicios/:id_servicio`, `PATCH /servicios/:id_servicio/reactivar` |
+| Búsqueda (app) | `GET /negocios` y `GET /servicios` (públicos, paginados) |
+| Disponibilidad | `GET` y `POST /empleados/:id_empleado/disponibilidad`, `PUT /empleados/:id_empleado/horario-semanal`, `GET /empleados/:id_empleado/disponibilidad-efectiva`, `PATCH` y `DELETE /disponibilidad/:id_disponibilidad` |
+| Citas | `GET /citas/horarios-libres` (público), `POST /citas` y `GET /citas/mias` (app), `GET /citas/:id_cita`, `POST /citas/:id_cita/cancelar`, `POST /citas/:id_cita/reprogramar` y `GET /citas/:id_cita/historial` (dueño o negocio), `PATCH /citas/:id_cita` y `PATCH /citas/:id_cita/estado` (panel), `GET /negocios/:id_negocio/citas/horarios-libres`, `GET` (agenda) y `POST /negocios/:id_negocio/citas` (panel) |
+| Clientes (panel) | `GET` (listado) y `POST /negocios/:id_negocio/clientes`, `GET /negocios/:id_negocio/clientes/buscar`, `GET /negocios/:id_negocio/clientes/:id_usuario` (detalle), `GET /negocios/:id_negocio/clientes/:id_usuario/citas`, `POST /negocios/:id_negocio/clientes/:id_usuario/mascotas` |
+| Historial médico | `GET /mascotas/:id_mascota/historial` (dueño), `GET /negocios/:id_negocio/mascotas/:id_mascota/historial`, `POST /negocios/:id_negocio/historial`, `PATCH /historial/:id_historial` (panel) |
+| Vacunas | `GET` y `POST /mascotas/:id_mascota/vacunas` (dueño), `GET /negocios/:id_negocio/mascotas/:id_mascota/vacunas`, `POST /negocios/:id_negocio/vacunas` (panel), `PATCH /vacunas/:id_vacuna` (quien la registró) |
+| Resumen de salud | `GET /mascotas/:id_mascota/resumen-salud` (dueño) y `GET /negocios/:id_negocio/mascotas/:id_mascota/resumen-salud` (panel) |
+
+### Disponibilidad de empleados
+
+- **Horario semanal** (`PUT .../horario-semanal`, la semana completa en un solo guardado). Si un empleado no tiene horario semanal, sigue el de la sucursal; en cuanto se le carga uno, solo trabaja en esos rangos. Un rango sin `id_sucursal` vale para cualquier sucursal.
+- **Excepciones** (`POST .../disponibilidad`): `bloqueo` (con o sin horas, uno o varios días), `vacacion` (días completos) y `evento_especial` (un día, en una sucursal, que **suma** horas, incluso fuera del horario de la sucursal). Para que un día quede solo con el evento, se combina con un bloqueo **con horas** sobre el horario normal: un bloqueo de día completo también quita el evento.
+- `GET .../disponibilidad-efectiva?fecha=` devuelve los rangos resultantes por sucursal; sirve para pintar el calendario del empleado.
+- Toda escritura responde `data.citas_afectadas`: citas futuras pendientes o confirmadas que ya no caben en la disponibilidad del empleado. El cambio se guarda igual; el panel debe mostrarlas para reprogramarlas o reasignarlas.
+
+### Reservar citas
+
+- **App:** `GET /citas/horarios-libres?id_servicio&id_sucursal&fecha[&id_empleado]` (público) y luego `POST /citas` con el `hora_inicio` elegido. Los horarios son de 15 en 15 minutos y con al menos 1 hora de anticipación, hasta 60 días adelante. Si no hay, la lista viene vacía con `motivo_sin_horarios` para mostrarlo. La cita queda `pendiente` hasta que el negocio la confirme.
+- **Panel:** mismos pasos con `/negocios/:id_negocio/citas/horarios-libres` y `POST /negocios/:id_negocio/citas` (lleva `id_usuario` del cliente y `origen`); permite servicios ocultos en la app y horarios desde ahora. La cita queda `confirmada`.
+- Sin `id_empleado`, cada horario lista quién puede atenderlo y la reserva se asigna al que tenga menos citas ese día.
+- Un 409 al reservar ("El horario ya no está disponible") significa que otra persona lo tomó: volver a pedir los horarios libres.
+- **Mis citas (app):** `GET /citas/mias?alcance=proximas|pasadas|todas`. Cada cita trae `negocio { id_negocio, nombre, logo_url }` y `sucursal { nombre, direccion, telefono, latitud, longitud }` para mostrar dónde es y ofrecer "Cómo llegar". El dueño nunca recibe `notas_internas`.
+- **Agenda (panel):** `GET /negocios/:id_negocio/citas?desde&hasta` (por defecto hoy; máximo 31 días; sin paginar). `solo_mias=true` muestra solo las citas de quien consulta como empleado. Las citas con `fuera_de_disponibilidad: true` hay que reprogramarlas o reasignarlas (`fuera_de_disponibilidad=true` las lista).
+- **Detalle:** `GET /citas/:id_cita` sirve para la app (dueño) y el panel (con notas internas).
+- **Cambios:** el panel confirma, inicia, completa o marca inasistencia con `PATCH /citas/:id_cita/estado` y edita notas, prioridad, precio final o empleado con `PATCH /citas/:id_cita`. Dueño y negocio cancelan con `POST /citas/:id_cita/cancelar` (el negocio con motivo; si el dueño cancela a menos de 2 horas, `cancelacion.tardia: true`) y reprograman con `POST /citas/:id_cita/reprogramar` (el dueño hasta 2 horas antes; devuelve la cita nueva). `GET /citas/:id_cita/historial` muestra los cambios.
+- **Inasistencias:** el detalle de la cita en el panel trae `cliente.historial_cumplimiento` (completadas, inasistencias y cancelaciones tardías del cliente en ese negocio).
+- `PUT /sucursales/:id_sucursal/horarios` y `DELETE /empleados/:id_empleado` también responden `citas_afectadas`.
+
+### Salud de la mascota
+
+- El dueño ve el historial y las vacunas de sus mascotas en `/mascotas/:id_mascota/...` (sin notas internas). El panel usa `/negocios/:id_negocio/mascotas/:id_mascota/...` y solo funciona si la mascota tiene una cita con ese negocio que no esté cancelada ni reprogramada (403 si no).
+- `compartir_historial` (en `PATCH /mascotas/:id_mascota`, por defecto true): con false, cada negocio ve solo el historial clínico que él creó. Las **vacunas**, las alergias y las condiciones médicas siempre las ve cualquier negocio con cita.
+- En el carnet, `registrada_por: dueno` y `tiene_comprobante` distinguen las vacunas que registró el dueño de las de un profesional. `estado` ya viene calculado (`no_aplica` en dosis reemplazadas por una más reciente de la misma vacuna).
+- `archivos` del historial y `comprobante_url` aceptan solo URLs https (la subida de archivos llega en la Fase 2).
+- `resumen-salud` trae lo que la app necesita para la ficha: vacunas vencidas y próximas (30 días), último y próximo control, próxima cita y evolución del peso.
+
+### Clientes sin app (panel)
+
+1. Buscar por email o teléfono exactos: `GET /negocios/:id_negocio/clientes/buscar?email=` o `?telefono=` (hasta 5 resultados con sus mascotas). Tiene el límite estricto de solicitudes.
+2. Si no existe, registrarlo: `POST /negocios/:id_negocio/clientes` con sus datos, su primera mascota y `autoriza_tratamiento_datos: true`. El panel debe pedir y registrar esa autorización al cliente (Ley 1581 de 2012). El cliente recibe un correo con el nombre del negocio y un enlace de 7 días para crear su contraseña.
+3. Si ya es cliente del negocio (tiene una cita con él o el negocio lo registró) y trae otra mascota: `POST /negocios/:id_negocio/clientes/:id_usuario/mascotas`.
+4. Agendar con `POST /negocios/:id_negocio/citas`.
+
+La sección de clientes del panel usa `GET /negocios/:id_negocio/clientes` (con `inasistencias` por fila para mostrar una alerta) y `GET /negocios/:id_negocio/clientes/:id_usuario` (contacto, cumplimiento, mascotas y citas; todo solo con ese negocio).
+
+### Servicios y búsqueda
+
+- Cada servicio tiene sus **empleados asignados** (`empleados: [id_empleado]` en el body de crear y editar; al editar reemplaza el conjunto). En el listado del panel, `sin_empleados: true` avisa que el servicio no se puede reservar: conviene mostrar una alerta para que el negocio asigne a alguien. El detalle de un empleado (`GET /empleados/:id_empleado`) trae los `servicios` que atiende.
+- En la app, los servicios no reservables se muestran igual con `reservable: false` (deshabilitar el botón de reservar). `precio_actual` ya tiene en cuenta la oferta vigente.
+- `GET /negocios` y `GET /servicios` aceptan `lat`, `lng` y `radio_km` (por defecto 10 km, máximo 50). **Con coordenadas, los negocios que no tienen coordenadas en ninguna sucursal activa ni en el negocio quedan fuera de los resultados.** El panel debería pedir la ubicación al crear una sucursal y avisar al negocio si ninguna la tiene, porque sin ella no aparece en "cerca de mí". La distancia (`distancia_km`) es la de la sucursal más cercana (`sucursal_cercana`).
+- Los textos de búsqueda (`q`) no distinguen tildes ni mayúsculas: "bano" encuentra "Baño".
 
 ### Usuarios de prueba
 
@@ -283,6 +364,15 @@ Con el seed cargado, todos usan la contraseña **`Petcat123!`**:
 | `propietario@petcat.test` | Dueña de "Clínica Veterinaria Patitas" |
 | `veterinario@petcat.test` | Empleado con rol Veterinario |
 | `cliente@petcat.test` | Dueña de las mascotas Max y Luna |
+| `huellitas@petcat.test` | Dueño de "Peluquería Canina Huellitas" |
+| `guarderia@petcat.test` | Dueña de "Guardería Patas Felices" |
+| `saludanimal@petcat.test` | Dueño de "Centro Veterinario Salud Animal 24h" (también atiende como empleado) |
+| `vet.salud@petcat.test` | Veterinaria de Salud Animal (horario semanal, vacaciones y jornada especial) |
+| `camilo@petcat.test` | Dueño de Rocky (no comparte historial) y Mía |
+| `valeria@petcat.test` | Dueña de Copito y de Nala (fallecida); correo sin verificar |
+| `jorge@petcat.test` | Cliente sin app registrado desde el panel de Salud Animal (dueño de Toby) |
+
+El detalle de cada negocio y cliente está en la [sección 3](#seed-de-desarrollo).
 
 Invitación pendiente de la recepcionista (`recepcionista@petcat.test`, sin cuenta), para probar la pantalla de aceptar:
 `http://localhost:5173/invitacion/5eed000000000000000000000000000000000000000000000000000000000001`
@@ -291,5 +381,5 @@ Invitación pendiente de la recepcionista (`recepcionista@petcat.test`, sin cuen
 
 - El navegador solo puede llamar a la API desde los orígenes de `CORS_ORIGINS` (por defecto `http://localhost:5173`, el de Vite). Si el panel corre en otro puerto, agrégalo en `backend/.env`.
 - La app móvil no envía cabecera `Origin`, así que CORS no la afecta.
-- Límite general: 300 solicitudes cada 15 minutos por IP. Login, forgot-password e invitaciones tienen un límite más estricto (`AUTH_RATE_LIMIT_MAX`). Al superarlo: 429.
+- Límite general: 300 solicitudes cada 15 minutos por IP. Login, forgot-password, reset-password, verify-email, resend-verification e invitaciones tienen un límite más estricto (`AUTH_RATE_LIMIT_MAX`). Al superarlo: 429.
 - En desarrollo sin SMTP, los correos (por ejemplo, las invitaciones) se imprimen en la consola del backend (`docker compose logs -f backend` si corre en Docker).

@@ -3,8 +3,9 @@ import * as invitacionRepo from "./invitacion.repository.js";
 import * as empleadoRepo from "../empleados/empleado.repository.js";
 import * as negocioRepo from "../negocios/negocio.repository.js";
 import * as usuarioRepo from "../usuarios/usuario.repository.js";
-import { verificarPassword } from "../auth/auth.service.js";
-import { passwordNueva } from "../auth/auth.schemas.js";
+import { verificarPassword, versionPolitica } from "../auth/auth.service.js";
+import * as autorizacionRepo from "../autorizaciones/autorizacion.repository.js";
+import { MENSAJE_POLITICA, passwordNueva } from "../auth/auth.schemas.js";
 import { createSessionForUser } from "../sessions/session.service.js";
 import { correoInvitacion } from "./invitacion.mail.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
@@ -125,6 +126,8 @@ export const consultarInvitacion = async (token) => {
     email: invitacion.email,
     expiracion: invitacion.expiracion,
     cuenta_existente: Boolean(cuenta),
+    // Sin cuenta, aceptar exige acepta_politica_datos: true (se crea una cuenta nueva).
+    requiere_aceptar_politica: !cuenta,
   };
 };
 
@@ -132,22 +135,33 @@ export const consultarInvitacion = async (token) => {
  * Acepta la invitación en una transacción con la invitación y el empleado
  * bloqueados (FOR UPDATE): dos aceptaciones simultáneas no pueden usar el mismo token.
  * - Cuenta existente: exige su contraseña actual, con las reglas del login.
- * - Sin cuenta: la crea con email_verificado (abrir el enlace prueba el correo).
+ * - Sin cuenta: la crea con email_verificado (abrir el enlace prueba el correo) y exige
+ *   acepta_politica_datos: true; la autorización se guarda con canal `invitacion`.
+ * - Con cuenta: si envía acepta_politica_datos y no tenía una autorización vigente, se guarda.
  * Vincula la cuenta, marca la invitación como usada e inicia sesión.
  */
-export const aceptarInvitacion = async (token, { password, nombre, apellido, telefono }, cliente) =>
+export const aceptarInvitacion = async (token, { password, nombre, apellido, telefono, acepta_politica_datos }, cliente) =>
   withTransaction(async (conn) => {
     const invitacion = await invitacionRepo.findByTokenHash(hashToken(token), { conn, forUpdate: true });
     verificarUsable(invitacion);
 
+    const version_politica = await versionPolitica();
     let usuario = await usuarioRepo.findForLogin(invitacion.email, conn);
+    let registrarAutorizacion = false;
     if (usuario) {
-      await verificarPassword(usuario, password, "Contraseña incorrecta");
+      await verificarPassword(usuario, password, ApiError.unauthorized("Contraseña incorrecta"));
+      registrarAutorizacion =
+        acepta_politica_datos === true && !(await autorizacionRepo.findVigente(usuario.id_usuario, version_politica, conn));
     } else {
+      // Cuenta nueva: contraseña con las reglas del registro y autorización de datos obligatoria.
+      const errors = {};
       const nueva = passwordNueva.safeParse(password);
-      if (!nueva.success) {
-        throw ApiError.unprocessable("Datos inválidos", { password: nueva.error.issues[0].message });
+      if (!nueva.success) errors.password = nueva.error.issues[0].message;
+      if (acepta_politica_datos !== true) {
+        errors.acepta_politica_datos = MENSAJE_POLITICA;
       }
+      if (Object.keys(errors).length > 0) throw ApiError.unprocessable("Datos inválidos", errors);
+      registrarAutorizacion = true;
       const id_usuario = await usuarioRepo.create(
         {
           nombre: nombre ?? invitacion.empleado_nombre,
@@ -166,6 +180,19 @@ export const aceptarInvitacion = async (token, { password, nombre, apellido, tel
       throw ApiError.conflict("Tu cuenta ya está vinculada a otro empleado de este negocio");
     }
 
+    if (registrarAutorizacion) {
+      await autorizacionRepo.create(
+        {
+          id_usuario: usuario.id_usuario,
+          canal: "invitacion",
+          id_negocio: invitacion.id_negocio,
+          id_usuario_registro: usuario.id_usuario,
+          version_politica,
+          ip_address: cliente?.ip ?? null,
+        },
+        conn
+      );
+    }
     await empleadoRepo.linkUsuario(invitacion.id_empleado, usuario.id_usuario, conn);
     await invitacionRepo.markAsUsed(invitacion.id_invitacion, conn);
     await invitacionRepo.invalidatePrevious(invitacion.id_empleado, conn);

@@ -32,7 +32,7 @@ const schema = z
     JWT_SECRET: secret,
     JWT_EXPIRES_IN: duration.default("1h"),
     REFRESH_SECRET: secret,
-    REFRESH_EXPIRES_IN: duration.default("7d"),
+    REFRESH_EXPIRES_IN: duration.default("30d"),
 
     APP_URL: z.url().default("http://localhost:3000"),
     FRONTEND_URL: z.url().default("http://localhost:5173"),
@@ -55,7 +55,7 @@ const schema = z
     SMTP_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
     MAIL_FROM: z.string().default("PetCat <no-reply@petcat.co>"),
 
-    // Máximo de solicitudes cada 15 min por IP en login, forgot-password e invitaciones.
+    // Máximo de solicitudes cada 15 min por IP en login, recuperación y verificación de cuenta e invitaciones.
     // Por defecto: 10 en producción, 100 en desarrollo y tests.
     AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().optional(),
   })

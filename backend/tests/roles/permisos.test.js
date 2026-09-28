@@ -62,3 +62,26 @@ describe("catálogo de permisos", () => {
     expect(permisosIncluidos(CATALOGO_PERMISOS, admin.permisos_json)).toBe(true);
   });
 });
+
+describe("roles del sistema", () => {
+  const rolesDelSistema = async () => {
+    const [rows] = await pool.query("SELECT nombre, permisos_json FROM roles WHERE es_sistema = TRUE");
+    return Object.fromEntries(
+      rows.map((r) => [r.nombre, typeof r.permisos_json === "string" ? JSON.parse(r.permisos_json) : r.permisos_json])
+    );
+  };
+
+  it("solo usan permisos del catálogo", async () => {
+    for (const [nombre, permisos] of Object.entries(await rolesDelSistema())) {
+      expect(permisosIncluidos(permisos, CATALOGO_PERMISOS), nombre).toBe(true);
+    }
+  });
+
+  it("los roles clínicos tienen las mismas acciones en historial_medico y en vacunas (migración 011)", async () => {
+    const roles = await rolesDelSistema();
+    for (const nombre of ["Administrador", "Veterinario"]) {
+      expect([...roles[nombre].vacunas].sort(), nombre).toEqual([...roles[nombre].historial_medico].sort());
+    }
+    expect(roles.Veterinario.vacunas.sort()).toEqual(["crear", "editar", "ver"]);
+  });
+});

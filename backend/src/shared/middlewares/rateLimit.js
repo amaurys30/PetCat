@@ -22,7 +22,7 @@ export const generalLimiter = createLimiter(
 );
 
 /**
- * Límite estricto para endpoints sensibles a fuerza bruta (login, forgot-password,
+ * Límite estricto para endpoints sensibles a fuerza bruta (login, recuperación y verificación de cuenta,
  * invitaciones). Cada llamada crea un contador propio: usar una instancia por endpoint.
  */
 export const strictLimiter = () =>

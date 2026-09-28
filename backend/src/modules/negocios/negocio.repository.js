@@ -2,6 +2,7 @@ import db from "../../config/db.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
 import { pick } from "../../shared/utils/pick.js";
 import { CAMPOS_NEGOCIO } from "./negocio.schemas.js";
+import { SQL_OFERTA_VIGENTE, SQL_PRECIO_ACTUAL, SQL_RESERVABLE } from "../servicios/servicio.repository.js";
 
 export const findById = async (id_negocio, conn) => {
   const [rows] = await (conn ?? db).query("SELECT * FROM negocios WHERE id_negocio = ?", [id_negocio]);
@@ -97,6 +98,8 @@ export const findServiciosPublicos = async (id_negocio) => {
   const [rows] = await db.query(
     `SELECT s.id_servicio, s.nombre, s.descripcion, s.precio_base, s.precio_maximo, s.tipo_precio,
             s.duracion_minutos, s.tipo_mascota, s.en_oferta, s.precio_oferta,
+            ${SQL_PRECIO_ACTUAL} AS precio_actual, ${SQL_OFERTA_VIGENTE} AS oferta_vigente,
+            ${SQL_RESERVABLE} AS reservable,
             c.id_categoria, c.nombre AS categoria
      FROM servicios s
      JOIN categorias_servicio c ON c.id_categoria = s.id_categoria
@@ -132,6 +135,9 @@ const NEGOCIO_DE_RECURSO = {
   id_servicio: "SELECT id_negocio FROM servicios WHERE id_servicio = ?",
   id_cita: "SELECT id_negocio FROM citas WHERE id_cita = ?",
   id_producto: "SELECT id_negocio FROM productos WHERE id_producto = ?",
+  // NULL = registro sin negocio (vacuna del dueño): recurso global para authorize.
+  id_historial: "SELECT id_negocio FROM historial_medico WHERE id_historial = ?",
+  id_vacuna: "SELECT id_negocio FROM vacunas WHERE id_vacuna = ?",
   id_disponibilidad: `SELECT e.id_negocio
                       FROM disponibilidad_empleado d
                       JOIN empleados e ON e.id_empleado = d.id_empleado

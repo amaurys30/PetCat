@@ -1,7 +1,5 @@
 import { env } from "../../config/env.js";
-
-const escapeHtml = (texto) =>
-  String(texto).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+import { escapeHtml } from "../../shared/utils/mailer.js";
 
 /** Enlace del panel para aceptar: lleva el token real (en la base solo está su hash). */
 export const enlaceInvitacion = (token) => `${env.FRONTEND_URL}/invitacion/${token}`;

@@ -1,5 +1,6 @@
 import db from "../../config/db.js";
 import { pick } from "../../shared/utils/pick.js";
+import { likeLiteral } from "../../shared/utils/sql.js";
 import { CAMPOS_EMPLEADO } from "./empleado.schemas.js";
 
 const SELECT_EMPLEADO = `
@@ -22,9 +23,6 @@ export const findById = async (id_empleado, conn, { forUpdate = false } = {}) =>
   );
   return rows[0];
 };
-
-// En LIKE, % y _ son comodines: se escapan para buscar el texto literal.
-const likeLiteral = (texto) => `%${texto.replace(/[\\%_]/g, "\\$&")}%`;
 
 /**
  * Página de empleados del negocio con filtros opcionales:

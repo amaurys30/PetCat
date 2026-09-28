@@ -16,6 +16,15 @@ import invitacionRoutes from "./modules/invitaciones/invitacion.routes.js";
 import rolRoutes from "./modules/roles/rol.routes.js";
 import horarioRoutes from "./modules/horarios/horario.routes.js";
 import permisoRoutes from "./modules/permisos/permiso.routes.js";
+import mascotaRoutes from "./modules/mascotas/mascota.routes.js";
+import servicioRoutes from "./modules/servicios/servicio.routes.js";
+import busquedaRoutes from "./modules/busqueda/busqueda.routes.js";
+import disponibilidadRoutes from "./modules/disponibilidad/disponibilidad.routes.js";
+import citaRoutes from "./modules/citas/cita.routes.js";
+import historialRoutes from "./modules/historial/historial.routes.js";
+import vacunaRoutes from "./modules/vacunas/vacuna.routes.js";
+import saludRoutes from "./modules/salud/salud.routes.js";
+import clienteRoutes from "./modules/clientes/cliente.routes.js";
 
 import { generalLimiter, strictLimiter } from "./shared/middlewares/rateLimit.js";
 import { notFound } from "./shared/middlewares/notFound.js";
@@ -61,7 +70,12 @@ v1.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, { customSiteTitle:
 v1.use(generalLimiter);
 v1.use("/auth/login", strictLimiter());
 v1.use("/auth/forgot-password", strictLimiter());
+v1.use("/auth/reset-password", strictLimiter());
+v1.use("/auth/verify-email", strictLimiter());
+v1.use("/auth/resend-verification", strictLimiter());
 v1.use("/invitaciones", strictLimiter());
+// Búsqueda exacta de clientes: sin límite estricto se podrían recorrer teléfonos.
+v1.use("/negocios/:id_negocio/clientes/buscar", strictLimiter());
 
 v1.use("/auth", authRoutes);
 v1.use(negocioRoutes);
@@ -71,6 +85,15 @@ v1.use(invitacionRoutes);
 v1.use(rolRoutes);
 v1.use(horarioRoutes);
 v1.use(permisoRoutes);
+v1.use(mascotaRoutes);
+v1.use(servicioRoutes);
+v1.use(busquedaRoutes);
+v1.use(disponibilidadRoutes);
+v1.use(citaRoutes);
+v1.use(historialRoutes);
+v1.use(vacunaRoutes);
+v1.use(saludRoutes);
+v1.use(clienteRoutes);
 
 app.use("/api/v1", v1);
 

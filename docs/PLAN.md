@@ -85,37 +85,68 @@ Se hace en sub-bloques que se aprueban por separado: **0.C.1** base de tests y s
 
 ## Fase 1 — Flujo principal: el dueño agenda y el veterinario atiende
 
-**Auth completo**
-- [ ] `POST /auth/refresh-token` (rota el refresh token), `GET /auth/me` (perfil + negocios a los que tiene acceso con su rol), `PATCH /auth/me`, `POST /auth/change-password` (cierra las demás sesiones), `POST /auth/forgot-password`, `POST /auth/reset-password`, `GET /auth/verify-email/:token`.
-- [ ] `forgot-password` y `reset-password` deben funcionar aunque la cuenta esté bloqueada por intentos fallidos; al restablecer la contraseña se reinician `intentos_login` y `bloqueado_hasta`.
+Se hace en sub-bloques que se aprueban por separado: **1.1** auth completo · **1.2** mascotas · **1.3** catálogo, servicios y búsqueda pública · **1.4** disponibilidad de empleados · **1.5** citas · **1.6** historial médico, vacunas y resumen de salud · **1.7** clientes. Las decisiones están en "Decisiones de la Fase 1".
 
-**Mascotas (app)**
-- [ ] `GET|POST /mascotas` (del usuario autenticado), `GET|PATCH|DELETE /mascotas/:id_mascota`, `GET /mascotas/:id_mascota/resumen-salud` (vacunas próximas o vencidas, último control, próximo control).
+### 1.1 Auth completo
+- [x] Migración `004_tokens_usuario_y_sesiones.sql`: vencimiento propio para el token de verificación y el de recuperación (hoy comparten `token_expiracion`) e índices para buscar por esos tokens y por `sesiones.refresh_token`.
+- [x] Migración `005_disponibilidad_rangos.sql`: `fecha_fin` en `disponibilidad_empleado` (vacaciones de varios días) y llave foránea de `id_sucursal` (se usa en 1.4).
+- [x] `POST /auth/refresh-token` (rota el refresh token; 30 días renovados en cada uso), `GET /auth/me` (perfil + negocios a los que tiene acceso con su rol), `PATCH /auth/me`, `POST /auth/change-password` (cierra las demás sesiones).
+- [x] `POST /auth/forgot-password`, `POST /auth/reset-password`: funcionan aunque la cuenta esté bloqueada por intentos fallidos; al restablecer la contraseña se reinician `intentos_login` y `bloqueado_hasta`.
+- [x] `GET /auth/verify-email/:token`; el registro envía el correo de verificación; `POST /auth/resend-verification`.
 
-**Historial médico y vacunas**
-- [ ] `GET /mascotas/:id_mascota/historial` (dueño o negocio con cita previa).
-- [ ] `POST /negocios/:id_negocio/historial` (veterinario, opcionalmente ligado a `id_cita`), `PATCH /historial/:id_historial`.
-- [ ] `GET /mascotas/:id_mascota/vacunas`; `POST /mascotas/:id_mascota/vacunas` (dueño registra una vacuna externa con comprobante) y `POST /negocios/:id_negocio/vacunas` (veterinario); `PATCH /vacunas/:id_vacuna`. Calcular `estado` según `fecha_proxima`.
+### 1.2 Mascotas (app)
+- [x] `GET|POST /mascotas` (del usuario autenticado), `GET|PATCH|DELETE /mascotas/:id_mascota`.
 
-**Catálogo y servicios**
-- [ ] `GET /categorias-servicio`.
-- [ ] `GET|POST /negocios/:id_negocio/servicios`, `GET|PATCH|DELETE /servicios/:id_servicio`.
-- [ ] Públicos para la app: `GET /negocios` (buscar por `q`, `tipo`, `lat`/`lng`/`radio_km`, paginado) y `GET /servicios` (búsqueda por texto, categoría y especie).
+### 1.3 Catálogo, servicios y búsqueda pública
+- [x] Migración `006_servicios_empleados_y_margen.sql`: tabla `empleado_servicios (id_empleado, id_servicio)` y `servicios.margen_minutos` (por defecto 0).
+- [x] `GET /categorias-servicio`.
+- [x] `GET|POST /negocios/:id_negocio/servicios`, `GET|PATCH|DELETE /servicios/:id_servicio`, `PATCH /servicios/:id_servicio/reactivar`. El body de crear y editar acepta los empleados asignados; el listado del panel indica `sin_empleados`.
+- [x] Públicos para la app: `GET /negocios` (buscar por `q`, `tipo`, `id_categoria`, `lat`/`lng`/`radio_km`, paginado) y `GET /servicios` (búsqueda por texto, categoría, especie, negocio, oferta y cercanía).
 
-**Disponibilidad**
-- [ ] `GET|POST /empleados/:id_empleado/disponibilidad`, `PATCH|DELETE /disponibilidad/:id_disponibilidad` (horario normal, bloqueos, vacaciones).
+### 1.4 Disponibilidad
+- [x] `authorizeAny`: acceso con cualquiera de varios permisos y una excepción opcional (el mismo empleado).
+- [x] `GET /empleados/:id_empleado/disponibilidad` (horario semanal y excepciones), `PUT /empleados/:id_empleado/horario-semanal` (reemplaza el `horario_normal`), `POST /empleados/:id_empleado/disponibilidad` (bloqueo, vacación o evento especial), `PATCH|DELETE /disponibilidad/:id_disponibilidad`.
+- [x] Cálculo de la disponibilidad efectiva (función pura que reutiliza 1.5) y `GET /empleados/:id_empleado/disponibilidad-efectiva?fecha[&id_sucursal]`.
+- [x] `citas_afectadas` en las escrituras: citas futuras pendientes o confirmadas del empleado que no caben en su disponibilidad.
 
-**Citas**
-- [ ] `GET /citas/horarios-libres?id_servicio&id_sucursal&fecha[&id_empleado]`: cruza horario de sucursal, disponibilidad del empleado, bloqueos, citas existentes, duración del servicio y `max_citas_dia`.
-- [ ] `POST /citas` (dueño desde la app; valida que la mascota sea suya y compatible con el servicio) y `POST /negocios/:id_negocio/citas` (panel; origen presencial o teléfono).
-- [ ] Evitar dobles reservas: transacción con `SELECT ... FOR UPDATE` sobre las citas del empleado ese día; 409 si el horario ya se ocupó.
-- [ ] `GET /citas/mias` (dueño), `GET /negocios/:id_negocio/citas` (agenda con filtros de fechas, estado, empleado y sucursal), `GET /citas/:id_cita`.
-- [ ] Máquina de estados: pendiente → confirmada | cancelada; confirmada → en_curso | cancelada | no_asistio; en_curso → completada. `PATCH /citas/:id_cita/estado`, `POST /citas/:id_cita/cancelar` (con motivo), `POST /citas/:id_cita/reprogramar` (crea una cita nueva con `id_cita_origen` y marca la original como `reprogramada`).
-- [ ] Registrar cada cambio en `historial_citas`; `GET /citas/:id_cita/historial`.
-- [ ] Al completar una cita, incrementar `negocios.total_citas`.
+### 1.5 Citas
 
-**Clientes (panel)**
-- [ ] `GET /negocios/:id_negocio/clientes` y `GET /negocios/:id_negocio/clientes/:id_usuario` (datos de contacto, mascotas y citas con ese negocio).
+En tres partes: **1.5.1** horarios libres, reservas y clientes del panel · **1.5.2** consultas y agenda · **1.5.3** cambios sobre las citas.
+
+- [x] Claves nuevas en `configuracion_global`: intervalo de la agenda, antelación mínima, horizonte máximo y antelación para cancelar o reprogramar desde la app.
+- [x] `GET /citas/horarios-libres?id_servicio&id_sucursal&fecha[&id_empleado]`: cruza horario de sucursal, disponibilidad del empleado, bloqueos, citas existentes, duración y margen del servicio y `max_citas_dia` (reglas en Decisiones).
+- [x] `POST /citas` (dueño desde la app; valida que la mascota sea suya y compatible con el servicio) y `POST /negocios/:id_negocio/citas` (panel; origen presencial o teléfono).
+- [x] Panel: buscar un cliente por email o teléfono exactos (datos mínimos y mascotas activas) y registrar un cliente sin app con su mascota (email obligatorio).
+- [x] Evitar dobles reservas: transacción que bloquea la fila del servicio (si tiene `max_citas_dia`) y la del empleado, siempre en ese orden; 409 si el horario ya se ocupó.
+- [x] Migración `007_citas_configuracion_y_autorizaciones.sql`: claves de la agenda en `configuracion_global` y tabla `autorizaciones_datos`.
+- [x] `POST /auth/register` exige `acepta_politica_datos: true` y guarda la autorización (canal app).
+- [x] Panel: registrar otra mascota de un cliente con relación con el negocio (`POST /negocios/:id_negocio/clientes/:id_usuario/mascotas`).
+- [x] `GET /citas/mias` (dueño), `GET /negocios/:id_negocio/citas` (agenda con filtros de fechas, estado, empleado y sucursal), `GET /citas/:id_cita` (dueño o negocio).
+- [x] Máquina de estados: pendiente → confirmada | cancelada; confirmada → en_curso | cancelada | no_asistio; en_curso → completada. `PATCH /citas/:id_cita/estado`, `POST /citas/:id_cita/cancelar` (con motivo), `POST /citas/:id_cita/reprogramar` (crea una cita nueva con `id_cita_origen` y marca la original como `reprogramada`).
+- [x] `PATCH /citas/:id_cita` (panel): `notas_internas`, `prioridad`, `precio_final` y reasignar el empleado.
+- [x] Registrar cada cambio en `historial_citas`; `GET /citas/:id_cita/historial`.
+- [x] Al completar una cita, incrementar `negocios.total_citas`.
+- [x] Migración `009_citas_cancelacion_e_inasistencias.sql`: `cancelada_por`, `fecha_cancelacion`, `cancelacion_tardia` e índice para contar inasistencias por cliente y negocio.
+- [x] `citas_afectadas` al cambiar el horario de una sucursal (`PUT /sucursales/:id_sucursal/horarios`) y al desactivar un empleado (`DELETE /empleados/:id_empleado`).
+
+### 1.6 Historial médico, vacunas y resumen de salud
+- [x] Migración `010_historial_vacunas_y_privacidad.sql`: `mascotas.compartir_historial`, `vacunas.registrada_por` e `id_usuario_registro`, llave foránea de `historial_medico.id_cita` y `dias_aviso_vacuna` en `configuracion_global`.
+- [x] Dueño: `GET /mascotas/:id_mascota/historial`, `GET|POST /mascotas/:id_mascota/vacunas` (vacuna externa, marcada como del dueño, con comprobante opcional), `GET /mascotas/:id_mascota/resumen-salud` y `compartir_historial` en `PATCH /mascotas/:id_mascota`.
+- [x] Panel (negocio con cita válida): `GET /negocios/:id_negocio/mascotas/:id_mascota/historial`, `/vacunas` y `/resumen-salud`; `POST /negocios/:id_negocio/historial` (opcionalmente ligado a `id_cita`), `PATCH /historial/:id_historial`, `POST /negocios/:id_negocio/vacunas`.
+- [x] `PATCH /vacunas/:id_vacuna` (la del dueño la edita el dueño; la de un negocio, ese negocio). Estado según `fecha_proxima`, con las dosis anteriores de la misma vacuna en `no_aplica`.
+
+### 1.7 Clientes (panel)
+- [x] `GET /negocios/:id_negocio/clientes` y `GET /negocios/:id_negocio/clientes/:id_usuario` (datos de contacto, mascotas y citas con ese negocio).
+- [x] `GET /negocios/:id_negocio/clientes/:id_usuario/citas` (todas las citas del cliente con el negocio, paginadas) y `historial_cumplimiento` en el detalle.
+
+### Cierre de la Fase 1
+- [x] Seed de desarrollo ampliado para diseñar con datos realistas: cuatro negocios de distintos tipos en Sincelejo con coordenadas (uno Pro en prueba con dos sedes), clientes con mascotas (incluidos uno sin app, una mascota fallecida y una que no comparte historial), citas en los siete estados, historial médico, vacunas vencidas y próximas, servicios con oferta vigente, vencida y sin oferta, y reseñas. Detalle en `backend/README.md`.
+- [x] Verificación desde cero, como en la Fase 0. Verificado el 27/09/2026 desde un clon limpio de `fase-1` (26e745f), con un proyecto de compose aparte (otros nombres y puertos):
+  - MySQL y backend healthy; esquema y seed cargados con tildes correctas; `db:migrate --status` con las 11 migraciones aplicadas y ninguna pendiente.
+  - Prueba de humo sobre el seed: búsqueda geográfica (4 negocios, el destacado primero), servicios en oferta vigente, login de los 11 usuarios, citas y resumen de salud de la dueña, agenda de hoy con la cita en curso, cita fuera de disponibilidad, clientes con inasistencias, horarios libres, reserva y cancelación desde la app, y rechazo de la mascota fallecida.
+  - Swagger con 65 rutas y 89 operaciones (las mismas que registran los routers), todas con resumen y respuestas y sin referencias rotas.
+  - La suite (507 tests) pasa en el clon contra un MySQL 8 nuevo con los mismos pasos del workflow de CI.
+- [x] PR de `fase-1` a `main` con el resumen de la fase y la guía para actualizar un entorno existente (#2).
 
 ---
 
@@ -123,7 +154,9 @@ Se hace en sub-bloques que se aprueban por separado: **0.C.1** base de tests y s
 - [ ] Planes y suscripciones: `GET /planes`, `GET /negocios/:id_negocio/suscripcion`, cambio de plan y prueba Pro de 14 días. Middleware `checkPlanLimit` para sucursales, empleados, citas del mes y productos.
 - [ ] Uploads con Cloudinary: fotos de mascotas, logos, banners, comprobantes y archivos del historial.
 - [ ] Notificaciones: `GET /notificaciones`, marcar como leída, Socket.IO para el panel y Expo Push para la app (registro del token del dispositivo).
-- [ ] Recordatorios: jobs con node-cron para citas, vacunas próximas o vencidas y limpieza de sesiones expiradas.
+- [ ] Recordatorios: jobs con node-cron para citas, vacunas próximas o vencidas y limpieza de sesiones expiradas. El mismo cron refresca `vacunas.estado`.
+- [ ] Citas pendientes sin confirmar: cancelación automática (plazo por definir).
+- [ ] Opción por negocio para confirmar automáticamente las citas que llegan desde la app.
 - [ ] Reseñas: el dueño reseña una cita completada (una por cita); el negocio responde; reportar reseña.
 - [ ] Dashboard del panel: citas del día, ingresos, servicios más pedidos, clientes nuevos (usando las vistas SQL).
 
@@ -157,7 +190,7 @@ Se hace en sub-bloques que se aprueban por separado: **0.C.1** base de tests y s
 
 ### Decisiones de 0.C (septiembre 2026)
 - Base de tests: `petcat_test` se borra y recrea en cada corrida cargando `database/petcat.sql` con un cargador en Node (entiende `DELIMITER`). Cada test crea sus propios datos con emails únicos; no se limpia entre tests. El seed de desarrollo también se carga y se prueba en `petcat_test`.
-- Seed: `database/seeds/dev_seed.sql`, contraseña común `Petcat123!`. En volúmenes nuevos compose lo ejecuta después del esquema (`01_petcat.sql`, `02_dev_seed.sql`). `npm run db:reset -- --yes` recrea `petcat_db` con esquema y seed (se niega en producción y sin `--yes`).
+- Seed: `database/seeds/dev_seed.sql`, contraseña común `Petcat123!`. En volúmenes nuevos compose lo ejecuta después del esquema (`01_petcat.sql`, `02_dev_seed.sql`). `npm run db:reset -- --yes` recrea `petcat_db` con esquema y seed (se niega en producción y sin `--yes`). Desde el cierre de la Fase 1 las fechas del seed (citas, vacunas, historial, ofertas, vacaciones) son relativas a `CURDATE()`: cada `db:reset` deja la agenda vigente. Los tests de `tests/base/seed.test.js` comprueban esos datos a través de la API (perfil público, clientes, agenda y resumen de salud).
 - Sesiones: se guarda el hash SHA-256 del access token y del refresh token, no los tokens en claro. La sesión dura lo mismo que el refresh token.
 - Login: 5 intentos fallidos seguidos bloquean la cuenta 15 minutos (`intentos_login`, `bloqueado_hasta`). Un login correcto reinicia el contador. Mismo mensaje "Credenciales inválidas" si el email no existe o la contraseña es errónea (con comparación contra un hash ficticio para no delatar emails). Cuenta inactiva o bloqueada: 403.
 - Respuesta del login y de aceptar invitación: `data: { access_token, refresh_token, usuario }` (snake_case, como el resto de campos).
@@ -196,3 +229,141 @@ Se hace en sub-bloques que se aprueban por separado: **0.C.1** base de tests y s
 - Codificación: `petcat.sql` y `dev_seed.sql` empiezan con `SET NAMES utf8mb4` (un test lo exige), porque el cliente `mysql` de compose usa latin1 y el texto con tildes quedaba codificado dos veces. Las bases creadas antes se reparan una sola vez con `database/scripts/reparar_codificacion_utf8.sql` (datos iniciales y trigger de citas; idempotente) o se recrean con `db:reset`. No es una migración porque una base nueva no la necesita. Los `COMMENT` de tablas y columnas de esas bases siguen dañados (solo documentación).
 - El `errorHandler` ya no traduce `error.status` de errores comunes: solo `ApiError`, `ZodError`, errores de MySQL y de `express.json()`; lo demás es 500.
 - CI: GitHub Actions con Node 24 y MySQL 8 de servicio (zona `America/Bogota`, puerto 3307); `backend/.env.test` se arma desde `.env.test.example` cambiando solo `DB_PASSWORD`.
+
+### Decisiones de la Fase 1 (septiembre 2026)
+
+**Auth (1.1)**
+- Refresh token de 30 días (`REFRESH_EXPIRES_IN=30d`), renovado en cada uso: `POST /auth/refresh-token` rota los dos tokens en la misma fila de `sesiones` (bloqueada con `FOR UPDATE`) y mueve `expira_en`. El refresh token y el access token anteriores dejan de servir. Sin detección de reutilización en el MVP.
+- El email sin verificar no bloquea el login ni las reservas en el MVP.
+- Tokens de verificación y de recuperación: 32 bytes aleatorios; en la base solo su SHA-256, cada uno con su propio vencimiento (migración 004). Los enlaces van al frontend: `${FRONTEND_URL}/verificar-email/<token>` y `${FRONTEND_URL}/restablecer-password/<token>`.
+- `PATCH /auth/me` no cambia el email (exigiría verificarlo de nuevo) ni la foto (Cloudinary, Fase 2). Si cambia el teléfono, `telefono_verificado` vuelve a FALSE.
+- Vigencias: enlace de verificación 24 horas, enlace de recuperación 1 hora. Cada enlace nuevo invalida el anterior del mismo tipo. Máximo un correo por minuto por cuenta y tipo (se controla en el mismo `UPDATE` que guarda el token).
+- El registro y `forgot-password` envían el correo sin esperarlo: si el SMTP falla solo se registra el error, así `forgot-password` responde igual y en el mismo tiempo exista o no el email. `resend-verification` sí lo espera, dentro de la transacción: si falla, 503 y no guarda el token.
+- `forgot-password` no envía nada a cuentas desactivadas (misma respuesta). `reset-password` desbloquea la cuenta, marca el email como verificado (el enlace llegó a ese correo), cierra todas las sesiones y no inicia sesión.
+- Enlace de verificación o de recuperación inexistente, usado o vencido: 400. Token con formato inválido (no son 64 caracteres hexadecimales): 422.
+- `change-password`: contraseña actual incorrecta da 422 en `errors.password_actual`, no 401, para que el frontend no lo confunda con una sesión vencida. Los fallos cuentan para el bloqueo de 5 intentos; la nueva debe ser distinta de la actual.
+- `verificarPassword(usuario, password, errorSiFalla)` recibe el `ApiError` del fallo (401 en login e invitaciones, 422 en el cambio de contraseña).
+- La renovación de sesión funciona con la cuenta bloqueada por intentos (el bloqueo no cierra sesiones) y da 403 con la cuenta desactivada. Actualiza IP, user agent y `ultimo_acceso`.
+- Límite estricto de solicitudes también en reset-password, verify-email y resend-verification. No en refresh-token: las apps lo llaman a menudo y muchos usuarios pueden compartir IP (p. ej. la wifi de la universidad).
+
+**Mascotas (1.2)**
+- Las rutas `/mascotas` son solo del dueño: una mascota de otro usuario da 403 (también para el admin de plataforma); inexistente o eliminada, 404. Los negocios verán las mascotas por sus citas (clientes, historial), no por estas rutas.
+- `GET /mascotas` no es paginado (un dueño tiene pocas mascotas): excluye las eliminadas y deja las fallecidas al final. Cada mascota trae `edad_meses`, calculada en MySQL; no se devuelve `activo`.
+- El body no acepta `id_usuario`, `activo` ni `foto_url` (la foto llega con Cloudinary en la Fase 2). El fallecimiento solo se registra al editar: `fallecido: true` con `fecha_fallecimiento` opcional (por defecto hoy, no futura ni anterior al nacimiento); `fallecido: false` borra la fecha. Una mascota fallecida no se queda sin fecha (422).
+- Eliminar (lógico) o registrar el fallecimiento da 409 si la mascota tiene citas futuras pendientes o confirmadas. Ambas operaciones bloquean la fila de la mascota (`FOR UPDATE`); al reservar (1.5) hay que leerla con bloqueo para no reservar sobre una mascota que se está eliminando.
+- Fechas "YYYY-MM-DD": `shared/utils/fechas.js` (`hoyISO`) y los esquemas `fecha` y `fechaNoFutura` de `shared/utils/schemas.js`.
+
+**Servicios y búsqueda (1.3)**
+- Servicios en la app sin empleados: se muestran igual con `reservable: false` (no requiere cita, o la requiere y tiene al menos un empleado activo asignado). También en el perfil público, junto con `precio_actual` y `oferta_vigente`.
+- `GET /servicios/:id_servicio` es solo la vista pública (activo, visible y de negocio activo; 404 si no). El panel no tiene una ruta de detalle: su listado trae todos los datos, también de servicios eliminados u ocultos, y `PATCH` devuelve el servicio completo.
+- `empleados` en el body: solo empleados activos del mismo negocio (422 en `errors.empleados` con los ids inválidos). Al editar reemplaza los empleados **activos** asignados; las asignaciones de empleados inactivos se conservan y vuelven a contar si se reactivan. `sin_empleados` y `reservable` solo cuentan empleados activos. Eliminar un servicio conserva sus asignaciones.
+- `GET /empleados/:id_empleado` (y las respuestas de crear y editar empleado) trae `servicios`: los activos que atiende. Las asignaciones solo se editan desde el servicio.
+- Nombre único entre los servicios activos del negocio, sin distinguir mayúsculas (409 en `errors.nombre`); se comprueba bloqueando la fila del negocio. Se puede editar un servicio eliminado; su nombre se comprueba al reactivarlo (409 si está ocupado o si ya está activo).
+- Reglas entre campos (422), validadas contra los valores actuales al editar: `precio_maximo >= precio_base`, `peso_min_kg <= peso_max_kg`, con `en_oferta` se exige `precio_oferta < precio_base`, y `fecha_fin_oferta >= fecha_inicio_oferta`. `duracion_minutos` de 5 a 1440 y `margen_minutos` de 0 a 240, ambos múltiplos de 5. `tipo_mascota` y `dias_disponible` son arreglos (`todos` no se combina); `etiquetas` (hasta 10) se guarda en `etiquetas_json`.
+- Eliminar un servicio (lógico) da 409 si tiene citas futuras pendientes o confirmadas; ya eliminado, 404.
+- Búsqueda pública: solo negocios activos con al menos una sucursal activa. Con `lat`/`lng`, la distancia es la de la sucursal activa más cercana con coordenadas (`ST_Distance_Sphere`, con un recuadro previo); si ninguna sucursal activa tiene coordenadas se usan las del negocio (con su sucursal principal como `sucursal_cercana`), y los negocios sin coordenadas en ningún lado quedan fuera. Radio por defecto `configuracion_global.radio_busqueda_km` (10), máximo 50. `lat` y `lng` van juntas; `radio_km` exige ambas.
+- Orden de `GET /negocios`: destacados primero; luego distancia (con coordenadas) o calificación y número de reseñas. Orden de `GET /servicios`: reservables primero; luego distancia (con coordenadas), negocio destacado, calificación del negocio y nombre.
+- `especie` en `GET /servicios` encuentra los servicios de esa especie y los de `todos`. `en_oferta` filtra por oferta vigente hoy. `q` usa `LIKE` con `%` y `_` escapados (`shared/utils/sql.js`); la collation ignora tildes y mayúsculas.
+
+**Disponibilidad (1.4)**
+- El horario semanal (`horario_normal`) se reemplaza completo con `PUT /empleados/:id_empleado/horario-semanal` (como los horarios de sucursal: borra y vuelve a insertar esos registros). Bloqueos, vacaciones y eventos especiales son excepciones con fecha: `POST`, `PATCH` y `DELETE` (lógico); `PATCH` o `DELETE` sobre un registro del horario semanal da 409.
+- Reglas por tipo: los rangos semanales de un mismo día no se cruzan, aunque sean de sucursales distintas (pueden tocarse; `id_sucursal` null = cualquier sucursal). `bloqueo`: uno o varios días, con horas opcionales y juntas (sin horas = días completos; con horas, ese rango cada día). `vacacion`: días completos. `evento_especial`: un solo día, con horas e `id_sucursal` obligatorios; no se cruza con otros eventos del empleado ese día en ninguna sucursal (422). Período máximo de 366 días. Al crear, el último día debe ser hoy o posterior. `recurrente` no se usa. Con el empleado inactivo, las escrituras dan 409. `PATCH` combina el body con la fila y lo valida con el esquema del tipo (el tipo no cambia; un campo de otro tipo da 422).
+- Cálculo: `disponibilidad.calculo.js`, funciones puras sobre rangos en minutos (`calcularDisponibilidad`, `citaCabe`) que reutilizará 1.5. Reglas en la decisión del evento especial de más abajo. Un empleado inactivo no tiene disponibilidad.
+- `citas_afectadas` viene en todas las escrituras (vacía si no hay): las citas futuras pendientes o confirmadas del empleado (las de hoy desde la hora actual) que **después del cambio** no caben en su disponibilidad, incluidas las que ya no cabían antes. Una cita sin sucursal solo se compara con bloqueos y vacaciones. El cambio se guarda igual.
+- Lectura (`GET` de disponibilidad y de disponibilidad efectiva): `configuracion.ver`, `citas.ver` o el propio empleado, con `authorizeAny(permisos, { permitirSi })`. Escrituras: `configuracion.editar`. El empleado no registra sus propios bloqueos en el MVP.
+- Las escrituras bloquean la fila del empleado (`FOR UPDATE` por clave primaria); en 1.5 las reservas bloquean la misma fila, así que un cambio de disponibilidad y una reserva del mismo empleado no se cruzan.
+- Bloqueos con `FOR UPDATE`: bloquear por clave primaria, no por un índice secundario que la misma transacción modifica. La renovación del refresh token lo hacía y con 5 solicitudes simultáneas terminaba en deadlock (500); se corrigió buscando el id sin bloquear y bloqueando por id.
+- Pendiente para 1.5: la agenda marca cada cita con `fuera_de_disponibilidad` y admite el filtro `fuera_de_disponibilidad=true`; cambiar el horario de una sucursal o desactivar un empleado también devuelve `citas_afectadas`.
+
+**Servicios y agenda (1.3 a 1.5)**
+- Qué empleados atienden un servicio: tabla `empleado_servicios`. Un empleado sin servicios asignados no aparece en la agenda; un servicio sin empleados asignados no se puede reservar. Al crear o editar un servicio se pueden enviar los empleados asignados en el mismo body; el listado del panel indica `sin_empleados`.
+- Los servicios son del negocio y se ofrecen en todas sus sucursales. Las especies `pez` y `otro` solo son compatibles con servicios `todos`.
+- Intervalo de la agenda: 15 minutos, alineados a :00, :15, :30 y :45 (`configuracion_global`). Los horarios candidatos son siempre de esa cuadrícula, aunque la duración del servicio sea de 5 en 5 minutos (p. ej. 10): `hora_fin` más el margen solo se usa para comprobar el cruce con otras citas, no para calcular el siguiente horario.
+- Margen entre citas: `servicios.margen_minutos` (por defecto 0). Ocupa la agenda del empleado después de la cita, pero no cambia la `hora_fin` que ve el cliente.
+- Un horario de inicio *t* es válido si:
+  1. es futuro, con antelación mínima y horizonte máximo configurables;
+  2. el día está en `servicios.dias_disponible` (NULL = todos);
+  3. el bloque completo cabe dentro de un solo rango de `horarios_negocio` de ese día (no cruza el cierre del mediodía);
+  4. cabe dentro de un rango `horario_normal` del empleado para esa sucursal o con `id_sucursal` NULL; un empleado sin ningún `horario_normal` sigue el horario de la sucursal;
+  5. no se cruza con un bloqueo o una vacación (sin horas = día completo);
+  6. no se cruza, contando el margen, con otra cita del empleado en cualquier sucursal en estado pendiente, confirmada o en curso;
+  7. no se alcanzó `max_citas_dia`, que es por sucursal y día y cuenta todos los estados menos cancelada y reprogramada;
+  8. la misma mascota no tiene otra cita a esa hora (409).
+- `evento_especial` **suma** su rango a la disponibilidad del día, no la reemplaza (un veterinario que trabaja de 8 a 12 y agrega una jornada de 14 a 17 conserva su mañana). Para una sucursal y una fecha:
+  1. base: los rangos `horario_normal` del día (de esa sucursal o con sucursal NULL), recortados por el horario de la sucursal; si el empleado no tiene ningún `horario_normal`, el horario de la sucursal;
+  2. los eventos del empleado en **otra** sucursal ese día se restan de la base (el evento manda en ese rango);
+  3. se suman los eventos en esta sucursal, sin recortarlos por el horario de la sucursal (p. ej. una jornada de vacunación un domingo);
+  4. bloqueos y vacaciones restan al final, también sobre los eventos.
+
+  Para reemplazar el día completo se combina un bloqueo **con horas** sobre el horario normal y el evento: un bloqueo de día completo también quita el evento.
+- Sin `id_empleado`, cada horario libre lista los empleados disponibles; al reservar sin empleado se asigna el que tenga menos citas ese día.
+- Doble reserva: se bloquea la fila del servicio (si tiene `max_citas_dia`) y la del empleado, en ese orden, en lugar de `SELECT ... FOR UPDATE` sobre las citas del día (con la agenda vacía eso usa *gap locks* y termina en deadlock en vez de 409).
+- Estado inicial: citas de la app → `pendiente`; del panel → `confirmada`. Como el trigger `trg_citas_after_update` solo actúa en UPDATE, el servicio crea el recordatorio de las citas que nacen confirmadas.
+- Una mascota fallecida o eliminada no recibe citas nuevas (tampoco por reprogramación). Igual que con otras referencias del body (p. ej. `id_rol` en empleados), un `id_mascota` inexistente, eliminado o de otro dueño da 422 en `errors.id_mascota`; una mascota fallecida da 409, porque es el estado del recurso. La mascota se lee con `FOR UPDATE` dentro de la transacción de la reserva.
+- El dueño puede **cancelar siempre** desde la app (mientras la cita no haya empezado); si faltan menos de 2 horas (`antelacion_cancelacion_app_h`), la cita queda marcada como cancelación tardía y el panel lo ve. **Reprogramar** desde la app sí exige al menos 2 horas de anticipación; después, solo el negocio. (Revisado en el plan de 1.5.3.)
+- `confirmada → en_curso` y `no_asistio` solo desde la fecha de la cita en adelante.
+- `precio_estimado`: precio de oferta si está vigente; si no, `precio_base`.
+- Panel sin cliente previo: búsqueda por email o teléfono exactos (datos mínimos y mascotas activas) y registro de un cliente sin app: se crea el usuario con email obligatorio y contraseña aleatoria (la reclama con `forgot-password`) y su mascota.
+- `/citas/:id_cita`, el historial y las vacunas los usan el dueño y el negocio: hace falta un middleware "dueño o negocio autorizado" y resolvers de `id_historial` e `id_vacuna`.
+
+**Reservas y clientes del panel (1.5.1)**
+- Horarios libres en dos endpoints: `GET /citas/horarios-libres` (público, para la app) y `GET /negocios/:id_negocio/citas/horarios-libres` (`citas.crear`), que admite servicios ocultos del propio negocio y no aplica la antelación mínima (solo que el horario sea futuro). Lo mismo al reservar (`POST /citas` y `POST /negocios/:id_negocio/citas`).
+- Configuración (`configuracion_global`, migración 007): `intervalo_agenda_min` 15, `antelacion_minima_reserva_min` 60, `horizonte_reserva_dias` 60, `antelacion_cancelacion_app_h` 2 (para 1.5.3) y `politica_datos_url`.
+- El margen solo cuenta para los cruces entre citas (la nueva ocupa [t, t + duración + margen] y cada existente [inicio, fin + el margen de su servicio]); no tiene que caber en la disponibilidad. Ocupan agenda las citas pendientes, confirmadas y en curso, en cualquier sucursal.
+- Día sin horarios: 200 con lista vacía y `motivo_sin_horarios` (día no ofrecido, sin cupos, sin disponibilidad). Fecha pasada o después del horizonte: 422. Servicio que no requiere cita o sin profesionales asignados: 409.
+- Reserva: `hora_inicio` en la cuadrícula (422 si no). Mascota inexistente, eliminada o de otro dueño: 422 en `errors.id_mascota`; fallecida: 409; especie o peso fuera del servicio: 422 (sin peso registrado se permite). La mascota no puede tener otra cita que se cruce, en ningún negocio (409). Horario ya tomado o día sin cupos: 409.
+- Transacción de la reserva: primero **todos** los bloqueos por clave primaria (servicio si tiene `max_citas_dia`, empleados candidatos en orden de id, mascota) y después las lecturas. En REPEATABLE READ la primera lectura sin bloqueo fija la foto de la transacción: si se leía algo antes de esperar un bloqueo, la reserva no veía la cita que otra transacción confirmó mientras tanto y reservaba encima (lo reproduce un test).
+- Sin `id_empleado`, se asigna al empleado libre con menos citas ese día (todas menos canceladas y reprogramadas; a igualdad, el de menor id). `precio_estimado` = `precio_actual` del servicio.
+- App: estado `pendiente`, origen `app_movil`. Panel: `confirmada`, origen `panel_web`, `presencial`, `telefono` o `whatsapp`, y el servicio inserta el recordatorio igual que el trigger (2 horas antes). La creación queda en `historial_citas` (`estado`: null → inicial, con el usuario y, si actuó un empleado, su `id_empleado`).
+- Autorización de datos (Ley 1581 de 2012) en la tabla `autorizaciones_datos`, una fila por autorización: titular, canal (`app` o `panel`), negocio, quién la registró, versión de la política (`terminos_version`), fecha e IP; `revocada_en` queda para la revocación. `POST /auth/register` exige `acepta_politica_datos: true` (canal app); `POST /negocios/:id_negocio/clientes` exige `autoriza_tratamiento_datos: true` (canal panel).
+- Regla general: toda cuenta nueva registra su autorización. Canales (migración 008): `app` (registro propio), `panel` (el negocio tomó la autorización del cliente), `invitacion` (el titular la da al aceptar una invitación que crea su cuenta; se guarda el negocio que invitó) y `aceptacion` (una cuenta existente acepta la versión vigente). `panel` no se reutiliza para los otros casos para no mezclar en la auditoría las autorizaciones que tomó un negocio con las que dio el propio titular.
+- Invitaciones: con cuenta nueva, `acepta_politica_datos: true` es obligatorio (422 junto con los errores de la contraseña); con cuenta existente es opcional y, si se envía y no tenía una autorización vigente, se registra. `GET /invitaciones/:token` devuelve `requiere_aceptar_politica` (true si no hay cuenta).
+- Autorización vigente: una fila no revocada para la versión actual (`terminos_version`). `GET /auth/me` devuelve `requiere_aceptar_politica` cuando no la hay (cuentas anteriores a la migración 007 o cambio de versión) y `POST /auth/politica-datos/aceptar` la registra (canal `aceptacion`); si ya existía no duplica y responde 200. Los usuarios del seed tienen su autorización.
+- Registro de `POST /auth/register` con un email existente: el 409 sugiere usar "Olvidé mi contraseña" (la cuenta pudo crearla un negocio).
+- Cliente sin app: usuario `cliente` con contraseña aleatoria que nadie conoce, su primera mascota y la autorización, en una transacción. Correo de bienvenida con el nombre del negocio, los datos guardados y su finalidad, la política (si hay URL) y un enlace de 7 días a `${FRONTEND_URL}/crear-password/<token>`, que usa el token de recuperación y `POST /auth/reset-password` (verifica el email). Se envía sin esperar; si falla, el cliente usa "Olvidé mi contraseña".
+- Búsqueda de clientes (`citas.crear` o `clientes.ver`): email o teléfono exactos (solo dígitos), uno de los dos; hasta 5 usuarios activos con sus mascotas activas y vivas. Con el límite estricto de solicitudes para que no se puedan recorrer teléfonos.
+- Otra mascota desde el panel (`citas.crear`): solo si el cliente tiene relación con el negocio, es decir, alguna cita con él (en cualquier estado) o una autorización registrada por ese negocio; si no, 403. Cliente inexistente o inactivo: 404.
+
+**Consultas y agenda (1.5.2)**
+- `GET /citas/mias`: paginado; `alcance` `proximas` (por defecto: las que no han terminado, de la más cercana a la más lejana), `pasadas` o `todas` (de la más reciente hacia atrás); filtros `estado` (lista separada por comas) e `id_mascota`.
+- Agenda `GET /negocios/:id_negocio/citas` (`citas.ver`): `desde` y `hasta` por defecto hoy, máximo 31 días (422); sin paginar, con `meta { total, desde, hasta }`. Filtros `estado`, `id_sucursal`, `id_empleado` e `id_servicio` (deben ser del negocio, activos o no: 422 si no), `q` (nombre del cliente o de la mascota), `solo_mias` y `fuera_de_disponibilidad`.
+- `solo_mias` es un filtro, no una restricción: limita a las citas del perfil de empleado activo de quien consulta en ese negocio (también el propietario registrado como empleado); sin perfil, 422; con otro `id_empleado`, 422. Si más adelante ciertos roles deben ver solo sus citas, se agrega un permiso (p. ej. `citas.ver_todas`).
+- `fuera_de_disponibilidad` solo aplica a citas futuras pendientes o confirmadas con empleado (las de hoy desde la hora actual, como `citas_afectadas`); en las demás es false. Se calcula con `citaCabe` cargando en lote la disponibilidad de los empleados del rango.
+- `GET /citas/:id_cita` con `authorizeDuenoO`: el personal del negocio de la cita con `citas.ver` (y propietario y admin) recibe la vista completa; el dueño, sin `notas_internas` ni `fuera_de_disponibilidad`; si es ambas cosas, gana la del personal; cualquier otro (también el personal de otros negocios), 403. El negocio se deduce de la cita, nunca de un parámetro.
+- Toda cita trae `negocio { id_negocio, nombre, logo_url }` y `sucursal { id_sucursal, nombre, direccion, telefono, latitud, longitud }` (para "Cómo llegar" en la app).
+
+**Cambios sobre citas (1.5.3)**
+- Máquina de estados del panel (`PATCH /citas/:id_cita/estado`, `citas.editar`): pendiente → confirmada (el trigger programa el recordatorio); confirmada → en_curso (desde la fecha de la cita) o no_asistio (desde la **hora de inicio**); en_curso → completada (con `precio_final`, por defecto el estimado, y suma `negocios.total_citas` en la misma transacción); no_asistio → en_curso **solo el mismo día** (el cliente llegó tarde). completada, cancelada y reprogramada son finales. Cancelar y reprogramar tienen endpoints propios. Cualquier otro paso: 409 con las transiciones posibles.
+- Cancelación (`POST /citas/:id_cita/cancelar`, dueño o `citas.cancelar`): solo pendientes o confirmadas. El dueño cancela siempre que la cita no haya empezado (409 después); a menos de `antelacion_cancelacion_app_h` horas queda `cancelacion_tardia`. El negocio exige motivo y puede cancelar también citas pasadas; nunca es tardía. Se guardan `cancelada_por`, `fecha_cancelacion` y `motivo_cancelacion` (migración 009) y se cancelan los recordatorios pendientes. `cancelacion_tardia` es columna, no se deduce del historial: se lee directo en el panel y se cuenta como las inasistencias.
+- Reprogramación (`POST /citas/:id_cita/reprogramar`, dueño o `citas.editar`): solo pendientes o confirmadas; el dueño, hasta 2 horas antes de la cita original y con las reglas de la app (la nueva queda `pendiente`); el negocio, en cualquier momento y con las del panel (la nueva queda `confirmada`, con recordatorio). Usa `crearCita` con el mismo cálculo y los mismos bloqueos, en una transacción que primero bloquea y marca la original como `reprogramada` (así libera su horario y su cupo): si el horario nuevo no está libre, se deshace todo. Conserva servicio, mascota, precio estimado, origen, notas y prioridad; por defecto la misma sucursal. Una mascota fallecida no se reprograma (409). Historial en las dos citas.
+- Edición del panel (`PATCH /citas/:id_cita`): `precio_final` solo en curso o completada; reasignar `id_empleado` solo pendiente o confirmada, bloqueando al empleado y comprobando su disponibilidad y cruces con `evaluarDia` (el mismo cálculo de la reserva). Solo los campos que cambian van al historial.
+- Historial (`GET /citas/:id_cita/historial`): el panel ve todo con usuario y empleado; el dueño solo estado y empleado, con motivo y `realizado_por` (`dueno` o `negocio`), sin nombres del personal. Los cambios de empleado muestran nombres.
+- Orden de bloqueo en toda la agenda: cita → servicio (si tiene `max_citas_dia`) → empleados (por id) → mascota, siempre por clave primaria y antes de cualquier lectura. La reserva descarta a los empleados que se desactivaron mientras esperaba el bloqueo (lo reproduce un test); la desactivación bloquea la fila del empleado.
+- Inasistencias para la Fase 2: sin contador guardado; índice (id_negocio, id_usuario, estado) y `citaRepo.resumenCumplimiento(id_usuario, id_negocio)`, que cuenta **solo** las citas de ese negocio (completadas, inasistencias, cancelaciones tardías). El detalle de la cita en el panel lo trae como `cliente.historial_cumplimiento`; el dueño no lo ve.
+- `PUT /sucursales/:id_sucursal/horarios` responde `{ horarios, citas_afectadas }` y `DELETE /empleados/:id_empleado` responde `{ empleado, citas_afectadas }` (todas las citas futuras activas del empleado).
+- Notificaciones a la otra parte (el negocio cancela o reprograma, el dueño cancela): Fase 2.
+
+**Historial y vacunas (1.6)**
+- La cita previa que da a un negocio acceso al historial es cualquier cita excepto cancelada o reprogramada.
+- `notas_internas` nunca se muestran al dueño ni a un negocio distinto del que las escribió.
+- El historial médico lo edita solo el negocio que lo creó, sin límite de tiempo en el MVP.
+- Al registrar una dosis nueva de la misma vacuna (mismo nombre sin distinguir mayúsculas), las anteriores cuentan como `no_aplica`, para que no aparezcan vencidas para siempre. El estado se calcula al leer y se guarda al escribir.
+- Rutas: el dueño usa `/mascotas/:id_mascota/...`; el panel, `/negocios/:id_negocio/mascotas/:id_mascota/...`, porque la mascota no es de un negocio y un usuario puede ser personal de varios (el negocio no se toma de la query). Una mascota eliminada da 404 también al negocio.
+- `compartir_historial` (migración 010, por defecto TRUE): con FALSE, cada negocio ve solo el **historial clínico** que creó (consultas, diagnósticos, tratamientos y archivos). Las **vacunas** son siempre visibles para un negocio con cita válida (evita revacunaciones innecesarias), y el estado de las vacunas se calcula sobre **todas**. Las alergias y condiciones médicas de la mascota también son siempre visibles. El dueño ve todo lo suyo, siempre sin `notas_internas`.
+- Vacunas: `registrada_por` (`dueno` o `negocio`) e `id_usuario_registro` (migración 010); cada vacuna trae `tiene_comprobante` (calculado de `comprobante_url`) para que el veterinario distinga las que registró el dueño. La del dueño solo la edita el dueño; la de un negocio, solo ese negocio (`vacunas.editar`).
+- Estado de una vacuna: se agrupan las dosis por nombre sin distinguir mayúsculas, tildes ni espacios; solo la más reciente (`fecha_aplicacion`) está vigente y las anteriores son `no_aplica`. La vigente es `vencido` si `fecha_proxima` < hoy, `proximo` si cae dentro de `dias_aviso_vacuna` (30) y `al_dia` en otro caso, también sin `fecha_proxima` (dosis única).
+- `archivos` del historial y `comprobante_url` de las vacunas aceptan **solo URLs https** desde ya; la subida con Cloudinary (Fase 2) llenará esos mismos campos.
+- Rol del sistema Veterinario con `vacunas.editar` (migración 011): `historial_medico` y `vacunas` tienen las mismas acciones (ver, crear, editar) en los roles clínicos; un test lo comprueba.
+- Al crear o editar un registro con `peso_registro` que sea el más reciente de la mascota, se actualiza `mascotas.peso`.
+- Bloqueos de la salud de una mascota: siempre mascota y luego registro o vacuna (por clave primaria), con la mascota de un registro buscada fuera de la transacción. Así el alta de una vacuna ligada a un registro (la llave foránea bloquea el registro) y la edición de ese registro no se cruzan en deadlock, y el recálculo de estados no se pisa con un alta simultánea.
+- Resumen de salud (sobre lo visible para quien consulta): `vacunas_vencidas` (vigentes con `fecha_proxima` < hoy, con `dias_vencida`), `vacunas_proximas` (hoy ≤ `fecha_proxima` ≤ hoy + 30, con `dias_restantes`), `ultimo_control` (el registro de historial más reciente con fecha ≤ hoy o, si no hay, la última cita completada), `proximo_control` (el `proximo_control` más cercano ≥ hoy), `proxima_cita` (la pendiente o confirmada más cercana que no terminó: de cualquier negocio para el dueño, solo las suyas para un negocio) y `evolucion_peso` (puntos del historial de los últimos 24 meses, máximo 24, más el peso actual; `variacion_kg`, `variacion_pct` y `tendencia` sube/baja/estable con umbral de 5 %). Una mascota fallecida no trae alertas de vacunas ni próxima cita.
+
+**Clientes (1.7)**
+- Cliente de un negocio: usuario **activo** con alguna cita con el negocio (en cualquier estado, también canceladas: un cliente que solo canceló tarde es información legítima) o con una autorización de datos registrada por ese negocio (registrado en el panel, aún sin citas). Es la misma relación que exige agregar una mascota desde el panel. El acceso al historial y a las vacunas de la mascota sigue exigiendo una cita no cancelada ni reprogramada (`acceso_historial` en el detalle).
+- Listado (`clientes.ver`): paginado, `q` (nombre, apellido, email, dígitos del teléfono, nombre de sus mascotas) y `orden` (`ultima_cita` por actividad más reciente, `nombre` o `inasistencias`); cada fila con `total_citas`, `ultima_cita`, `proxima_cita` e `inasistencias`, solo con ese negocio (una consulta con agregados sobre el índice de la migración 009).
+- Detalle: `cliente` (contacto, `cliente_desde`, `registrado_por_el_negocio`, `usa_app`), `historial_cumplimiento`, `mascotas` activas (fallecidas marcadas) con `citas_con_negocio` y `acceso_historial`, y `citas` `proximas` y `recientes` (10) en el formato de la agenda. `GET .../clientes/:id_usuario/citas` las trae todas, paginadas. Un usuario que no es cliente del negocio da **404** (no se revela si la cuenta existe).
+
+**Pendientes**
+- Fase 2: cancelación automática de citas pendientes sin confirmar y opción por negocio para confirmar automáticamente.
+- Fase 2: notas del negocio sobre el cliente (una tabla por negocio, visibles solo para ese negocio), que le dan uso al permiso `clientes.editar`.
+- Por decidir: clientes que solo tienen teléfono (hoy el email es obligatorio para registrarlos desde el panel).

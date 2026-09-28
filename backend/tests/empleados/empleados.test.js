@@ -270,7 +270,8 @@ describe("DELETE /empleados/:id_empleado y PATCH /empleados/:id_empleado/reactiv
     expect(res.status).toBe(200);
     expect(res.body.message).toBe("Empleado desactivado");
     const [[{ hoy }]] = await pool.query("SELECT DATE_FORMAT(CURDATE(), '%Y-%m-%d') AS hoy");
-    expect(res.body.data).toMatchObject({ activo: false, fecha_retiro: hoy, invitacion_pendiente: false });
+    expect(res.body.data.empleado).toMatchObject({ activo: false, fecha_retiro: hoy, invitacion_pendiente: false });
+    expect(res.body.data.citas_afectadas).toEqual([]);
     expect(await invitacionVigente(empleado.id_empleado)).toBe(false);
     expect((await api(tokenEmpleado).get(`/negocios/${negocio.id_negocio}/empleados`)).status).toBe(403);
 

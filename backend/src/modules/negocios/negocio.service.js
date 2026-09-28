@@ -12,8 +12,8 @@ const formatNegocio = (negocio) =>
 
 const formatServicio = (servicio) => ({
   ...castFields(servicio, {
-    bools: ["en_oferta"],
-    numbers: ["precio_base", "precio_maximo", "precio_oferta"],
+    bools: ["en_oferta", "oferta_vigente", "reservable"],
+    numbers: ["precio_base", "precio_maximo", "precio_oferta", "precio_actual"],
   }),
   // Columna SET: "perro,gato" -> ["perro", "gato"]
   tipo_mascota: servicio.tipo_mascota ? servicio.tipo_mascota.split(",") : [],

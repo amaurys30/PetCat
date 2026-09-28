@@ -81,7 +81,9 @@ const router = express.Router();
  *               - { dia_semana: 6, hora_apertura: "08:00", hora_cierre: "12:00" }
  *     responses:
  *       200:
- *         description: Horario guardado (devuelve la semana completa)
+ *         description: >
+ *           Horario guardado: la semana completa y `citas_afectadas` (citas futuras pendientes o
+ *           confirmadas de la sucursal que ya no caben; el cambio se guarda igual).
  *         content:
  *           application/json:
  *             schema:
@@ -89,7 +91,11 @@ const router = express.Router();
  *               properties:
  *                 success: { type: boolean, example: true }
  *                 message: { type: string, example: Horarios actualizados }
- *                 data: { type: array, items: { $ref: '#/components/schemas/Horario' } }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     horarios: { type: array, items: { $ref: '#/components/schemas/Horario' } }
+ *                     citas_afectadas: { $ref: '#/components/schemas/CitasAfectadas' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       403: { $ref: '#/components/responses/Forbidden' }
  *       404: { $ref: '#/components/responses/NotFound' }
