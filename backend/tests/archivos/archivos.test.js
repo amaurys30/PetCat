@@ -2,14 +2,13 @@ import { afterEach, describe, expect, it } from "vitest";
 import { spawnSync } from "node:child_process";
 import sharp from "sharp";
 import { pool } from "../../src/config/db.js";
-import { storage, almacenamientoSinConfigurar } from "../../src/shared/utils/storage.js";
+import { storage, almacenamientoSinConfigurar, conMiniaturas } from "../../src/shared/utils/storage.js";
 import { procesarArchivo } from "../../src/shared/utils/uploads.js";
 import {
   eliminarArchivos,
   formatArchivoPrivado,
   reintentarEliminaciones,
   subirArchivos,
-  variantesImagen,
 } from "../../src/modules/archivos/archivo.service.js";
 import { crearMascota, crearUsuario } from "../helpers/factories.js";
 
@@ -58,9 +57,9 @@ describe("subirArchivos", () => {
     expect(storage.archivos.get(archivo.public_id)).toMatchObject({ entrega: "upload", formato: "webp" });
     const [[{ foto_url }]] = await pool.query("SELECT foto_url FROM mascotas WHERE id_mascota = ?", [mascota.id_mascota]);
     expect(foto_url).toBe(archivo.url);
-    expect(variantesImagen(foto_url)).toEqual({
-      url: foto_url,
-      miniatura_url: `https://almacenamiento.test/miniatura/${archivo.public_id}`,
+    expect(conMiniaturas({ foto_url })).toEqual({
+      foto_url,
+      foto_miniatura_url: `https://almacenamiento.test/miniatura/${archivo.public_id}`,
     });
   });
 
@@ -150,11 +149,12 @@ describe("formato", () => {
   });
 
   it("una URL externa guardada antes se devuelve igual, también como miniatura", () => {
-    expect(variantesImagen("https://cdn.petcat.test/max.jpg")).toEqual({
-      url: "https://cdn.petcat.test/max.jpg",
-      miniatura_url: "https://cdn.petcat.test/max.jpg",
+    expect(conMiniaturas({ logo_url: "https://cdn.petcat.test/max.jpg", nombre: "Max" })).toEqual({
+      logo_url: "https://cdn.petcat.test/max.jpg",
+      logo_miniatura_url: "https://cdn.petcat.test/max.jpg",
+      nombre: "Max",
     });
-    expect(variantesImagen(null)).toEqual({ url: null, miniatura_url: null });
+    expect(conMiniaturas({ foto_url: null })).toEqual({ foto_url: null, foto_miniatura_url: null });
   });
 
   it("sin credenciales, subir responde 503", async () => {

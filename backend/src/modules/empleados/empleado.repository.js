@@ -92,6 +92,10 @@ export const desactivar = async (id_empleado, conn) => {
   );
 };
 
+export const setFoto = async (id_empleado, foto_url, conn) => {
+  await (conn ?? db).query("UPDATE empleados SET foto_url = ? WHERE id_empleado = ?", [foto_url, id_empleado]);
+};
+
 export const reactivar = async (id_empleado, conn) => {
   await (conn ?? db).query(
     "UPDATE empleados SET activo = TRUE, fecha_retiro = NULL WHERE id_empleado = ?",

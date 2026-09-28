@@ -12,6 +12,7 @@ import { castFields } from "../../shared/utils/format.js";
 import { sendMail } from "../../shared/utils/mailer.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
+import { quitarImagen, reemplazarImagen } from "../archivos/archivo.service.js";
 import { isTest } from "../../config/env.js";
 
 export const MAX_INTENTOS_LOGIN = 5;
@@ -183,6 +184,27 @@ export const aceptarPolitica = async (id_usuario, cliente = {}) => {
 
 export const updateMe = async (id_usuario, data) => {
   await usuarioRepo.updatePerfil(id_usuario, data);
+  return perfilPropio(await usuarioRepo.findById(id_usuario));
+};
+
+// ---------- Foto de perfil ----------
+
+const fotoDelUsuario = (id_usuario) => ({
+  entidad: "usuario_foto",
+  id_entidad: id_usuario,
+  id_usuario,
+  bloquear: async (conn) => (await usuarioRepo.lockFoto(id_usuario, conn)).foto_url,
+  guardarUrl: (conn, url) => usuarioRepo.setFoto(id_usuario, url, conn),
+});
+
+/** Sube o reemplaza la foto de perfil; la anterior se borra. */
+export const subirFoto = async (id_usuario, archivo) => {
+  await reemplazarImagen({ ...fotoDelUsuario(id_usuario), archivo });
+  return perfilPropio(await usuarioRepo.findById(id_usuario));
+};
+
+export const eliminarFoto = async (id_usuario) => {
+  await quitarImagen({ ...fotoDelUsuario(id_usuario), sinImagen: "No tienes foto de perfil" });
   return perfilPropio(await usuarioRepo.findById(id_usuario));
 };
 

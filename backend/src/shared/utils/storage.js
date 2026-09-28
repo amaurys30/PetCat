@@ -24,6 +24,8 @@ import { ApiError } from "../errors/ApiError.js";
 export const VARIANTES = {
   media: { width: 800, height: 800, crop: "limit", fetch_format: "auto", quality: "auto" },
   miniatura: { width: 200, height: 200, crop: "fill", gravity: "center", fetch_format: "auto", quality: "auto" },
+  // Banners del negocio (portada del perfil).
+  ancha: { width: 1600, height: 1600, crop: "limit", fetch_format: "auto", quality: "auto" },
 };
 
 const TIMEOUT_MS = 60_000;
@@ -205,5 +207,24 @@ const elegir = () => {
 };
 
 export const storage = elegir();
+
+// Campos de imagen que llevan al lado su miniatura (listas y avatares).
+const CAMPOS_CON_MINIATURA = ["foto_url", "logo_url"];
+
+/**
+ * Copia del objeto con `foto_miniatura_url` / `logo_miniatura_url` justo después de
+ * `foto_url` / `logo_url`. Una URL externa (guardada antes de la 2.2) se repite.
+ */
+export const conMiniaturas = (obj) => {
+  if (!obj) return obj;
+  const resultado = {};
+  for (const [clave, valor] of Object.entries(obj)) {
+    resultado[clave] = valor;
+    if (CAMPOS_CON_MINIATURA.includes(clave)) {
+      resultado[clave.replace(/_url$/, "_miniatura_url")] = storage.varianteDeUrl(valor ?? null, "miniatura");
+    }
+  }
+  return resultado;
+};
 
 export default storage;

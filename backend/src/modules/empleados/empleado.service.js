@@ -10,6 +10,8 @@ import { withTransaction } from "../../shared/utils/transaction.js";
 import { buildMeta } from "../../shared/utils/pagination.js";
 import { permisosIncluidos } from "../../shared/utils/permissions.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
+import { conMiniaturas } from "../../shared/utils/storage.js";
+import { quitarImagen, reemplazarImagen } from "../archivos/archivo.service.js";
 
 const NO_ENCONTRADO = "Empleado no encontrado";
 
@@ -19,7 +21,7 @@ const NO_ENCONTRADO = "Empleado no encontrado";
 const formatEmpleado = (row, { conPermisos = false } = {}) => {
   const { id_rol, rol_nombre, permisos_json, activo, invitacion_pendiente, ...empleado } = row;
   return {
-    ...empleado,
+    ...conMiniaturas(empleado),
     activo: Boolean(activo),
     tiene_cuenta: empleado.id_usuario !== null,
     invitacion_pendiente: Boolean(invitacion_pendiente),
@@ -223,5 +225,38 @@ export const reactivarEmpleado = async (id_empleado, acceso) => {
     if (!esPropietario) await bloquearYVerificarLimite(empleado.id_negocio, "empleados", conn);
     await empleadoRepo.reactivar(id_empleado, conn);
   });
+  return getEmpleado(id_empleado);
+};
+
+// ---------- Foto ----------
+
+/** Empleado existente que quien actúa puede modificar (reglas de escalada); 404 si no existe. */
+const findModificable = async (id_empleado, acceso, conn, opciones) => {
+  const empleado = await empleadoRepo.findById(id_empleado, conn, opciones);
+  if (!empleado) throw ApiError.notFound(NO_ENCONTRADO);
+  verificarEmpleadoModificable(empleado, acceso);
+  return empleado;
+};
+
+/**
+ * Foto del empleado: con `empleados.editar` (y las reglas de escalada) o el propio
+ * empleado. Se comprueba antes de subir y otra vez con el empleado bloqueado.
+ */
+const fotoDeEmpleado = (id_empleado, acceso, id_usuario) => ({
+  entidad: "empleado_foto",
+  id_entidad: id_empleado,
+  id_usuario,
+  bloquear: async (conn) => (await findModificable(id_empleado, acceso, conn, { forUpdate: true })).foto_url,
+  guardarUrl: (conn, url) => empleadoRepo.setFoto(id_empleado, url, conn),
+});
+
+export const subirFoto = async (id_empleado, acceso, id_usuario, archivo) => {
+  await findModificable(id_empleado, acceso);
+  await reemplazarImagen({ ...fotoDeEmpleado(id_empleado, acceso, id_usuario), archivo });
+  return getEmpleado(id_empleado);
+};
+
+export const eliminarFoto = async (id_empleado, acceso, id_usuario) => {
+  await quitarImagen({ ...fotoDeEmpleado(id_empleado, acceso, id_usuario), sinImagen: "El empleado no tiene foto" });
   return getEmpleado(id_empleado);
 };

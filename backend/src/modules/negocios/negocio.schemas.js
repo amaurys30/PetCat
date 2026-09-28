@@ -23,9 +23,8 @@ export const TIPOS_NEGOCIO = [
 
 export const idNegocioParams = idParam("id_negocio");
 
-const url = urlHttp();
-
-// Campos opcionales que se pueden vaciar enviando null.
+// Campos opcionales que se pueden vaciar enviando null. El logo y el banner se suben
+// con PUT /negocios/:id_negocio/logo y /banner (no se aceptan URLs en el body).
 const opcionales = {
   descripcion: texto(2000).nullable(),
   telefono: telefono.nullable(),
@@ -38,8 +37,6 @@ const opcionales = {
   codigo_postal: texto(10).nullable(),
   latitud: latitud.nullable(),
   longitud: longitud.nullable(),
-  logo_url: url.nullable(),
-  banner_url: url.nullable(),
 };
 
 const campos = {

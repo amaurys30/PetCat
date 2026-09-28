@@ -6,6 +6,7 @@ import { RADIO_MAX_KM } from "./busqueda.schemas.js";
 import { buildMeta } from "../../shared/utils/pagination.js";
 import { castFields, toBool, toNumber } from "../../shared/utils/format.js";
 import { redondearKm } from "../../shared/utils/geo.js";
+import { conMiniaturas } from "../../shared/utils/storage.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
 
 const RADIO_POR_DEFECTO_KM = 10;
@@ -21,7 +22,7 @@ const sucursalCercana = (row) =>
   row.sc_id_sucursal ? { id_sucursal: row.sc_id_sucursal, nombre: row.sc_nombre, direccion: row.sc_direccion } : null;
 
 const formatNegocio = ({ sc_id_sucursal, sc_nombre, sc_direccion, ...row }) => ({
-  ...castFields(row, { bools: ["verificado", "destacado"], numbers: ["calificacion_promedio"] }),
+  ...conMiniaturas(castFields(row, { bools: ["verificado", "destacado"], numbers: ["calificacion_promedio"] })),
   distancia_km: redondearKm(row.distancia_km),
   sucursal_cercana: sucursalCercana({ sc_id_sucursal, sc_nombre, sc_direccion }),
 });
@@ -36,7 +37,7 @@ const formatServicio = (row) => ({
     id_negocio: row.id_negocio,
     nombre: row.negocio_nombre,
     tipo: row.negocio_tipo,
-    logo_url: row.negocio_logo_url,
+    ...conMiniaturas({ logo_url: row.negocio_logo_url }),
     calificacion_promedio: toNumber(row.negocio_calificacion),
     verificado: toBool(row.negocio_verificado),
   },
@@ -84,5 +85,5 @@ export const getServicioPublico = async (id_servicio) => {
   const row = await busquedaRepo.findServicioPublico(id_servicio);
   if (!row) throw ApiError.notFound("Servicio no encontrado");
   const empleados = await servicioRepo.findEmpleadosActivosDeServicios([id_servicio], { detalle: true });
-  return { ...formatServicio(row), empleados: empleados[id_servicio] ?? [] };
+  return { ...formatServicio(row), empleados: (empleados[id_servicio] ?? []).map(conMiniaturas) };
 };

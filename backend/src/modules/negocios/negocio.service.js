@@ -4,12 +4,16 @@ import { getPlanesDeNegocios } from "../suscripciones/suscripcion.service.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
 import { castFields } from "../../shared/utils/format.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
+import { conMiniaturas } from "../../shared/utils/storage.js";
+import { quitarImagen, reemplazarImagen } from "../archivos/archivo.service.js";
 
 const formatNegocio = (negocio) =>
-  castFields(negocio, {
-    bools: ["verificado", "destacado", "activo"],
-    numbers: ["latitud", "longitud", "calificacion_promedio"],
-  });
+  conMiniaturas(
+    castFields(negocio, {
+      bools: ["verificado", "destacado", "activo"],
+      numbers: ["latitud", "longitud", "calificacion_promedio"],
+    })
+  );
 
 const formatServicio = (servicio) => ({
   ...castFields(servicio, {
@@ -77,5 +81,36 @@ export const getPerfilPublico = async (id_negocio) => {
 /** authorize ya resolvió el negocio y comprobó configuracion.editar. */
 export const updateNegocio = async (id_negocio, data) => {
   await negocioRepo.update(id_negocio, data);
+  return formatNegocio(await negocioRepo.findById(id_negocio));
+};
+
+// ---------- Logo y banner ----------
+
+// Tipo de imagen -> entidad en `archivos`, columna y mensaje si no hay.
+const IMAGENES = {
+  logo: { entidad: "negocio_logo", columna: "logo_url", sinImagen: "El negocio no tiene logo" },
+  banner: { entidad: "negocio_banner", columna: "banner_url", sinImagen: "El negocio no tiene banner" },
+};
+
+const imagenDelNegocio = (id_negocio, tipo, id_usuario) => {
+  const { entidad, columna, sinImagen } = IMAGENES[tipo];
+  return {
+    entidad,
+    id_entidad: id_negocio,
+    id_usuario,
+    sinImagen,
+    bloquear: async (conn) => (await negocioRepo.lockImagenes(id_negocio, conn))[columna],
+    guardarUrl: (conn, url) => negocioRepo.setImagen(id_negocio, columna, url, conn),
+  };
+};
+
+/** Sube o reemplaza el logo o el banner (`tipo`); la imagen anterior se borra. */
+export const subirImagen = async (id_negocio, tipo, id_usuario, archivo) => {
+  await reemplazarImagen({ ...imagenDelNegocio(id_negocio, tipo, id_usuario), archivo });
+  return formatNegocio(await negocioRepo.findById(id_negocio));
+};
+
+export const eliminarImagen = async (id_negocio, tipo, id_usuario) => {
+  await quitarImagen(imagenDelNegocio(id_negocio, tipo, id_usuario));
   return formatNegocio(await negocioRepo.findById(id_negocio));
 };

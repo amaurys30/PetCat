@@ -30,6 +30,23 @@ export const update = async (id_negocio, data, conn) => {
   );
 };
 
+/** Bloquea la fila del negocio (FOR UPDATE por clave primaria) y devuelve su logo y banner. */
+export const lockImagenes = async (id_negocio, conn) => {
+  const [rows] = await conn.query(
+    "SELECT logo_url, banner_url FROM negocios WHERE id_negocio = ? FOR UPDATE",
+    [id_negocio]
+  );
+  return rows[0];
+};
+
+// Columnas de imagen del negocio (lista blanca: el nombre de columna no viene del usuario).
+const COLUMNAS_IMAGEN = ["logo_url", "banner_url"];
+
+export const setImagen = async (id_negocio, columna, url, conn) => {
+  if (!COLUMNAS_IMAGEN.includes(columna)) throw new Error(`Columna de imagen no permitida: ${columna}`);
+  await (conn ?? db).query(`UPDATE negocios SET ${columna} = ? WHERE id_negocio = ?`, [url, id_negocio]);
+};
+
 /**
  * Negocios del panel del usuario: los propios (activos o no) y los activos donde
  * es empleado activo. Si es propietario y empleado del mismo, cuenta como propietario.

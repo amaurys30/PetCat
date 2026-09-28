@@ -9,6 +9,16 @@ export const findById = async (id_usuario, conn) => {
   return rows[0];
 };
 
+/** Bloquea la fila del usuario (FOR UPDATE por clave primaria) y devuelve su foto actual. */
+export const lockFoto = async (id_usuario, conn) => {
+  const [rows] = await conn.query("SELECT id_usuario, foto_url FROM usuarios WHERE id_usuario = ? FOR UPDATE", [id_usuario]);
+  return rows[0];
+};
+
+export const setFoto = async (id_usuario, foto_url, conn) => {
+  await (conn ?? pool).query("UPDATE usuarios SET foto_url = ? WHERE id_usuario = ?", [foto_url, id_usuario]);
+};
+
 export const findByEmail = async (email, conn) => {
   const [rows] = await (conn ?? pool).query("SELECT * FROM usuarios WHERE email = ?", [email]);
   return rows[0];

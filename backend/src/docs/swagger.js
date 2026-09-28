@@ -17,6 +17,22 @@ const errorResponse = (message, errors) => ({
   },
 });
 
+const imagenMultipart = (campo, maximo) => ({
+  required: true,
+  description:
+    `Imagen JPEG, PNG o WebP de hasta ${maximo} (HEIC no: convertir a JPEG antes). Se validan los bytes, ` +
+    "no la extensión; se quitan los metadatos (EXIF, GPS) y se reduce a 2048 px como máximo.",
+  content: {
+    "multipart/form-data": {
+      schema: {
+        type: "object",
+        required: [campo],
+        properties: { [campo]: { type: "string", format: "binary" } },
+      },
+    },
+  },
+});
+
 const swaggerSpec = swaggerJSDoc({
   definition: {
     openapi: "3.0.0",
@@ -62,6 +78,12 @@ const swaggerSpec = swaggerJSDoc({
           },
         },
       },
+      // Subida de una imagen pública (multipart/form-data con un solo archivo).
+      requestBodies: {
+        Foto: imagenMultipart("foto", "5 MB"),
+        Logo: imagenMultipart("logo", "5 MB"),
+        Banner: imagenMultipart("banner", "8 MB"),
+      },
       parameters: {
         page: {
           in: "query",
@@ -106,6 +128,10 @@ const swaggerSpec = swaggerJSDoc({
           nombre: "Campo obligatorio",
         }),
         TooManyRequests: errorResponse("Demasiadas solicitudes, intenta de nuevo en unos minutos"),
+        ArchivoInvalido: errorResponse("Archivo inválido", {
+          archivo: "Tipo de archivo no admitido: debe ser JPEG, PNG o WebP",
+        }),
+        AlmacenamientoNoDisponible: errorResponse("No se pudo guardar el archivo, intenta de nuevo"),
       },
     },
     security: [{ bearerAuth: [] }],

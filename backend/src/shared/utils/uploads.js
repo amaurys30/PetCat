@@ -22,7 +22,14 @@ const IMAGENES = ["image/jpeg", "image/png", "image/webp"];
 const PDF = "application/pdf";
 const HEIC = ["image/heic", "image/heif", "image/heic-sequence", "image/heif-sequence", "image/avif"];
 
-const imagenPublica = (campo, maxMB) => ({ campo, maxBytes: maxMB * MB, maxArchivos: 1, pdf: false, privado: false });
+const imagenPublica = (campo, maxMB, variante = "media") => ({
+  campo,
+  maxBytes: maxMB * MB,
+  maxArchivos: 1,
+  pdf: false,
+  privado: false,
+  variante, // la que se guarda en la columna *_url (ver storage.VARIANTES)
+});
 
 /**
  * Reglas por destino (el nombre coincide con `archivos.entidad`). Las públicas se guardan
@@ -33,7 +40,7 @@ export const DESTINOS = {
   mascota_foto: imagenPublica("foto", 5),
   empleado_foto: imagenPublica("foto", 5),
   negocio_logo: imagenPublica("logo", 5),
-  negocio_banner: imagenPublica("banner", 8),
+  negocio_banner: imagenPublica("banner", 8, "ancha"),
   vacuna_comprobante: { campo: "comprobante", maxBytes: 10 * MB, maxArchivos: 1, pdf: true, privado: true },
   historial_archivo: { campo: "archivos", maxBytes: 10 * MB, maxArchivos: 5, pdf: true, privado: true },
 };

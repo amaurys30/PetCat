@@ -30,6 +30,7 @@ describe("GET /auth/me", () => {
       email: usuario.email,
       telefono: "3001112233",
       foto_url: null,
+      foto_miniatura_url: null,
       tipo_usuario: "cliente",
       email_verificado: false,
       telefono_verificado: false,

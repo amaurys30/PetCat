@@ -13,6 +13,8 @@ import {
 } from "./auth.schemas.js";
 import { authMiddleware } from "../../shared/middlewares/auth.middleware.js";
 import { validate } from "../../shared/middlewares/validate.js";
+import { uploadLimiter } from "../../shared/middlewares/rateLimit.js";
+import { recibirArchivos } from "../../shared/utils/uploads.js";
 
 const router = express.Router();
 
@@ -28,7 +30,8 @@ const router = express.Router();
  *         apellido: { type: string, example: Gómez }
  *         email: { type: string, format: email, example: cliente@petcat.test }
  *         telefono: { type: string, nullable: true, example: "3003334455" }
- *         foto_url: { type: string, nullable: true }
+ *         foto_url: { type: string, nullable: true, description: Foto de perfil (800 px) }
+ *         foto_miniatura_url: { type: string, nullable: true, description: Miniatura cuadrada de 200 px }
  *         tipo_usuario: { type: string, enum: [cliente, negocio, admin] }
  *         email_verificado: { type: boolean }
  *     Sesion:
@@ -370,6 +373,56 @@ router.post(
 );
 
 router.get("/me", authMiddleware, controller.getMe);
+
+/**
+ * @swagger
+ * /auth/me/foto:
+ *   put:
+ *     summary: Subir o reemplazar la foto de perfil
+ *     description: >
+ *       multipart/form-data con el archivo en `foto`. La foto anterior se borra. Responde el perfil
+ *       con `foto_url` (800 px) y `foto_miniatura_url` (200 px). Máximo 30 subidas cada 15 minutos.
+ *     tags: [Auth]
+ *     requestBody: { $ref: '#/components/requestBodies/Foto' }
+ *     responses:
+ *       200:
+ *         description: Foto actualizada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Foto de perfil actualizada }
+ *                 data: { $ref: '#/components/schemas/PerfilPropio' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       422: { $ref: '#/components/responses/ArchivoInvalido' }
+ *       429: { $ref: '#/components/responses/TooManyRequests' }
+ *       503: { $ref: '#/components/responses/AlmacenamientoNoDisponible' }
+ *   delete:
+ *     summary: Eliminar la foto de perfil
+ *     tags: [Auth]
+ *     responses:
+ *       200:
+ *         description: Foto eliminada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Foto de perfil eliminada }
+ *                 data: { $ref: '#/components/schemas/PerfilPropio' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       404:
+ *         description: No tiene foto
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorResponse' }
+ *             example: { success: false, message: No tienes foto de perfil }
+ */
+router.put("/me/foto", authMiddleware, uploadLimiter, recibirArchivos("usuario_foto"), controller.subirFoto);
+router.delete("/me/foto", authMiddleware, controller.eliminarFoto);
 router.patch("/me", authMiddleware, validate({ body: updateMeBody }), controller.updateMe);
 
 /**

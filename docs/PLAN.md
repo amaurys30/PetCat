@@ -162,7 +162,7 @@ Se hace en sub-bloques que se aprueban por separado: **2.1** planes y suscripcio
 
 ### 2.2 Uploads con Cloudinary
 - [x] Migración `012_archivos.sql` (tabla `archivos`), almacenamiento (Cloudinary y en memoria para los tests), validación del tipo real, límites de tamaño y procesamiento de imágenes sin metadatos.
-- [ ] Imágenes públicas con versiones `miniatura` y `media`: `PUT|DELETE /auth/me/foto`, `/mascotas/:id_mascota/foto`, `/empleados/:id_empleado/foto`, `/negocios/:id_negocio/logo` y `/banner`. Las URLs salen de los bodies JSON.
+- [x] Imágenes públicas con versiones `miniatura` y `media`: `PUT|DELETE /auth/me/foto`, `/mascotas/:id_mascota/foto`, `/empleados/:id_empleado/foto`, `/negocios/:id_negocio/logo` y `/banner`. Las URLs salen de los bodies JSON.
 - [ ] Archivos privados con URLs firmadas que vencen: `PUT|DELETE /vacunas/:id_vacuna/comprobante`, `POST /historial/:id_historial/archivos` y `DELETE /historial/:id_historial/archivos/:id_archivo`.
 - [x] README (sección para la app): convertir HEIC a JPEG antes de subir y volver a pedir el registro cuando vence la URL firmada.
 
@@ -437,4 +437,5 @@ Se hace en sub-bloques que se aprueban por separado: **2.1** planes y suscripcio
 - Reemplazar o eliminar: la columna se actualiza en una transacción que marca el anterior `por_eliminar`; después del commit se borra de Cloudinary y queda `eliminado`. Si el borrado falla queda `por_eliminar` y lo reintenta un job de la 2.4. Si la transacción falla tras subir, se borra la subida nueva.
 - Mascota eliminada o fallecida, empleado desactivado o negocio inactivo: no se borra ningún archivo (borrado lógico). El borrado físico llega con la supresión de datos, requisito antes de lanzar.
 - Las URLs ya guardadas (p. ej. la del seed) se leen como `{ url, externo: true }`.
+- Imágenes públicas: la columna `*_url` guarda la variante `media` (800 px; el banner, la `ancha` de 1600 px) y las respuestas agregan `foto_miniatura_url` / `logo_miniatura_url` (200 px, recorte cuadrado) derivadas de esa URL, así las listas no necesitan el `public_id`. Una URL externa anterior se repite como miniatura. Las tres variantes se generan al subir (eager). La foto del empleado la cambian `empleados.editar` (con las reglas de escalada) o el propio empleado. Límite: 30 subidas cada 15 minutos por usuario.
 - Cloudinary: carpeta por entorno (`CLOUDINARY_FOLDER`, p. ej. `petcat-dev`), `public_id` aleatorio (el nombre original solo en la base). Sin credenciales, las subidas dan 503 en desarrollo; en producción son obligatorias. Los tests usan un almacenamiento en memoria.

@@ -1,7 +1,8 @@
 import * as archivoRepo from "./archivo.repository.js";
 import { storage } from "../../shared/utils/storage.js";
-import { DESTINOS } from "../../shared/utils/uploads.js";
+import { DESTINOS, procesarArchivo } from "../../shared/utils/uploads.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
+import { ApiError } from "../../shared/errors/ApiError.js";
 
 /**
  * Ciclo de vida de los archivos subidos. El registro que los usa (mascota, vacuna,
@@ -64,7 +65,7 @@ const descartarSubidos = async (subidos, { entidad, id_entidad, id_usuario }) =>
  * @param {(conn) => Promise<void>} p.bloquear  Bloquea (FOR UPDATE por clave primaria) y valida el registro;
  *   va primero en la transacción y serializa los cambios de sus archivos
  * @param {(conn, archivos) => Promise<void>} [p.actualizar]  Actualiza el registro con los archivos nuevos
- * @returns {Promise<object[]>} Filas de `archivos` creadas, con `url` (media) si son públicas
+ * @returns {Promise<object[]>} Filas de `archivos` creadas, con `url` (la variante del destino) si son públicas
  */
 export const subirArchivos = async ({ entidad, id_entidad, procesados, id_usuario, reemplazar = false, bloquear, actualizar }) => {
   const destino = DESTINOS[entidad];
@@ -105,7 +106,7 @@ export const subirArchivos = async ({ entidad, id_entidad, procesados, id_usuari
           ...fila,
           id_archivo,
           estado: "activo",
-          url: destino.privado ? null : storage.urlPublica(subido.public_id, "media"),
+          url: destino.privado ? null : storage.urlPublica(subido.public_id, destino.variante),
         });
       }
       if (reemplazar) {
@@ -153,13 +154,45 @@ export const reintentarEliminaciones = async ({ limite = 100, maxIntentos = 10 }
   return pendientes.length;
 };
 
-// ---------- Formato para las respuestas ----------
+// ---------- Imágenes públicas de un registro (foto, logo, banner) ----------
 
-/** URLs de una imagen pública guardada en una columna *_url: `{ url, miniatura_url }`. */
-export const variantesImagen = (url) => ({
-  url: url ?? null,
-  miniatura_url: storage.varianteDeUrl(url ?? null, "miniatura"),
-});
+/**
+ * Procesa y sube la imagen de un registro con una sola imagen, guarda su URL con
+ * `guardarUrl(conn, url)` y deja la anterior por eliminar. `bloquear(conn)` bloquea y
+ * valida el registro dentro de la transacción. Devuelve la fila de `archivos`.
+ */
+export const reemplazarImagen = async ({ entidad, id_entidad, archivo, id_usuario, bloquear, guardarUrl }) => {
+  const procesado = await procesarArchivo(archivo, entidad);
+  const [fila] = await subirArchivos({
+    entidad,
+    id_entidad,
+    procesados: [procesado],
+    id_usuario,
+    reemplazar: true,
+    bloquear,
+    actualizar: (conn, [nueva]) => guardarUrl(conn, nueva.url),
+  });
+  return fila;
+};
+
+/**
+ * Quita la imagen de un registro: `bloquear(conn)` devuelve la URL actual; sin imagen,
+ * 404 con `sinImagen`. Deja la columna en NULL (también si era una URL externa anterior
+ * a la 2.2, que no está en `archivos`) y borra el archivo de Cloudinary.
+ */
+export const quitarImagen = async ({ entidad, id_entidad, id_usuario, bloquear, guardarUrl, sinImagen }) => {
+  await eliminarArchivos({
+    entidad,
+    id_entidad,
+    id_usuario,
+    bloquear: async (conn) => {
+      if (!(await bloquear(conn))) throw ApiError.notFound(sinImagen);
+    },
+    actualizar: (conn) => guardarUrl(conn, null),
+  });
+};
+
+// ---------- Formato para las respuestas ----------
 
 /**
  * Archivo privado para quien puede ver el registro, con URL firmada que vence:

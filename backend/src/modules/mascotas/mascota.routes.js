@@ -3,6 +3,8 @@ import * as controller from "./mascota.controller.js";
 import { createMascotaBody, idMascotaParams, updateMascotaBody } from "./mascota.schemas.js";
 import { authMiddleware } from "../../shared/middlewares/auth.middleware.js";
 import { validate } from "../../shared/middlewares/validate.js";
+import { uploadLimiter } from "../../shared/middlewares/rateLimit.js";
+import { recibirArchivos } from "../../shared/utils/uploads.js";
 
 const router = express.Router();
 
@@ -56,7 +58,8 @@ const router = express.Router();
  *         alergias_detalle: { type: string, nullable: true }
  *         condiciones_medicas: { type: string, nullable: true }
  *         tipo_sangre: { type: string, nullable: true }
- *         foto_url: { type: string, nullable: true }
+ *         foto_url: { type: string, nullable: true, description: "Foto (800 px); se sube con PUT /mascotas/{id_mascota}/foto" }
+ *         foto_miniatura_url: { type: string, nullable: true, description: Miniatura cuadrada de 200 px }
  *         fallecido: { type: boolean }
  *         fecha_fallecimiento: { type: string, format: date, nullable: true }
  *         fecha_registro: { type: string, example: "2026-09-26 10:00:00" }
@@ -216,5 +219,66 @@ router.delete(
   validate({ params: idMascotaParams }),
   controller.deleteMascota
 );
+
+/**
+ * @swagger
+ * /mascotas/{id_mascota}/foto:
+ *   put:
+ *     summary: Subir o reemplazar la foto de la mascota
+ *     description: >
+ *       Solo el dueño. multipart/form-data con el archivo en `foto`. La foto anterior se borra.
+ *       Responde la mascota con `foto_url` (800 px) y `foto_miniatura_url` (200 px).
+ *     tags: [Mascotas]
+ *     parameters:
+ *       - { in: path, name: id_mascota, required: true, schema: { type: integer } }
+ *     requestBody: { $ref: '#/components/requestBodies/Foto' }
+ *     responses:
+ *       200:
+ *         description: Foto actualizada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Foto de la mascota actualizada }
+ *                 data: { $ref: '#/components/schemas/Mascota' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ArchivoInvalido' }
+ *       429: { $ref: '#/components/responses/TooManyRequests' }
+ *       503: { $ref: '#/components/responses/AlmacenamientoNoDisponible' }
+ *   delete:
+ *     summary: Eliminar la foto de la mascota
+ *     description: Solo el dueño. 404 si la mascota no tiene foto.
+ *     tags: [Mascotas]
+ *     parameters:
+ *       - { in: path, name: id_mascota, required: true, schema: { type: integer } }
+ *     responses:
+ *       200:
+ *         description: Foto eliminada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Foto de la mascota eliminada }
+ *                 data: { $ref: '#/components/schemas/Mascota' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.put(
+  "/mascotas/:id_mascota/foto",
+  authMiddleware,
+  validate({ params: idMascotaParams }),
+  uploadLimiter,
+  recibirArchivos("mascota_foto"),
+  controller.subirFoto
+);
+router.delete("/mascotas/:id_mascota/foto", authMiddleware, validate({ params: idMascotaParams }), controller.eliminarFoto);
 
 export default router;

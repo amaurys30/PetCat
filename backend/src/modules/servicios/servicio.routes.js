@@ -257,6 +257,7 @@ router.post(
  *                                 properties:
  *                                   especialidad: { type: string, nullable: true }
  *                                   foto_url: { type: string, nullable: true }
+ *                                   foto_miniatura_url: { type: string, nullable: true }
  *       404: { $ref: '#/components/responses/NotFound' }
  *       422: { $ref: '#/components/responses/ValidationError' }
  *   patch:
