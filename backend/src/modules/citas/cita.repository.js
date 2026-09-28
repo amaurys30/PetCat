@@ -249,20 +249,19 @@ export const findNombresEmpleados = async (ids) => {
 };
 
 /**
- * Recordatorio de una cita que nace confirmada (desde el panel). Es el mismo que
- * crea el trigger trg_citas_after_update al pasar a confirmada, que no actúa en INSERT.
+ * Recordatorios de una cita que nace confirmada (desde el panel): el del día anterior y el
+ * de 2 horas antes, con el mismo procedimiento que usa el trigger trg_citas_after_update
+ * al pasar a confirmada (el trigger no actúa en INSERT).
  */
-export const insertRecordatorioConfirmada = async (id_cita, conn) => {
-  await conn.query(
-    `INSERT INTO recordatorios (id_usuario, id_mascota, id_cita, tipo, titulo, mensaje, canal, estado, fecha_programada)
-     SELECT c.id_usuario, c.id_mascota, c.id_cita, 'cita_recordatorio', 'Recordatorio de tu cita',
-            CONCAT('Tu cita está programada para el ', DATE_FORMAT(c.fecha, '%d/%m/%Y'),
-                   ' a las ', TIME_FORMAT(c.hora_inicio, '%H:%i'), '. ¡Te esperamos!'),
-            'push,whatsapp', 'pendiente',
-            DATE_SUB(CONCAT(c.fecha, ' ', c.hora_inicio), INTERVAL 2 HOUR)
-     FROM citas c WHERE c.id_cita = ?`,
-    [id_cita]
-  );
+export const programarRecordatorios = async (id_cita, conn) => {
+  const [[c]] = await conn.query("SELECT id_usuario, id_mascota, fecha, hora_inicio FROM citas WHERE id_cita = ?", [id_cita]);
+  await conn.query("CALL sp_programar_recordatorios_cita(?, ?, ?, ?, ?)", [
+    id_cita,
+    c.id_usuario,
+    c.id_mascota,
+    c.fecha,
+    c.hora_inicio,
+  ]);
 };
 
 // ---------- Lectura ----------

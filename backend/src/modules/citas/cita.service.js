@@ -342,7 +342,7 @@ const reservar = async (canal, datos, actor, id_negocio, reprogramacion) => {
       conn
     );
     await citaRepo.insertHistorialCreacion({ id_cita: id, actor, estado, motivo: reprogramacion?.motivoCreacion }, conn);
-    if (estado === "confirmada") await citaRepo.insertRecordatorioConfirmada(id, conn);
+    if (estado === "confirmada") await citaRepo.programarRecordatorios(id, conn);
     if (reprogramacion) await reprogramacion.despues(id, conn);
 
     // Avisos al final de la transacción: se envían solo si la reserva se confirma.

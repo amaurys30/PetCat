@@ -421,11 +421,12 @@ describe("POST /negocios/:id_negocio/citas (panel)", () => {
       empleado: { id_empleado: ctx.ana.id_empleado },
     });
     const id_cita = res.body.data.id_cita;
+    // El del día anterior depende de la hora a la que corre la suite (ver recordatorios-programados.test.js).
     const [[recordatorio]] = await pool.query(
-      "SELECT tipo, canal, fecha_programada FROM recordatorios WHERE id_cita = ?",
+      "SELECT tipo, canal, fecha_programada FROM recordatorios WHERE id_cita = ? AND tipo = 'cita_recordatorio'",
       [id_cita]
     );
-    expect(recordatorio).toEqual({ tipo: "cita_recordatorio", canal: "push,whatsapp", fecha_programada: `${LUNES} 07:00:00` });
+    expect(recordatorio).toEqual({ tipo: "cita_recordatorio", canal: "push", fecha_programada: `${LUNES} 07:00:00` });
     const [[historial]] = await pool.query("SELECT id_usuario, id_empleado, valor_nuevo FROM historial_citas WHERE id_cita = ?", [
       id_cita,
     ]);

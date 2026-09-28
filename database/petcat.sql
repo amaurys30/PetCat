@@ -956,7 +956,9 @@ CREATE TABLE recordatorios (
     id_mascota       INT UNSIGNED    NULL,
     id_cita          INT UNSIGNED    NULL,
     id_vacuna        INT UNSIGNED    NULL,
-    tipo             ENUM('cita_confirmacion','cita_recordatorio','vacuna_proxima',
+    -- Migración 014: hito de las vacunas y recordatorio del día anterior a la cita.
+    hito             SMALLINT        NULL COMMENT 'Vacunas: días respecto a fecha_proxima (-7, 0 o 7)',
+    tipo             ENUM('cita_confirmacion','cita_recordatorio','cita_dia_anterior','vacuna_proxima',
                           'vacuna_vencida','control_medico','alimentacion',
                           'desparasitacion','bano','medicamento','personalizado') NOT NULL,
     titulo           VARCHAR(200)    NOT NULL,
@@ -976,6 +978,10 @@ CREATE TABLE recordatorios (
     INDEX idx_recordatorios_estado (estado),
     INDEX idx_recordatorios_fecha (fecha_programada),
     INDEX idx_recordatorios_tipo (tipo),
+    -- Migración 014: un recordatorio de cada tipo por cita y uno por vacuna y hito (los jobs no duplican).
+    UNIQUE KEY uq_recordatorios_cita (id_cita, tipo),
+    UNIQUE KEY uq_recordatorios_vacuna (id_vacuna, hito),
+    INDEX idx_recordatorios_pendientes (estado, fecha_programada),
     CONSTRAINT fk_recordatorios_usuario
         FOREIGN KEY (id_usuario) REFERENCES usuarios (id_usuario)
         ON DELETE CASCADE ON UPDATE CASCADE,
@@ -1348,7 +1354,7 @@ CREATE TABLE archivos (
 
 
 -- ═══════════════════════════════════════════════════════════════════════════
---  TRIGGERS
+--  TRIGGERS Y PROCEDIMIENTOS
 -- ═══════════════════════════════════════════════════════════════════════════
 
 DELIMITER $$
@@ -1427,27 +1433,55 @@ BEGIN
     WHERE id_producto = NEW.id_producto;
 END$$
 
--- Generar recordatorio automático al confirmar una cita
+-- Migración 014: recordatorios de una cita confirmada, el del día anterior (19:00) y el de
+-- 2 horas antes, solo si su hora aún no pasó. La usan el trigger (cita que pasa a
+-- confirmada) y el servicio (cita que nace confirmada desde el panel).
+CREATE PROCEDURE sp_programar_recordatorios_cita(
+    IN p_id_cita    INT UNSIGNED,
+    IN p_id_usuario INT UNSIGNED,
+    IN p_id_mascota INT UNSIGNED,
+    IN p_fecha      DATE,
+    IN p_hora       TIME
+)
+BEGIN
+    DECLARE v_horas INT;
+    DECLARE v_hora_dia_anterior TIME;
+    DECLARE v_antes DATETIME;
+    DECLARE v_dia_anterior DATETIME;
+
+    SET v_horas = COALESCE(
+        (SELECT CAST(valor AS UNSIGNED) FROM configuracion_global WHERE clave = 'recordatorio_cita_h'), 2);
+    SET v_hora_dia_anterior = COALESCE(
+        (SELECT CAST(valor AS TIME) FROM configuracion_global WHERE clave = 'recordatorio_dia_anterior_hora'), '19:00:00');
+    SET v_antes = TIMESTAMP(p_fecha, p_hora) - INTERVAL v_horas HOUR;
+    SET v_dia_anterior = TIMESTAMP(p_fecha - INTERVAL 1 DAY, v_hora_dia_anterior);
+
+    IF v_dia_anterior > NOW() THEN
+        INSERT INTO recordatorios (id_usuario, id_mascota, id_cita, tipo, titulo, mensaje, canal, estado, fecha_programada)
+        VALUES (p_id_usuario, p_id_mascota, p_id_cita, 'cita_dia_anterior', 'Tu cita es mañana',
+                CONCAT('Tu cita es mañana, ', DATE_FORMAT(p_fecha, '%d/%m/%Y'), ', a las ', TIME_FORMAT(p_hora, '%H:%i'), '.'),
+                'push', 'pendiente', v_dia_anterior)
+        ON DUPLICATE KEY UPDATE id_recordatorio = id_recordatorio;
+    END IF;
+
+    IF v_antes > NOW() THEN
+        INSERT INTO recordatorios (id_usuario, id_mascota, id_cita, tipo, titulo, mensaje, canal, estado, fecha_programada)
+        VALUES (p_id_usuario, p_id_mascota, p_id_cita, 'cita_recordatorio', 'Recordatorio de tu cita',
+                CONCAT('Tu cita está programada para el ', DATE_FORMAT(p_fecha, '%d/%m/%Y'),
+                       ' a las ', TIME_FORMAT(p_hora, '%H:%i'), '. ¡Te esperamos!'),
+                'push', 'pendiente', v_antes)
+        ON DUPLICATE KEY UPDATE id_recordatorio = id_recordatorio;
+    END IF;
+END$$
+
+-- Programar los recordatorios al confirmar una cita
 CREATE TRIGGER trg_citas_after_update
 AFTER UPDATE ON citas
 FOR EACH ROW
 BEGIN
-    -- Si la cita pasa a confirmada, crear recordatorio automático
     IF NEW.estado = 'confirmada' AND OLD.estado != 'confirmada'
        AND NEW.recordatorio_enviado = FALSE THEN
-        INSERT INTO recordatorios (
-            id_usuario, id_mascota, id_cita, tipo,
-            titulo, mensaje, canal, estado, fecha_programada
-        ) VALUES (
-            NEW.id_usuario, NEW.id_mascota, NEW.id_cita,
-            'cita_recordatorio',
-            'Recordatorio de tu cita',
-            CONCAT('Tu cita está programada para el ', DATE_FORMAT(NEW.fecha, '%d/%m/%Y'),
-                   ' a las ', TIME_FORMAT(NEW.hora_inicio, '%H:%i'), '. ¡Te esperamos!'),
-            'push,whatsapp',
-            'pendiente',
-            DATE_SUB(CONCAT(NEW.fecha, ' ', NEW.hora_inicio), INTERVAL 2 HOUR)
-        );
+        CALL sp_programar_recordatorios_cita(NEW.id_cita, NEW.id_usuario, NEW.id_mascota, NEW.fecha, NEW.hora_inicio);
     END IF;
 END$$
 
@@ -1535,7 +1569,7 @@ INSERT INTO configuracion_global (clave, valor, tipo, descripcion) VALUES
 ('dias_prueba_gratis',      '14',                               'integer', 'Días de prueba gratuita para plan Pro'),
 ('max_fotos_post',          '5',                                'integer', 'Máximo de fotos por post en comunidad'),
 ('radio_busqueda_km',       '10',                               'integer', 'Radio de búsqueda de negocios cercanos por defecto'),
-('whatsapp_recordatorio_h', '2',                                'integer', 'Horas antes de la cita para enviar recordatorio'),
+('recordatorio_cita_h',     '2',                                'integer', 'Horas antes de la cita para el recordatorio'),
 ('ia_modelo',               'gpt-4o-mini',                      'string',  'Modelo de IA para recomendaciones'),
 ('mantenimiento',           'false',                            'boolean', 'Modo mantenimiento activo/inactivo'),
 ('contacto_soporte',        'soporte@petcat.com.co',            'string',  'Email de soporte de la plataforma'),
@@ -1550,7 +1584,9 @@ INSERT INTO configuracion_global (clave, valor, tipo, descripcion) VALUES
 ('dias_aviso_vacuna',             '30', 'integer', 'Días antes de fecha_proxima en que una vacuna cuenta como próxima'),
 -- Migración 013.
 ('silencio_inicio', '21:00', 'string', 'Inicio del horario de silencio de push y correos no urgentes (hora de Bogotá, HH:MM)'),
-('silencio_fin',    '07:00', 'string', 'Fin del horario de silencio (HH:MM); igual al inicio = sin silencio');
+('silencio_fin',    '07:00', 'string', 'Fin del horario de silencio (HH:MM); igual al inicio = sin silencio'),
+-- Migración 014.
+('recordatorio_dia_anterior_hora', '19:00', 'string', 'Hora del recordatorio del día anterior a la cita (hora de Bogotá, HH:MM)');
 
 
 -- ═══════════════════════════════════════════════════════════════════════════
@@ -1708,7 +1744,8 @@ INSERT INTO schema_migrations (nombre) VALUES
 ('010_historial_vacunas_y_privacidad.sql'),
 ('011_rol_veterinario_vacunas_editar.sql'),
 ('012_archivos.sql'),
-('013_notificaciones.sql');
+('013_notificaciones.sql'),
+('014_recordatorios_y_jobs.sql');
 
 
 SET FOREIGN_KEY_CHECKS = 1;
@@ -1716,5 +1753,5 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- ═══════════════════════════════════════════════════════════════════════════
 --  FIN DEL SCRIPT
 --  PetCat Database v1.0 — CECAR 2026
---  Tablas: 27 | Relaciones: 48 FK | Triggers: 6 | Vistas: 4
+--  Tablas: 27 | Relaciones: 48 FK | Triggers: 6 | Procedimientos: 1 | Vistas: 4
 -- ═══════════════════════════════════════════════════════════════════════════

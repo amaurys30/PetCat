@@ -109,8 +109,9 @@ describe("PATCH /citas/:id_cita/estado", () => {
     expect(res.status).toBe(200);
     expect(res.body.message).toBe("Cita confirmada");
     expect(res.body.data).toMatchObject({ estado: "confirmada", notas_internas: null });
-    const [recordatorios] = await pool.query("SELECT 1 FROM recordatorios WHERE id_cita = ?", [c.id_cita]);
-    expect(recordatorios).toHaveLength(1);
+    // El del día anterior depende de la hora a la que corre la suite (ver recordatorios-programados.test.js).
+    const [recordatorios] = await pool.query("SELECT tipo FROM recordatorios WHERE id_cita = ?", [c.id_cita]);
+    expect(recordatorios.map((r) => r.tipo)).toContain("cita_recordatorio");
     expect(await historialDb(c.id_cita)).toEqual([
       { campo_modificado: "estado", valor_anterior: "pendiente", valor_nuevo: "confirmada", motivo: "Llamamos al cliente" },
     ]);
@@ -303,8 +304,10 @@ describe("POST /citas/:id_cita/reprogramar", () => {
     });
     expect(res.status).toBe(201);
     expect(res.body.data).toMatchObject({ estado: "confirmada", empleado: { id_empleado: ctx.luis.id_empleado } });
-    const [recordatorios] = await pool.query("SELECT 1 FROM recordatorios WHERE id_cita = ?", [res.body.data.id_cita]);
-    expect(recordatorios).toHaveLength(1);
+    const [recordatorios] = await pool.query("SELECT tipo FROM recordatorios WHERE id_cita = ? ORDER BY fecha_programada", [
+      res.body.data.id_cita,
+    ]);
+    expect(recordatorios.map((r) => r.tipo)).toEqual(["cita_dia_anterior", "cita_recordatorio"]);
   });
 
   it("se puede mover dentro del mismo día aunque se cruce con su propio horario y aunque el cupo esté lleno", async () => {
