@@ -138,3 +138,5 @@ Get-Content ruta/archivo.sql -Raw -Encoding UTF8 | docker compose exec -T mysql 
 ```
 
 Para varias líneas, un here-string `@' ... '@` con el `'@` de cierre al inicio de la línea.
+
+**Encadenar comandos:** PowerShell 5.1 no admite `&&` ni `||`. Los comandos que se le indiquen a Amaurys se separan con `;` (por ejemplo `cd backend; npm run db:migrate`), o se escriben en líneas separadas.
