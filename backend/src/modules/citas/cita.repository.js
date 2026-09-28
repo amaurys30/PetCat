@@ -121,6 +121,7 @@ const COLUMNAS_CITA = [
   "prioridad",
   "origen",
   "id_cita_origen",
+  "confirmar_antes_de",
 ];
 
 export const create = async (data, conn) => {
@@ -207,13 +208,14 @@ export const incrementTotalCitas = async (id_negocio, conn) => {
 
 /**
  * Cumplimiento del cliente **en ese negocio** (nunca en otros): citas completadas,
- * inasistencias y cancelaciones tardías. Usa el índice (id_negocio, id_usuario, estado).
+ * inasistencias y cancelaciones tardías. La cancelación automática (sistema) nunca cuenta
+ * contra el cliente. Usa el índice (id_negocio, id_usuario, estado).
  */
 export const resumenCumplimiento = async (id_usuario, id_negocio, conn) => {
   const [[row]] = await (conn ?? db).query(
     `SELECT COALESCE(SUM(estado = 'completada'), 0) AS completadas,
             COALESCE(SUM(estado = 'no_asistio'), 0) AS inasistencias,
-            COALESCE(SUM(estado = 'cancelada' AND cancelacion_tardia = TRUE), 0) AS cancelaciones_tardias
+            COALESCE(SUM(estado = 'cancelada' AND cancelacion_tardia = TRUE AND NOT (cancelada_por <=> 'sistema')), 0) AS cancelaciones_tardias
      FROM citas
      WHERE id_negocio = ? AND id_usuario = ?`,
     [id_negocio, id_usuario]
@@ -272,7 +274,7 @@ const SELECT_CITA = `
          TIME_FORMAT(c.hora_inicio, '%H:%i') AS hora_inicio, TIME_FORMAT(c.hora_fin, '%H:%i') AS hora_fin,
          c.estado, c.origen, c.prioridad, c.precio_estimado, c.precio_final, c.notas_cliente, c.notas_internas,
          c.id_cita_origen, c.fecha_creacion,
-         c.motivo_cancelacion, c.cancelada_por, c.fecha_cancelacion, c.cancelacion_tardia,
+         c.motivo_cancelacion, c.cancelada_por, c.fecha_cancelacion, c.cancelacion_tardia, c.confirmar_antes_de,
          n.id_negocio, n.nombre AS negocio_nombre, n.logo_url AS negocio_logo_url,
          su.id_sucursal, su.nombre AS sucursal_nombre, su.direccion AS sucursal_direccion,
          su.telefono AS sucursal_telefono, su.latitud AS sucursal_latitud, su.longitud AS sucursal_longitud,

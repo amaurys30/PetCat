@@ -45,6 +45,8 @@ const campos = {
   ciudad: texto(100),
   departamento: texto(100),
   pais: texto(60),
+  // Las citas de la app nacen confirmadas (2.5); por defecto false.
+  confirmacion_automatica: z.boolean(),
   ...opcionales,
 };
 

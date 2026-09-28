@@ -279,7 +279,8 @@ export const getHistorial = async (id_cita, acceso) => {
     valor_anterior: valor(f.campo_modificado, f.valor_anterior),
     valor_nuevo: valor(f.campo_modificado, f.valor_nuevo),
     motivo: f.motivo,
-    realizado_por: f.id_usuario === cita.id_usuario ? "dueno" : "negocio",
+    // Sin usuario ni empleado: la cancelación automática del job de confirmaciones.
+    realizado_por: f.id_usuario === cita.id_usuario ? "dueno" : f.id_usuario || f.id_empleado ? "negocio" : "sistema",
     ...(!esDueno && {
       usuario: f.id_usuario ? { id_usuario: f.id_usuario, nombre: f.usuario_nombre, apellido: f.usuario_apellido } : null,
       empleado: f.id_empleado ? { id_empleado: f.id_empleado, nombre: f.empleado_nombre, apellido: f.empleado_apellido } : null,

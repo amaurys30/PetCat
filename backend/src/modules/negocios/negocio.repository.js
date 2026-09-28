@@ -78,7 +78,7 @@ export const findPublicoById = async (id_negocio) => {
   const [rows] = await db.query(
     `SELECT id_negocio, nombre, tipo, descripcion, telefono, whatsapp, email, sitio_web,
             direccion, ciudad, departamento, latitud, longitud, logo_url, banner_url,
-            calificacion_promedio, total_resenas, verificado
+            calificacion_promedio, total_resenas, verificado, confirmacion_automatica
      FROM negocios
      WHERE id_negocio = ? AND activo = TRUE`,
     [id_negocio]

@@ -37,6 +37,12 @@ const router = express.Router();
  *         codigo_postal: { type: string, maxLength: 10, nullable: true }
  *         latitud: { type: number, minimum: -90, maximum: 90, nullable: true, example: 9.30472 }
  *         longitud: { type: number, minimum: -180, maximum: 180, nullable: true, example: -75.39778 }
+ *         confirmacion_automatica:
+ *           type: boolean
+ *           default: false
+ *           description: >
+ *             Las citas de la app (y las que reprograma el dueño) nacen confirmadas. Sin ella quedan pendientes
+ *             y, si el negocio no las confirma a tiempo (`confirmar_antes_de` de la cita), se cancelan solas.
  *     Negocio:
  *       allOf:
  *         - $ref: '#/components/schemas/NegocioInput'
@@ -110,6 +116,7 @@ const router = express.Router();
  *         calificacion_promedio: { type: number }
  *         total_resenas: { type: integer }
  *         verificado: { type: boolean }
+ *         confirmacion_automatica: { type: boolean, description: "La reserva queda confirmada al instante (la app puede mostrarlo)" }
  *         sucursales:
  *           type: array
  *           description: Solo activas, la principal primero

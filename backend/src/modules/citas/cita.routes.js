@@ -90,12 +90,25 @@ const esDuenoDeLaCita = (req) => citaRepo.esDelUsuario(req.params.id_cita, req.u
  *         notas_cliente: { type: string, nullable: true }
  *         notas_internas: { type: string, nullable: true, description: Solo en el panel }
  *         id_cita_origen: { type: integer, nullable: true, description: Cita original si esta es una reprogramación }
+ *         confirmar_antes_de:
+ *           type: string
+ *           nullable: true
+ *           example: "2026-10-04 15:00:00"
+ *           description: >
+ *             Solo en citas pendientes: hasta cuándo puede confirmarla el negocio. Si no la confirma, se cancela
+ *             sola (cancelacion.por = sistema). Lo que ocurra primero entre 24 horas después de reservar y
+ *             60 minutos antes del inicio; si eso cae de madrugada, se corre a una hora después del fin del
+ *             horario de silencio (08:00), sin pasar de 30 minutos antes del inicio.
  *         cancelacion:
  *           type: object
  *           nullable: true
  *           description: Solo en citas canceladas
  *           properties:
- *             por: { type: string, enum: [dueno, negocio], nullable: true }
+ *             por:
+ *               type: string
+ *               enum: [dueno, negocio, sistema]
+ *               nullable: true
+ *               description: "sistema: el negocio no la confirmó a tiempo (nunca es tardía ni cuenta contra el cliente)"
  *             fecha: { type: string, nullable: true }
  *             tardia: { type: boolean, description: El dueño canceló a menos de 2 horas de la cita }
  *             motivo: { type: string, nullable: true }
@@ -549,7 +562,7 @@ router.patch(
  *     description: >
  *       Del más antiguo al más reciente. El personal del negocio con `citas.ver` ve todos los cambios con
  *       el usuario y el empleado que los hizo. El dueño ve solo los cambios de estado y de empleado, con su
- *       motivo, y `realizado_por` (dueno o negocio), sin nombres del personal.
+ *       motivo, y `realizado_por` (dueno, negocio o sistema: la cancelación automática), sin nombres del personal.
  *     tags: [Citas]
  *     parameters:
  *       - { in: path, name: id_cita, required: true, schema: { type: integer } }
@@ -573,7 +586,7 @@ router.patch(
  *                       valor_anterior: { type: string, nullable: true, description: En empleado, su nombre }
  *                       valor_nuevo: { type: string, nullable: true }
  *                       motivo: { type: string, nullable: true }
- *                       realizado_por: { type: string, enum: [dueno, negocio] }
+ *                       realizado_por: { type: string, enum: [dueno, negocio, sistema] }
  *                       usuario: { type: object, nullable: true, description: Solo en el panel }
  *                       empleado: { type: object, nullable: true, description: Solo en el panel }
  *       401: { $ref: '#/components/responses/Unauthorized' }

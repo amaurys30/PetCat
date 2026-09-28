@@ -136,6 +136,9 @@ CREATE TABLE negocios (
     verificado           BOOLEAN        NOT NULL DEFAULT FALSE,
     destacado            BOOLEAN        NOT NULL DEFAULT FALSE,
     activo               BOOLEAN        NOT NULL DEFAULT TRUE,
+    -- Migración 017.
+    confirmacion_automatica BOOLEAN     NOT NULL DEFAULT FALSE
+                         COMMENT 'Las citas de la app nacen confirmadas',
     fecha_registro       DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     fecha_actualizacion  DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id_negocio),
@@ -632,11 +635,16 @@ CREATE TABLE citas (
     notas_cliente    TEXT            NULL COMMENT 'Instrucciones o notas del dueño',
     notas_internas   TEXT            NULL COMMENT 'Notas del veterinario (privadas)',
     motivo_cancelacion TEXT          NULL,
-    -- Migración 009.
-    cancelada_por    ENUM('dueno','negocio') NULL,
+    -- Migración 009 ('sistema': migración 017).
+    cancelada_por    ENUM('dueno','negocio','sistema') NULL,
     fecha_cancelacion DATETIME       NULL,
     cancelacion_tardia BOOLEAN       NOT NULL DEFAULT FALSE
                      COMMENT 'El dueño canceló a menos de antelacion_cancelacion_app_h horas',
+    -- Migración 017.
+    confirmar_antes_de DATETIME      NULL
+                     COMMENT 'Plazo para confirmar una cita pendiente; al vencer se cancela sola',
+    aviso_por_confirmar_en DATETIME  NULL
+                     COMMENT 'Cuándo se avisó al negocio a mitad del plazo (NULL = no se ha avisado)',
     prioridad        ENUM('normal','alta','urgente') NOT NULL DEFAULT 'normal',
     -- Comunicación
     recordatorio_enviado BOOLEAN     NOT NULL DEFAULT FALSE,
@@ -654,6 +662,8 @@ CREATE TABLE citas (
     INDEX idx_citas_empleado (id_empleado),
     INDEX idx_citas_fecha (fecha),
     INDEX idx_citas_estado (estado),
+    -- Migración 017: citas pendientes por plazo de confirmación (job).
+    INDEX idx_citas_por_confirmar (estado, confirmar_antes_de),
     INDEX idx_citas_negocio_fecha (id_negocio, fecha),
     INDEX idx_citas_empleado_fecha (id_empleado, fecha),
     CONSTRAINT fk_citas_negocio
@@ -1591,7 +1601,10 @@ INSERT INTO configuracion_global (clave, valor, tipo, descripcion) VALUES
 -- Migración 014.
 ('recordatorio_dia_anterior_hora', '19:00', 'string', 'Hora del recordatorio del día anterior a la cita (hora de Bogotá, HH:MM)'),
 -- Migración 016 (soporte_email era contacto_soporte).
-('soporte_whatsapp', '', 'string', 'WhatsApp de soporte para los avisos del plan, p. ej. +57 300 123 4567 (vacío = no se muestra)');
+('soporte_whatsapp', '', 'string', 'WhatsApp de soporte para los avisos del plan, p. ej. +57 300 123 4567 (vacío = no se muestra)'),
+-- Migración 017.
+('plazo_confirmacion_h',          '24', 'integer', 'Horas que tiene el negocio para confirmar una cita pendiente'),
+('confirmacion_antes_inicio_min', '60', 'integer', 'La cita pendiente se cancela a más tardar estos minutos antes de su inicio');
 
 
 -- ═══════════════════════════════════════════════════════════════════════════
@@ -1752,7 +1765,8 @@ INSERT INTO schema_migrations (nombre) VALUES
 ('013_notificaciones.sql'),
 ('014_recordatorios_y_jobs.sql'),
 ('015_servicios_indicaciones_previas.sql'),
-('016_soporte_contacto.sql');
+('016_soporte_contacto.sql'),
+('017_confirmacion_automatica.sql');
 
 
 SET FOREIGN_KEY_CHECKS = 1;

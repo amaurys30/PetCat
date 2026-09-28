@@ -9,7 +9,9 @@ import { combinarHorarios, iniciosLibres } from "./citas.calculo.js";
 import { aHora, aMinutos, calcularDisponibilidad, citaCabe, diaSemana } from "../disponibilidad/disponibilidad.calculo.js";
 import { avisarLimiteAlcanzado, eventoCita, eventoUmbralPlan } from "./cita.avisos.js";
 import { conNotificaciones } from "../notificaciones/notificacion.service.js";
-import { hoyISO } from "../../shared/utils/fechas.js";
+import { inicioDeCita } from "../notificaciones/silencio.js";
+import { calcularPlazoConfirmacion, configConfirmacion } from "./cita.confirmacion.js";
+import { aDatetimeSQL, hoyISO } from "../../shared/utils/fechas.js";
 import { toNumber } from "../../shared/utils/format.js";
 import { buildMeta } from "../../shared/utils/pagination.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
@@ -193,6 +195,8 @@ export const formatCita = (row, { conNotasInternas = false } = {}) => ({
   notas_cliente: row.notas_cliente,
   ...(conNotasInternas && { notas_internas: row.notas_internas }),
   id_cita_origen: row.id_cita_origen,
+  // Hasta cuándo puede confirmarla el negocio antes de que se cancele sola (solo pendientes).
+  confirmar_antes_de: row.estado === "pendiente" ? (row.confirmar_antes_de ?? null) : null,
   cancelacion:
     row.estado === "cancelada"
       ? {
@@ -276,6 +280,9 @@ const reservar = async (canal, datos, actor, id_negocio, reprogramacion) => {
   if (dia.porLimitePlan) throw errorLimiteCitas(canal, dia.limiteCitas, datos.fecha, servicio.id_negocio);
   if (dia.motivo) throw ApiError.conflict(dia.motivo);
   const hora_fin = `${aHora(inicio + servicio.duracion_minutos)}:00`;
+  // Plazo para confirmar (2.5): se calcula al crear la cita pendiente, con la configuración de ahora.
+  const confirmacion = canal === "app" ? await configConfirmacion() : null;
+
   // Con plan ilimitado no se bloquea ni se cuenta: las reservas del negocio no se esperan entre sí.
   const conLimiteCitas = dia.limiteCitas.usadas !== null;
 
@@ -319,6 +326,10 @@ const reservar = async (canal, datos, actor, id_negocio, reprogramacion) => {
     const carga = await citaRepo.countCitasDelDia(libres, datos.fecha, conn);
     const [id_empleado] = [...libres].sort((a, b) => (carga[a] ?? 0) - (carga[b] ?? 0) || a - b);
     const estado = canal === "app" ? "pendiente" : "confirmada";
+    const confirmar_antes_de =
+      estado === "pendiente"
+        ? aDatetimeSQL(calcularPlazoConfirmacion({ creacion: new Date(), inicio: inicioDeCita(datos.fecha, datos.hora_inicio), ...confirmacion }))
+        : undefined;
 
     const id = await citaRepo.create(
       {
@@ -338,6 +349,7 @@ const reservar = async (canal, datos, actor, id_negocio, reprogramacion) => {
         prioridad: datos.prioridad,
         origen: reprogramacion?.origen ?? (canal === "app" ? "app_movil" : datos.origen),
         id_cita_origen: reprogramacion?.id_cita_origen,
+        confirmar_antes_de,
       },
       conn
     );

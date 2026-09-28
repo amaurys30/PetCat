@@ -10,7 +10,7 @@ import { quitarImagen, reemplazarImagen } from "../archivos/archivo.service.js";
 const formatNegocio = (negocio) =>
   conMiniaturas(
     castFields(negocio, {
-      bools: ["verificado", "destacado", "activo"],
+      bools: ["verificado", "destacado", "activo", "confirmacion_automatica"],
       numbers: ["latitud", "longitud", "calificacion_promedio"],
     })
   );
