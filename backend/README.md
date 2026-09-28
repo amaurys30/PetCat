@@ -313,6 +313,7 @@ Detalle de cada uno en Swagger.
 | Historial médico | `GET /mascotas/:id_mascota/historial` (dueño), `GET /negocios/:id_negocio/mascotas/:id_mascota/historial`, `POST /negocios/:id_negocio/historial`, `PATCH /historial/:id_historial` (panel) |
 | Vacunas | `GET` y `POST /mascotas/:id_mascota/vacunas` (dueño), `GET /negocios/:id_negocio/mascotas/:id_mascota/vacunas`, `POST /negocios/:id_negocio/vacunas` (panel), `PATCH /vacunas/:id_vacuna` (quien la registró) |
 | Resumen de salud | `GET /mascotas/:id_mascota/resumen-salud` (dueño) y `GET /negocios/:id_negocio/mascotas/:id_mascota/resumen-salud` (panel) |
+| Notificaciones | `GET /notificaciones`, `GET /notificaciones/no-leidas`, `PATCH /notificaciones/:id_notificacion/leida`, `POST /notificaciones/leer-todas`, `POST` y `DELETE /dispositivos` (app), `GET` y `POST /correo/baja` (públicos, enlace de los correos) |
 
 ### Disponibilidad de empleados
 
@@ -390,6 +391,119 @@ Todas responden el registro actualizado. Máximo 30 subidas cada 15 minutos por 
 - **Imágenes públicas** (fotos de usuario, mascota y empleado, logo y banner): los campos `*_url` traen la versión mediana (800 px) y `*_miniatura_url` una miniatura cuadrada de 200 px para listas y avatares. Se sirven por la CDN y no vencen.
 - **Archivos privados** (historial y comprobantes): llegan dentro del registro como `{ id_archivo, tipo, nombre, bytes, url, url_expira_en }`. La `url` es **firmada y vence** a los 15 minutos (`url_expira_en`, ISO 8601). No se guarda: cuando vence (o si al abrirla responde 401/403/404), la app vuelve a pedir el registro (por ejemplo `GET /mascotas/:id_mascota/historial` o `/vacunas`) y usa la URL nueva. Conviene pedirlo justo antes de abrir el archivo si la pantalla lleva un rato abierta. Solo recibe la URL quien puede ver ese registro.
 - Reemplazar una imagen borra la anterior. Eliminar una mascota no borra sus archivos (el borrado es lógico).
+
+### Notificaciones
+
+Cada aviso llega por varios canales a la vez:
+
+| Canal | Quién | Contenido |
+|---|---|---|
+| Notificación en la app/panel (`GET /notificaciones`) | Todos los destinatarios | Detalle completo (mascota, servicio, motivo) |
+| Socket.IO (evento `notificacion`) | Quien tenga el panel o la app abiertos | Lo mismo, en tiempo real |
+| Push de Expo | Usuarios con un dispositivo registrado y `notif_push` | Genérico (se ve en la pantalla bloqueada): tipo, fecha, hora y negocio |
+| Correo | Solo si no tiene dispositivo y `notif_email`: el dueño en los avisos de sus citas y el **propietario** del negocio en `cita_nueva` | Discreto, con sede y dirección, y enlace "Dejar de recibir estos correos" |
+
+Tipos actuales: `cita_nueva` (reserva desde la app, al negocio), `cita_agendada` (desde el panel, al dueño), `cita_confirmada` (al dueño), `cita_cancelada` y `cita_reprogramada` (a la otra parte), `plan_limite_80` y `plan_limite_alcanzado` (al propietario y a quien tiene `configuracion.editar`). Del lado del negocio los reciben el propietario y los empleados con el permiso del evento (`citas.ver` en las citas), nunca quien hizo la acción.
+
+- **Globo de no leídas:** `GET /notificaciones/no-leidas` al abrir, `meta.no_leidas` en el listado, y luego sumar con cada evento `notificacion`. Marcar con `PATCH /notificaciones/:id_notificacion/leida` o `POST /notificaciones/leer-todas`.
+- **Deep link:** `datos` trae el `tipo` y los ids (`id_cita`, `id_negocio`, `mes` en los avisos del plan) para abrir la pantalla correspondiente. Es lo mismo que llega en el `data` de la push, más `id_notificacion`.
+- **Horario de silencio (21:00 a 07:00):** push y correos esperan hasta las 07:00, salvo la cancelación o reprogramación de una cita cercana. La notificación en la app y el evento de Socket.IO siempre son inmediatos.
+
+### Notificaciones en tiempo real (Socket.IO)
+
+El servidor de Socket.IO corre en el mismo puerto de la API (ruta `/socket.io`, sin el prefijo `/api/v1`). Se usa `socket.io-client` v4 (panel web y app):
+
+```js
+import { io } from "socket.io-client";
+
+const socket = io("http://localhost:3000", {        // la URL del servidor, sin /api/v1
+  auth: (cb) => cb({ token: getAccessToken() }),     // función: toma el token vigente en cada reconexión
+});
+
+socket.on("notificacion", (n) => {                   // misma forma que un elemento de GET /notificaciones
+  agregarAlListado(n);
+  sumarNoLeida();
+});
+socket.on("notificaciones_leidas", ({ no_leidas }) => actualizarGlobo(no_leidas)); // se marcaron desde otra sesión
+
+socket.on("connect_error", async (err) => {
+  // "Token expirado": renovar con POST /auth/refresh-token; socket.io reintenta solo con el token nuevo.
+  if (err.message === "Token expirado") await renovarToken();
+  // "Sesión inválida o expirada" o "Token inválido": la sesión se cerró; ir al login.
+});
+```
+
+- El handshake valida el access token igual que las rutas protegidas. Una vez conectado, que el token venza **no** desconecta: lo que cuenta es la sesión.
+- El servidor desconecta el socket al cerrar esa sesión (`POST /auth/logout`), al cambiar la contraseña (las demás sesiones) y al restablecerla (todas). Si el cliente recibe `disconnect` con motivo `"io server disconnect"`, no reconecta solo: tratarlo como sesión cerrada.
+- Al reconectar después de un corte, volver a pedir `GET /notificaciones/no-leidas`: los eventos emitidos mientras estaba desconectado no se repiten.
+- En el navegador, el origen del panel debe estar en `CORS_ORIGINS` (el mismo de la API). La app no envía `Origin`.
+- Para probarlo sin frontend: conectar con el token de `POST /auth/login`, y desde Swagger, con otro usuario, reservar o cancelar una cita que le toque.
+
+### Notificaciones push (app móvil) — guía para Daniel
+
+La API envía las push por el servicio de Expo (`expo-server-sdk`); la app solo tiene que conseguir su token y registrarlo.
+
+**1. Registrar el dispositivo después del login** (y cada vez que el token cambie):
+
+```js
+import * as Notifications from "expo-notifications";
+import * as Device from "expo-device";
+import Constants from "expo-constants";
+import { Platform } from "react-native";
+
+export async function registrarPush(api) {
+  if (!Device.isDevice) return;                        // simuladores/emuladores no reciben push
+  if (Platform.OS === "android") {
+    // La API no envía channelId: Android usa el canal "default", que la app debe crear.
+    await Notifications.setNotificationChannelAsync("default", {
+      name: "General",
+      importance: Notifications.AndroidImportance.HIGH,
+    });
+  }
+  const { status } = await Notifications.requestPermissionsAsync();
+  if (status !== "granted") return;
+
+  const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+  const { data: token_expo } = await Notifications.getExpoPushTokenAsync({ projectId });
+  await api.post("/dispositivos", {
+    token_expo,                                         // "ExponentPushToken[...]"
+    plataforma: Platform.OS,                            // "ios" | "android"
+    nombre: Device.modelName ?? undefined,
+  });
+}
+```
+
+- El dispositivo queda ligado a la **sesión**: al hacer logout la API lo desactiva sola (no hace falta llamar a `DELETE /dispositivos`). Tras un nuevo login hay que volver a registrarlo. `DELETE /dispositivos` es para cuando el usuario apaga las notificaciones dentro de la app.
+- Si otra cuenta inicia sesión en el mismo teléfono, el token pasa a esa cuenta (responde 200 en vez de 201).
+- Si Expo informa que el token ya no sirve (`DeviceNotRegistered`, app desinstalada o permisos retirados), la API lo desactiva. Registrarlo en cada inicio de la app evita perder push si el usuario vuelve a dar permiso.
+- Con dispositivo activo el usuario deja de recibir correos de sus citas (recibe la push en su lugar).
+
+**2. Abrir la pantalla al tocar la push.** El `data` trae `{ tipo, id_cita?, id_negocio?, mes?, id_notificacion }`:
+
+```js
+Notifications.addNotificationResponseReceivedListener(({ notification }) => {
+  const { tipo, id_cita, id_notificacion } = notification.request.content.data;
+  if (id_cita) navigation.navigate("DetalleCita", { id_cita });
+  api.patch(`/notificaciones/${id_notificacion}/leida`);
+});
+```
+
+El texto de la push es genérico a propósito (sin mascota ni motivo); el detalle se muestra con `GET /citas/:id_cita` o `GET /notificaciones`, que piden sesión.
+
+**3. Probar push reales:**
+
+1. **Development build, no Expo Go.** Desde el SDK 53, Expo Go no recibe push remotas en Android. Crear el proyecto en EAS (`npx eas init`, que deja el `projectId` en `app.json`) y generar una development build (`npx eas build --profile development --platform android`) para instalar en un teléfono físico.
+2. **Credenciales:** Android necesita FCM V1: crear un proyecto en Firebase, poner `google-services.json` en la app y subir la clave de la cuenta de servicio en EAS (`npx eas credentials` → Android → Google Service Account Key for Push Notifications (FCM V1)). iOS necesita cuenta de Apple Developer (paga); en el MVP se prueba con Android.
+3. **Probar sin la API:** con el token que imprime la app, enviar una push de prueba desde https://expo.dev/notifications. Si no llega aquí, el problema está en la app o las credenciales, no en la API.
+4. **Probar con la API:** el teléfono y el PC en la misma red; la app apunta a `http://<IP-del-PC>:3000/api/v1` (desde el teléfono `localhost` es el propio teléfono; la IP sale de `ipconfig`, y el firewall de Windows debe permitir el puerto 3000). Iniciar sesión en la app como un cliente del seed (p. ej. `cliente@petcat.test`), registrar el dispositivo y, desde Swagger con `propietario@petcat.test`, confirmar, cancelar o reprogramar una cita de ese cliente en "Clínica Veterinaria Patitas". Fuera de Docker, `npm run dev` envía push reales (solo los tests usan un envío en memoria).
+5. **De noche (21:00 a 07:00)** las push quedan programadas para las 07:00. Para probar a esa hora, desactivar el silencio en la base de desarrollo (inicio = fin) y volver a dejarlo como estaba al terminar:
+
+   ```powershell
+   "UPDATE configuracion_global SET valor = '00:00' WHERE clave IN ('silencio_inicio', 'silencio_fin');" | docker compose exec -T mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" --default-character-set=utf8mb4 petcat_db'
+   ```
+
+   (`npm run db:reset -- --yes` también lo restablece a 21:00 y 07:00.)
+6. **Si no llega:** revisar la consola del backend (los errores de envío se registran y el envío queda para el job que corre cada minuto) y la tabla `notificaciones_envios` (`estado`, `error`). `EXPO_ACCESS_TOKEN` solo hace falta si se activa "Enhanced security for push" en el proyecto de Expo.
 
 ### Usuarios de prueba
 

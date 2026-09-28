@@ -171,7 +171,7 @@ Se hace en sub-bloques que se aprueban por separado: **2.1** planes y suscripcio
 - [x] Catálogo de tipos; `notificar()` guarda en la transacción y el despacho (push de Expo, correo) va después del commit (outbox); horario de silencio; enlace firmado para dejar de recibir correos; base de node-cron con los jobs de envíos pendientes y recibos de Expo.
 - [x] Socket.IO (autenticación por sesión, salas `usuario:<id>` y `sesion:<id>`, desconexión en logout, change-password y reset-password); `GET /notificaciones`, `GET /notificaciones/no-leidas`, `PATCH /notificaciones/:id_notificacion/leida` y `POST /notificaciones/leer-todas`.
 - [x] Eventos: `cita_nueva`, `cita_agendada`, `cita_confirmada`, `cita_cancelada`, `cita_reprogramada`, `plan_limite_alcanzado` y `plan_limite_80` (con deduplicación).
-- [ ] README: Socket.IO, notificaciones y cómo probar push reales desde la app.
+- [x] README: Socket.IO, notificaciones y cómo probar push reales desde la app.
 
 ### 2.4 Jobs con node-cron
 - [ ] Jobs sobre la base de node-cron de la 2.3 (funciones exportadas que los tests llaman directo; el cron no arranca con `NODE_ENV=test`).
