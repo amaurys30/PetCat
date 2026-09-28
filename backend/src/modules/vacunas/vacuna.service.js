@@ -71,14 +71,37 @@ export const vacunasConEstado = async (id_mascota, conn) => {
   return rows.map((row) => formatVacuna(row, estados.get(row.id_vacuna), comprobantes[row.id_vacuna]?.[0]));
 };
 
-/** Recalcula y guarda el estado de todas las vacunas de la mascota (al escribir). */
-const guardarEstados = async (id_mascota, conn) => {
+/** Recalcula y guarda el estado de todas las vacunas de la mascota (al escribir y en el job). */
+const guardarEstados = async (id_mascota, conn, hoy = hoyISO()) => {
   const [rows, dias] = await Promise.all([vacunaRepo.findDeMascota(id_mascota, conn), diasAvisoVacuna()]);
-  const estados = calcularEstados(rows, hoyISO(), dias);
+  const estados = calcularEstados(rows, hoy, dias);
   await vacunaRepo.guardarEstados(
     rows.filter((row) => row.estado !== estados.get(row.id_vacuna)).map((row) => [row.id_vacuna, estados.get(row.id_vacuna)]),
     conn
   );
+};
+
+/**
+ * Job diario (00:05): el estado se calcula al leer, pero la columna `vacunas.estado` (la usan
+ * las vistas) cambia con los días. Recalcula las mascotas con alguna vacuna cuyo estado
+ * guardado ya no corresponde a su fecha_proxima (también las de días en que el job no corrió),
+ * cada una con la mascota bloqueada, como al escribir. Idempotente: dos instancias se
+ * esperan en el bloqueo y la segunda no cambia nada. Devuelve cuántas mascotas revisó.
+ */
+export const refrescarEstados = async ({ ahora = new Date() } = {}) => {
+  const hoy = hoyISO(ahora);
+  const ids = await vacunaRepo.findMascotasConEstadoDesactualizado(hoy, await diasAvisoVacuna());
+  for (const id_mascota of ids) {
+    try {
+      await withTransaction(async (conn) => {
+        await vacunaRepo.lockMascota(id_mascota, conn);
+        await guardarEstados(id_mascota, conn, hoy);
+      });
+    } catch (err) {
+      console.error(`[vacunas] No se pudo refrescar el estado de la mascota ${id_mascota}:`, err.message);
+    }
+  }
+  return ids.length;
 };
 
 /** fecha_proxima debe ser posterior a fecha_aplicacion. */
@@ -199,6 +222,10 @@ export const actualizarVacuna = async (id_vacuna, data, acceso) => {
       fecha_proxima: data.fecha_proxima !== undefined ? data.fecha_proxima : actual.fecha_proxima,
     });
     await vacunaRepo.update(id_vacuna, data, conn);
+    // Con otra fecha_proxima, los recordatorios de la vacuna (-7, 0, +7) vuelven a empezar.
+    if (data.fecha_proxima !== undefined && data.fecha_proxima !== actual.fecha_proxima) {
+      await vacunaRepo.reiniciarHitos(id_vacuna, conn);
+    }
     await guardarEstados(vacuna.id_mascota, conn);
     return vacuna.id_mascota;
   });

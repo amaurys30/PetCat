@@ -20,7 +20,7 @@ const router = express.Router();
  *         id_negocio: { type: integer, nullable: true }
  *         tipo:
  *           type: string
- *           enum: [cita_nueva, cita_agendada, cita_confirmada, cita_cancelada, cita_reprogramada, cita_dia_anterior, cita_recordatorio, plan_limite_alcanzado, plan_limite_80]
+ *           enum: [cita_nueva, cita_agendada, cita_confirmada, cita_cancelada, cita_reprogramada, cita_dia_anterior, cita_recordatorio, vacuna_proxima, vacuna_vence_hoy, vacuna_vencida, plan_limite_alcanzado, plan_limite_80]
  *         titulo: { type: string, example: Cita cancelada }
  *         mensaje: { type: string, description: El detalle (solo se ve con la sesión iniciada) }
  *         datos:

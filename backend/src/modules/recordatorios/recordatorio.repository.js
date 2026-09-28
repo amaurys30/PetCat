@@ -64,3 +64,63 @@ export const registrarFallo = async (id_recordatorio, mensaje, maxIntentos) => {
 export const marcarCitaRecordada = async (id_cita, conn) => {
   await conn.query("UPDATE citas SET recordatorio_enviado = TRUE WHERE id_cita = ?", [id_cita]);
 };
+
+// ---------- Vacunas ----------
+
+/**
+ * Vacunas con un hito que toca hoy y aún no se avisó: `fecha_proxima + hito` entre hoy
+ * menos `gracia` días y hoy. Solo dosis no reemplazadas, de mascotas activas y vivas con
+ * dueño activo. `hitos` son constantes del código (no datos del usuario).
+ */
+export const findHitosVacunasPendientes = async ({ hoy, hitos, gracia, limite }) => {
+  const tablaHitos = hitos.map(() => "SELECT ? AS hito").join(" UNION ALL ");
+  const [rows] = await db.query(
+    `SELECT v.id_vacuna, v.id_mascota, h.hito
+     FROM vacunas v
+     JOIN (${tablaHitos}) h
+       ON v.fecha_proxima BETWEEN ? - INTERVAL (h.hito + ?) DAY AND ? - INTERVAL h.hito DAY
+     JOIN mascotas m ON m.id_mascota = v.id_mascota AND m.activo = TRUE AND m.fallecido = FALSE
+     JOIN usuarios u ON u.id_usuario = m.id_usuario AND u.activo = TRUE
+     WHERE v.estado <> 'no_aplica'
+       AND NOT EXISTS (SELECT 1 FROM recordatorios r WHERE r.id_vacuna = v.id_vacuna AND r.hito = h.hito)
+     ORDER BY v.fecha_proxima, v.id_vacuna
+     LIMIT ?`,
+    [...hitos, hoy, gracia, hoy, limite]
+  );
+  return rows;
+};
+
+/**
+ * Bloquea la mascota (el orden de toda su salud: mascota y luego vacunas) y devuelve su
+ * dueño y si puede recibir avisos.
+ */
+export const lockMascotaParaAviso = async (id_mascota, conn) => {
+  const [rows] = await conn.query(
+    `SELECT m.id_mascota, m.nombre, m.id_usuario, m.activo, m.fallecido, u.activo AS usuario_activo
+     FROM mascotas m JOIN usuarios u ON u.id_usuario = m.id_usuario
+     WHERE m.id_mascota = ? FOR UPDATE OF m`,
+    [id_mascota]
+  );
+  return rows[0] ?? null;
+};
+
+/**
+ * Marca el hito de la vacuna como avisado. La clave única (id_vacuna, hito) hace que solo
+ * una transacción lo inserte: devuelve false si ya existía. (No se usa ON DUPLICATE KEY:
+ * mysql2 activa CLIENT_FOUND_ROWS y un duplicado también contaría una fila afectada.)
+ * El error de duplicado deshace solo la sentencia, no la transacción.
+ */
+export const insertHitoVacuna = async ({ id_usuario, id_mascota, id_vacuna, hito, tipo, titulo, mensaje, fecha }, conn) => {
+  try {
+    await conn.query(
+      `INSERT INTO recordatorios (id_usuario, id_mascota, id_vacuna, hito, tipo, titulo, mensaje, canal, estado,
+                                  fecha_programada, fecha_envio, intentos)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'push', 'enviado', ?, ?, 1)`,
+      [id_usuario, id_mascota, id_vacuna, hito, tipo, titulo, mensaje, fecha, fecha]
+    );
+    return true;
+  } catch (err) {
+    if (err.code === "ER_DUP_ENTRY") return false;
+    throw err;
+  }
+};

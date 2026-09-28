@@ -48,6 +48,13 @@ const correoCitaDueno = (d, primero, indicaciones = null) => [
   "Si tienes preguntas o no puedes asistir, comunícate con el negocio.",
 ];
 
+/** Párrafos de correo de un recordatorio de vacuna (sin mascota ni vacuna, como la push). */
+const correoVacuna = (primero) => [
+  primero,
+  "Agenda la aplicación con tu veterinaria para mantener su protección al día.",
+  "El detalle está en el carnet de vacunas de la app PetCat.",
+];
+
 const urgentePorCita = (d, fin) =>
   citaCercana(fin, inicioDeCita(d.fecha, d.hora_inicio), d.fecha_anterior && inicioDeCita(d.fecha_anterior, d.hora_anterior));
 
@@ -160,6 +167,44 @@ export const TIPOS = {
       correo: {
         asunto: `Tu cita en ${d.negocio} es hoy`,
         parrafos: correoCitaDueno(d, "Te recordamos tu cita de hoy."),
+      },
+    }),
+  },
+
+  // Recordatorios de vacunas (job diario, hitos -7, 0 y +7 días respecto a fecha_proxima).
+  // La push y el correo no llevan mascota ni vacuna; el detalle está en la app.
+  vacuna_proxima: {
+    correo: ["dueno"],
+    contenido: (d) => ({
+      titulo: "Vacuna próxima",
+      push: "Una vacuna de tu mascota vence en una semana. Abre PetCat para ver el carnet.",
+      mensaje: `La vacuna ${d.vacuna} de ${d.mascota} vence el ${fechaLegible(d.fecha_proxima)}. Agenda la aplicación con tu veterinaria.`,
+      correo: {
+        asunto: "Una vacuna de tu mascota vence pronto",
+        parrafos: correoVacuna(`Una vacuna de tu mascota vence el ${fechaLegible(d.fecha_proxima)}.`),
+      },
+    }),
+  },
+
+  vacuna_vence_hoy: {
+    correo: ["dueno"],
+    contenido: (d) => ({
+      titulo: "Vacuna para hoy",
+      push: "Hoy vence una vacuna de tu mascota. Abre PetCat para ver el carnet.",
+      mensaje: `Hoy vence la vacuna ${d.vacuna} de ${d.mascota}. Agenda la aplicación con tu veterinaria.`,
+      correo: { asunto: "Hoy vence una vacuna de tu mascota", parrafos: correoVacuna("Hoy vence una vacuna de tu mascota.") },
+    }),
+  },
+
+  vacuna_vencida: {
+    correo: ["dueno"],
+    contenido: (d) => ({
+      titulo: "Vacuna vencida",
+      push: "Una vacuna de tu mascota venció hace una semana. Abre PetCat para ver el carnet.",
+      mensaje: `La vacuna ${d.vacuna} de ${d.mascota} venció el ${fechaLegible(d.fecha_proxima)}. Aplicarla pronto mantiene su protección.`,
+      correo: {
+        asunto: "Una vacuna de tu mascota está vencida",
+        parrafos: correoVacuna(`Una vacuna de tu mascota venció el ${fechaLegible(d.fecha_proxima)}.`),
       },
     }),
   },

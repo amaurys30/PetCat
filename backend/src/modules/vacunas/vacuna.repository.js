@@ -77,6 +77,31 @@ export const guardarEstados = async (cambios, conn) => {
   }
 };
 
+/**
+ * Mascotas con alguna vacuna vigente cuyo estado guardado no corresponde a su fecha_proxima
+ * hoy (misma regla que calcularEstados; `no_aplica` solo cambia al escribir).
+ */
+export const findMascotasConEstadoDesactualizado = async (hoy, diasAviso) => {
+  const [rows] = await db.query(
+    `SELECT DISTINCT id_mascota FROM vacunas
+     WHERE estado <> 'no_aplica'
+       AND estado <> CASE
+         WHEN fecha_proxima IS NULL THEN 'al_dia'
+         WHEN fecha_proxima < ? THEN 'vencido'
+         WHEN fecha_proxima <= ? + INTERVAL ? DAY THEN 'proximo'
+         ELSE 'al_dia'
+       END
+     ORDER BY id_mascota`,
+    [hoy, hoy, diasAviso]
+  );
+  return rows.map((row) => row.id_mascota);
+};
+
+/** Borra las marcas de los recordatorios por hitos de la vacuna (cambió su fecha_proxima). */
+export const reiniciarHitos = async (id_vacuna, conn) => {
+  await conn.query("DELETE FROM recordatorios WHERE id_vacuna = ? AND hito IS NOT NULL", [id_vacuna]);
+};
+
 /** Registro de historial de ese negocio y esa mascota (para ligar la vacuna). */
 export const historialDelNegocio = async (id_historial, id_negocio, id_mascota, conn) => {
   const [rows] = await (conn ?? db).query(

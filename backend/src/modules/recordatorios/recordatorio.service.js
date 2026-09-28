@@ -1,5 +1,8 @@
 import * as recordatorioRepo from "./recordatorio.repository.js";
+import * as vacunaRepo from "../vacunas/vacuna.repository.js";
 import { eventoCita } from "../citas/cita.avisos.js";
+import { calcularEstados, diasEntre } from "../vacunas/vacuna.calculo.js";
+import { diasAvisoVacuna } from "../vacunas/vacuna.service.js";
 import { conNotificaciones, configSilencio } from "../notificaciones/notificacion.service.js";
 import { enSilencio, inicioDeCita } from "../notificaciones/silencio.js";
 import { aDatetimeSQL, hoyISO } from "../../shared/utils/fechas.js";
@@ -74,6 +77,91 @@ export const enviarRecordatoriosCitas = async ({ ahora = new Date(), limite = 20
     } catch (err) {
       console.error(`[recordatorios] Falló el recordatorio ${recordatorio.id_recordatorio}:`, err.message);
       await recordatorioRepo.registrarFallo(recordatorio.id_recordatorio, err.message, MAX_INTENTOS);
+    }
+  }
+  return enviados;
+};
+
+// ---------- Vacunas ----------
+
+/**
+ * Hitos de los recordatorios de vacunas, en días respecto a fecha_proxima (fijos en el
+ * código). `tipo` es el de la tabla recordatorios; `notificacion`, el del catálogo.
+ */
+export const HITOS_VACUNA = [
+  { hito: -7, tipo: "vacuna_proxima", notificacion: "vacuna_proxima", titulo: "Vacuna próxima" },
+  { hito: 0, tipo: "vacuna_proxima", notificacion: "vacuna_vence_hoy", titulo: "Vacuna para hoy" },
+  { hito: 7, tipo: "vacuna_vencida", notificacion: "vacuna_vencida", titulo: "Vacuna vencida" },
+];
+// Días después del hito en que aún se envía (cubre una ejecución perdida, sin avisos retroactivos).
+const GRACIA_DIAS = 2;
+
+/**
+ * Un hito de una vacuna en su propia transacción: bloquea la mascota, comprueba que la
+ * mascota y el dueño sigan activos, que la dosis siga vigente y que el hito siga tocando
+ * (la fecha pudo cambiar), y marca el hito con la clave única antes de notificar. Con dos
+ * instancias, solo la que inserta la marca avisa. Devuelve true si notificó.
+ */
+const procesarHitoVacuna = ({ id_vacuna, id_mascota, hito }, { ahora, hoy, dias }) =>
+  conNotificaciones(
+    async (conn, notificar) => {
+      const mascota = await recordatorioRepo.lockMascotaParaAviso(id_mascota, conn);
+      if (!mascota?.activo || mascota.fallecido || !mascota.usuario_activo) return false;
+      const vacunas = await vacunaRepo.findDeMascota(id_mascota, conn);
+      const vacuna = vacunas.find((v) => v.id_vacuna === id_vacuna);
+      if (!vacuna?.fecha_proxima || calcularEstados(vacunas, hoy, dias).get(id_vacuna) === "no_aplica") return false;
+      const atraso = diasEntre(vacuna.fecha_proxima, hoy) - hito;
+      if (atraso < 0 || atraso > GRACIA_DIAS) return false;
+
+      const { tipo, notificacion, titulo } = HITOS_VACUNA.find((h) => h.hito === hito);
+      const marcado = await recordatorioRepo.insertHitoVacuna(
+        {
+          id_usuario: mascota.id_usuario,
+          id_mascota,
+          id_vacuna,
+          hito,
+          tipo,
+          titulo,
+          mensaje: `${vacuna.nombre_vacuna} de ${mascota.nombre}: fecha próxima ${vacuna.fecha_proxima}`,
+          fecha: aDatetimeSQL(ahora),
+        },
+        conn
+      );
+      if (!marcado) return false;
+      await notificar([
+        {
+          tipo: notificacion,
+          datos: { mascota: mascota.nombre, vacuna: vacuna.nombre_vacuna, fecha_proxima: vacuna.fecha_proxima },
+          enlace: { id_mascota, id_vacuna },
+          destinatarios: [{ id_usuario: mascota.id_usuario, rol: "dueno" }],
+        },
+      ]);
+      return true;
+    },
+    { ahora }
+  );
+
+/**
+ * Job diario (09:00, fuera del horario de silencio): recordatorios de vacunas 7 días antes
+ * de fecha_proxima, el día y 7 días después, una vez cada uno; nunca un aviso diario. Un
+ * error no deja marca: se reintenta en la siguiente corrida mientras dure la gracia.
+ * Devuelve cuántos notificó.
+ */
+export const enviarRecordatoriosVacunas = async ({ ahora = new Date(), limite = 500 } = {}) => {
+  const hoy = hoyISO(ahora);
+  const dias = await diasAvisoVacuna();
+  const pendientes = await recordatorioRepo.findHitosVacunasPendientes({
+    hoy,
+    hitos: HITOS_VACUNA.map((h) => h.hito),
+    gracia: GRACIA_DIAS,
+    limite,
+  });
+  let enviados = 0;
+  for (const pendiente of pendientes) {
+    try {
+      if (await procesarHitoVacuna(pendiente, { ahora, hoy, dias })) enviados += 1;
+    } catch (err) {
+      console.error(`[recordatorios] Falló el hito ${pendiente.hito} de la vacuna ${pendiente.id_vacuna}:`, err.message);
     }
   }
   return enviados;
