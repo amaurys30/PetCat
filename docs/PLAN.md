@@ -141,7 +141,11 @@ En tres partes: **1.5.1** horarios libres, reservas y clientes del panel · **1.
 
 ### Cierre de la Fase 1
 - [x] Seed de desarrollo ampliado para diseñar con datos realistas: cuatro negocios de distintos tipos en Sincelejo con coordenadas (uno Pro en prueba con dos sedes), clientes con mascotas (incluidos uno sin app, una mascota fallecida y una que no comparte historial), citas en los siete estados, historial médico, vacunas vencidas y próximas, servicios con oferta vigente, vencida y sin oferta, y reseñas. Detalle en `backend/README.md`.
-- [ ] Verificación desde cero, como en la Fase 0.
+- [x] Verificación desde cero, como en la Fase 0. Verificado el 27/09/2026 desde un clon limpio de `fase-1` (26e745f), con un proyecto de compose aparte (otros nombres y puertos):
+  - MySQL y backend healthy; esquema y seed cargados con tildes correctas; `db:migrate --status` con las 11 migraciones aplicadas y ninguna pendiente.
+  - Prueba de humo sobre el seed: búsqueda geográfica (4 negocios, el destacado primero), servicios en oferta vigente, login de los 11 usuarios, citas y resumen de salud de la dueña, agenda de hoy con la cita en curso, cita fuera de disponibilidad, clientes con inasistencias, horarios libres, reserva y cancelación desde la app, y rechazo de la mascota fallecida.
+  - Swagger con 65 rutas y 89 operaciones (las mismas que registran los routers), todas con resumen y respuestas y sin referencias rotas.
+  - La suite (507 tests) pasa en el clon contra un MySQL 8 nuevo con los mismos pasos del workflow de CI.
 - [ ] PR de `fase-1` a `main` con el resumen de la fase y la guía para actualizar un entorno existente.
 
 ---
@@ -186,7 +190,7 @@ En tres partes: **1.5.1** horarios libres, reservas y clientes del panel · **1.
 
 ### Decisiones de 0.C (septiembre 2026)
 - Base de tests: `petcat_test` se borra y recrea en cada corrida cargando `database/petcat.sql` con un cargador en Node (entiende `DELIMITER`). Cada test crea sus propios datos con emails únicos; no se limpia entre tests. El seed de desarrollo también se carga y se prueba en `petcat_test`.
-- Seed: `database/seeds/dev_seed.sql`, contraseña común `Petcat123!`. En volúmenes nuevos compose lo ejecuta después del esquema (`01_petcat.sql`, `02_dev_seed.sql`). `npm run db:reset -- --yes` recrea `petcat_db` con esquema y seed (se niega en producción y sin `--yes`). Desde el cierre de la Fase 1 las fechas del seed (citas, vacunas, historial, ofertas, vacaciones) son relativas a `CURDATE()`: cada `db:reset` deja la agenda vigente. Los tests de `tests/base/seed.test.js` comprueban esos datos a través de la API (búsqueda, perfil, clientes, agenda y resumen de salud).
+- Seed: `database/seeds/dev_seed.sql`, contraseña común `Petcat123!`. En volúmenes nuevos compose lo ejecuta después del esquema (`01_petcat.sql`, `02_dev_seed.sql`). `npm run db:reset -- --yes` recrea `petcat_db` con esquema y seed (se niega en producción y sin `--yes`). Desde el cierre de la Fase 1 las fechas del seed (citas, vacunas, historial, ofertas, vacaciones) son relativas a `CURDATE()`: cada `db:reset` deja la agenda vigente. Los tests de `tests/base/seed.test.js` comprueban esos datos a través de la API (perfil público, clientes, agenda y resumen de salud).
 - Sesiones: se guarda el hash SHA-256 del access token y del refresh token, no los tokens en claro. La sesión dura lo mismo que el refresh token.
 - Login: 5 intentos fallidos seguidos bloquean la cuenta 15 minutos (`intentos_login`, `bloqueado_hasta`). Un login correcto reinicia el contador. Mismo mensaje "Credenciales inválidas" si el email no existe o la contraseña es errónea (con comparación contra un hash ficticio para no delatar emails). Cuenta inactiva o bloqueada: 403.
 - Respuesta del login y de aceptar invitación: `data: { access_token, refresh_token, usuario }` (snake_case, como el resto de campos).
