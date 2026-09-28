@@ -229,7 +229,8 @@ router.post(
  *     description: >
  *       La vacuna que registró el dueño solo la edita el dueño; la que registró un negocio, solo ese negocio
  *       (`vacunas.editar`). El dueño no puede enviar `id_empleado` ni `id_historial_medico`. Recalcula el estado
- *       de todas las vacunas de la mascota.
+ *       de todas las vacunas de la mascota. Si cambia `fecha_proxima`, los recordatorios al dueño (7 días antes,
+ *       el día y 7 días después) vuelven a empezar con la fecha nueva.
  *     tags: [Vacunas]
  *     parameters:
  *       - { in: path, name: id_vacuna, required: true, schema: { type: integer } }
