@@ -95,6 +95,9 @@ Hay tres archivos, ninguno se sube al repositorio (solo sus plantillas `.example
 | `SMTP_TIMEOUT_MS` | | `10000` | Tiempo máximo del SMTP; si se supera, el envío responde 503 |
 | `MAIL_FROM` | | `PetCat <no-reply@petcat.co>` | Remitente de los correos |
 | `AUTH_RATE_LIMIT_MAX` | | 10 en producción, 100 en desarrollo | Máximo cada 15 min por IP en login, forgot-password, reset-password, verify-email, resend-verification e invitaciones |
+| `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | En producción | | Credenciales de Cloudinary (las tres juntas). En desarrollo, sin ellas la API funciona pero las subidas de archivos responden 503. Los tests no las usan |
+| `CLOUDINARY_FOLDER` | | `petcat-dev` | Carpeta raíz en Cloudinary, una por entorno (`petcat-prod` en producción) |
+| `ARCHIVOS_URL_VIGENCIA_MIN` | | `15` | Minutos de vigencia de las URLs firmadas de archivos privados |
 
 Cada variable nueva se agrega también a `backend/.env.example`.
 
@@ -353,6 +356,28 @@ La sección de clientes del panel usa `GET /negocios/:id_negocio/clientes` (con 
 - En la app, los servicios no reservables se muestran igual con `reservable: false` (deshabilitar el botón de reservar). `precio_actual` ya tiene en cuenta la oferta vigente.
 - `GET /negocios` y `GET /servicios` aceptan `lat`, `lng` y `radio_km` (por defecto 10 km, máximo 50). **Con coordenadas, los negocios que no tienen coordenadas en ninguna sucursal activa ni en el negocio quedan fuera de los resultados.** El panel debería pedir la ubicación al crear una sucursal y avisar al negocio si ninguna la tiene, porque sin ella no aparece en "cerca de mí". La distancia (`distancia_km`) es la de la sucursal más cercana (`sucursal_cercana`).
 - Los textos de búsqueda (`q`) no distinguen tildes ni mayúsculas: "bano" encuentra "Baño".
+
+### Archivos e imágenes
+
+Las fotos, logos, banners, comprobantes de vacunas y archivos del historial se suben a la API como `multipart/form-data` (nunca como URL en el JSON). La API valida el tipo real por el contenido, quita los metadatos de las imágenes (incluida la ubicación GPS de la cámara) y las guarda en Cloudinary. Las rutas quedan en Swagger al terminar la 2.2.
+
+- **Tipos:** JPEG, PNG o WebP; PDF solo en comprobantes y archivos del historial. Máximo 5 MB (fotos y logo), 8 MB (banner) y 10 MB (comprobantes e historial, hasta 5 archivos por envío). Un archivo inválido responde 422 con el detalle en `errors.archivo`.
+- **Fotos del iPhone (HEIC) — app móvil:** la API **no acepta HEIC/HEIF** (422). La app debe convertir la imagen a JPEG antes de subirla, por ejemplo con `expo-image-manipulator`, que además sirve para reducirla y ahorrar datos:
+
+  ```js
+  import * as ImageManipulator from "expo-image-manipulator";
+
+  const { uri } = await ImageManipulator.manipulateAsync(
+    asset.uri,
+    [{ resize: { width: 2048 } }],            // la API no guarda más de 2048 px
+    { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
+  );
+  const form = new FormData();
+  form.append("foto", { uri, name: "foto.jpg", type: "image/jpeg" });
+  ```
+- **Imágenes públicas** (fotos de usuario, mascota y empleado, logo y banner): los campos `*_url` traen la versión mediana (800 px) y `*_miniatura_url` una miniatura cuadrada de 200 px para listas y avatares. Se sirven por la CDN y no vencen.
+- **Archivos privados** (historial y comprobantes): llegan dentro del registro como `{ id_archivo, tipo, nombre, bytes, url, url_expira_en }`. La `url` es **firmada y vence** a los 15 minutos (`url_expira_en`, ISO 8601). No se guarda: cuando vence (o si al abrirla responde 401/403/404), la app vuelve a pedir el registro (por ejemplo `GET /mascotas/:id_mascota/historial` o `/vacunas`) y usa la URL nueva. Conviene pedirlo justo antes de abrir el archivo si la pantalla lleva un rato abierta. Solo recibe la URL quien puede ver ese registro.
+- Reemplazar una imagen borra la anterior. Eliminar una mascota no borra sus archivos (el borrado es lógico).
 
 ### Usuarios de prueba
 

@@ -24,6 +24,8 @@ export default defineConfig({
     env: {
       ...parse(readFileSync(envTestPath)),
       NODE_ENV: "test",
+      // Los archivos van a un almacenamiento en memoria (shared/utils/storage.js), nunca a Cloudinary.
+      CLOUDINARY_FOLDER: "petcat-test",
     },
     // Todos los archivos comparten la base petcat_test: se ejecutan uno a la vez.
     fileParallelism: false,

@@ -161,7 +161,10 @@ Se hace en sub-bloques que se aprueban por separado: **2.1** planes y suscripcio
 - [x] `checkPlanLimit` para sucursales y empleados; límite de citas del mes en la reserva (app y panel), la reprogramación y los horarios libres. Listo para productos (Fase 3).
 
 ### 2.2 Uploads con Cloudinary
-- [ ] `shared/utils/uploads.js` (multer en memoria, tipo y tamaño) y endpoints para foto de usuario, foto de mascota, logo y banner del negocio, comprobante de vacuna y archivos del historial. Reemplazar borra la imagen anterior. Doble de prueba de Cloudinary en los tests.
+- [x] Migración `012_archivos.sql` (tabla `archivos`), almacenamiento (Cloudinary y en memoria para los tests), validación del tipo real, límites de tamaño y procesamiento de imágenes sin metadatos.
+- [ ] Imágenes públicas con versiones `miniatura` y `media`: `PUT|DELETE /auth/me/foto`, `/mascotas/:id_mascota/foto`, `/empleados/:id_empleado/foto`, `/negocios/:id_negocio/logo` y `/banner`. Las URLs salen de los bodies JSON.
+- [ ] Archivos privados con URLs firmadas que vencen: `PUT|DELETE /vacunas/:id_vacuna/comprobante`, `POST /historial/:id_historial/archivos` y `DELETE /historial/:id_historial/archivos/:id_archivo`.
+- [x] README (sección para la app): convertir HEIC a JPEG antes de subir y volver a pedir el registro cuando vence la URL firmada.
 
 ### 2.3 Notificaciones
 - [ ] Migración de tokens de Expo por dispositivo; `POST|DELETE /dispositivos` (el logout borra el token del dispositivo).
@@ -174,6 +177,7 @@ Se hace en sub-bloques que se aprueban por separado: **2.1** planes y suscripcio
 - [ ] Envío de recordatorios pendientes (push o correo, reintentos y `fallido`); migración para que el trigger de citas no use el canal `whatsapp`.
 - [ ] Recordatorios de vacunas próximas o vencidas y refresco de `vacunas.estado`.
 - [ ] Vencimiento de pruebas y planes pagos, y limpieza de sesiones expiradas.
+- [ ] Reintento del borrado en Cloudinary de los archivos `por_eliminar` (2.2).
 
 ### 2.5 Confirmación y cancelación automáticas
 - [ ] Migración: `negocios.confirmacion_automatica` y clave de plazo en `configuracion_global`.
@@ -192,6 +196,9 @@ Se hace en sub-bloques que se aprueban por separado: **2.1** planes y suscripcio
 - [ ] Seed ampliado: notificaciones, reseñas con respuesta y reportadas, dispositivos de ejemplo y un negocio Gratuito cerca de sus límites.
 - [ ] Verificación desde cero, como en las fases anteriores.
 - [ ] PR de `fase-2` a `main`.
+
+## Requisitos antes de lanzar con usuarios reales
+- [ ] Supresión de datos (Ley 1581 de 2012): que el titular pueda pedir la supresión de su cuenta y sus datos, incluido el **borrado físico** de sus archivos en Cloudinary (fotos, comprobantes y, según lo que exija la conservación de la historia clínica, los archivos del historial) y la revocación de su autorización (`autorizaciones_datos.revocada_en`). Hasta entonces el borrado de mascotas y cuentas es lógico y los archivos se conservan (decisión de la 2.2).
 
 ## Fase 3 — Inventario, compras y pagos
 - [ ] Productos y categorías; movimientos de inventario (el trigger actualiza el stock); alertas de stock bajo y de vencimiento.
@@ -420,3 +427,14 @@ Se hace en sub-bloques que se aprueban por separado: **2.1** planes y suscripcio
 - Avisos al negocio (se envían desde la 2.3): reserva rechazada por el límite, como máximo uno por negocio y día; 80 % del límite de citas del mes, uno por negocio y mes (la reserva que cruza el umbral). Se deduplican consultando `notificaciones` por tipo.
 - Implementación: `suscripcion.service` (`getPlanEfectivo`, `verificarLimite`, `bloquearYVerificarLimite`, `getLimiteCitasMes`, `cruzaUmbralAviso`) y el middleware `checkPlanLimit` en `shared/middlewares/planLimit.middleware.js`. Las suscripciones se bloquean con una lectura `FOR UPDATE` por `id_negocio` sin JOIN (no se bloquea la fila del plan, que comparten todos los negocios); es una lectura con bloqueo, así que no fija la foto de la transacción. Con plan ilimitado la reserva no bloquea las suscripciones.
 - En horarios libres y reservas, el límite del plan se evalúa después de "el servicio no se ofrece ese día" y antes de los cupos del servicio. El error de una reserva rechazada por el límite lleva `limitePlan` (`id_negocio`, `mes`, `maximo`, `usadas`) para el aviso de la 2.3; el cruce del 80 % se calcula con `cruzaUmbralAviso`.
+
+**Uploads (2.2)**
+- Visibilidad: fotos de usuario, mascota y empleado, logo y banner son públicas (`upload` en Cloudinary) y se sirven por la CDN. Los archivos del historial y los comprobantes de vacunas son privados (`authenticated`) y se entregan con URLs firmadas que vencen (`private_download_url` con `expires_at`, disponible en el plan gratuito; no pasa por la CDN), generadas en cada lectura solo para quien puede ver el registro. Vigencia: `ARCHIVOS_URL_VIGENCIA_MIN` (15 minutos).
+- Tipo real por contenido (`file-type`), sin confiar en la extensión ni en el `Content-Type`: JPEG, PNG y WebP; PDF solo en historial y comprobantes. Sin SVG ni GIF. HEIC se rechaza: la app lo convierte a JPEG antes de subir.
+- Toda imagen pasa por `sharp`: orientación EXIF aplicada, máximo 2048 px, máximo 40 megapíxeles de entrada y nueva codificación sin metadatos (EXIF, GPS, XMP). Públicas en WebP, médicas en JPEG. Los PDF no se reescriben (pueden conservar metadatos de autor o software).
+- Límites: fotos y logo 5 MB, banner 8 MB, historial y comprobantes 10 MB; hasta 5 archivos por solicitud y 10 por registro del historial. Errores de archivo: 422 en `errors.archivo` (no se usa 413).
+- Tabla `archivos` (migración 012): cada subida con su `public_id`, entidad, quién la subió y `estado` (`activo`, `por_eliminar`, `eliminado`). Las columnas `*_url` se mantienen para las consultas de listas.
+- Reemplazar o eliminar: la columna se actualiza en una transacción que marca el anterior `por_eliminar`; después del commit se borra de Cloudinary y queda `eliminado`. Si el borrado falla queda `por_eliminar` y lo reintenta un job de la 2.4. Si la transacción falla tras subir, se borra la subida nueva.
+- Mascota eliminada o fallecida, empleado desactivado o negocio inactivo: no se borra ningún archivo (borrado lógico). El borrado físico llega con la supresión de datos, requisito antes de lanzar.
+- Las URLs ya guardadas (p. ej. la del seed) se leen como `{ url, externo: true }`.
+- Cloudinary: carpeta por entorno (`CLOUDINARY_FOLDER`, p. ej. `petcat-dev`), `public_id` aleatorio (el nombre original solo en la base). Sin credenciales, las subidas dan 503 en desarrollo; en producción son obligatorias. Los tests usan un almacenamiento en memoria.
