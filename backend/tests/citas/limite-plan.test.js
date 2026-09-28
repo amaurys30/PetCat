@@ -204,7 +204,7 @@ describe("errorLimiteCitas", () => {
     const limite = { plan: { nombre: "Gratuito" }, maximo: 30, usadas: 30 };
     const app = errorLimiteCitas("app", limite, "2026-10-05", 7);
     expect(app.status).toBe(409);
-    expect(app.limitePlan).toEqual({ id_negocio: 7, recurso: "citas_mes", mes: "2026-10", maximo: 30, usadas: 30 });
+    expect(app.limitePlan).toEqual({ id_negocio: 7, recurso: "citas_mes", mes: "2026-10", maximo: 30, usadas: 30, plan: "Gratuito" });
     expect(errorLimiteCitas("panel", limite, "2026-10-05", 7).status).toBe(403);
   });
 });

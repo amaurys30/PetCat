@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { spawn } from "node:child_process";
 import { pool } from "../../src/config/db.js";
 import { pushSender } from "../../src/shared/utils/push.js";
@@ -6,8 +6,9 @@ import { withTransaction } from "../../src/shared/utils/transaction.js";
 import { aDatetimeSQL } from "../../src/shared/utils/fechas.js";
 import { notificar, procesarEnviosPendientes } from "../../src/modules/notificaciones/notificacion.service.js";
 import { reclamarEnvio } from "../../src/modules/notificaciones/notificacion.repository.js";
-import { crearDispositivo, crearUsuario } from "../helpers/factories.js";
+import { configurarSilencio, crearDispositivo, crearUsuario } from "../helpers/factories.js";
 
+beforeEach(() => configurarSilencio("21:00", "07:00"));
 afterEach(() => pushSender.reiniciar());
 
 // Fechas propias de este archivo para no cruzarse con envíos de otros tests.

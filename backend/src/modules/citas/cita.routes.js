@@ -196,6 +196,9 @@ router.get("/citas/horarios-libres", validate({ query: horariosLibresQuery }), c
  *       bloqueados): si otra reserva lo tomó antes, 409. La cita queda `pendiente` hasta que el negocio
  *       la confirme. El email sin verificar no impide reservar. Si el negocio alcanzó el límite de citas
  *       del mes de su plan, 409 con el mismo mensaje de horario no disponible (la app no ve el plan).
+ *       Avisos: `cita_nueva` al personal con `citas.ver` y al propietario; `plan_limite_80` si la reserva
+ *       cruza el 80 % del límite (una vez al mes) y `plan_limite_alcanzado` si se rechaza por el límite
+ *       (una vez al día), al propietario y a quien tiene `configuracion.editar`.
  *     tags: [Citas]
  *     requestBody:
  *       required: true
@@ -368,6 +371,7 @@ router.get(
  *       en_curso → completada (con `precio_final`, por defecto el estimado; suma al total de citas del
  *       negocio); no_asistio → en_curso solo el mismo día (el cliente llegó tarde). completada, cancelada y
  *       reprogramada son finales. Para cancelar o reprogramar hay endpoints propios. Queda en el historial.
+ *       Al confirmar se avisa al dueño (`cita_confirmada`).
  *     tags: [Citas]
  *     parameters:
  *       - { in: path, name: id_cita, required: true, schema: { type: integer } }
@@ -408,7 +412,8 @@ router.patch(
  *       Solo citas pendientes o confirmadas. El dueño puede cancelar siempre que la cita no haya empezado
  *       (409 después); si faltan menos de `antelacion_cancelacion_app_h` (2) horas queda como cancelación
  *       tardía, que el panel ve. El negocio (`citas.cancelar`) exige motivo. Se guarda quién canceló y
- *       cuándo, y se cancelan los recordatorios pendientes.
+ *       cuándo, y se cancelan los recordatorios pendientes. Aviso `cita_cancelada` a la otra parte: al
+ *       personal con `citas.ver` y al propietario si cancela el dueño; al dueño si cancela el negocio.
  *     tags: [Citas]
  *     parameters:
  *       - { in: path, name: id_cita, required: true, schema: { type: integer } }
@@ -450,7 +455,8 @@ router.post(
  *       `confirmada`. Conserva servicio, mascota, precio estimado, origen, notas y prioridad; por defecto la
  *       misma sucursal. Una mascota fallecida no se reprograma (409). La nueva cita cuenta para el límite de
  *       citas del mes del plan (la original deja de contar): si el mes nuevo está lleno, el dueño recibe el
- *       409 de horario no disponible y el negocio 403 con `errors.plan`.
+ *       409 de horario no disponible y el negocio 403 con `errors.plan`. Aviso `cita_reprogramada` (con la
+ *       fecha anterior) a la otra parte, como en la cancelación.
  *     tags: [Citas]
  *     parameters:
  *       - { in: path, name: id_cita, required: true, schema: { type: integer } }
@@ -678,6 +684,8 @@ router.get(
  *       recién registrado) y su mascota. Mismas reglas que la app, con las diferencias del panel (servicios
  *       ocultos, sin antelación mínima). La cita queda `confirmada` y se programa su recordatorio.
  *       403 con `errors.plan` si el negocio alcanzó el límite de citas del mes de la cita en su plan.
+ *       Avisa al dueño (`cita_agendada`, por correo si no tiene la app) y, como la reserva de la app,
+ *       `plan_limite_80` y `plan_limite_alcanzado` al negocio.
  *     tags: [Citas]
  *     parameters:
  *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }

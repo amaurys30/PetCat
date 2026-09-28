@@ -7,7 +7,8 @@ import * as suscripcionRepo from "../suscripciones/suscripcion.repository.js";
 import { errorLimiteCitas, getLimiteCitasMes, motivoLimiteCitas } from "../suscripciones/suscripcion.service.js";
 import { combinarHorarios, iniciosLibres } from "./citas.calculo.js";
 import { aHora, aMinutos, calcularDisponibilidad, citaCabe, diaSemana } from "../disponibilidad/disponibilidad.calculo.js";
-import { withTransaction } from "../../shared/utils/transaction.js";
+import { avisarLimiteAlcanzado, eventoCita, eventoUmbralPlan } from "./cita.avisos.js";
+import { conNotificaciones } from "../notificaciones/notificacion.service.js";
 import { hoyISO } from "../../shared/utils/fechas.js";
 import { toNumber } from "../../shared/utils/format.js";
 import { buildMeta } from "../../shared/utils/pagination.js";
@@ -234,9 +235,38 @@ export const formatCita = (row, { conNotasInternas = false } = {}) => ({
  * @param {number} [id_negocio] Negocio del panel
  * @param {object} [reprogramacion] Para reprogramar: `excluirIdCita` (la original no cuenta en los cupos),
  *   `antes(conn)` (bloquea y marca la original; va primero en la transacción), `despues(id, conn)`,
- *   `precio_estimado` y `origen` (los de la original) y `motivoCreacion` (historial de la nueva).
+ *   `precio_estimado` y `origen` (los de la original), `motivoCreacion` (historial de la nueva) y
+ *   `aviso` ({ fecha_anterior, hora_anterior, motivo } para la notificación de reprogramación).
+ * Notifica a la otra parte (2.3) y, si la reserva cruza el 80 % del límite del mes, al negocio.
  */
 export const crearCita = async (canal, datos, actor, id_negocio, reprogramacion) => {
+  try {
+    return await reservar(canal, datos, actor, id_negocio, reprogramacion);
+  } catch (err) {
+    // Reserva rechazada por el límite del plan: se avisa al negocio (una vez al día) y se responde el error.
+    if (err.limitePlan) await avisarLimiteAlcanzado(err.limitePlan, actor);
+    throw err;
+  }
+};
+
+/**
+ * Evento de la cita recién creada: reprogramada (a la otra parte), nueva desde la app (al
+ * negocio) o agendada desde el panel (al dueño).
+ */
+const eventoCreacion = (id_cita, canal, actor, reprogramacion, conn) => {
+  if (reprogramacion) {
+    return eventoCita("cita_reprogramada", id_cita, {
+      para: canal === "app" ? "negocio" : "dueno",
+      actor,
+      extra: reprogramacion.aviso,
+    }, conn);
+  }
+  return canal === "app"
+    ? eventoCita("cita_nueva", id_cita, { para: "negocio", actor }, conn)
+    : eventoCita("cita_agendada", id_cita, { para: "dueno", actor }, conn);
+};
+
+const reservar = async (canal, datos, actor, id_negocio, reprogramacion) => {
   const dia = await prepararDia({ canal, id_negocio, ...datos, excluirIdCita: reprogramacion?.excluirIdCita });
   const inicio = aMinutos(datos.hora_inicio);
   if (inicio % dia.intervalo !== 0) {
@@ -249,7 +279,7 @@ export const crearCita = async (canal, datos, actor, id_negocio, reprogramacion)
   // Con plan ilimitado no se bloquea ni se cuenta: las reservas del negocio no se esperan entre sí.
   const conLimiteCitas = dia.limiteCitas.usadas !== null;
 
-  const id_cita = await withTransaction(async (conn) => {
+  const id_cita = await conNotificaciones(async (conn, notificar) => {
     // Primero todos los bloqueos y después las lecturas: en REPEATABLE READ la primera
     // lectura sin bloqueo fija la foto de la transacción, y debe ser posterior a la
     // espera para ver las citas que otras reservas confirmaron mientras tanto.
@@ -266,9 +296,10 @@ export const crearCita = async (canal, datos, actor, id_negocio, reprogramacion)
     const empleados = dia.empleados.filter((e) => activos.includes(e.id_empleado));
     const mascota = await citaRepo.lockMascota(datos.id_mascota, conn);
 
+    let limite = null;
     if (conLimiteCitas) {
       // La original de una reprogramación ya está marcada como reprogramada: no cuenta.
-      const limite = await getLimiteCitasMes(servicio.id_negocio, datos.fecha, { conn, suscripciones });
+      limite = await getLimiteCitasMes(servicio.id_negocio, datos.fecha, { conn, suscripciones });
       if (limite.alcanzado) throw errorLimiteCitas(canal, limite, datos.fecha, servicio.id_negocio);
     }
     if (servicio.max_citas_dia && (await citaRepo.countCupos(datos, conn)) >= servicio.max_citas_dia) {
@@ -313,6 +344,10 @@ export const crearCita = async (canal, datos, actor, id_negocio, reprogramacion)
     await citaRepo.insertHistorialCreacion({ id_cita: id, actor, estado, motivo: reprogramacion?.motivoCreacion }, conn);
     if (estado === "confirmada") await citaRepo.insertRecordatorioConfirmada(id, conn);
     if (reprogramacion) await reprogramacion.despues(id, conn);
+
+    // Avisos al final de la transacción: se envían solo si la reserva se confirma.
+    const umbral = limite && (await eventoUmbralPlan({ id_negocio: servicio.id_negocio, fecha: datos.fecha, limite, actor }, conn));
+    await notificar([await eventoCreacion(id, canal, actor, reprogramacion, conn), ...(umbral ? [umbral] : [])]);
     return id;
   });
 

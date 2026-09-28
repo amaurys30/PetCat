@@ -4,6 +4,8 @@ import * as configuracionRepo from "../configuracion/configuracion.repository.js
 import { configAgenda, crearCita, evaluarDia, getCita } from "./cita.service.js";
 import { aMinutos } from "../disponibilidad/disponibilidad.calculo.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
+import { eventoCita } from "./cita.avisos.js";
+import { conNotificaciones } from "../notificaciones/notificacion.service.js";
 import { hoyISO } from "../../shared/utils/fechas.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
 
@@ -42,7 +44,7 @@ const invalido = (campo, mensaje) => ApiError.unprocessable("Datos inválidos", 
  * Al completar se guarda precio_final (por defecto el estimado) y suma total_citas.
  */
 export const cambiarEstado = async (id_cita, { estado, motivo, precio_final }, actor, acceso) => {
-  await withTransaction(async (conn) => {
+  await conNotificaciones(async (conn, notificar) => {
     const cita = await citaRepo.lockCita(id_cita, conn);
     const permitidas = TRANSICIONES[cita.estado] ?? [];
     if (!permitidas.includes(estado)) {
@@ -77,6 +79,9 @@ export const cambiarEstado = async (id_cita, { estado, motivo, precio_final }, a
       );
       await citaRepo.incrementTotalCitas(cita.id_negocio, conn);
     }
+    if (estado === "confirmada") {
+      await notificar([await eventoCita("cita_confirmada", id_cita, { para: "dueno", actor }, conn)]);
+    }
   });
   return getCita(id_cita, acceso);
 };
@@ -92,7 +97,7 @@ export const cambiarEstado = async (id_cita, { estado, motivo, precio_final }, a
 export const cancelarCita = async (id_cita, { motivo }, actor, acceso) => {
   const esDueno = acceso.relacion === "dueno";
   const horas = await horasAntelacionApp();
-  await withTransaction(async (conn) => {
+  await conNotificaciones(async (conn, notificar) => {
     const cita = await citaRepo.lockCita(id_cita, conn);
     if (!ACTIVAS.includes(cita.estado)) {
       throw ApiError.conflict(`Solo se cancelan citas pendientes o confirmadas (esta está ${cita.estado})`);
@@ -116,6 +121,14 @@ export const cancelarCita = async (id_cita, { motivo }, actor, acceso) => {
       conn
     );
     await citaRepo.cancelarRecordatoriosPendientes(id_cita, conn);
+    // A la otra parte: si cancela el dueño, al personal del negocio; si cancela el negocio, al dueño.
+    await notificar([
+      await eventoCita("cita_cancelada", id_cita, {
+        para: esDueno ? "negocio" : "dueno",
+        actor,
+        extra: { motivo: motivo ?? null, tardia },
+      }, conn),
+    ]);
   });
   return getCita(id_cita, acceso);
 };
@@ -165,6 +178,7 @@ export const reprogramarCita = async (id_cita, { fecha, hora_inicio, id_empleado
     precio_estimado: original.precio_estimado,
     origen: original.origen,
     motivoCreacion: `Reprogramación de la cita #${id_cita}`,
+    aviso: { fecha_anterior: original.fecha, hora_anterior: original.hora_inicio, motivo: motivo ?? null },
     antes: async (conn) => {
       const cita = await citaRepo.lockCita(id_cita, conn);
       verificarReprogramable(cita, esDueno, horas);

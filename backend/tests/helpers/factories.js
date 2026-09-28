@@ -232,6 +232,17 @@ export const crearResena = async (negocio, overrides = {}) => {
   return findOne("resenas", "id_resena", id);
 };
 
+/**
+ * Horario de silencio de las notificaciones ("HH:MM"). Los tests que esperan envíos
+ * inmediatos lo desactivan (inicio = fin) para no depender de la hora a la que corren.
+ */
+export const configurarSilencio = async (inicio, fin) => {
+  await pool.query("UPDATE configuracion_global SET valor = ? WHERE clave = 'silencio_inicio'", [inicio]);
+  await pool.query("UPDATE configuracion_global SET valor = ? WHERE clave = 'silencio_fin'", [fin]);
+};
+
+export const sinSilencio = () => configurarSilencio("00:00", "00:00");
+
 /** Dispositivo activo del usuario con un token de Expo único (sin sesión). */
 export const crearDispositivo = async (usuario, overrides = {}) => {
   const id = await insert("dispositivos", {

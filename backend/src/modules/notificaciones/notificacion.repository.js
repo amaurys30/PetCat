@@ -43,13 +43,32 @@ export const findDispositivosActivos = async (ids, conn) => {
   return porUsuario;
 };
 
-/** ¿Ya hay una notificación de este tipo para el negocio desde `desde` (deduplicación de avisos)? */
-export const existeDesde = async ({ tipo, id_negocio, desde }, conn) => {
+/**
+ * ¿Ya se avisó al negocio (deduplicación)? Con `desde`, un aviso de ese tipo creado desde
+ * esa fecha y hora; con `mes`, un aviso de ese tipo sobre ese mes (`datos_extra_json.enlace.mes`).
+ */
+export const existeAviso = async ({ tipo, id_negocio, desde, mes }, conn) => {
   const [rows] = await (conn ?? db).query(
-    "SELECT 1 FROM notificaciones WHERE tipo = ? AND id_negocio = ? AND fecha_creacion >= ? LIMIT 1",
-    [tipo, id_negocio, desde]
+    `SELECT 1 FROM notificaciones
+     WHERE tipo = ? AND id_negocio = ?
+       ${desde ? "AND fecha_creacion >= ?" : ""}
+       ${mes ? "AND JSON_UNQUOTE(JSON_EXTRACT(datos_extra_json, '$.enlace.mes')) = ?" : ""}
+     LIMIT 1`,
+    [tipo, id_negocio, ...(desde ? [desde] : []), ...(mes ? [mes] : [])]
   );
   return rows.length > 0;
+};
+
+/** Propietario y empleados activos con cuenta del negocio, con los permisos de su rol. */
+export const findPersonalDelNegocio = async (id_negocio, conn) => {
+  const [[negocio]] = await (conn ?? db).query("SELECT id_usuario_propietario FROM negocios WHERE id_negocio = ?", [id_negocio]);
+  const [empleados] = await (conn ?? db).query(
+    `SELECT e.id_usuario, r.permisos_json
+     FROM empleados e JOIN roles r ON r.id_rol = e.id_rol
+     WHERE e.id_negocio = ? AND e.activo = TRUE AND e.id_usuario IS NOT NULL`,
+    [id_negocio]
+  );
+  return { id_propietario: negocio?.id_usuario_propietario ?? null, empleados };
 };
 
 // ---------- Envíos (después del commit y en el job) ----------

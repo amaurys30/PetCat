@@ -8,6 +8,7 @@ import { sendMail } from "../../shared/utils/mailer.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
 import { aDatetimeSQL } from "../../shared/utils/fechas.js";
 import { buildMeta } from "../../shared/utils/pagination.js";
+import { hasPermission } from "../../shared/utils/permissions.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
 
 /**
@@ -179,8 +180,22 @@ export const conNotificaciones = async (fn) => {
   return resultado;
 };
 
-/** Notifica en su propia transacción (p. ej. el aviso de una reserva que se rechazó y se deshizo). */
-export const notificarAparte = (eventos) => conNotificaciones((conn, notificarEn) => notificarEn(eventos));
+/**
+ * Destinatarios de un aviso al negocio: el propietario (siempre) y los empleados activos
+ * con cuenta cuyo rol tiene `permiso` ([modulo, accion]), p. ej. ["citas", "ver"].
+ */
+export const destinatariosDelNegocio = async (id_negocio, [modulo, accion], conn) => {
+  const { id_propietario, empleados } = await notificacionRepo.findPersonalDelNegocio(id_negocio, conn);
+  return [
+    ...(id_propietario ? [{ id_usuario: id_propietario, rol: "propietario" }] : []),
+    ...empleados
+      .filter((e) => hasPermission(e.permisos_json, modulo, accion))
+      .map((e) => ({ id_usuario: e.id_usuario, rol: "personal" })),
+  ];
+};
+
+/** Deduplicación de avisos al negocio (ver notificacionRepo.existeAviso). */
+export const yaSeAviso = (filtro, conn) => notificacionRepo.existeAviso(filtro, conn);
 
 // ---------- Envíos ----------
 

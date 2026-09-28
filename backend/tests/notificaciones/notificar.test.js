@@ -15,11 +15,13 @@ import {
 } from "../../src/modules/notificaciones/notificacion.service.js";
 import { tokenBaja } from "../../src/modules/notificaciones/notificacion.correo.js";
 import { enSilencio, finDelSilencio, silencioDe } from "../../src/modules/notificaciones/silencio.js";
-import { crearDispositivo, crearUsuario, tokenDe } from "../helpers/factories.js";
+import { configurarSilencio, crearDispositivo, crearUsuario, sinSilencio, tokenDe } from "../helpers/factories.js";
 
-beforeEach(() => {
+// Sin silencio salvo en su describe: los envíos inmediatos no dependen de la hora a la que corre la suite.
+beforeEach(async () => {
   pushSender.reiniciar();
   clearOutbox();
+  await sinSilencio();
 });
 afterEach(() => pushSender.reiniciar());
 
@@ -222,6 +224,8 @@ describe("correo para usuarios sin dispositivos", () => {
 });
 
 describe("horario de silencio", () => {
+  beforeEach(() => configurarSilencio("21:00", "07:00"));
+
   // Las pruebas pasan `ahora` explícito (hora de Bogotá).
   const a = (dia, hora, minuto = 0) => new Date(2026, 9, dia, hora, minuto, 0);
 

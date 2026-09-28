@@ -288,7 +288,14 @@ export const errorLimiteCitas = (canal, limite, fecha, id_negocio) => {
     canal === "app"
       ? ApiError.conflict("El horario ya no está disponible: elige otro")
       : errorLimite(motivoLimiteCitas(limite, fecha), `Límite de citas del mes alcanzado (${limite.usadas} de ${limite.maximo})`);
-  error.limitePlan = { id_negocio, recurso: "citas_mes", mes: fecha.slice(0, 7), maximo: limite.maximo, usadas: limite.usadas };
+  error.limitePlan = {
+    id_negocio,
+    recurso: "citas_mes",
+    mes: fecha.slice(0, 7),
+    maximo: limite.maximo,
+    usadas: limite.usadas,
+    plan: limite.plan.nombre,
+  };
   return error;
 };
 
