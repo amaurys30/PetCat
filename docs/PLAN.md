@@ -139,6 +139,11 @@ En tres partes: **1.5.1** horarios libres, reservas y clientes del panel · **1.
 - [x] `GET /negocios/:id_negocio/clientes` y `GET /negocios/:id_negocio/clientes/:id_usuario` (datos de contacto, mascotas y citas con ese negocio).
 - [x] `GET /negocios/:id_negocio/clientes/:id_usuario/citas` (todas las citas del cliente con el negocio, paginadas) y `historial_cumplimiento` en el detalle.
 
+### Cierre de la Fase 1
+- [x] Seed de desarrollo ampliado para diseñar con datos realistas: cuatro negocios de distintos tipos en Sincelejo con coordenadas (uno Pro en prueba con dos sedes), clientes con mascotas (incluidos uno sin app, una mascota fallecida y una que no comparte historial), citas en los siete estados, historial médico, vacunas vencidas y próximas, servicios con oferta vigente, vencida y sin oferta, y reseñas. Detalle en `backend/README.md`.
+- [ ] Verificación desde cero, como en la Fase 0.
+- [ ] PR de `fase-1` a `main` con el resumen de la fase y la guía para actualizar un entorno existente.
+
 ---
 
 ## Fase 2 — Lo que hace viable el negocio
@@ -181,7 +186,7 @@ En tres partes: **1.5.1** horarios libres, reservas y clientes del panel · **1.
 
 ### Decisiones de 0.C (septiembre 2026)
 - Base de tests: `petcat_test` se borra y recrea en cada corrida cargando `database/petcat.sql` con un cargador en Node (entiende `DELIMITER`). Cada test crea sus propios datos con emails únicos; no se limpia entre tests. El seed de desarrollo también se carga y se prueba en `petcat_test`.
-- Seed: `database/seeds/dev_seed.sql`, contraseña común `Petcat123!`. En volúmenes nuevos compose lo ejecuta después del esquema (`01_petcat.sql`, `02_dev_seed.sql`). `npm run db:reset -- --yes` recrea `petcat_db` con esquema y seed (se niega en producción y sin `--yes`).
+- Seed: `database/seeds/dev_seed.sql`, contraseña común `Petcat123!`. En volúmenes nuevos compose lo ejecuta después del esquema (`01_petcat.sql`, `02_dev_seed.sql`). `npm run db:reset -- --yes` recrea `petcat_db` con esquema y seed (se niega en producción y sin `--yes`). Desde el cierre de la Fase 1 las fechas del seed (citas, vacunas, historial, ofertas, vacaciones) son relativas a `CURDATE()`: cada `db:reset` deja la agenda vigente. Los tests de `tests/base/seed.test.js` comprueban esos datos a través de la API (búsqueda, perfil, clientes, agenda y resumen de salud).
 - Sesiones: se guarda el hash SHA-256 del access token y del refresh token, no los tokens en claro. La sesión dura lo mismo que el refresh token.
 - Login: 5 intentos fallidos seguidos bloquean la cuenta 15 minutos (`intentos_login`, `bloqueado_hasta`). Un login correcto reinicia el contador. Mismo mensaje "Credenciales inválidas" si el email no existe o la contraseña es errónea (con comparación contra un hash ficticio para no delatar emails). Cuenta inactiva o bloqueada: 403.
 - Respuesta del login y de aceptar invitación: `data: { access_token, refresh_token, usuario }` (snake_case, como el resto de campos).

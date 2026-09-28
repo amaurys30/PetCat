@@ -129,7 +129,25 @@ Marca como aplicadas todas las migraciones que hay en `database/migrations` sin 
 
 ### Seed de desarrollo
 
-`database/seeds/dev_seed.sql` crea el negocio de ejemplo "Clínica Veterinaria Patitas" (plan Gratuito, una sucursal con horario partido, servicios), sus empleados, un cliente con dos mascotas y los usuarios de la [sección 6](#usuarios-de-prueba). Se carga solo con un volumen nuevo de compose o con `db:reset`.
+`database/seeds/dev_seed.sql` carga datos realistas para diseñar el panel y la app, con los usuarios de la [sección 6](#usuarios-de-prueba). Se carga solo con un volumen nuevo de compose o con `db:reset`. **Las fechas son relativas al día en que se carga** (citas "hace 15 días", "en 3 días"...), así que un `db:reset` deja la agenda vigente otra vez. Las citas futuras caen en días en que abre su sucursal.
+
+**Negocios** (todos en Sincelejo, con coordenadas y una reseña cada uno):
+
+| Negocio | Tipo y plan | Qué sirve para ver |
+|---|---|---|
+| Clínica Veterinaria Patitas (Centro) | veterinaria, Gratuito | Horario partido; "Vacuna antirrábica" con oferta vigente; "Baño y corte" sin empleados (no reservable); bloqueo de Carlos una tarde; recepcionista con invitación pendiente. |
+| Peluquería Canina Huellitas (Venecia) | peluquería, Gratuito | Rol propio "Estilista"; servicios con margen de 15 min; "Baño y corte premium" en oferta; "Spa felino" solo sábados; empleada sin cuenta. Calificación 4. |
+| Guardería Patas Felices (Boston) | guardería, Gratuito | Lunes a viernes; servicios por día con cupo diario (`max_citas_dia` 8); "Adiestramiento básico" sin entrenador. Sin verificar. |
+| Centro Veterinario Salud Animal 24h | clínica, **Pro en prueba**, destacado | Sede Norte (todos los días 7-21) y Sede Sur (horario partido); veterinaria con horario semanal por sede, vacaciones en unos 20 días y jornada especial el próximo domingo; urgencias con precio variable; "Desparasitación" con oferta **vencida**; "Hospitalización" sin cita. |
+
+**Clientes y mascotas:**
+
+- **Sofía** (`cliente@petcat.test`): Max (dos consultas en Patitas con evolución de peso y control pendiente; antirrábica **vencida**, parvovirus **próxima**, una dosis antigua subida por ella) y Luna (triple felina registrada por la dueña con comprobante). En Patitas tiene una inasistencia y una **cancelación tardía**; próximas: vacuna de Max (confirmada), consulta de Luna (pendiente) y un baño en Huellitas. El negocio le canceló otro baño.
+- **Camilo** (`camilo@petcat.test`): Rocky (alérgico al pollo, **no comparte su historial**: cada negocio ve solo lo que registró; atendido en Patitas, Huellitas, la guardería y urgencias de Salud Animal) y Mía (spa el sábado, consulta en 2 días). Una cita de Rocky cae en las vacaciones de la veterinaria: la agenda la marca `fuera_de_disponibilidad`.
+- **Valeria** (`valeria@petcat.test`, correo sin verificar): Copito (conejo; mixomatosis próxima en 5 días; una cita **reprogramada** con su nueva cita pendiente) y Nala (**fallecida**, con una cita antigua en la guardería).
+- **Jorge** (`jorge@petcat.test`): cliente **sin app** registrado desde el panel de Salud Animal; Toby tiene una cita **en curso hoy** y una inasistencia.
+
+Hay citas en los siete estados (`pendiente`, `confirmada`, `en_curso`, `completada`, `cancelada`, `no_asistio`, `reprogramada`), pasadas y futuras.
 
 ### Reiniciar la base
 
@@ -346,6 +364,15 @@ Con el seed cargado, todos usan la contraseña **`Petcat123!`**:
 | `propietario@petcat.test` | Dueña de "Clínica Veterinaria Patitas" |
 | `veterinario@petcat.test` | Empleado con rol Veterinario |
 | `cliente@petcat.test` | Dueña de las mascotas Max y Luna |
+| `huellitas@petcat.test` | Dueño de "Peluquería Canina Huellitas" |
+| `guarderia@petcat.test` | Dueña de "Guardería Patas Felices" |
+| `saludanimal@petcat.test` | Dueño de "Centro Veterinario Salud Animal 24h" (también atiende como empleado) |
+| `vet.salud@petcat.test` | Veterinaria de Salud Animal (horario semanal, vacaciones y jornada especial) |
+| `camilo@petcat.test` | Dueño de Rocky (no comparte historial) y Mía |
+| `valeria@petcat.test` | Dueña de Copito y de Nala (fallecida); correo sin verificar |
+| `jorge@petcat.test` | Cliente sin app registrado desde el panel de Salud Animal (dueño de Toby) |
+
+El detalle de cada negocio y cliente está en la [sección 3](#seed-de-desarrollo).
 
 Invitación pendiente de la recepcionista (`recepcionista@petcat.test`, sin cuenta), para probar la pantalla de aceptar:
 `http://localhost:5173/invitacion/5eed000000000000000000000000000000000000000000000000000000000001`
