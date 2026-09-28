@@ -349,3 +349,25 @@ export const marcarTodasLeidas = async (id_usuario) => {
   await avisarLeidas(id_usuario);
   return { actualizadas };
 };
+
+// ---------- Limpieza ----------
+
+const LEIDAS_DIAS = 90;
+const TODAS_DIAS = 180;
+const LOTE = 1000;
+const haceDias = (ahora, dias) => aDatetimeSQL(new Date(ahora.getTime() - dias * 86_400_000));
+
+/**
+ * Job semanal (domingo 04:00): borra por lotes las notificaciones leídas de más de 90 días
+ * y todas las de más de 180, con sus envíos. No afecta la deduplicación de avisos (por día,
+ * por mes o por negocio, en plazos más cortos). Idempotente. Devuelve cuántas borró.
+ */
+export const limpiarNotificaciones = async ({ ahora = new Date() } = {}) => {
+  const filtro = { leidasAntesDe: haceDias(ahora, LEIDAS_DIAS), todasAntesDe: haceDias(ahora, TODAS_DIAS), limite: LOTE };
+  let total = 0;
+  for (;;) {
+    const borradas = await notificacionRepo.deleteAntiguas(filtro);
+    total += borradas;
+    if (borradas < LOTE) return total;
+  }
+};

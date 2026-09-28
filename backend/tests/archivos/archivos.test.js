@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { spawnSync } from "node:child_process";
 import sharp from "sharp";
 import { pool } from "../../src/config/db.js";
@@ -85,6 +85,36 @@ describe("subirArchivos", () => {
     expect(await reintentarEliminaciones()).toBeGreaterThanOrEqual(1);
     expect((await filasDe(mascota.id_mascota))[0].estado).toBe("eliminado");
     expect(storage.archivos.has(primera.public_id)).toBe(false);
+  });
+
+  it("dos reintentos a la vez (dos instancias) dejan el archivo eliminado sin errores", async () => {
+    const { dueno, mascota } = await contexto();
+    const [primera] = await subirFoto(mascota, dueno, await imagen());
+    storage.fallarAlEliminar = true;
+    await subirFoto(mascota, dueno, await imagen("#a36"));
+    storage.fallarAlEliminar = false;
+
+    await Promise.all([reintentarEliminaciones(), reintentarEliminaciones()]);
+    expect((await filasDe(mascota.id_mascota))[0]).toMatchObject({ estado: "eliminado", intentos_eliminar: 1 });
+    expect(storage.archivos.has(primera.public_id)).toBe(false);
+  });
+
+  it("al agotar los reintentos queda por_eliminar, se avisa en el log y ya no se reintenta", async () => {
+    const { dueno, mascota } = await contexto();
+    const [primera] = await subirFoto(mascota, dueno, await imagen());
+    storage.fallarAlEliminar = true;
+    await subirFoto(mascota, dueno, await imagen("#a36")); // primer fallo
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await reintentarEliminaciones({ maxIntentos: 3 }); // segundo
+    await reintentarEliminaciones({ maxIntentos: 3 }); // tercero: se agota
+    expect((await filasDe(mascota.id_mascota))[0]).toMatchObject({ estado: "por_eliminar", intentos_eliminar: 3 });
+    expect(error).toHaveBeenCalledWith(`[archivos] ${primera.public_id} agotó sus 3 reintentos: hay que borrarlo a mano en Cloudinary.`);
+
+    storage.fallarAlEliminar = false;
+    await reintentarEliminaciones({ maxIntentos: 3 });
+    expect((await filasDe(mascota.id_mascota))[0].estado).toBe("por_eliminar");
+    error.mockRestore();
   });
 
   it("si la transacción falla, se borra lo subido y no queda registro", async () => {

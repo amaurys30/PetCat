@@ -166,3 +166,23 @@ export const enviarRecordatoriosVacunas = async ({ ahora = new Date(), limite = 
   }
   return enviados;
 };
+
+// ---------- Limpieza ----------
+
+const RESUELTOS_DIAS = 180;
+const LOTE = 1000;
+
+/**
+ * Job semanal (con la limpieza de notificaciones): borra los recordatorios programados hace
+ * más de 180 días ya resueltos, o de citas que quedaron pendientes. Las marcas de los hitos
+ * de vacunas no se necesitan tanto tiempo (la gracia de un hito es de 2 días). Devuelve cuántos borró.
+ */
+export const limpiarRecordatorios = async ({ ahora = new Date() } = {}) => {
+  const antesDe = aDatetimeSQL(new Date(ahora.getTime() - RESUELTOS_DIAS * 86_400_000));
+  let total = 0;
+  for (;;) {
+    const borrados = await recordatorioRepo.deleteResueltosAntesDe(antesDe, LOTE);
+    total += borrados;
+    if (borrados < LOTE) return total;
+  }
+};

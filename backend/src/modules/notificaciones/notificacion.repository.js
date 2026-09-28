@@ -234,3 +234,20 @@ export const desactivarCorreos = async (id_usuario) => {
   const [result] = await db.query("UPDATE usuarios SET notif_email = FALSE WHERE id_usuario = ?", [id_usuario]);
   return result.affectedRows > 0;
 };
+
+// ---------- Limpieza (job semanal) ----------
+
+/**
+ * Borra hasta `limite` notificaciones leídas creadas antes de `leidasAntesDe` o cualquiera
+ * creada antes de `todasAntesDe`. Sus envíos se borran en cascada. Devuelve cuántas borró.
+ */
+export const deleteAntiguas = async ({ leidasAntesDe, todasAntesDe, limite }) => {
+  const [result] = await db.query(
+    `DELETE FROM notificaciones
+     WHERE (estado = 'leida' AND fecha_creacion < ?) OR fecha_creacion < ?
+     ORDER BY id_notificacion
+     LIMIT ?`,
+    [leidasAntesDe, todasAntesDe, limite]
+  );
+  return result.affectedRows;
+};

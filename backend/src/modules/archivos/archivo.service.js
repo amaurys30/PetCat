@@ -24,8 +24,12 @@ const CARPETAS = {
   historial_archivo: "historial",
 };
 
-/** Borra de Cloudinary y marca `eliminado`; si falla, suma un intento y queda `por_eliminar`. Nunca lanza. */
-export const eliminarDelAlmacenamiento = async (filas) => {
+/**
+ * Borra de Cloudinary y marca `eliminado`; si falla, suma un intento y queda `por_eliminar`.
+ * Con `maxIntentos`, avisa en el log cuando un archivo agota sus reintentos (queda para
+ * revisarlo a mano). Nunca lanza.
+ */
+export const eliminarDelAlmacenamiento = async (filas, { maxIntentos } = {}) => {
   for (const fila of filas) {
     try {
       await storage.eliminar(fila);
@@ -33,6 +37,9 @@ export const eliminarDelAlmacenamiento = async (filas) => {
     } catch (err) {
       console.error(`[archivos] No se pudo eliminar ${fila.public_id} (queda por_eliminar):`, err.message);
       await archivoRepo.sumarIntentoEliminar(fila.id_archivo).catch(() => {});
+      if (maxIntentos && fila.intentos_eliminar + 1 >= maxIntentos) {
+        console.error(`[archivos] ${fila.public_id} agotó sus ${maxIntentos} reintentos: hay que borrarlo a mano en Cloudinary.`);
+      }
     }
   }
 };
@@ -145,12 +152,14 @@ export const eliminarArchivos = async ({ entidad, id_entidad, ids, id_usuario, b
 };
 
 /**
- * Reintenta borrar en Cloudinary los archivos `por_eliminar` (job de la 2.4). Deja de
- * intentar un archivo después de `maxIntentos` fallos. Devuelve cuántos procesó.
+ * Job de cada hora: reintenta borrar en Cloudinary los archivos `por_eliminar`. Deja de
+ * intentar un archivo después de `maxIntentos` fallos (unas 10 horas). Con dos instancias
+ * no hace falta reclamar filas: borrar dos veces es inofensivo ("not found" cuenta como
+ * eliminado). Devuelve cuántos procesó.
  */
 export const reintentarEliminaciones = async ({ limite = 100, maxIntentos = 10 } = {}) => {
   const pendientes = await archivoRepo.findPorEliminar({ limite, maxIntentos });
-  await eliminarDelAlmacenamiento(pendientes);
+  await eliminarDelAlmacenamiento(pendientes, { maxIntentos });
   return pendientes.length;
 };
 

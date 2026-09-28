@@ -124,3 +124,21 @@ export const insertHitoVacuna = async ({ id_usuario, id_mascota, id_vacuna, hito
     throw err;
   }
 };
+
+/**
+ * Borra hasta `limite` recordatorios programados antes de `antesDe` ya resueltos (enviados,
+ * cancelados o fallidos) o de citas que quedaron pendientes (el job no toma los de más de
+ * 24 horas de atraso). Devuelve cuántos borró.
+ */
+export const deleteResueltosAntesDe = async (antesDe, limite) => {
+  const [result] = await db.query(
+    `DELETE FROM recordatorios
+     WHERE fecha_programada < ?
+       AND (estado IN ('enviado', 'cancelado', 'fallido')
+            OR (estado = 'pendiente' AND tipo IN ('cita_dia_anterior', 'cita_recordatorio')))
+     ORDER BY id_recordatorio
+     LIMIT ?`,
+    [antesDe, limite]
+  );
+  return result.affectedRows;
+};
