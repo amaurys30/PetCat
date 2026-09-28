@@ -79,6 +79,26 @@ const swaggerSpec = swaggerJSDoc({
         BadRequest: errorResponse("Solicitud inválida"),
         Unauthorized: errorResponse("Token requerido"),
         Forbidden: errorResponse("No tienes permiso para realizar esta acción"),
+        // Sin permiso (403 genérico) o límite del plan alcanzado (con errors.plan).
+        ForbiddenOrPlanLimit: {
+          description:
+            "Sin permiso, o el negocio alcanzó el límite de su plan (`errors.plan`; ver `GET /negocios/{id_negocio}/suscripcion`)",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+              examples: {
+                sinPermiso: { value: { success: false, message: "No tienes permiso para realizar esta acción" } },
+                limitePlan: {
+                  value: {
+                    success: false,
+                    message: "Tu plan Gratuito permite hasta 1 sucursal activa. Mejora tu plan para continuar.",
+                    errors: { plan: "Límite de sucursales alcanzado (1 de 1)" },
+                  },
+                },
+              },
+            },
+          },
+        },
         NotFound: errorResponse("Recurso no encontrado"),
         Conflict: errorResponse("Ya existe un registro con esos datos"),
         ValidationError: errorResponse("Datos inválidos", {

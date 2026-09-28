@@ -1,5 +1,6 @@
 import * as sucursalRepo from "./sucursal.repository.js";
 import * as negocioRepo from "../negocios/negocio.repository.js";
+import { bloquearYVerificarLimite } from "../suscripciones/suscripcion.service.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
 import { castFields } from "../../shared/utils/format.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
@@ -24,10 +25,12 @@ export const getSucursalPublica = async (id_sucursal) => {
 
 /**
  * La primera sucursal activa del negocio queda como principal. Si se crea como
- * principal, la anterior deja de serlo.
+ * principal, la anterior deja de serlo. El límite del plan se comprueba con las
+ * suscripciones bloqueadas antes que las sucursales.
  */
 export const createSucursal = async (id_negocio, data) => {
   const id_sucursal = await withTransaction(async (conn) => {
+    await bloquearYVerificarLimite(id_negocio, "sucursales", conn);
     const activas = await sucursalRepo.lockActivasByNegocio(id_negocio, conn);
     const es_principal = activas.length === 0 || data.es_principal === true;
     if (es_principal) await sucursalRepo.clearPrincipal(id_negocio, conn);

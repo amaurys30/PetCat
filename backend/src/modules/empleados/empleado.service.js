@@ -3,6 +3,8 @@ import * as rolRepo from "../roles/rol.repository.js";
 import * as invitacionRepo from "../invitaciones/invitacion.repository.js";
 import * as usuarioRepo from "../usuarios/usuario.repository.js";
 import * as servicioRepo from "../servicios/servicio.repository.js";
+import * as negocioRepo from "../negocios/negocio.repository.js";
+import { bloquearYVerificarLimite } from "../suscripciones/suscripcion.service.js";
 import { citasFuturasDeEmpleado } from "../disponibilidad/disponibilidad.service.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
 import { buildMeta } from "../../shared/utils/pagination.js";
@@ -94,6 +96,7 @@ export const getEmpleado = async (id_empleado) => {
 export const createEmpleado = async (id_negocio, data, acceso) => {
   verificarRolAsignable(await findRolAsignable(data.id_rol, id_negocio), acceso);
   const id_empleado = await withTransaction(async (conn) => {
+    await bloquearYVerificarLimite(id_negocio, "empleados", conn);
     await verificarEmailLibre(id_negocio, data.email, 0, conn);
     return empleadoRepo.create(id_negocio, data, conn);
   });
@@ -204,12 +207,21 @@ export const desactivarEmpleado = async (id_empleado, acceso) => {
   return { empleado: await getEmpleado(id_empleado), citas_afectadas };
 };
 
+/**
+ * Reactivar cuenta para el límite de empleados del plan, salvo que sea el propietario
+ * registrado como empleado de su negocio (no ocupa cupo).
+ */
 export const reactivarEmpleado = async (id_empleado, acceso) => {
   const empleado = await empleadoRepo.findById(id_empleado);
   if (!empleado) throw ApiError.notFound(NO_ENCONTRADO);
   if (empleado.activo) throw ApiError.conflict("El empleado ya está activo");
   verificarEmpleadoModificable(empleado, acceso);
 
-  await empleadoRepo.reactivar(id_empleado);
+  const negocio = await negocioRepo.findById(empleado.id_negocio);
+  const esPropietario = empleado.id_usuario !== null && empleado.id_usuario === negocio.id_usuario_propietario;
+  await withTransaction(async (conn) => {
+    if (!esPropietario) await bloquearYVerificarLimite(empleado.id_negocio, "empleados", conn);
+    await empleadoRepo.reactivar(id_empleado, conn);
+  });
   return getEmpleado(id_empleado);
 };

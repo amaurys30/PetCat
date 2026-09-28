@@ -19,8 +19,8 @@ const principalDe = async (id_negocio) => {
   return rows.map((r) => r.id_sucursal);
 };
 
-const negocioConToken = async () => {
-  const negocio = await crearNegocio();
+const negocioConToken = async (plan = "Gratuito") => {
+  const negocio = await crearNegocio(null, { plan });
   return { negocio, token: await tokenDe(negocio.propietario) };
 };
 
@@ -65,7 +65,8 @@ describe("POST /negocios/:id_negocio/sucursales", () => {
   });
 
   it("crear otra como principal desmarca la anterior", async () => {
-    const { negocio, token } = await negocioConToken();
+    // Varias sucursales: el Gratuito solo permite una.
+    const { negocio, token } = await negocioConToken("Pro");
     const primera = await crearSucursal(negocio, { es_principal: true });
 
     const segunda = await api(token)

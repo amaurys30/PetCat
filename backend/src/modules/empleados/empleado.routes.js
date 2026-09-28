@@ -10,6 +10,7 @@ import {
 import { idNegocioParams } from "../negocios/negocio.schemas.js";
 import { authMiddleware } from "../../shared/middlewares/auth.middleware.js";
 import { authorize } from "../../shared/middlewares/authorize.middleware.js";
+import { checkPlanLimit } from "../../shared/middlewares/planLimit.middleware.js";
 import { validate } from "../../shared/middlewares/validate.js";
 
 const router = express.Router();
@@ -125,7 +126,9 @@ const router = express.Router();
  *     description: >
  *       Requiere `empleados.crear`. El rol debe ser del sistema o del negocio (422 si no). Un
  *       empleado que crea a otro no puede asignarle un rol con permisos que el suyo no tiene (403).
- *       El empleado queda sin cuenta hasta que acepte una invitación.
+ *       El empleado queda sin cuenta hasta que acepte una invitación. 403 con `errors.plan` si el
+ *       negocio ya tiene todos los empleados activos que permite su plan (no cuenta al propietario
+ *       registrado como empleado).
  *     tags: [Empleados]
  *     parameters:
  *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
@@ -149,7 +152,7 @@ const router = express.Router();
  *                 message: { type: string, example: Empleado creado }
  *                 data: { $ref: '#/components/schemas/Empleado' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
- *       403: { $ref: '#/components/responses/Forbidden' }
+ *       403: { $ref: '#/components/responses/ForbiddenOrPlanLimit' }
  *       404: { $ref: '#/components/responses/NotFound' }
  *       409: { $ref: '#/components/responses/EmpleadoConflict' }
  *       422: { $ref: '#/components/responses/ValidationError' }
@@ -167,6 +170,7 @@ router.post(
   authMiddleware,
   validate({ params: idNegocioParams, body: createEmpleadoBody }),
   authorize("empleados", "crear"),
+  checkPlanLimit("empleados"),
   controller.createEmpleado
 );
 
@@ -360,7 +364,8 @@ router.delete(
  *     summary: Reactivar un empleado
  *     description: >
  *       Requiere `empleados.editar`. 409 si ya está activo. Un empleado no puede reactivar a uno
- *       con permisos que él no tiene (403).
+ *       con permisos que él no tiene (403). 403 con `errors.plan` si el negocio ya tiene todos los
+ *       empleados activos que permite su plan (salvo que sea el propietario registrado como empleado).
  *     tags: [Empleados]
  *     parameters:
  *       - { in: path, name: id_empleado, required: true, schema: { type: integer } }
@@ -376,7 +381,7 @@ router.delete(
  *                 message: { type: string, example: Empleado reactivado }
  *                 data: { $ref: '#/components/schemas/Empleado' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
- *       403: { $ref: '#/components/responses/Forbidden' }
+ *       403: { $ref: '#/components/responses/ForbiddenOrPlanLimit' }
  *       404: { $ref: '#/components/responses/NotFound' }
  *       409:
  *         description: El empleado ya está activo

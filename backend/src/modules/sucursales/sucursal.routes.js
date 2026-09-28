@@ -5,6 +5,7 @@ import { idNegocioParams } from "../negocios/negocio.schemas.js";
 import { authMiddleware } from "../../shared/middlewares/auth.middleware.js";
 import { authorize } from "../../shared/middlewares/authorize.middleware.js";
 import { validate } from "../../shared/middlewares/validate.js";
+import { checkPlanLimit } from "../../shared/middlewares/planLimit.middleware.js";
 
 const router = express.Router();
 
@@ -71,7 +72,9 @@ const editar = authorize("configuracion", "editar");
  *       422: { $ref: '#/components/responses/ValidationError' }
  *   post:
  *     summary: Crear una sucursal
- *     description: Requiere `configuracion.editar`. La primera sucursal activa del negocio queda como principal.
+ *     description: >
+ *       Requiere `configuracion.editar`. La primera sucursal activa del negocio queda como principal.
+ *       403 con `errors.plan` si el negocio ya tiene todas las sucursales activas que permite su plan.
  *     tags: [Sucursales]
  *     parameters:
  *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
@@ -95,7 +98,7 @@ const editar = authorize("configuracion", "editar");
  *                 message: { type: string, example: Sucursal creada }
  *                 data: { $ref: '#/components/schemas/Sucursal' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
- *       403: { $ref: '#/components/responses/Forbidden' }
+ *       403: { $ref: '#/components/responses/ForbiddenOrPlanLimit' }
  *       404: { $ref: '#/components/responses/NotFound' }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
@@ -110,6 +113,7 @@ router.post(
   authMiddleware,
   validate({ params: idNegocioParams, body: createSucursalBody }),
   editar,
+  checkPlanLimit("sucursales"),
   controller.createSucursal
 );
 
