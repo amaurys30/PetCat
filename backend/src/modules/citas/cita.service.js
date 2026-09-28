@@ -3,6 +3,8 @@ import * as servicioRepo from "../servicios/servicio.repository.js";
 import * as disponibilidadRepo from "../disponibilidad/disponibilidad.repository.js";
 import * as configuracionRepo from "../configuracion/configuracion.repository.js";
 import * as empleadoRepo from "../empleados/empleado.repository.js";
+import * as suscripcionRepo from "../suscripciones/suscripcion.repository.js";
+import { errorLimiteCitas, getLimiteCitasMes, motivoLimiteCitas } from "../suscripciones/suscripcion.service.js";
 import { combinarHorarios, iniciosLibres } from "./citas.calculo.js";
 import { aHora, aMinutos, calcularDisponibilidad, citaCabe, diaSemana } from "../disponibilidad/disponibilidad.calculo.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
@@ -16,6 +18,8 @@ const DIAS_SET = ["domingo", "lunes", "martes", "miercoles", "jueves", "viernes"
 const DIAS_TEXTO = ["domingos", "lunes", "martes", "miércoles", "jueves", "viernes", "sábados"];
 
 const invalido = (campo, mensaje) => ApiError.unprocessable("Datos inválidos", { [campo]: mensaje });
+
+const SIN_HORARIOS = "No hay horarios disponibles para esa fecha";
 
 /** Parámetros de la agenda (configuracion_global), con valores por defecto. */
 export const configAgenda = async () => {
@@ -73,16 +77,29 @@ const prepararDia = async ({ canal, id_negocio, id_servicio, id_sucursal, fecha,
     if (empleados.length === 0) throw invalido("id_empleado", "Ese empleado no atiende este servicio");
   }
 
+  // Límite de citas del mes del plan: la app no revela el plan del negocio (motivo genérico).
+  const limiteCitas = await getLimiteCitasMes(servicio.id_negocio, fecha, { excluirIdCita });
   let motivo = null;
   const dia = diaSemana(fecha);
   if (servicio.dias_disponible && !servicio.dias_disponible.split(",").includes(DIAS_SET[dia])) {
     motivo = `El servicio no se ofrece los ${DIAS_TEXTO[dia]}`;
+  } else if (limiteCitas.alcanzado) {
+    motivo = canal === "app" ? SIN_HORARIOS : motivoLimiteCitas(limiteCitas, fecha);
   } else if (servicio.max_citas_dia && (await citaRepo.countCupos({ id_servicio, id_sucursal, fecha, excluirIdCita })) >= servicio.max_citas_dia) {
     motivo = "No quedan cupos para este servicio ese día";
   }
 
   const desde = fecha === hoy ? minutoActual() + (canal === "app" ? config.antelacion : 0) : 0;
-  return { servicio, sucursal, empleados, desde, motivo, intervalo: config.intervalo };
+  return {
+    servicio,
+    sucursal,
+    empleados,
+    desde,
+    motivo,
+    porLimitePlan: motivo !== null && limiteCitas.alcanzado,
+    limiteCitas,
+    intervalo: config.intervalo,
+  };
 };
 
 /**
@@ -137,7 +154,7 @@ export const getHorariosLibres = async (canal, { id_negocio, ...query }) => {
     },
     sucursal: dia.sucursal,
     horarios: horarios.map((h) => ({ hora_inicio: aHora(h.inicio), hora_fin: aHora(h.fin), empleados: h.empleados })),
-    motivo_sin_horarios: horarios.length > 0 ? null : (dia.motivo ?? "No hay horarios disponibles para esa fecha"),
+    motivo_sin_horarios: horarios.length > 0 ? null : (dia.motivo ?? SIN_HORARIOS),
   };
 };
 
@@ -205,10 +222,12 @@ export const formatCita = (row, { conNotasInternas = false } = {}) => ({
 
 /**
  * Crea una cita desde la app ("app": pendiente, origen app_movil) o el panel
- * ("panel": confirmada, con recordatorio). En una transacción bloquea, por clave
- * primaria y en este orden, el servicio (si tiene max_citas_dia), los empleados
- * candidatos y la mascota, y vuelve a comprobar el horario. Sin id_empleado asigna
- * al empleado libre con menos citas ese día (a igualdad, el de menor id).
+ * ("panel": confirmada, con recordatorio). En una transacción bloquea, en este orden,
+ * las suscripciones del negocio (si su plan limita las citas del mes) y, por clave
+ * primaria, el servicio (si tiene max_citas_dia), los empleados candidatos y la
+ * mascota, y vuelve a comprobar el límite del plan y el horario. Sin id_empleado
+ * asigna al empleado libre con menos citas ese día (a igualdad, el de menor id).
+ * Límite de citas del mes alcanzado: 409 neutro en la app, 403 con el motivo en el panel.
  * @param {"app"|"panel"} canal
  * @param {object} datos Body validado (+ id_usuario del cliente)
  * @param {{ id_usuario, id_empleado?, ip? }} actor Quién reserva (para el historial)
@@ -223,16 +242,21 @@ export const crearCita = async (canal, datos, actor, id_negocio, reprogramacion)
   if (inicio % dia.intervalo !== 0) {
     throw invalido("hora_inicio", `Debe estar en la cuadrícula de ${dia.intervalo} minutos (p. ej. :00, :15, :30, :45)`);
   }
-  if (dia.motivo) throw ApiError.conflict(dia.motivo);
   const { servicio } = dia;
+  if (dia.porLimitePlan) throw errorLimiteCitas(canal, dia.limiteCitas, datos.fecha, servicio.id_negocio);
+  if (dia.motivo) throw ApiError.conflict(dia.motivo);
   const hora_fin = `${aHora(inicio + servicio.duracion_minutos)}:00`;
+  // Con plan ilimitado no se bloquea ni se cuenta: las reservas del negocio no se esperan entre sí.
+  const conLimiteCitas = dia.limiteCitas.usadas !== null;
 
   const id_cita = await withTransaction(async (conn) => {
     // Primero todos los bloqueos y después las lecturas: en REPEATABLE READ la primera
     // lectura sin bloqueo fija la foto de la transacción, y debe ser posterior a la
     // espera para ver las citas que otras reservas confirmaron mientras tanto.
-    // Orden: cita original (al reprogramar), servicio, empleados, mascota.
+    // Orden: cita original (al reprogramar), suscripciones (si el plan limita las
+    // citas del mes), servicio, empleados, mascota.
     if (reprogramacion) await reprogramacion.antes(conn);
+    const suscripciones = conLimiteCitas ? await suscripcionRepo.lockByNegocio(servicio.id_negocio, conn) : null;
     if (servicio.max_citas_dia) await citaRepo.lockServicio(servicio.id_servicio, conn);
     // Un empleado desactivado mientras tanto ya no cuenta (la desactivación bloquea la misma fila).
     const activos = await citaRepo.lockEmpleados(
@@ -242,6 +266,11 @@ export const crearCita = async (canal, datos, actor, id_negocio, reprogramacion)
     const empleados = dia.empleados.filter((e) => activos.includes(e.id_empleado));
     const mascota = await citaRepo.lockMascota(datos.id_mascota, conn);
 
+    if (conLimiteCitas) {
+      // La original de una reprogramación ya está marcada como reprogramada: no cuenta.
+      const limite = await getLimiteCitasMes(servicio.id_negocio, datos.fecha, { conn, suscripciones });
+      if (limite.alcanzado) throw errorLimiteCitas(canal, limite, datos.fecha, servicio.id_negocio);
+    }
     if (servicio.max_citas_dia && (await citaRepo.countCupos(datos, conn)) >= servicio.max_citas_dia) {
       throw ApiError.conflict("No quedan cupos para este servicio ese día");
     }

@@ -152,7 +152,8 @@ const esDuenoDeLaCita = (req) => citaRepo.esDelUsuario(req.params.id_cita, req.u
  *       fecha: por cada empleado que lo atiende, su disponibilidad efectiva menos sus citas (contando el
  *       margen del servicio de cada una), en la cuadrícula de 15 minutos y con al menos
  *       `antelacion_minima_reserva_min` (60) de anticipación. Sin horarios responde 200 con la lista vacía
- *       y `motivo_sin_horarios`.
+ *       y `motivo_sin_horarios`. Si el negocio alcanzó el límite de citas del mes de su plan, no hay
+ *       horarios y el motivo es el genérico ("No hay horarios disponibles para esa fecha").
  *     tags: [Citas]
  *     security: []
  *     parameters:
@@ -193,7 +194,8 @@ router.get("/citas/horarios-libres", validate({ query: horariosLibresQuery }), c
  *       La mascota debe ser del usuario, estar viva y ser de una especie y un peso que el servicio
  *       atiende. Se comprueba el horario dentro de una transacción (servicio, empleados y mascota
  *       bloqueados): si otra reserva lo tomó antes, 409. La cita queda `pendiente` hasta que el negocio
- *       la confirme. El email sin verificar no impide reservar.
+ *       la confirme. El email sin verificar no impide reservar. Si el negocio alcanzó el límite de citas
+ *       del mes de su plan, 409 con el mismo mensaje de horario no disponible (la app no ve el plan).
  *     tags: [Citas]
  *     requestBody:
  *       required: true
@@ -446,7 +448,9 @@ router.post(
  *       El dueño lo hace con las reglas de la app y hasta 2 horas antes de la cita original; la nueva queda
  *       `pendiente`. El negocio (`citas.editar`), en cualquier momento y con las reglas del panel; la nueva queda
  *       `confirmada`. Conserva servicio, mascota, precio estimado, origen, notas y prioridad; por defecto la
- *       misma sucursal. Una mascota fallecida no se reprograma (409).
+ *       misma sucursal. Una mascota fallecida no se reprograma (409). La nueva cita cuenta para el límite de
+ *       citas del mes del plan (la original deja de contar): si el mes nuevo está lleno, el dueño recibe el
+ *       409 de horario no disponible y el negocio 403 con `errors.plan`.
  *     tags: [Citas]
  *     parameters:
  *       - { in: path, name: id_cita, required: true, schema: { type: integer } }
@@ -476,7 +480,7 @@ router.post(
  *                 message: { type: string, example: Cita reprogramada }
  *                 data: { $ref: '#/components/schemas/Cita' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
- *       403: { $ref: '#/components/responses/Forbidden' }
+ *       403: { $ref: '#/components/responses/ForbiddenOrPlanLimit' }
  *       404: { $ref: '#/components/responses/NotFound' }
  *       409: { $ref: '#/components/responses/ReservaConflicto' }
  *       422: { $ref: '#/components/responses/ValidationError' }
@@ -585,7 +589,9 @@ router.get(
  *     summary: Horarios libres para agendar (panel)
  *     description: >
  *       Requiere `citas.crear`. Igual que el de la app, pero admite servicios ocultos en la app (del
- *       propio negocio) y no aplica la antelación mínima (solo que el horario sea futuro).
+ *       propio negocio) y no aplica la antelación mínima (solo que el horario sea futuro). Si el negocio
+ *       alcanzó el límite de citas del mes de su plan, no hay horarios y `motivo_sin_horarios` lo dice
+ *       ("El negocio alcanzó las 30 citas de su plan Gratuito en octubre de 2026").
  *     tags: [Citas]
  *     parameters:
  *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
@@ -671,6 +677,7 @@ router.get(
  *       Requiere `citas.crear`. Para un cliente (`id_usuario`, p. ej. encontrado con clientes/buscar o
  *       recién registrado) y su mascota. Mismas reglas que la app, con las diferencias del panel (servicios
  *       ocultos, sin antelación mínima). La cita queda `confirmada` y se programa su recordatorio.
+ *       403 con `errors.plan` si el negocio alcanzó el límite de citas del mes de la cita en su plan.
  *     tags: [Citas]
  *     parameters:
  *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
@@ -700,7 +707,7 @@ router.get(
  *                 message: { type: string, example: Cita agendada y confirmada }
  *                 data: { $ref: '#/components/schemas/Cita' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
- *       403: { $ref: '#/components/responses/Forbidden' }
+ *       403: { $ref: '#/components/responses/ForbiddenOrPlanLimit' }
  *       404: { $ref: '#/components/responses/NotFound' }
  *       409: { $ref: '#/components/responses/ReservaConflicto' }
  *       422: { $ref: '#/components/responses/ValidationError' }

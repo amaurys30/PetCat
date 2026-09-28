@@ -155,10 +155,10 @@ En tres partes: **1.5.1** horarios libres, reservas y clientes del panel · **1.
 Se hace en sub-bloques que se aprueban por separado: **2.1** planes y suscripciones · **2.2** uploads con Cloudinary · **2.3** notificaciones · **2.4** jobs con node-cron · **2.5** confirmación y cancelación automáticas · **2.6** reseñas · **2.7** dashboard y notas de clientes. La 2.1 va primero porque cambia endpoints existentes; la 2.3 antes que 2.4, 2.5 y 2.6 porque todas envían avisos; el dashboard al final. Las decisiones están en "Decisiones de la Fase 2".
 
 ### 2.1 Planes y suscripciones
-- [ ] `GET /planes` (público) y `GET /negocios/:id_negocio/suscripcion` (plan vigente, uso contra cada límite y días de prueba restantes); `plan` en cada negocio de `GET /negocios/mios`.
-- [ ] `POST /negocios/:id_negocio/suscripcion/prueba-pro`: 14 días, una sola vez por negocio. `PUT /negocios/:id_negocio/suscripcion` solo para el admin de plataforma (asignación manual de plan).
-- [ ] Plan efectivo calculado al leer: prueba o plan pago vencido cuenta como Gratuito sin esperar al cron.
-- [ ] `checkPlanLimit` para sucursales y empleados; límite de citas del mes en la reserva (app y panel), la reprogramación y los horarios libres. Listo para productos (Fase 3).
+- [x] `GET /planes` (público) y `GET /negocios/:id_negocio/suscripcion` (plan vigente, uso contra cada límite y días de prueba restantes); `plan` en cada negocio de `GET /negocios/mios`.
+- [x] `POST /negocios/:id_negocio/suscripcion/prueba-pro`: 14 días, una sola vez por negocio. `PUT /negocios/:id_negocio/suscripcion` solo para el admin de plataforma (asignación manual de plan).
+- [x] Plan efectivo calculado al leer: prueba o plan pago vencido cuenta como Gratuito sin esperar al cron.
+- [x] `checkPlanLimit` para sucursales y empleados; límite de citas del mes en la reserva (app y panel), la reprogramación y los horarios libres. Listo para productos (Fase 3).
 
 ### 2.2 Uploads con Cloudinary
 - [ ] `shared/utils/uploads.js` (multer en memoria, tipo y tamaño) y endpoints para foto de usuario, foto de mascota, logo y banner del negocio, comprobante de vacuna y archivos del historial. Reemplazar borra la imagen anterior. Doble de prueba de Cloudinary en los tests.
@@ -418,3 +418,5 @@ Se hace en sub-bloques que se aprueban por separado: **2.1** planes y suscripcio
 - `checkPlanLimit(recurso)` es una comprobación rápida sin bloqueos (403 con `errors.plan`); la exacta se repite dentro de la transacción bloqueando la fila de la suscripción vigente por clave primaria, solo si el límite no es ilimitado. Orden de bloqueo en la agenda: cita → suscripción → servicio → empleados → mascota.
 - Límite de citas alcanzado: la reserva desde la app da 409 con el mensaje neutro de horario no disponible y `GET /citas/horarios-libres` devuelve cero horarios con el `motivo_sin_horarios` genérico (la app no revela el plan del negocio); el panel da 403 con `errors.plan` y sus horarios libres dan un motivo explícito.
 - Avisos al negocio (se envían desde la 2.3): reserva rechazada por el límite, como máximo uno por negocio y día; 80 % del límite de citas del mes, uno por negocio y mes (la reserva que cruza el umbral). Se deduplican consultando `notificaciones` por tipo.
+- Implementación: `suscripcion.service` (`getPlanEfectivo`, `verificarLimite`, `bloquearYVerificarLimite`, `getLimiteCitasMes`, `cruzaUmbralAviso`) y el middleware `checkPlanLimit` en `shared/middlewares/planLimit.middleware.js`. Las suscripciones se bloquean con una lectura `FOR UPDATE` por `id_negocio` sin JOIN (no se bloquea la fila del plan, que comparten todos los negocios); es una lectura con bloqueo, así que no fija la foto de la transacción. Con plan ilimitado la reserva no bloquea las suscripciones.
+- En horarios libres y reservas, el límite del plan se evalúa después de "el servicio no se ofrece ese día" y antes de los cupos del servicio. El error de una reserva rechazada por el límite lleva `limitePlan` (`id_negocio`, `mes`, `maximo`, `usadas`) para el aviso de la 2.3; el cruce del 80 % se calcula con `cruzaUmbralAviso`.
