@@ -66,6 +66,24 @@ La primera vez que se crea el volumen de MySQL, compose carga automáticamente e
 
 `npm run dev` y los scripts de `npm` se ejecutan **desde `backend/`**, porque leen `backend/.env` del directorio actual.
 
+### Tareas programadas (jobs)
+
+El servidor (`npm run dev`, `npm start` o el contenedor) corre estas tareas con node-cron, en hora de Bogotá. Los tests no las arrancan: llaman a cada función directamente.
+
+| Job | Cuándo | Qué hace |
+|---|---|---|
+| `envios-notificaciones` | Cada minuto | Envía las push y los correos programados (fin del horario de silencio) y los reintentos |
+| `recibos-expo` | Cada 15 min | Revisa los recibos de Expo y desactiva tokens dados de baja |
+| `recordatorios-citas` | Cada minuto | Recordatorio del día anterior (19:00) y de 2 horas antes |
+| `estado-vacunas` | 00:05 | Corrige la columna `vacunas.estado` |
+| `suscripciones` | 00:10 | Vence pruebas y planes (`plan_vencido`) y avisa la prueba por terminar |
+| `recordatorios-vacunas` | 09:00 | Vacunas 7 días antes, el día y 7 días después |
+| `archivos-por-eliminar` | Cada hora | Reintenta borrar en Cloudinary lo que quedó `por_eliminar` |
+| `sesiones` | 03:30 | Borra sesiones vencidas hace más de 30 días y tokens de correo vencidos |
+| `limpieza-notificaciones` | Domingos 04:00 | Borra notificaciones leídas de más de 90 días, todas las de más de 180 y recordatorios viejos |
+
+`estado-vacunas`, `suscripciones` y `recordatorios-vacunas` también corren una vez al arrancar, para recuperar lo que no corrió con el servidor apagado. Todos son seguros si hay dos instancias a la vez (por ejemplo durante un despliegue), pero en desarrollo sigue valiendo no correr el contenedor `backend` y `npm run dev` a la vez.
+
 ---
 
 ## 2. Variables de entorno
@@ -356,6 +374,7 @@ La sección de clientes del panel usa `GET /negocios/:id_negocio/clientes` (con 
 
 - Cada servicio tiene sus **empleados asignados** (`empleados: [id_empleado]` en el body de crear y editar; al editar reemplaza el conjunto). En el listado del panel, `sin_empleados: true` avisa que el servicio no se puede reservar: conviene mostrar una alerta para que el negocio asigne a alguien. El detalle de un empleado (`GET /empleados/:id_empleado`) trae los `servicios` que atiende.
 - En la app, los servicios no reservables se muestran igual con `reservable: false` (deshabilitar el botón de reservar). `precio_actual` ya tiene en cuenta la oferta vigente.
+- `indicaciones_previas` (opcional, hasta 500 caracteres): cómo preparar la cita (ayuno, carnet de vacunas, transporte). El panel la edita en el formulario del servicio; la app puede mostrarla antes de reservar, y va en el recordatorio del día anterior.
 - `GET /negocios` y `GET /servicios` aceptan `lat`, `lng` y `radio_km` (por defecto 10 km, máximo 50). **Con coordenadas, los negocios que no tienen coordenadas en ninguna sucursal activa ni en el negocio quedan fuera de los resultados.** El panel debería pedir la ubicación al crear una sucursal y avisar al negocio si ninguna la tiene, porque sin ella no aparece en "cerca de mí". La distancia (`distancia_km`) es la de la sucursal más cercana (`sucursal_cercana`).
 - Los textos de búsqueda (`q`) no distinguen tildes ni mayúsculas: "bano" encuentra "Baño".
 
@@ -401,13 +420,30 @@ Cada aviso llega por varios canales a la vez:
 | Notificación en la app/panel (`GET /notificaciones`) | Todos los destinatarios | Detalle completo (mascota, servicio, motivo) |
 | Socket.IO (evento `notificacion`) | Quien tenga el panel o la app abiertos | Lo mismo, en tiempo real |
 | Push de Expo | Usuarios con un dispositivo registrado y `notif_push` | Genérico (se ve en la pantalla bloqueada): tipo, fecha, hora y negocio |
-| Correo | Solo si no tiene dispositivo y `notif_email`: el dueño en los avisos de sus citas y el **propietario** del negocio en `cita_nueva` | Discreto, con sede y dirección, y enlace "Dejar de recibir estos correos" |
+| Correo | Solo si no tiene dispositivo y `notif_email`: el dueño en los avisos de sus citas y vacunas, y el **propietario** del negocio en `cita_nueva`, `plan_prueba_por_vencer` y `plan_vencido` | Discreto, con sede y dirección, y enlace "Dejar de recibir estos correos" |
 
-Tipos actuales: `cita_nueva` (reserva desde la app, al negocio), `cita_agendada` (desde el panel, al dueño), `cita_confirmada` (al dueño), `cita_cancelada` y `cita_reprogramada` (a la otra parte), `plan_limite_80` y `plan_limite_alcanzado` (al propietario y a quien tiene `configuracion.editar`). Del lado del negocio los reciben el propietario y los empleados con el permiso del evento (`citas.ver` en las citas), nunca quien hizo la acción.
+Tipos actuales y a quién llegan (`datos` para el deep link):
+
+| Tipo | Cuándo | Para | `datos` |
+|---|---|---|---|
+| `cita_nueva` | Reserva desde la app | Negocio (`citas.ver`) | `id_cita`, `id_negocio` |
+| `cita_agendada` | El panel agenda una cita | Dueño | `id_cita`, `id_negocio` |
+| `cita_confirmada` | El negocio confirma | Dueño | `id_cita`, `id_negocio` |
+| `cita_cancelada`, `cita_reprogramada` | Cancela o reprograma una parte | La otra parte | `id_cita`, `id_negocio` |
+| `cita_dia_anterior` | 19:00 del día anterior a una cita confirmada | Dueño | `id_cita`, `id_negocio` |
+| `cita_recordatorio` | 2 horas antes | Dueño | `id_cita`, `id_negocio` |
+| `vacuna_proxima`, `vacuna_vence_hoy`, `vacuna_vencida` | 7 días antes, el día y 7 días después de `fecha_proxima` (09:00) | Dueño | `id_mascota`, `id_vacuna` |
+| `plan_limite_80`, `plan_limite_alcanzado` | 80 % del límite de citas del mes; reserva rechazada por el límite | Negocio (`configuracion.editar`) | `id_negocio`, `mes` |
+| `plan_prueba_por_vencer` | A la prueba Pro le quedan 3 días o menos | Negocio (`configuracion.editar`) | `id_negocio` |
+| `plan_vencido` | Terminó la prueba o venció el plan pago | Negocio (`configuracion.editar`) | `id_negocio` |
+
+Del lado del negocio los reciben el propietario (siempre) y los empleados con el permiso indicado, nunca quien hizo la acción.
 
 - **Globo de no leídas:** `GET /notificaciones/no-leidas` al abrir, `meta.no_leidas` en el listado, y luego sumar con cada evento `notificacion`. Marcar con `PATCH /notificaciones/:id_notificacion/leida` o `POST /notificaciones/leer-todas`.
-- **Deep link:** `datos` trae el `tipo` y los ids (`id_cita`, `id_negocio`, `mes` en los avisos del plan) para abrir la pantalla correspondiente. Es lo mismo que llega en el `data` de la push, más `id_notificacion`.
-- **Horario de silencio (21:00 a 07:00):** push y correos esperan hasta las 07:00, salvo la cancelación o reprogramación de una cita cercana. La notificación en la app y el evento de Socket.IO siempre son inmediatos.
+- **Deep link:** `datos` trae el `tipo` y los ids de la tabla para abrir la pantalla correspondiente (la cita, el carnet de la mascota o la suscripción del negocio). Es lo mismo que llega en el `data` de la push, más `id_notificacion`.
+- **Horario de silencio (21:00 a 07:00):** push y correos esperan hasta las 07:00, salvo la cancelación o reprogramación de una cita cercana y el recordatorio de 2 horas antes de una cita temprana (antes de las 10:00), que salen enseguida con prioridad alta. La notificación en la app y el evento de Socket.IO siempre son inmediatos.
+- **Recordatorio del día anterior:** si el servicio tiene `indicaciones_previas` (ayuno, carnet...), el mensaje en la app y el correo las incluyen; la push no. Una cita agendada después de las 19:00 para el día siguiente no recibe este recordatorio.
+- **Avisos del plan:** terminan con el contacto de soporte (`soporte_email` y `soporte_whatsapp` en `configuracion_global`; lo que esté vacío se omite). Las notificaciones se borran solas: las leídas a los 90 días y todas a los 180.
 
 ### Notificaciones en tiempo real (Socket.IO)
 

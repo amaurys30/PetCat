@@ -180,8 +180,9 @@ Jobs sobre la base de node-cron de la 2.3 (funciones exportadas que los tests ll
 - [x] Migración `015_servicios_indicaciones_previas.sql`: `servicios.indicaciones_previas` (opcional, 500 caracteres) en el CRUD de servicios y el servicio público; el recordatorio del día anterior la muestra en la app y el correo si el servicio la tiene.
 - [x] Refresco de `vacunas.estado` y recordatorios de vacunas en los hitos -7, 0 y +7 días.
 - [x] Vencimiento de pruebas y planes pagos con `plan_prueba_por_vencer` y `plan_vencido` (correo al propietario sin dispositivo), y limpieza de sesiones expiradas.
+- [x] Migración `016_soporte_contacto.sql`: `soporte_email` (antes `contacto_soporte`) y `soporte_whatsapp` al final de los avisos del plan, en la app y el correo.
 - [x] Reintento del borrado en Cloudinary de los archivos `por_eliminar` (2.2), limpieza de notificaciones antiguas y jobs diarios al arrancar.
-- [ ] README: tipos de notificación nuevos para la app y el panel.
+- [x] README: tipos de notificación nuevos para la app y el panel, indicaciones previas y tabla de jobs.
 
 ### 2.5 Confirmación y cancelación automáticas
 - [ ] Migración: `negocios.confirmacion_automatica` y clave de plazo en `configuracion_global`.
