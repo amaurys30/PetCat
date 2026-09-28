@@ -7,6 +7,8 @@ import { pushSender } from "../../shared/utils/push.js";
 import { sendMail } from "../../shared/utils/mailer.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
 import { aDatetimeSQL } from "../../shared/utils/fechas.js";
+import { buildMeta } from "../../shared/utils/pagination.js";
+import { ApiError } from "../../shared/errors/ApiError.js";
 
 /**
  * Notificaciones con outbox:
@@ -28,7 +30,8 @@ const RECIBO_VIGENCIA_H = 24; // Expo guarda los recibos 24 horas
 
 const sumarMin = (fecha, min) => new Date(fecha.getTime() + min * MINUTO);
 
-// Socket.IO registra aquí cómo emitir (2.3); sin él, solo se guarda y se envía por push o correo.
+// Socket.IO registra aquí cómo emitir a un usuario: `emisor(id_usuario, evento, datos)`.
+// Sin él (tests sin socket), solo se guarda y se envía por push o correo.
 let emisor = () => {};
 export const registrarEmisor = (fn) => {
   emisor = fn;
@@ -125,13 +128,16 @@ export const notificar = async (eventos, conn, { ahora = new Date() } = {}) => {
       creadas.push({
         id_usuario: usuario.id_usuario,
         envios,
+        // Misma forma que GET /notificaciones (formatNotificacion).
         notificacion: {
           id_notificacion,
+          id_negocio: evento.id_negocio ?? null,
           tipo: evento.tipo,
           titulo: contenido.titulo,
           mensaje: contenido.mensaje,
           datos: enlace,
           leida: false,
+          leida_en: null,
           fecha_creacion: aDatetimeSQL(ahora),
         },
       });
@@ -147,7 +153,7 @@ export const notificar = async (eventos, conn, { ahora = new Date() } = {}) => {
 export const despachar = async (creadas, { ahora = new Date() } = {}) => {
   for (const { id_usuario, notificacion, envios } of creadas) {
     try {
-      emisor(id_usuario, notificacion);
+      emisor(id_usuario, "notificacion", notificacion);
     } catch (err) {
       console.error("[notificaciones] Error al emitir por Socket.IO:", err.message);
     }
@@ -272,3 +278,49 @@ export const revisarRecibos = async ({ ahora = new Date(), limite = 500 } = {}) 
 
 /** Baja de correos desde el enlace firmado. */
 export const darDeBajaCorreos = (id_usuario) => notificacionRepo.desactivarCorreos(id_usuario);
+
+// ---------- Consultas del usuario ----------
+
+/** Notificación para la app y el panel. `datos` son los ids del deep link (con `tipo`). */
+export const formatNotificacion = (row) => ({
+  id_notificacion: row.id_notificacion,
+  id_negocio: row.id_negocio,
+  tipo: row.tipo,
+  titulo: row.titulo,
+  mensaje: row.mensaje,
+  datos: parse(row.datos_extra_json)?.enlace ?? { tipo: row.tipo },
+  leida: row.estado === "leida",
+  leida_en: row.leida_en,
+  fecha_creacion: row.fecha_creacion,
+});
+
+export const getNotificaciones = async (id_usuario, { page, limit, leidas }) => {
+  const [{ rows, total }, no_leidas] = await Promise.all([
+    notificacionRepo.findPage(id_usuario, { leidas, limit, offset: (page - 1) * limit }),
+    notificacionRepo.countNoLeidas(id_usuario),
+  ]);
+  return { rows: rows.map(formatNotificacion), meta: { ...buildMeta(total, page, limit), no_leidas } };
+};
+
+export const getNoLeidas = async (id_usuario) => ({ total: await notificacionRepo.countNoLeidas(id_usuario) });
+
+/** Las otras sesiones del usuario (panel abierto en otra pestaña, la app) actualizan su contador. */
+const avisarLeidas = async (id_usuario) => {
+  emisor(id_usuario, "notificaciones_leidas", { no_leidas: await notificacionRepo.countNoLeidas(id_usuario) });
+};
+
+/** Marca una como leída (si ya lo estaba, la devuelve igual). 404 si no es del usuario. */
+export const marcarLeida = async (id_usuario, id_notificacion) => {
+  if (!(await notificacionRepo.findDeUsuario(id_notificacion, id_usuario))) {
+    throw ApiError.notFound("Notificación no encontrada");
+  }
+  await notificacionRepo.marcarLeida(id_notificacion, id_usuario);
+  await avisarLeidas(id_usuario);
+  return formatNotificacion(await notificacionRepo.findDeUsuario(id_notificacion, id_usuario));
+};
+
+export const marcarTodasLeidas = async (id_usuario) => {
+  const actualizadas = await notificacionRepo.marcarTodasLeidas(id_usuario);
+  await avisarLeidas(id_usuario);
+  return { actualizadas };
+};

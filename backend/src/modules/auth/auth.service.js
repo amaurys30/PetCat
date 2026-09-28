@@ -13,6 +13,7 @@ import { sendMail } from "../../shared/utils/mailer.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
 import { quitarImagen, reemplazarImagen } from "../archivos/archivo.service.js";
+import { desconectarSesionesDeUsuario } from "../../realtime/socket.js";
 import { isTest } from "../../config/env.js";
 
 export const MAX_INTENTOS_LOGIN = 5;
@@ -231,6 +232,8 @@ export const changePassword = async (id_usuario, id_sesion, { password_actual, p
     await usuarioRepo.updatePassword(id_usuario, password_hash, conn);
     await sessionRepo.deactivateByUsuario(id_usuario, { exceptoIdSesion: id_sesion }, conn);
   });
+  // Las demás sesiones ya no valen: sus sockets tampoco deben seguir recibiendo notificaciones.
+  await desconectarSesionesDeUsuario(id_usuario, { exceptoIdSesion: id_sesion });
 };
 
 /**
@@ -263,7 +266,7 @@ export const forgotPassword = async ({ email }) => {
  */
 export const resetPassword = async ({ token, password }) => {
   const password_hash = await hashPassword(password);
-  await withTransaction(async (conn) => {
+  const id_usuario = await withTransaction(async (conn) => {
     const usuario = await usuarioRepo.findByTokenHash("recuperacion", hashToken(token), { conn, forUpdate: true });
     if (!usuario) {
       throw ApiError.badRequest("El enlace para restablecer la contraseña no es válido o ya venció. Solicita uno nuevo");
@@ -273,7 +276,9 @@ export const resetPassword = async ({ token, password }) => {
     await usuarioRepo.updatePassword(usuario.id_usuario, password_hash, conn);
     await usuarioRepo.markEmailVerificado(usuario.id_usuario, conn);
     await sessionRepo.deactivateByUsuario(usuario.id_usuario, {}, conn);
+    return usuario.id_usuario;
   });
+  await desconectarSesionesDeUsuario(id_usuario);
 };
 
 // ---------- Clientes registrados por un negocio ----------

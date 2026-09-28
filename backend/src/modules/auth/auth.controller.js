@@ -1,6 +1,7 @@
 import * as service from "./auth.service.js";
 import * as sessionRepo from "../sessions/session.repository.js";
 import { refreshSession } from "../sessions/session.service.js";
+import { desconectarSesion } from "../../realtime/socket.js";
 import { ok, created } from "../../shared/utils/response.js";
 import { clienteDe } from "../../shared/utils/cliente.js";
 import { archivoUnico } from "../../shared/utils/uploads.js";
@@ -17,6 +18,7 @@ export const login = async (req, res) => {
 
 export const logout = async (req, res) => {
   await sessionRepo.deactivate(req.session.id_sesion);
+  desconectarSesion(req.session.id_sesion);
   return ok(res, null, "Sesión cerrada");
 };
 

@@ -155,6 +155,60 @@ export const desactivarDispositivo = async (id_dispositivo, error) => {
   ]);
 };
 
+// ---------- Consultas del usuario ----------
+
+const COLUMNAS_NOTIFICACION = "id_notificacion, id_negocio, tipo, titulo, mensaje, datos_extra_json, estado, leida_en, fecha_creacion";
+
+/** Página de notificaciones del usuario (sin archivadas), las más recientes primero. `leidas`: true, false o undefined. */
+export const findPage = async (id_usuario, { leidas, limit, offset }) => {
+  const filtros = ["id_usuario = ?", "estado <> 'archivada'"];
+  const params = [id_usuario];
+  if (leidas !== undefined) {
+    filtros.push("estado = ?");
+    params.push(leidas ? "leida" : "enviada");
+  }
+  const where = filtros.join(" AND ");
+  const [[{ total }]] = await db.query(`SELECT COUNT(*) AS total FROM notificaciones WHERE ${where}`, params);
+  const [rows] = await db.query(
+    `SELECT ${COLUMNAS_NOTIFICACION} FROM notificaciones WHERE ${where}
+     ORDER BY fecha_creacion DESC, id_notificacion DESC LIMIT ? OFFSET ?`,
+    [...params, limit, offset]
+  );
+  return { rows, total };
+};
+
+export const countNoLeidas = async (id_usuario) => {
+  const [[{ total }]] = await db.query(
+    "SELECT COUNT(*) AS total FROM notificaciones WHERE id_usuario = ? AND estado = 'enviada'",
+    [id_usuario]
+  );
+  return total;
+};
+
+export const findDeUsuario = async (id_notificacion, id_usuario) => {
+  const [rows] = await db.query(
+    `SELECT ${COLUMNAS_NOTIFICACION} FROM notificaciones WHERE id_notificacion = ? AND id_usuario = ? AND estado <> 'archivada'`,
+    [id_notificacion, id_usuario]
+  );
+  return rows[0];
+};
+
+export const marcarLeida = async (id_notificacion, id_usuario) => {
+  await db.query(
+    "UPDATE notificaciones SET estado = 'leida', leida_en = NOW() WHERE id_notificacion = ? AND id_usuario = ? AND estado = 'enviada'",
+    [id_notificacion, id_usuario]
+  );
+};
+
+/** Marca todas las no leídas del usuario; devuelve cuántas. */
+export const marcarTodasLeidas = async (id_usuario) => {
+  const [result] = await db.query(
+    "UPDATE notificaciones SET estado = 'leida', leida_en = NOW() WHERE id_usuario = ? AND estado = 'enviada'",
+    [id_usuario]
+  );
+  return result.affectedRows;
+};
+
 // ---------- Baja de correos ----------
 
 export const desactivarCorreos = async (id_usuario) => {

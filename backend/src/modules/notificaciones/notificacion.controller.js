@@ -1,5 +1,23 @@
 import * as service from "./notificacion.service.js";
 import { paginaBaja, verificarTokenBaja } from "./notificacion.correo.js";
+import { ok, paginated } from "../../shared/utils/response.js";
+
+export const getNotificaciones = async (req, res) => {
+  const { rows, meta } = await service.getNotificaciones(req.user.id_usuario, req.query);
+  return paginated(res, rows, meta);
+};
+
+export const getNoLeidas = async (req, res) => {
+  return ok(res, await service.getNoLeidas(req.user.id_usuario));
+};
+
+export const marcarLeida = async (req, res) => {
+  return ok(res, await service.marcarLeida(req.user.id_usuario, req.params.id_notificacion), "Notificación leída");
+};
+
+export const marcarTodasLeidas = async (req, res) => {
+  return ok(res, await service.marcarTodasLeidas(req.user.id_usuario), "Notificaciones leídas");
+};
 
 // La baja de correos se abre desde un correo en el navegador: responde HTML, no JSON.
 const html = (res, status, pagina) => res.status(status).type("html").send(pagina);
