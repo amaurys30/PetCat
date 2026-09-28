@@ -1,5 +1,6 @@
 import cron from "node-cron";
 import { procesarEnviosPendientes, revisarRecibos } from "../modules/notificaciones/notificacion.service.js";
+import { enviarRecordatoriosCitas } from "../modules/recordatorios/recordatorio.service.js";
 
 /**
  * Tareas programadas (node-cron, hora de Bogotá). Cada job es una función exportada de
@@ -12,6 +13,8 @@ export const JOBS = [
   { nombre: "envios-notificaciones", cada: "* * * * *", tarea: () => procesarEnviosPendientes() },
   // Recibos de Expo: tokens dados de baja y errores de entrega.
   { nombre: "recibos-expo", cada: "*/15 * * * *", tarea: () => revisarRecibos() },
+  // Recordatorios de citas: el del día anterior (19:00) y el de 2 horas antes.
+  { nombre: "recordatorios-citas", cada: "* * * * *", tarea: () => enviarRecordatoriosCitas() },
 ];
 
 export const iniciarJobs = () =>

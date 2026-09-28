@@ -167,16 +167,17 @@ export const despachar = async (creadas, { ahora = new Date() } = {}) => {
 /**
  * Transacción con notificaciones: `fn(conn, notificar)` hace el cambio y llama a
  * `notificar(eventos)` (normalmente al final); tras el commit se despacha. Si la
- * transacción falla no queda ninguna notificación ni se envía nada.
+ * transacción falla no queda ninguna notificación ni se envía nada. `ahora`: la hora de
+ * referencia (los jobs la reciben para que los tests la fijen).
  */
-export const conNotificaciones = async (fn) => {
+export const conNotificaciones = async (fn, { ahora = new Date() } = {}) => {
   const creadas = [];
   const resultado = await withTransaction((conn) =>
     fn(conn, async (eventos) => {
-      creadas.push(...(await notificar(eventos, conn)));
+      creadas.push(...(await notificar(eventos, conn, { ahora })));
     })
   );
-  await despachar(creadas);
+  await despachar(creadas, { ahora });
   return resultado;
 };
 

@@ -20,6 +20,7 @@ const limpiar = (texto) => texto.replace(/[  ]/g, " ");
 const fechaLegible = (fecha) =>
   limpiar(new Intl.DateTimeFormat("es-CO", { weekday: "long", day: "numeric", month: "long" }).format(new Date(`${fecha}T12:00:00`)));
 
+/** "9:00 a. m." */
 const horaLegible = (hora) =>
   limpiar(
     new Intl.DateTimeFormat("es-CO", { hour: "numeric", minute: "2-digit", hour12: true }).format(
@@ -123,6 +124,35 @@ export const TIPOS = {
             push: `Una cita se movió al ${cuando(d.fecha, d.hora_inicio)}.`,
             mensaje: `${d.cliente} movió la cita de ${d.mascota} (${d.servicio}) del ${cuando(d.fecha_anterior, d.hora_anterior)} al ${cuando(d.fecha, d.hora_inicio)}. Queda pendiente de confirmar.`,
           },
+  },
+
+  // Recordatorios de la 2.4 (job de recordatorios de citas).
+  cita_dia_anterior: {
+    correo: ["dueno"],
+    contenido: (d) => ({
+      titulo: "Tu cita es mañana",
+      push: `Mañana a las ${horaLegible(d.hora_inicio)} tienes una cita con ${d.negocio}.`,
+      mensaje: `Mañana, ${cuando(d.fecha, d.hora_inicio)}, ${d.mascota} tiene ${d.servicio} en ${d.negocio} (${donde(d)}). Si necesita ayuno o alguna preparación, tenlo en cuenta. Si no puedes asistir, cancela o reprograma desde la app.`,
+      correo: {
+        asunto: `Recordatorio: tu cita de mañana en ${d.negocio}`,
+        parrafos: correoCitaDueno(d, "Te recordamos tu cita de mañana."),
+      },
+    }),
+  },
+
+  cita_recordatorio: {
+    correo: ["dueno"],
+    // Una cita temprana (antes del fin del silencio + 3 h) no puede esperar al fin del silencio.
+    urgente: (d, fin) => citaCercana(fin, inicioDeCita(d.fecha, d.hora_inicio)),
+    contenido: (d) => ({
+      titulo: "Tu cita es pronto",
+      push: `Hoy a las ${horaLegible(d.hora_inicio)} tienes una cita con ${d.negocio}.`,
+      mensaje: `${d.mascota} tiene ${d.servicio} hoy a las ${horaLegible(d.hora_inicio)} en ${d.negocio} (${donde(d)}).`,
+      correo: {
+        asunto: `Tu cita en ${d.negocio} es hoy`,
+        parrafos: correoCitaDueno(d, "Te recordamos tu cita de hoy."),
+      },
+    }),
   },
 
   plan_limite_alcanzado: {

@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { spawn } from "node:child_process";
 import { pool } from "../../src/config/db.js";
 import { pushSender } from "../../src/shared/utils/push.js";
 import { withTransaction } from "../../src/shared/utils/transaction.js";
@@ -7,6 +6,7 @@ import { aDatetimeSQL } from "../../src/shared/utils/fechas.js";
 import { notificar, procesarEnviosPendientes } from "../../src/modules/notificaciones/notificacion.service.js";
 import { reclamarEnvio } from "../../src/modules/notificaciones/notificacion.repository.js";
 import { configurarSilencio, crearDispositivo, crearUsuario } from "../helpers/factories.js";
+import { enOtroProceso } from "../helpers/procesos.js";
 
 beforeEach(() => configurarSilencio("21:00", "07:00"));
 afterEach(() => pushSender.reiniciar());
@@ -47,29 +47,14 @@ const avisosProgramados = async (n) => {
   return { tokens, ids: envios.map((e) => e.id_envio) };
 };
 
-/**
- * Otro proceso de Node (su propio pool de conexiones, como una segunda instancia de la API)
- * que corre el job una vez y devuelve los tokens a los que envió push.
- */
+/** Otra instancia que corre el job una vez y devuelve los tokens a los que envió push. */
 const procesadorEnOtroProceso = (ahora) =>
-  new Promise((resolve, reject) => {
-    const script = `
-      const { pushSender } = await import("./src/shared/utils/push.js");
-      const { procesarEnviosPendientes } = await import("./src/modules/notificaciones/notificacion.service.js");
-      const { pool } = await import("./src/config/db.js");
-      pushSender.retrasoMs = 30; // latencia de Expo: los dos procesos se solapan
-      await procesarEnviosPendientes({ ahora: new Date(${ahora.getTime()}) });
-      console.log(JSON.stringify(pushSender.enviados.map((m) => m.to)));
-      await pool.end();`;
-    const hijo = spawn(process.execPath, ["--input-type=module", "-e", script], { cwd: process.cwd(), env: process.env });
-    let salida = "";
-    let errores = "";
-    hijo.stdout.on("data", (d) => (salida += d));
-    hijo.stderr.on("data", (d) => (errores += d));
-    hijo.on("close", (codigo) =>
-      codigo === 0 ? resolve(JSON.parse(salida.trim().split("\n").pop())) : reject(new Error(errores || `salida ${codigo}`))
-    );
-  });
+  enOtroProceso(`
+    const { pushSender } = await import("./src/shared/utils/push.js");
+    const { procesarEnviosPendientes } = await import("./src/modules/notificaciones/notificacion.service.js");
+    pushSender.retrasoMs = 30; // latencia de Expo: los dos procesos se solapan
+    await procesarEnviosPendientes({ ahora: new Date(${ahora.getTime()}) });
+    return pushSender.enviados.map((m) => m.to);`);
 
 describe("un envío nunca se procesa dos veces", () => {
   it("dos instancias corriendo el job a la vez envían cada aviso una sola vez", async () => {
