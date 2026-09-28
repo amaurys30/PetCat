@@ -151,14 +151,47 @@ En tres partes: **1.5.1** horarios libres, reservas y clientes del panel · **1.
 ---
 
 ## Fase 2 — Lo que hace viable el negocio
-- [ ] Planes y suscripciones: `GET /planes`, `GET /negocios/:id_negocio/suscripcion`, cambio de plan y prueba Pro de 14 días. Middleware `checkPlanLimit` para sucursales, empleados, citas del mes y productos.
-- [ ] Uploads con Cloudinary: fotos de mascotas, logos, banners, comprobantes y archivos del historial.
-- [ ] Notificaciones: `GET /notificaciones`, marcar como leída, Socket.IO para el panel y Expo Push para la app (registro del token del dispositivo).
-- [ ] Recordatorios: jobs con node-cron para citas, vacunas próximas o vencidas y limpieza de sesiones expiradas. El mismo cron refresca `vacunas.estado`.
-- [ ] Citas pendientes sin confirmar: cancelación automática (plazo por definir).
-- [ ] Opción por negocio para confirmar automáticamente las citas que llegan desde la app.
-- [ ] Reseñas: el dueño reseña una cita completada (una por cita); el negocio responde; reportar reseña.
-- [ ] Dashboard del panel: citas del día, ingresos, servicios más pedidos, clientes nuevos (usando las vistas SQL).
+
+Se hace en sub-bloques que se aprueban por separado: **2.1** planes y suscripciones · **2.2** uploads con Cloudinary · **2.3** notificaciones · **2.4** jobs con node-cron · **2.5** confirmación y cancelación automáticas · **2.6** reseñas · **2.7** dashboard y notas de clientes. La 2.1 va primero porque cambia endpoints existentes; la 2.3 antes que 2.4, 2.5 y 2.6 porque todas envían avisos; el dashboard al final. Las decisiones están en "Decisiones de la Fase 2".
+
+### 2.1 Planes y suscripciones
+- [ ] `GET /planes` (público) y `GET /negocios/:id_negocio/suscripcion` (plan vigente, uso contra cada límite y días de prueba restantes); `plan` en cada negocio de `GET /negocios/mios`.
+- [ ] `POST /negocios/:id_negocio/suscripcion/prueba-pro`: 14 días, una sola vez por negocio. `PUT /negocios/:id_negocio/suscripcion` solo para el admin de plataforma (asignación manual de plan).
+- [ ] Plan efectivo calculado al leer: prueba o plan pago vencido cuenta como Gratuito sin esperar al cron.
+- [ ] `checkPlanLimit` para sucursales y empleados; límite de citas del mes en la reserva (app y panel), la reprogramación y los horarios libres. Listo para productos (Fase 3).
+
+### 2.2 Uploads con Cloudinary
+- [ ] `shared/utils/uploads.js` (multer en memoria, tipo y tamaño) y endpoints para foto de usuario, foto de mascota, logo y banner del negocio, comprobante de vacuna y archivos del historial. Reemplazar borra la imagen anterior. Doble de prueba de Cloudinary en los tests.
+
+### 2.3 Notificaciones
+- [ ] Migración de tokens de Expo por dispositivo; `POST|DELETE /dispositivos` (el logout borra el token del dispositivo).
+- [ ] `GET /notificaciones`, marcar como leída, marcar todas y contador de no leídas.
+- [ ] Servicio `notificar()`: fila en `notificaciones` + Socket.IO (salas `usuario:<id>`, JWT en el handshake) + Expo Push (según `notif_push`) + correo (ver Decisiones).
+- [ ] Eventos: nueva cita (al negocio), confirmación, cancelación y reprogramación (a la otra parte); reserva rechazada por el límite del plan y 80 % del límite de citas del mes (al negocio).
+
+### 2.4 Jobs con node-cron
+- [ ] Jobs como funciones exportadas que los tests llaman directo; el cron no arranca con `NODE_ENV=test`.
+- [ ] Envío de recordatorios pendientes (push o correo, reintentos y `fallido`); migración para que el trigger de citas no use el canal `whatsapp`.
+- [ ] Recordatorios de vacunas próximas o vencidas y refresco de `vacunas.estado`.
+- [ ] Vencimiento de pruebas y planes pagos, y limpieza de sesiones expiradas.
+
+### 2.5 Confirmación y cancelación automáticas
+- [ ] Migración: `negocios.confirmacion_automatica` y clave de plazo en `configuracion_global`.
+- [ ] Con la opción activa, las citas de la app nacen `confirmada` con recordatorio.
+- [ ] Aviso al negocio a mitad del plazo con las citas pendientes por confirmar; cancelación automática al vencer el plazo, con aviso a las dos partes.
+
+### 2.6 Reseñas
+- [ ] `POST /citas/:id_cita/resena` (solo el dueño, cita completada, 409 si ya existe), `GET /negocios/:id_negocio/resenas` (público, paginado) y listado del panel.
+- [ ] `PUT /resenas/:id_resena/respuesta` y `POST /resenas/:id_resena/reportar` (migración: motivo y fecha del reporte). Avisos al negocio (reseña nueva) y al dueño (respuesta). La moderación queda para el super admin (Fase 4).
+
+### 2.7 Dashboard y notas de clientes
+- [ ] `GET /negocios/:id_negocio/dashboard?desde&hasta` (`reportes.ver`): citas del día por estado, ingresos por citas completadas (`precio_final`; `v_ingresos_negocio` depende de `pagos`, Fase 3), servicios más pedidos, clientes nuevos, tasa de inasistencia y calificación. Solo el resumen básico sin `estadisticas_avanzadas`.
+- [ ] Notas del negocio sobre el cliente (`clientes.editar`).
+
+### Cierre de la Fase 2
+- [ ] Seed ampliado: notificaciones, reseñas con respuesta y reportadas, dispositivos de ejemplo y un negocio Gratuito cerca de sus límites.
+- [ ] Verificación desde cero, como en las fases anteriores.
+- [ ] PR de `fase-2` a `main`.
 
 ## Fase 3 — Inventario, compras y pagos
 - [ ] Productos y categorías; movimientos de inventario (el trigger actualiza el stock); alertas de stock bajo y de vencimiento.
@@ -364,6 +397,24 @@ En tres partes: **1.5.1** horarios libres, reservas y clientes del panel · **1.
 - Detalle: `cliente` (contacto, `cliente_desde`, `registrado_por_el_negocio`, `usa_app`), `historial_cumplimiento`, `mascotas` activas (fallecidas marcadas) con `citas_con_negocio` y `acceso_historial`, y `citas` `proximas` y `recientes` (10) en el formato de la agenda. `GET .../clientes/:id_usuario/citas` las trae todas, paginadas. Un usuario que no es cliente del negocio da **404** (no se revela si la cuenta existe).
 
 **Pendientes**
-- Fase 2: cancelación automática de citas pendientes sin confirmar y opción por negocio para confirmar automáticamente.
-- Fase 2: notas del negocio sobre el cliente (una tabla por negocio, visibles solo para ese negocio), que le dan uso al permiso `clientes.editar`.
+- Fase 2 (2.5): cancelación automática de citas pendientes sin confirmar y opción por negocio para confirmar automáticamente.
+- Fase 2 (2.7): notas del negocio sobre el cliente (una tabla por negocio, visibles solo para ese negocio), que le dan uso al permiso `clientes.editar`.
 - Por decidir: clientes que solo tienen teléfono (hoy el email es obligatorio para registrarlos desde el panel).
+
+### Decisiones de la Fase 2 (septiembre 2026)
+
+**Generales**
+- Cambio de plan sin pasarela: en la Fase 2 el negocio solo activa la prueba Pro y el admin de plataforma asigna planes a mano (`PUT /negocios/:id_negocio/suscripcion`). El pago del upgrade llega con MercadoPago (Fase 3).
+- Bajar de plan (fin de la prueba, vencimiento o asignación) no desactiva nada: lo existente sigue funcionando y solo se bloquea crear más recursos hasta volver a estar dentro del límite.
+- Notificaciones del negocio: una fila por cada miembro del personal con el permiso del evento (p. ej. `citas.ver` para una cita nueva), para que cada uno marque sus leídas.
+- Correo como canal: los recordatorios de citas y vacunas se envían por correo a los usuarios sin dispositivos registrados (p. ej. clientes creados desde el panel) si tienen `notif_email`; con dispositivos, por push según `notif_push`. WhatsApp no entra en el MVP.
+- Cancelación automática de citas pendientes: en lo que ocurra primero, 24 horas después de creada o la hora de inicio (plazo configurable). A mitad del plazo el negocio recibe un aviso con las citas pendientes por confirmar.
+
+**Planes y suscripciones (2.1)**
+- Historial de filas: cada cambio de plan cierra la suscripción vigente (`cancelada`, `fecha_fin` = hoy) e inserta una nueva. La prueba Pro es una fila `en_prueba` con `fecha_prueba_fin` y `fecha_fin` a los `dias_prueba_gratis` (14) días.
+- Suscripción vigente: la fila más reciente en `activa` o `en_prueba`. Plan efectivo: el de la vigente salvo que esté vencida (`fecha_fin` < hoy o, en prueba, `fecha_prueba_fin` < hoy); vencida o sin filas, Gratuito. Se calcula al leer, como el estado de las vacunas; el cron de la 2.4 solo guarda `vencida`.
+- Prueba Pro: solo el propietario (y el admin), una vez por negocio (existe alguna fila con `fecha_prueba_fin`) y solo desde el Gratuito; si no, 409.
+- Qué cuenta: sucursales activas; empleados activos **sin contar al propietario registrado como empleado** (se registra para aparecer en la agenda y no debe evitarlo para ahorrar cupo); citas del mes calendario de su `fecha`, excepto canceladas y reprogramadas (la nueva de una reprogramación sí cuenta, así que reprogramar dentro del mismo mes no consume cupo).
+- `checkPlanLimit(recurso)` es una comprobación rápida sin bloqueos (403 con `errors.plan`); la exacta se repite dentro de la transacción bloqueando la fila de la suscripción vigente por clave primaria, solo si el límite no es ilimitado. Orden de bloqueo en la agenda: cita → suscripción → servicio → empleados → mascota.
+- Límite de citas alcanzado: la reserva desde la app da 409 con el mensaje neutro de horario no disponible y `GET /citas/horarios-libres` devuelve cero horarios con el `motivo_sin_horarios` genérico (la app no revela el plan del negocio); el panel da 403 con `errors.plan` y sus horarios libres dan un motivo explícito.
+- Avisos al negocio (se envían desde la 2.3): reserva rechazada por el límite, como máximo uno por negocio y día; 80 % del límite de citas del mes, uno por negocio y mes (la reserva que cruza el umbral). Se deduplican consultando `notificaciones` por tipo.
