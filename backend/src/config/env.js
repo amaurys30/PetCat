@@ -70,6 +70,9 @@ const schema = z
       .default("petcat-dev"),
     // Vigencia de las URLs firmadas de archivos privados (historial y comprobantes).
     ARCHIVOS_URL_VIGENCIA_MIN: z.coerce.number().int().min(1).max(1440).default(15),
+
+    // Solo si el proyecto de Expo tiene activada la seguridad de push (Access Token).
+    EXPO_ACCESS_TOKEN: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.JWT_SECRET === data.REFRESH_SECRET) {

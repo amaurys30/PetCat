@@ -27,6 +27,7 @@ import saludRoutes from "./modules/salud/salud.routes.js";
 import clienteRoutes from "./modules/clientes/cliente.routes.js";
 import suscripcionRoutes from "./modules/suscripciones/suscripcion.routes.js";
 import dispositivoRoutes from "./modules/dispositivos/dispositivo.routes.js";
+import notificacionRoutes from "./modules/notificaciones/notificacion.routes.js";
 
 import { generalLimiter, strictLimiter } from "./shared/middlewares/rateLimit.js";
 import { notFound } from "./shared/middlewares/notFound.js";
@@ -98,6 +99,7 @@ v1.use(saludRoutes);
 v1.use(clienteRoutes);
 v1.use(suscripcionRoutes);
 v1.use(dispositivoRoutes);
+v1.use(notificacionRoutes);
 
 app.use("/api/v1", v1);
 

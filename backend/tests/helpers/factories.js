@@ -232,6 +232,17 @@ export const crearResena = async (negocio, overrides = {}) => {
   return findOne("resenas", "id_resena", id);
 };
 
+/** Dispositivo activo del usuario con un token de Expo único (sin sesión). */
+export const crearDispositivo = async (usuario, overrides = {}) => {
+  const id = await insert("dispositivos", {
+    id_usuario: usuario.id_usuario,
+    token_expo: `ExponentPushToken[${unique()}${unique()}]`,
+    plataforma: "android",
+    ...overrides,
+  });
+  return findOne("dispositivos", "id_dispositivo", id);
+};
+
 /**
  * Crea una sesión válida para el usuario, igual que el login, y devuelve su access token.
  */

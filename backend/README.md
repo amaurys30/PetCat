@@ -98,6 +98,7 @@ Hay tres archivos, ninguno se sube al repositorio (solo sus plantillas `.example
 | `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | En producción | | Credenciales de Cloudinary (las tres juntas). En desarrollo, sin ellas la API funciona pero las subidas de archivos responden 503. Los tests no las usan |
 | `CLOUDINARY_FOLDER` | | `petcat-dev` | Carpeta raíz en Cloudinary, una por entorno (`petcat-prod` en producción) |
 | `ARCHIVOS_URL_VIGENCIA_MIN` | | `15` | Minutos de vigencia de las URLs firmadas de archivos privados |
+| `EXPO_ACCESS_TOKEN` | | | Solo si el proyecto de Expo tiene activada la seguridad de push; sin ella las push se envían igual |
 
 Cada variable nueva se agrega también a `backend/.env.example`.
 

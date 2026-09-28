@@ -7,3 +7,7 @@ const dosDigitos = (n) => String(n).padStart(2, "0");
 /** Fecha de hoy en Bogotá. Los "YYYY-MM-DD" se comparan bien como texto. */
 export const hoyISO = (ahora = new Date()) =>
   `${ahora.getFullYear()}-${dosDigitos(ahora.getMonth() + 1)}-${dosDigitos(ahora.getDate())}`;
+
+/** Fecha y hora en Bogotá como DATETIME de MySQL: "YYYY-MM-DD HH:MM:SS". */
+export const aDatetimeSQL = (fecha) =>
+  `${hoyISO(fecha)} ${dosDigitos(fecha.getHours())}:${dosDigitos(fecha.getMinutes())}:${dosDigitos(fecha.getSeconds())}`;
