@@ -204,6 +204,8 @@ Jobs sobre la base de node-cron de la 2.3 (funciones exportadas que los tests ll
 
 ## Requisitos antes de lanzar con usuarios reales
 - [ ] Supresión de datos (Ley 1581 de 2012): que el titular pueda pedir la supresión de su cuenta y sus datos, incluido el **borrado físico** de sus archivos en Cloudinary (fotos, comprobantes y, según lo que exija la conservación de la historia clínica, los archivos del historial) y la revocación de su autorización (`autorizaciones_datos.revocada_en`). Hasta entonces el borrado de mascotas y cuentas es lógico y los archivos se conservan (decisión de la 2.2).
+- [ ] Contacto de soporte real: configurar `soporte_email` y `soporte_whatsapp` en `configuracion_global` con los contactos reales de PetCat (los avisos del plan y el correo de bienvenida los muestran; vacíos se omiten).
+- [ ] SMTP real (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`) para que los correos se envíen; sin `SMTP_HOST`, en desarrollo solo se muestran en la consola.
 
 ## Fase 3 — Inventario, compras y pagos
 - [ ] Productos y categorías; movimientos de inventario (el trigger actualiza el stock); alertas de stock bajo y de vencimiento.
