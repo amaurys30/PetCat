@@ -338,7 +338,7 @@ Detalle de cada uno en Swagger.
 - El dueño ve el historial y las vacunas de sus mascotas en `/mascotas/:id_mascota/...` (sin notas internas). El panel usa `/negocios/:id_negocio/mascotas/:id_mascota/...` y solo funciona si la mascota tiene una cita con ese negocio que no esté cancelada ni reprogramada (403 si no).
 - `compartir_historial` (en `PATCH /mascotas/:id_mascota`, por defecto true): con false, cada negocio ve solo el historial clínico que él creó. Las **vacunas**, las alergias y las condiciones médicas siempre las ve cualquier negocio con cita.
 - En el carnet, `registrada_por: dueno` y `tiene_comprobante` distinguen las vacunas que registró el dueño de las de un profesional. `estado` ya viene calculado (`no_aplica` en dosis reemplazadas por una más reciente de la misma vacuna).
-- `archivos` del historial y `comprobante_url` aceptan solo URLs https (la subida de archivos llega en la Fase 2).
+- Los archivos del historial y el comprobante de una vacuna se suben aparte (ver "Archivos e imágenes") y llegan en `archivos` y `comprobante` con URL firmada que vence.
 - `resumen-salud` trae lo que la app necesita para la ficha: vacunas vencidas y próximas (30 días), último y próximo control, próxima cita y evolución del peso.
 
 ### Clientes sin app (panel)
@@ -359,7 +359,18 @@ La sección de clientes del panel usa `GET /negocios/:id_negocio/clientes` (con 
 
 ### Archivos e imágenes
 
-Las fotos, logos, banners, comprobantes de vacunas y archivos del historial se suben a la API como `multipart/form-data` (nunca como URL en el JSON). La API valida el tipo real por el contenido, quita los metadatos de las imágenes (incluida la ubicación GPS de la cámara) y las guarda en Cloudinary. Las rutas quedan en Swagger al terminar la 2.2.
+Las fotos, logos, banners, comprobantes de vacunas y archivos del historial se suben a la API como `multipart/form-data` (nunca como URL en el JSON). La API valida el tipo real por el contenido, quita los metadatos de las imágenes (incluida la ubicación GPS de la cámara) y las guarda en Cloudinary. Rutas (detalle en Swagger):
+
+| Ruta | Campo | Quién |
+|---|---|---|
+| `PUT`/`DELETE /auth/me/foto` | `foto` | El usuario |
+| `PUT`/`DELETE /mascotas/:id_mascota/foto` | `foto` | El dueño |
+| `PUT`/`DELETE /empleados/:id_empleado/foto` | `foto` | `empleados.editar` o el propio empleado |
+| `PUT`/`DELETE /negocios/:id_negocio/logo` y `/banner` | `logo` / `banner` | `configuracion.editar` |
+| `PUT`/`DELETE /vacunas/:id_vacuna/comprobante` | `comprobante` | Quien puede editar la vacuna (la del dueño, el dueño; la de un negocio, ese negocio) |
+| `POST /historial/:id_historial/archivos`, `DELETE /historial/:id_historial/archivos/:id_archivo` | `archivos` (hasta 5) | El negocio que creó el registro (`historial_medico.editar`) |
+
+Todas responden el registro actualizado. Máximo 30 subidas cada 15 minutos por usuario (429).
 
 - **Tipos:** JPEG, PNG o WebP; PDF solo en comprobantes y archivos del historial. Máximo 5 MB (fotos y logo), 8 MB (banner) y 10 MB (comprobantes e historial, hasta 5 archivos por envío). Un archivo inválido responde 422 con el detalle en `errors.archivo`.
 - **Fotos del iPhone (HEIC) — app móvil:** la API **no acepta HEIC/HEIF** (422). La app debe convertir la imagen a JPEG antes de subirla, por ejemplo con `expo-image-manipulator`, que además sirve para reducirla y ahorrar datos:

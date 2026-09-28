@@ -27,13 +27,18 @@ export const findDeMascota = async (id_mascota, conn) => {
   return rows;
 };
 
-/** Bloquea la vacuna y devuelve su mascota y quién la registró. */
+/** Bloquea la vacuna y devuelve su mascota, quién la registró y el comprobante externo (anterior a la 2.2). */
 export const lockVacuna = async (id_vacuna, conn) => {
   const [rows] = await conn.query(
-    "SELECT id_vacuna, id_mascota, id_negocio, registrada_por FROM vacunas WHERE id_vacuna = ? FOR UPDATE",
+    "SELECT id_vacuna, id_mascota, id_negocio, registrada_por, comprobante_url FROM vacunas WHERE id_vacuna = ? FOR UPDATE",
     [id_vacuna]
   );
   return rows[0];
+};
+
+/** El comprobante subido vive en `archivos`: al subir o quitar uno se borra la URL externa anterior. */
+export const quitarComprobanteExterno = async (id_vacuna, conn) => {
+  await conn.query("UPDATE vacunas SET comprobante_url = NULL WHERE id_vacuna = ?", [id_vacuna]);
 };
 
 /** Dueño y mascota de la vacuna (sin bloquear; la mascota de una vacuna no cambia). */

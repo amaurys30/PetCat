@@ -67,6 +67,22 @@ const swaggerSpec = swaggerJSDoc({
             },
           },
         },
+        ArchivoPrivado: {
+          type: "object",
+          description:
+            "Archivo privado (historial o comprobante). `url` es una URL firmada que vence en `url_expira_en` " +
+            "(15 minutos por defecto): no se guarda; al vencer se vuelve a pedir el registro. Con `externo: true` " +
+            "es una URL guardada antes de la subida de archivos (sin firma ni vencimiento, sin `id_archivo`).",
+          properties: {
+            id_archivo: { type: "integer", example: 31 },
+            tipo: { type: "string", enum: ["imagen", "pdf"] },
+            nombre: { type: "string", nullable: true, example: "radiografia.jpg" },
+            bytes: { type: "integer", example: 184320 },
+            url: { type: "string", example: "https://api.cloudinary.com/v1_1/<cloud>/image/download?..." },
+            url_expira_en: { type: "string", format: "date-time", example: "2026-09-28T15:31:16.000Z" },
+            externo: { type: "boolean", example: false },
+          },
+        },
         PaginationMeta: {
           type: "object",
           properties: {
@@ -83,6 +99,36 @@ const swaggerSpec = swaggerJSDoc({
         Foto: imagenMultipart("foto", "5 MB"),
         Logo: imagenMultipart("logo", "5 MB"),
         Banner: imagenMultipart("banner", "8 MB"),
+        Comprobante: {
+          required: true,
+          description:
+            "Foto (JPEG, PNG o WebP) o PDF de hasta 10 MB. Las imágenes se guardan sin metadatos (EXIF, GPS). " +
+            "HEIC no: convertir a JPEG antes.",
+          content: {
+            "multipart/form-data": {
+              schema: {
+                type: "object",
+                required: ["comprobante"],
+                properties: { comprobante: { type: "string", format: "binary" } },
+              },
+            },
+          },
+        },
+        ArchivosHistorial: {
+          required: true,
+          description:
+            "Hasta 5 archivos por envío en el campo `archivos` (repetido), cada uno imagen JPEG/PNG/WebP o PDF de " +
+            "hasta 10 MB. Un registro admite 10 archivos en total.",
+          content: {
+            "multipart/form-data": {
+              schema: {
+                type: "object",
+                required: ["archivos"],
+                properties: { archivos: { type: "array", maxItems: 5, items: { type: "string", format: "binary" } } },
+              },
+            },
+          },
+        },
       },
       parameters: {
         page: {

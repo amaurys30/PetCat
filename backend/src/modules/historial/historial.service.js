@@ -6,14 +6,31 @@ import { buildMeta } from "../../shared/utils/pagination.js";
 import { hoyISO } from "../../shared/utils/fechas.js";
 import { toNumber } from "../../shared/utils/format.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
+import { procesarArchivo } from "../../shared/utils/uploads.js";
+import {
+  archivosActivos,
+  archivosActivosDe,
+  eliminarArchivos,
+  formatArchivoExterno,
+  formatArchivoPrivado,
+  subirArchivos,
+} from "../archivos/archivo.service.js";
 
 const invalido = (errors) => ApiError.unprocessable("Datos inválidos", errors);
 
+const ENTIDAD_ARCHIVO = "historial_archivo";
+export const MAX_ARCHIVOS_REGISTRO = 10;
+
+/** URLs externas guardadas antes de la 2.2 en archivos_json (solo lectura). */
+const externosDe = (row) =>
+  (typeof row.archivos_json === "string" ? JSON.parse(row.archivos_json) : (row.archivos_json ?? [])) ?? [];
+
 /**
  * Formato de un registro. `notas_internas` solo para el negocio que lo creó; en el
- * panel, `es_propio` indica si lo creó el negocio que consulta.
+ * panel, `es_propio` indica si lo creó el negocio que consulta. `archivos` son las filas
+ * activas de la tabla `archivos` (privadas: salen con URL firmada que vence).
  */
-export const formatRegistro = (row, contexto) => {
+export const formatRegistro = (row, contexto, archivos = []) => {
   const propio = contexto.tipo === "negocio" && row.id_negocio === contexto.id_negocio;
   return {
     id_historial: row.id_historial,
@@ -31,7 +48,7 @@ export const formatRegistro = (row, contexto) => {
     temperatura: toNumber(row.temperatura),
     frecuencia_cardiaca: row.frecuencia_cardiaca,
     frecuencia_respiratoria: row.frecuencia_respiratoria,
-    archivos: typeof row.archivos_json === "string" ? JSON.parse(row.archivos_json) : (row.archivos_json ?? []),
+    archivos: [...externosDe(row).map(formatArchivoExterno), ...archivos.map(formatArchivoPrivado)],
     negocio: row.id_negocio ? { id_negocio: row.id_negocio, nombre: row.negocio_nombre } : null,
     empleado: row.id_empleado
       ? { id_empleado: row.id_empleado, nombre: row.empleado_nombre, apellido: row.empleado_apellido }
@@ -41,6 +58,16 @@ export const formatRegistro = (row, contexto) => {
     fecha_creacion: row.fecha_creacion,
   };
 };
+
+/** Registros con sus archivos (una sola consulta para todos). */
+const conArchivos = async (rows, contexto) => {
+  const archivos = await archivosActivosDe(ENTIDAD_ARCHIVO, rows.map((row) => row.id_historial));
+  return rows.map((row) => formatRegistro(row, contexto, archivos[row.id_historial]));
+};
+
+/** Un registro completo para el negocio que lo creó (respuesta de crear, editar y archivos). */
+const registroDelNegocio = async (id_historial, id_negocio) =>
+  (await conArchivos([await historialRepo.findById(id_historial)], { tipo: "negocio", id_negocio }))[0];
 
 /** Negocio cuyo historial clínico se ve en ese contexto: undefined = todos. */
 const soloNegocioDe = (contexto) => (contexto.tipo === "negocio" && !contexto.compartir ? contexto.id_negocio : undefined);
@@ -52,7 +79,7 @@ const pagina = async ({ mascota, contexto }, { page, limit, ...filtros }) => {
     limit,
     offset: (page - 1) * limit,
   });
-  return { rows: rows.map((row) => formatRegistro(row, contexto)), meta: buildMeta(total, page, limit) };
+  return { rows: await conArchivos(rows, contexto), meta: buildMeta(total, page, limit) };
 };
 
 /** Historial completo de una mascota propia, sin notas internas. */
@@ -117,7 +144,7 @@ export const crearRegistro = async (negocio, { id_usuario, acceso }, data) => {
     await actualizarPesoSiEsElUltimo(data.id_mascota, id, fecha, data.peso_registro, conn);
     return id;
   });
-  return formatRegistro(await historialRepo.findById(id_historial), { tipo: "negocio", id_negocio: negocio.id_negocio });
+  return registroDelNegocio(id_historial, negocio.id_negocio);
 };
 
 /**
@@ -141,5 +168,76 @@ export const actualizarRegistro = async (id_historial, negocio, data) => {
     const peso = data.peso_registro !== undefined ? data.peso_registro : toNumber(actual.peso_registro);
     await actualizarPesoSiEsElUltimo(actual.id_mascota, id_historial, fecha, peso, conn);
   });
-  return formatRegistro(await historialRepo.findById(id_historial), { tipo: "negocio", id_negocio: negocio.id_negocio });
+  return registroDelNegocio(id_historial, negocio.id_negocio);
+};
+
+// ---------- Archivos del registro (privados) ----------
+
+const verificarCupo = (externos, activos, nuevos) => {
+  const total = externos + activos;
+  if (total + nuevos > MAX_ARCHIVOS_REGISTRO) {
+    throw invalido({
+      archivo: `Un registro admite hasta ${MAX_ARCHIVOS_REGISTRO} archivos: tiene ${total} y se enviaron ${nuevos}`,
+    });
+  }
+};
+
+/**
+ * Bloquea mascota y registro (el orden de toda la salud de la mascota), con la misma
+ * regla de acceso que editar el registro (el negocio que lo creó, con cita válida).
+ */
+const bloquearRegistro = (id_negocio, id_mascota, id_historial) => async (conn) => {
+  await accesoNegocio(id_negocio, id_mascota, { conn, forUpdate: true });
+  await historialRepo.lockRegistro(id_historial, conn);
+};
+
+/**
+ * Agrega archivos (imágenes o PDF) a un registro del negocio: hasta 5 por envío y 10 por
+ * registro. Se guardan privados; el registro los devuelve con URLs firmadas que vencen.
+ * El cupo se comprueba antes de subir y otra vez con el registro bloqueado.
+ */
+export const agregarArchivos = async (id_historial, negocio, id_usuario, archivos) => {
+  const registro = await historialRepo.findById(id_historial);
+  const externos = externosDe(registro).length;
+  verificarCupo(externos, (await archivosActivos(ENTIDAD_ARCHIVO, id_historial)).length, archivos.length);
+
+  const procesados = [];
+  for (const archivo of archivos) {
+    try {
+      procesados.push(await procesarArchivo(archivo, ENTIDAD_ARCHIVO));
+    } catch (err) {
+      // Con varios archivos, el error dice cuál falló.
+      if (err.errors?.archivo && archivos.length > 1) err.errors.archivo = `${archivo.originalname}: ${err.errors.archivo}`;
+      throw err;
+    }
+  }
+
+  const bloquear = bloquearRegistro(negocio.id_negocio, registro.id_mascota, id_historial);
+  await subirArchivos({
+    entidad: ENTIDAD_ARCHIVO,
+    id_entidad: id_historial,
+    procesados,
+    id_usuario,
+    bloquear: async (conn) => {
+      await bloquear(conn);
+      // Otro envío pudo agregar archivos mientras se subían estos (los nuevos se insertan después de bloquear).
+      const activos = (await archivosActivos(ENTIDAD_ARCHIVO, id_historial, conn)).length;
+      verificarCupo(externos, activos, procesados.length);
+    },
+  });
+  return registroDelNegocio(id_historial, negocio.id_negocio);
+};
+
+/** Elimina un archivo del registro; 404 si no es un archivo activo de ese registro. */
+export const eliminarArchivo = async (id_historial, id_archivo, negocio, id_usuario) => {
+  const { id_mascota } = await historialRepo.findById(id_historial);
+  const eliminados = await eliminarArchivos({
+    entidad: ENTIDAD_ARCHIVO,
+    id_entidad: id_historial,
+    ids: [id_archivo],
+    id_usuario,
+    bloquear: bloquearRegistro(negocio.id_negocio, id_mascota, id_historial),
+  });
+  if (eliminados.length === 0) throw ApiError.notFound("Archivo no encontrado en este registro");
+  return registroDelNegocio(id_historial, negocio.id_negocio);
 };

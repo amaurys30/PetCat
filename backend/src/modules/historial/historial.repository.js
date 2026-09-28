@@ -55,11 +55,9 @@ export const findParaResumen = async (id_mascota, soloNegocio) => {
   return rows;
 };
 
-const columnasDe = (data) => {
-  const campos = pick(data, CAMPOS_HISTORIAL);
-  if ("archivos" in data) campos.archivos_json = data.archivos === null ? null : JSON.stringify(data.archivos);
-  return campos;
-};
+// archivos_json solo guarda URLs externas anteriores a la 2.2 (solo lectura); los archivos
+// subidos están en la tabla `archivos`.
+const columnasDe = (data) => pick(data, CAMPOS_HISTORIAL);
 
 export const create = async ({ id_mascota, id_negocio, id_cita = null, ...data }, conn) => {
   const campos = { ...columnasDe(data), id_mascota, id_negocio, id_cita };

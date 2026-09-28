@@ -1,6 +1,7 @@
 import express from "express";
 import * as controller from "./historial.controller.js";
 import {
+  archivoDeHistorialParams,
   createHistorialBody,
   idHistorialParams,
   listHistorialQuery,
@@ -12,6 +13,8 @@ import { idNegocioParams } from "../negocios/negocio.schemas.js";
 import { authMiddleware } from "../../shared/middlewares/auth.middleware.js";
 import { authorize } from "../../shared/middlewares/authorize.middleware.js";
 import { validate } from "../../shared/middlewares/validate.js";
+import { uploadLimiter } from "../../shared/middlewares/rateLimit.js";
+import { recibirArchivos } from "../../shared/utils/uploads.js";
 
 const router = express.Router();
 
@@ -22,7 +25,9 @@ const router = express.Router();
  *     HistorialInput:
  *       type: object
  *       additionalProperties: false
- *       description: Campos opcionales con `null` se vacían. `proximo_control` no puede ser anterior a `fecha`.
+ *       description: >
+ *         Campos opcionales con `null` se vacían. `proximo_control` no puede ser anterior a `fecha`.
+ *         Los archivos no van aquí (`archivos` da 422): se suben con `POST /historial/{id_historial}/archivos`.
  *       properties:
  *         tipo: { type: string, enum: [consulta_general, cirugia, vacunacion, examen_laboratorio, radiografia, ecografia, hospitalizacion, urgencia, desparasitacion, otro] }
  *         fecha: { type: string, format: date, description: Por defecto hoy; no puede ser futura }
@@ -36,7 +41,6 @@ const router = express.Router();
  *         temperatura: { type: number, minimum: 25, maximum: 45, nullable: true }
  *         frecuencia_cardiaca: { type: integer, nullable: true }
  *         frecuencia_respiratoria: { type: integer, nullable: true }
- *         archivos: { type: array, maxItems: 10, nullable: true, items: { type: string, format: uri, pattern: "^https://" }, description: Solo https }
  *         notas_internas: { type: string, maxLength: 2000, nullable: true, description: Solo las ve el negocio que creó el registro }
  *         id_empleado: { type: integer, nullable: true, description: Quien atendió; por defecto el perfil de empleado de quien registra }
  *     RegistroHistorial:
@@ -57,7 +61,10 @@ const router = express.Router();
  *         temperatura: { type: number, nullable: true }
  *         frecuencia_cardiaca: { type: integer, nullable: true }
  *         frecuencia_respiratoria: { type: integer, nullable: true }
- *         archivos: { type: array, items: { type: string } }
+ *         archivos:
+ *           type: array
+ *           description: Imágenes y PDF privados, con URL firmada que vence (hasta 10 por registro)
+ *           items: { $ref: '#/components/schemas/ArchivoPrivado' }
  *         negocio: { type: object, nullable: true, properties: { id_negocio: { type: integer }, nombre: { type: string } } }
  *         empleado:
  *           type: object
@@ -236,6 +243,80 @@ router.patch(
   validate({ params: idHistorialParams, body: updateHistorialBody }),
   authorize("historial_medico", "editar"),
   controller.actualizarRegistro
+);
+
+/**
+ * @swagger
+ * /historial/{id_historial}/archivos:
+ *   post:
+ *     summary: Agregar archivos a un registro del historial (panel)
+ *     description: >
+ *       Requiere `historial_medico.editar` en el negocio que creó el registro (con las mismas reglas que
+ *       editarlo). multipart/form-data con hasta 5 archivos en `archivos` (imágenes o PDF: radiografías,
+ *       exámenes, fórmulas); 10 por registro en total (422 si se supera). Se guardan **privados**: el
+ *       registro los devuelve con URLs firmadas que vencen, solo a quien puede verlo.
+ *     tags: [Historial médico]
+ *     parameters:
+ *       - { in: path, name: id_historial, required: true, schema: { type: integer } }
+ *     requestBody: { $ref: '#/components/requestBodies/ArchivosHistorial' }
+ *     responses:
+ *       201:
+ *         description: Archivos agregados; responde el registro con todos sus archivos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Archivos agregados }
+ *                 data: { $ref: '#/components/schemas/RegistroHistorial' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ArchivoInvalido' }
+ *       429: { $ref: '#/components/responses/TooManyRequests' }
+ *       503: { $ref: '#/components/responses/AlmacenamientoNoDisponible' }
+ * /historial/{id_historial}/archivos/{id_archivo}:
+ *   delete:
+ *     summary: Eliminar un archivo de un registro del historial (panel)
+ *     description: >
+ *       Requiere `historial_medico.editar` en el negocio que creó el registro. 404 si el archivo no es de
+ *       ese registro. El archivo se borra de Cloudinary; queda constancia de quién y cuándo lo eliminó.
+ *     tags: [Historial médico]
+ *     parameters:
+ *       - { in: path, name: id_historial, required: true, schema: { type: integer } }
+ *       - { in: path, name: id_archivo, required: true, schema: { type: integer } }
+ *     responses:
+ *       200:
+ *         description: Archivo eliminado; responde el registro
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Archivo eliminado }
+ *                 data: { $ref: '#/components/schemas/RegistroHistorial' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.post(
+  "/historial/:id_historial/archivos",
+  authMiddleware,
+  validate({ params: idHistorialParams }),
+  authorize("historial_medico", "editar"),
+  uploadLimiter,
+  recibirArchivos("historial_archivo"),
+  controller.agregarArchivos
+);
+router.delete(
+  "/historial/:id_historial/archivos/:id_archivo",
+  authMiddleware,
+  validate({ params: archivoDeHistorialParams }),
+  authorize("historial_medico", "editar"),
+  controller.eliminarArchivo
 );
 
 export default router;

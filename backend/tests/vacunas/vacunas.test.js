@@ -49,7 +49,7 @@ const estadoEnDb = async (id_vacuna) => {
 };
 
 describe("POST /mascotas/:id_mascota/vacunas (dueño)", () => {
-  it("registra una vacuna externa marcada como del dueño, con comprobante https", async () => {
+  it("registra una vacuna externa marcada como del dueño (el comprobante se sube después)", async () => {
     const ctx = await contexto();
     const res = await api(ctx.tokenCliente)
       .post(`/mascotas/${ctx.mascota.id_mascota}/vacunas`)
@@ -57,14 +57,14 @@ describe("POST /mascotas/:id_mascota/vacunas (dueño)", () => {
         nombre_vacuna: "Triple felina",
         fecha_aplicacion: sumarDias(HOY, -100),
         fecha_proxima: sumarDias(HOY, 265),
-        comprobante_url: "https://cdn.petcat.test/carnet.jpg",
       });
 
     expect(res.status).toBe(201);
     expect(res.body.data).toMatchObject({
       nombre_vacuna: "Triple felina",
       registrada_por: "dueno",
-      tiene_comprobante: true,
+      tiene_comprobante: false,
+      comprobante: null,
       negocio: null,
       empleado: null,
       estado: "al_dia",
@@ -75,11 +75,11 @@ describe("POST /mascotas/:id_mascota/vacunas (dueño)", () => {
     expect(fila).toEqual({ id_negocio: null, id_usuario_registro: ctx.cliente.id_usuario });
   });
 
-  it("comprobante http o fechas incoherentes -> 422; mascota fallecida -> 409; ajena -> 403", async () => {
+  it("comprobante_url en el body o fechas incoherentes -> 422; mascota fallecida -> 409; ajena -> 403", async () => {
     const ctx = await contexto();
     const url = `/mascotas/${ctx.mascota.id_mascota}/vacunas`;
-    const http = await api(ctx.tokenCliente).post(url).send({ nombre_vacuna: "Rabia", fecha_aplicacion: HOY, comprobante_url: "http://x.test/a.jpg" });
-    expect(http.body.errors).toEqual({ comprobante_url: "Debe ser una URL https" });
+    const conUrl = await api(ctx.tokenCliente).post(url).send({ nombre_vacuna: "Rabia", fecha_aplicacion: HOY, comprobante_url: "https://x.test/a.jpg" });
+    expect(conUrl.body.errors).toEqual({ comprobante_url: "Campo no permitido" });
     const fechas = await api(ctx.tokenCliente).post(url).send({ nombre_vacuna: "Rabia", fecha_aplicacion: HOY, fecha_proxima: HOY });
     expect(fechas.body.errors).toEqual({ fecha_proxima: "Debe ser posterior a fecha_aplicacion" });
     const ajena = await api(await tokenDe(await crearUsuario())).post(url).send({ nombre_vacuna: "Rabia", fecha_aplicacion: HOY });

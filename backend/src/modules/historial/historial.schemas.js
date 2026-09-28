@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { paginationSchema } from "../../shared/utils/pagination.js";
-import { conAlMenosUnCampo, fecha, fechaNoFutura, idParam, texto, urlHttps } from "../../shared/utils/schemas.js";
+import { conAlMenosUnCampo, fecha, fechaNoFutura, idParam, texto } from "../../shared/utils/schemas.js";
 
 export const TIPOS_HISTORIAL = [
   "consulta_general",
@@ -36,8 +36,7 @@ const campos = {
   temperatura: z.number().min(25).max(45).nullable(),
   frecuencia_cardiaca: z.number().int().min(1).max(500).nullable(),
   frecuencia_respiratoria: z.number().int().min(1).max(300).nullable(),
-  // Solo https; la subida con Cloudinary (Fase 2) llenará este mismo campo.
-  archivos: z.array(urlHttps()).max(10).nullable(),
+  // Los archivos se suben con POST /historial/:id_historial/archivos (no se aceptan URLs en el body).
   notas_internas: clinico(),
   id_empleado: id.nullable(),
 };
@@ -55,5 +54,7 @@ export const listHistorialQuery = paginationSchema.extend({
   hasta: fecha.optional(),
 });
 
-/** Columnas de historial_medico que se pueden escribir (`archivos` va en archivos_json). */
-export const CAMPOS_HISTORIAL = Object.keys(campos).filter((c) => c !== "archivos");
+export const archivoDeHistorialParams = idHistorialParams.extend({ id_archivo: z.coerce.number().int().positive() });
+
+/** Columnas de historial_medico que se pueden escribir. */
+export const CAMPOS_HISTORIAL = Object.keys(campos);

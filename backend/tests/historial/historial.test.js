@@ -151,7 +151,6 @@ describe("POST /negocios/:id_negocio/historial", () => {
       peso_registro: 12.4,
       temperatura: 38.5,
       proximo_control: sumarDias(HOY, 180),
-      archivos: ["https://cdn.petcat.test/rx.pdf"],
       notas_internas: "Revisar en 6 meses",
     });
 
@@ -161,7 +160,7 @@ describe("POST /negocios/:id_negocio/historial", () => {
       id_cita: ctx.citaA.id_cita,
       peso_registro: 12.4,
       temperatura: 38.5,
-      archivos: ["https://cdn.petcat.test/rx.pdf"],
+      archivos: [],
       empleado: { id_empleado: ctx.vet.id_empleado, nombre: "Vera" },
       negocio: { id_negocio: ctx.clinicaA.id_negocio },
       es_propio: true,
@@ -179,7 +178,7 @@ describe("POST /negocios/:id_negocio/historial", () => {
     expect(Number(mascota.peso)).toBe(12);
   });
 
-  it("valida la cita, las fechas y que los archivos sean https -> 422", async () => {
+  it("valida la cita, las fechas y que los archivos no vengan en el body -> 422", async () => {
     const ctx = await contexto();
     const citaDeB = await crearCita(ctx.clinicaB, { cliente: ctx.cliente, mascota: ctx.mascota });
     const cancelada = await crearCita(ctx.clinicaA, { cliente: ctx.cliente, mascota: ctx.mascota, estado: "cancelada" });
@@ -188,8 +187,9 @@ describe("POST /negocios/:id_negocio/historial", () => {
       expect(res.status).toBe(422);
       expect(res.body.errors).toHaveProperty("id_cita");
     }
-    const http = await crear(ctx, { tipo: "consulta_general", archivos: ["http://inseguro.test/a.pdf"] });
-    expect(http.body.errors).toEqual({ "archivos.0": "Debe ser una URL https" });
+    // Los archivos se suben con POST /historial/:id_historial/archivos.
+    const conArchivos = await crear(ctx, { tipo: "consulta_general", archivos: ["https://cdn.petcat.test/a.pdf"] });
+    expect(conArchivos.body.errors).toEqual({ archivos: "Campo no permitido" });
     const futura = await crear(ctx, { tipo: "consulta_general", fecha: sumarDias(HOY, 1) });
     expect(futura.body.errors).toEqual({ fecha: "No puede ser una fecha futura" });
     const control = await crear(ctx, { tipo: "consulta_general", fecha: sumarDias(HOY, -2), proximo_control: sumarDias(HOY, -3) });

@@ -207,5 +207,14 @@ export const formatArchivoPrivado = (fila) => {
     bytes: fila.bytes,
     url,
     url_expira_en: expira_en,
+    externo: false,
   };
 };
+
+/** URL guardada antes de la 2.2 (sin subida): se entrega tal cual, sin firma. */
+export const formatArchivoExterno = (url) => ({ url, externo: true });
+
+/** Archivos activos de varios registros de una entidad: { id_entidad: [fila, ...] }. */
+export const archivosActivosDe = (entidad, ids, conn) => archivoRepo.findActivosDeEntidades(entidad, ids, conn);
+
+export const archivosActivos = (entidad, id_entidad, conn) => archivoRepo.findActivos(entidad, id_entidad, conn);
