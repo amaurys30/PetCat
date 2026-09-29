@@ -207,7 +207,7 @@ Jobs sobre la base de node-cron de la 2.3 (funciones exportadas que los tests ll
 - [x] Swagger, README (dashboard y notas, con la recomendación de no escribir datos sensibles).
 
 ### Cierre de la Fase 2
-- [ ] Seed ampliado: notificaciones, reseñas con respuesta y reportadas, dispositivos de ejemplo y un negocio Gratuito cerca de sus límites.
+- [x] Seed ampliado: notificaciones, reseñas con respuesta, editada después de la respuesta y reportada, dispositivos de ejemplo, un negocio Gratuito cerca de sus límites (guardería: 3 de 3 empleados y unas 25 de 30 citas del mes), citas canceladas por el sistema, 90 días de citas completadas para el dashboard de Salud Animal, notas de clientes y una invitación a reseñar pendiente. Detalle en `backend/README.md`.
 - [ ] Verificación desde cero, como en las fases anteriores.
 - [ ] PR de `fase-2` a `main`.
 

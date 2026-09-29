@@ -155,12 +155,12 @@ Marca como aplicadas todas las migraciones que hay en `database/migrations` sin 
 
 `database/seeds/dev_seed.sql` carga datos realistas para diseñar el panel y la app, con los usuarios de la [sección 6](#usuarios-de-prueba). Se carga solo con un volumen nuevo de compose o con `db:reset`. **Las fechas son relativas al día en que se carga** (citas "hace 15 días", "en 3 días"...), así que un `db:reset` deja la agenda vigente otra vez. Las citas futuras caen en días en que abre su sucursal.
 
-**Negocios** (todos en Sincelejo, con coordenadas y una reseña cada uno):
+**Negocios** (todos en Sincelejo, con coordenadas y reseñas):
 
 | Negocio | Tipo y plan | Qué sirve para ver |
 |---|---|---|
 | Clínica Veterinaria Patitas (Centro) | veterinaria, Gratuito | Horario partido; "Vacuna antirrábica" con oferta vigente; "Baño y corte" sin empleados (no reservable); bloqueo de Carlos una tarde; recepcionista con invitación pendiente. |
-| Peluquería Canina Huellitas (Venecia) | peluquería, Gratuito | Rol propio "Estilista"; servicios con margen de 15 min; "Baño y corte premium" en oferta; "Spa felino" solo sábados; empleada sin cuenta. Calificación 4. |
+| Peluquería Canina Huellitas (Venecia) | peluquería, Gratuito | Rol propio "Estilista"; servicios con margen de 15 min; "Baño y corte premium" en oferta; "Spa felino" solo sábados; empleada sin cuenta. Calificación 3 (la reseña se editó después de la respuesta). |
 | Guardería Patas Felices (Boston) | guardería, Gratuito | Lunes a viernes; servicios por día con cupo diario (`max_citas_dia` 8); "Adiestramiento básico" sin entrenador. Sin verificar. |
 | Centro Veterinario Salud Animal 24h | clínica, **Pro en prueba**, destacado | Sede Norte (todos los días 7-21) y Sede Sur (horario partido); veterinaria con horario semanal por sede, vacaciones en unos 20 días y jornada especial el próximo domingo; urgencias con precio variable; "Desparasitación" con oferta **vencida**; "Hospitalización" sin cita. |
 
@@ -172,6 +172,19 @@ Marca como aplicadas todas las migraciones que hay en `database/migrations` sin 
 - **Jorge** (`jorge@petcat.test`): cliente **sin app** registrado desde el panel de Salud Animal; Toby tiene una cita **en curso hoy** y una inasistencia.
 
 Hay citas en los siete estados (`pendiente`, `confirmada`, `en_curso`, `completada`, `cancelada`, `no_asistio`, `reprogramada`), pasadas y futuras.
+
+**Fase 2** (planes, notificaciones, reseñas, dashboard y notas):
+
+| Qué | Dónde | Para ver |
+|---|---|---|
+| Dashboard con estadísticas avanzadas | Salud Animal (Pro en prueba): 14 citas completadas repartidas en los últimos 90 días, con dos veterinarios y dos sedes | Tendencia, comparación, por empleado y sucursal, horas pico y recurrencia (`?desde=` de hasta 366 días) |
+| Dashboard Gratuito | Patitas: dos citas **canceladas por el sistema** (nadie las confirmó) y sin confirmación automática | `citas_perdidas_por_no_confirmar` con la sugerencia, y las secciones avanzadas bloqueadas con `plan_requerido` |
+| Negocio cerca de sus límites | Guardería: 3 de 3 empleados (Diego, Sara y Tomás, sin cuenta) y unas 25 de 30 citas del mes con cinco perros de tres clientes sin app (Andrea, Luis y Marta) | `GET /negocios/:id/suscripcion`, el aviso `plan_limite_80` sin leer y, al reservar un par de citas más, el límite alcanzado |
+| Reseñas | Patitas **respondió** la de Sofía; Camilo **editó la suya después de la respuesta** en Huellitas (bajó a 3); Valeria dejó 2 estrellas en Salud Animal y el negocio la **reportó** (sigue publicada); Jorge, registrado desde el panel, reseñó Salud Animal | `editada_despues_de_respuesta`, reporte en el panel y `cliente_registrado_por_negocio` (solo con `admin@petcat.test`) |
+| Reseñar desde la app | Camilo: consulta de Mía **completada hoy** a las 07:45, con la invitación `resena_invitacion` programada a las 10:45; Sofía: consulta de Max de hace 15 días sin reseña | `resena.puede_resenar` en la cita y la invitación (el job la envía si el servidor corre después de las 10:45) |
+| Notificaciones | Sofía (una leída, una sin leer), Laura de Patitas (cita nueva sin leer y dos citas no confirmadas), Natalia de la guardería (80 % del plan), Julián de Huellitas (reseña nueva) y Camilo (respuesta a su reseña) | Globo de no leídas y deep links (`datos`) |
+| Dispositivos | Sofía (Android) y Camilo (iPhone), con tokens de Expo **inventados** | Lista de dispositivos; si el servidor intenta una push real, Expo los da de baja (`DeviceNotRegistered`) |
+| Notas de clientes | Salud Animal sobre Jorge (de Ricardo) y sobre Camilo (de Valentina); la guardería sobre Andrea | Autor, `editable` y que Patitas no ve las notas de Salud Animal sobre Camilo |
 
 ### Reiniciar la base
 
@@ -601,6 +614,7 @@ Con el seed cargado, todos usan la contraseña **`Petcat123!`**:
 | `camilo@petcat.test` | Dueño de Rocky (no comparte historial) y Mía |
 | `valeria@petcat.test` | Dueña de Copito y de Nala (fallecida); correo sin verificar |
 | `jorge@petcat.test` | Cliente sin app registrado desde el panel de Salud Animal (dueño de Toby) |
+| `andrea@petcat.test`, `luis@petcat.test`, `marta@petcat.test` | Clientes sin app de la guardería (Bruno y Kira; Simón y Lola; Coco) |
 
 El detalle de cada negocio y cliente está en la [sección 3](#seed-de-desarrollo).
 

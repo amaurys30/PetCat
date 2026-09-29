@@ -158,8 +158,14 @@ describe("seed de desarrollo: datos realistas", () => {
       [NEGOCIOS]
     );
     expect(filas.map((f) => f.tipo)).toEqual(["veterinaria", "peluqueria_canina", "guarderia", "clinica"]);
-    expect(filas.every((f) => f.ciudad === "Sincelejo" && f.latitud !== null && f.total_resenas === 1)).toBe(true);
-    expect(filas.find((f) => f.tipo === "peluqueria_canina").calificacion_promedio).toBe("4.00");
+    expect(filas.every((f) => f.ciudad === "Sincelejo" && f.latitud !== null)).toBe(true);
+    // Huellitas: la reseña bajó a 3 al editarla; Salud Animal: 5, 2 (reportada, sigue contando) y 5.
+    expect(filas.map((f) => [f.total_resenas, f.calificacion_promedio])).toEqual([
+      [1, "5.00"],
+      [1, "3.00"],
+      [1, "5.00"],
+      [3, "4.00"],
+    ]);
 
     const [[salud]] = await pool.query(
       `SELECT p.nombre AS plan, s.estado, COUNT(DISTINCT su.id_sucursal) AS sucursales
@@ -236,5 +242,97 @@ describe("seed de desarrollo: datos realistas", () => {
 
     const [[{ registros }]] = await pool.query("SELECT COUNT(*) AS registros FROM historial_medico WHERE id_mascota = ?", [rocky]);
     expect(registros).toBe(2);
+  });
+
+  // ---------- Fase 2 ----------
+
+  it("reseñas: respuesta, editada después de la respuesta, reportada visible y la señal solo para el super admin", async () => {
+    const publicas = async (nombre) => (await api().get(`/negocios/${await idNegocio(nombre)}/resenas`)).body;
+    const patitas = await publicas(NEGOCIOS[0]);
+    expect(patitas.data[0]).toMatchObject({ autor: "Sofía G.", respuesta: { editada: false }, editada_despues_de_respuesta: false });
+    expect(patitas.data[0].respuesta.texto).toContain("Max es un paciente");
+
+    const huellitas = await publicas(NEGOCIOS[1]);
+    expect(huellitas.data[0]).toMatchObject({ calificacion: 3, editada_despues_de_respuesta: true });
+
+    const salud = await publicas(NEGOCIOS[3]);
+    expect(salud.data.map((r) => r.calificacion).sort()).toEqual([2, 5, 5]); // la reportada sigue publicada
+    expect(salud.meta.resumen).toMatchObject({ calificacion_promedio: 4, total_resenas: 3 });
+
+    const url = `/negocios/${await idNegocio(NEGOCIOS[3])}/resenas/gestion`;
+    const panel = (await api(await login("saludanimal@petcat.test")).get(url)).body.data;
+    expect(panel.find((r) => r.reporte)).toMatchObject({ calificacion: 2, reporte: { motivo: "otro" } });
+    expect(panel.every((r) => !("cliente_registrado_por_negocio" in r))).toBe(true);
+    const admin = (await api(await login("admin@petcat.test")).get(url)).body.data;
+    expect(admin.filter((r) => r.cliente_registrado_por_negocio).map((r) => r.cliente.nombre)).toEqual(["Jorge"]);
+  });
+
+  it("la guardería (Gratuito) está cerca de sus límites: 3 de 3 empleados, 24 o más de 30 citas del mes y el aviso del 80 %", async () => {
+    const guarderia = await idNegocio(NEGOCIOS[2]);
+    const token = await login("guarderia@petcat.test");
+    const { uso } = (await api(token).get(`/negocios/${guarderia}/suscripcion`)).body.data;
+    expect(uso.empleados).toEqual({ usadas: 3, maximo: 3 });
+    expect(uso.citas_mes.maximo).toBe(30);
+    expect(uso.citas_mes.usadas).toBeGreaterThanOrEqual(24);
+    expect(uso.citas_mes.usadas).toBeLessThan(30);
+
+    const avisos = (await api(token).get("/notificaciones?leidas=false")).body.data;
+    expect(avisos.map((n) => n.tipo)).toContain("plan_limite_80");
+  });
+
+  it("dashboard: Patitas con citas perdidas por no confirmar y avanzadas bloqueadas; Salud Animal con 90 días de tendencia", async () => {
+    const patitas = await idNegocio(NEGOCIOS[0]);
+    const gratuito = (await api(await login("propietario@petcat.test")).get(`/negocios/${patitas}/dashboard`)).body.data;
+    expect(gratuito.citas_perdidas_por_no_confirmar.total).toBe(2);
+    expect(gratuito.citas_perdidas_por_no_confirmar.sugerencia.codigo).toBe("activar_confirmacion_automatica");
+    expect(gratuito.avanzadas.tendencia).toMatchObject({ bloqueado: true, plan_requerido: { nombre: "Pro" } });
+
+    const salud = await idNegocio(NEGOCIOS[3]);
+    const res = await api(await login("saludanimal@petcat.test")).get(`/negocios/${salud}/dashboard?desde=${sumarDias(hoyISO(), -89)}`);
+    const pro = res.body.data;
+    expect(pro.plan.estadisticas_avanzadas).toBe(true);
+    expect(pro.avanzadas.tendencia.agrupacion).toBe("semana");
+    expect(pro.avanzadas.tendencia.puntos.filter((p) => p.completadas > 0).length).toBeGreaterThanOrEqual(8);
+    expect(pro.ingresos.citas_completadas).toBeGreaterThanOrEqual(14);
+    expect(pro.avanzadas.por_empleado.length).toBe(2);
+  });
+
+  it("notificaciones leídas y sin leer, dispositivos de ejemplo y notas de clientes", async () => {
+    const sofia = await login("cliente@petcat.test");
+    const notificaciones = (await api(sofia).get("/notificaciones")).body;
+    expect(notificaciones.data.map((n) => [n.tipo, n.leida])).toEqual(
+      expect.arrayContaining([
+        ["vacuna_proxima", false],
+        ["cita_confirmada", true],
+      ])
+    );
+    expect(notificaciones.data.find((n) => n.tipo === "cita_confirmada").datos).toMatchObject({ tipo: "cita_confirmada", id_cita: expect.any(Number) });
+
+    const [dispositivos] = await pool.query(
+      "SELECT u.email FROM dispositivos d JOIN usuarios u ON u.id_usuario = d.id_usuario WHERE d.activo = TRUE AND d.token_expo LIKE 'ExponentPushToken[seed%' ORDER BY u.email"
+    );
+    expect(dispositivos.map((d) => d.email)).toEqual(["camilo@petcat.test", "cliente@petcat.test"]);
+
+    const salud = await idNegocio(NEGOCIOS[3]);
+    const jorge = await idUsuario("jorge@petcat.test");
+    const notas = (await api(await login("vet.salud@petcat.test")).get(`/negocios/${salud}/clientes/${jorge}/notas`)).body.data;
+    expect(notas).toEqual([expect.objectContaining({ autor: expect.objectContaining({ nombre: "Ricardo" }), editable: false })]);
+    // Otro negocio del mismo cliente no las ve.
+    const camilo = await idUsuario("camilo@petcat.test");
+    const patitas = await idNegocio(NEGOCIOS[0]);
+    const deOtro = (await api(await login("propietario@petcat.test")).get(`/negocios/${patitas}/clientes/${camilo}/notas`)).body;
+    expect(deOtro.data).toEqual([]);
+  });
+
+  it("invitación a reseñar pendiente para la consulta de Mía de hoy, que ya se puede reseñar", async () => {
+    const mia = await idMascota("camilo@petcat.test", "Mía");
+    const [[invitacion]] = await pool.query(
+      `SELECT r.estado, r.fecha_programada, c.id_cita FROM recordatorios r JOIN citas c ON c.id_cita = r.id_cita
+       WHERE r.tipo = 'resena_invitacion' AND c.id_mascota = ?`,
+      [mia]
+    );
+    expect(invitacion).toMatchObject({ estado: "pendiente", fecha_programada: `${hoyISO()} 10:45:00` });
+    const cita = (await api(await login("camilo@petcat.test")).get(`/citas/${invitacion.id_cita}`)).body.data;
+    expect(cita.resena).toMatchObject({ puede_resenar: true, id_resena: null });
   });
 });
