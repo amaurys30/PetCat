@@ -1,11 +1,12 @@
 import { z } from "zod";
-import { conAlMenosUnCampo, fecha, fechaNoFutura, idParam, texto, urlHttps } from "../../shared/utils/schemas.js";
+import { conAlMenosUnCampo, fecha, fechaNoFutura, idParam, texto } from "../../shared/utils/schemas.js";
 
 const id = z.number().int().positive();
 
 export const idVacunaParams = idParam("id_vacuna");
 
-// Campos que registran tanto el dueño como el negocio. Comprobante solo https (Cloudinary en la Fase 2).
+// Campos que registran tanto el dueño como el negocio. El comprobante se sube con
+// PUT /vacunas/:id_vacuna/comprobante (no se acepta una URL en el body).
 const campos = {
   nombre_vacuna: texto(150),
   enfermedad_objetivo: texto(150).nullable(),
@@ -16,7 +17,6 @@ const campos = {
   sitio_aplicacion: texto(60).nullable(),
   fecha_aplicacion: fechaNoFutura,
   fecha_proxima: fecha.nullable(),
-  comprobante_url: urlHttps().nullable(),
   notas: texto(300).nullable(),
 };
 

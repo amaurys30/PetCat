@@ -136,6 +136,9 @@ CREATE TABLE negocios (
     verificado           BOOLEAN        NOT NULL DEFAULT FALSE,
     destacado            BOOLEAN        NOT NULL DEFAULT FALSE,
     activo               BOOLEAN        NOT NULL DEFAULT TRUE,
+    -- Migración 017.
+    confirmacion_automatica BOOLEAN     NOT NULL DEFAULT FALSE
+                         COMMENT 'Las citas de la app nacen confirmadas',
     fecha_registro       DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     fecha_actualizacion  DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id_negocio),
@@ -544,6 +547,9 @@ CREATE TABLE servicios (
     id_categoria     INT UNSIGNED    NOT NULL,
     nombre           VARCHAR(150)    NOT NULL,
     descripcion      TEXT            NULL,
+    -- Migración 015.
+    indicaciones_previas VARCHAR(500) NULL
+        COMMENT 'Preparación antes de la cita (ayuno, carnet...); va en el recordatorio del día anterior',
     precio_base      DECIMAL(12,2)   NOT NULL DEFAULT 0.00,
     precio_maximo    DECIMAL(12,2)   NULL COMMENT 'Para precios variables',
     tipo_precio      ENUM('fijo','por_hora','por_dia','variable') NOT NULL DEFAULT 'fijo',
@@ -629,12 +635,20 @@ CREATE TABLE citas (
     notas_cliente    TEXT            NULL COMMENT 'Instrucciones o notas del dueño',
     notas_internas   TEXT            NULL COMMENT 'Notas del veterinario (privadas)',
     motivo_cancelacion TEXT          NULL,
-    -- Migración 009.
-    cancelada_por    ENUM('dueno','negocio') NULL,
+    -- Migración 009 ('sistema': migración 017).
+    cancelada_por    ENUM('dueno','negocio','sistema') NULL,
     fecha_cancelacion DATETIME       NULL,
     cancelacion_tardia BOOLEAN       NOT NULL DEFAULT FALSE
                      COMMENT 'El dueño canceló a menos de antelacion_cancelacion_app_h horas',
-    prioridad        ENUM('normal','alta','urgente') NOT NULL DEFAULT 'normal',
+    -- Migración 017.
+    confirmar_antes_de DATETIME      NULL
+                     COMMENT 'Plazo para confirmar una cita pendiente; al vencer se cancela sola',
+    aviso_por_confirmar_en DATETIME  NULL
+                     COMMENT 'Cuándo se avisó al negocio a mitad del plazo (NULL = no se ha avisado)',
+    -- Migración 018.
+    fecha_completada DATETIME        NULL
+                     COMMENT 'Cuándo pasó a completada: invitación y plazo para reseñar',
+    prioridad       ENUM('normal','alta','urgente') NOT NULL DEFAULT 'normal',
     -- Comunicación
     recordatorio_enviado BOOLEAN     NOT NULL DEFAULT FALSE,
     confirmacion_enviada BOOLEAN     NOT NULL DEFAULT FALSE,
@@ -651,6 +665,8 @@ CREATE TABLE citas (
     INDEX idx_citas_empleado (id_empleado),
     INDEX idx_citas_fecha (fecha),
     INDEX idx_citas_estado (estado),
+    -- Migración 017: citas pendientes por plazo de confirmación (job).
+    INDEX idx_citas_por_confirmar (estado, confirmar_antes_de),
     INDEX idx_citas_negocio_fecha (id_negocio, fecha),
     INDEX idx_citas_empleado_fecha (id_empleado, fecha),
     CONSTRAINT fk_citas_negocio
@@ -956,8 +972,11 @@ CREATE TABLE recordatorios (
     id_mascota       INT UNSIGNED    NULL,
     id_cita          INT UNSIGNED    NULL,
     id_vacuna        INT UNSIGNED    NULL,
-    tipo             ENUM('cita_confirmacion','cita_recordatorio','vacuna_proxima',
-                          'vacuna_vencida','control_medico','alimentacion',
+    -- Migración 014: hito de las vacunas y recordatorio del día anterior a la cita.
+    hito             SMALLINT        NULL COMMENT 'Vacunas: días respecto a fecha_proxima (-7, 0 o 7)',
+    -- resena_invitacion: migración 018.
+    tipo             ENUM('cita_confirmacion','cita_recordatorio','cita_dia_anterior','resena_invitacion',
+                          'vacuna_proxima','vacuna_vencida','control_medico','alimentacion',
                           'desparasitacion','bano','medicamento','personalizado') NOT NULL,
     titulo           VARCHAR(200)    NOT NULL,
     mensaje          TEXT            NOT NULL,
@@ -976,6 +995,10 @@ CREATE TABLE recordatorios (
     INDEX idx_recordatorios_estado (estado),
     INDEX idx_recordatorios_fecha (fecha_programada),
     INDEX idx_recordatorios_tipo (tipo),
+    -- Migración 014: un recordatorio de cada tipo por cita y uno por vacuna y hito (los jobs no duplican).
+    UNIQUE KEY uq_recordatorios_cita (id_cita, tipo),
+    UNIQUE KEY uq_recordatorios_vacuna (id_vacuna, hito),
+    INDEX idx_recordatorios_pendientes (estado, fecha_programada),
     CONSTRAINT fk_recordatorios_usuario
         FOREIGN KEY (id_usuario) REFERENCES usuarios (id_usuario)
         ON DELETE CASCADE ON UPDATE CASCADE,
@@ -1010,6 +1033,8 @@ CREATE TABLE notificaciones (
     INDEX idx_notif_estado (estado),
     INDEX idx_notif_tipo (tipo),
     INDEX idx_notif_fecha (fecha_creacion),
+    -- Migración 013: listar las de un usuario y contar las no leídas.
+    INDEX idx_notif_usuario_estado (id_usuario, estado, fecha_creacion),
     CONSTRAINT fk_notif_usuario
         FOREIGN KEY (id_usuario) REFERENCES usuarios (id_usuario)
         ON DELETE CASCADE ON UPDATE CASCADE,
@@ -1018,6 +1043,58 @@ CREATE TABLE notificaciones (
         ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Notificaciones en tiempo real enviadas a usuarios y negocios';
+
+
+-- Migración 013: dispositivos de la app y entregas de notificaciones.
+CREATE TABLE dispositivos (
+    id_dispositivo      BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    id_usuario          INT UNSIGNED    NOT NULL,
+    id_sesion           BIGINT UNSIGNED NULL COMMENT 'Sesión en la que se registró; al cerrarla se desactiva',
+    token_expo          VARCHAR(255)    NOT NULL COMMENT 'ExponentPushToken[...]',
+    plataforma          ENUM('ios','android') NOT NULL,
+    nombre              VARCHAR(100)    NULL COMMENT 'Modelo del teléfono, para mostrarlo al usuario',
+    activo              BOOLEAN         NOT NULL DEFAULT TRUE,
+    ultimo_error        VARCHAR(255)    NULL COMMENT 'Último error de Expo (p. ej. DeviceNotRegistered)',
+    fecha_registro      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id_dispositivo),
+    UNIQUE KEY uq_dispositivos_token (token_expo),
+    INDEX idx_dispositivos_usuario (id_usuario, activo),
+    INDEX idx_dispositivos_sesion (id_sesion),
+    CONSTRAINT fk_dispositivos_usuario
+        FOREIGN KEY (id_usuario) REFERENCES usuarios (id_usuario)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_dispositivos_sesion
+        FOREIGN KEY (id_sesion) REFERENCES sesiones (id_sesion)
+        ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Dispositivos de la app con su token de Expo Push';
+
+CREATE TABLE notificaciones_envios (
+    id_envio            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    id_notificacion     BIGINT UNSIGNED NOT NULL,
+    canal               ENUM('push','email') NOT NULL,
+    id_dispositivo      BIGINT UNSIGNED NULL COMMENT 'Solo push: una fila por dispositivo',
+    estado              ENUM('pendiente','enviado','fallido','omitido') NOT NULL DEFAULT 'pendiente',
+    programado_para     DATETIME        NOT NULL COMMENT 'Ahora, o el fin del horario de silencio',
+    intentos            TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    ticket_expo         VARCHAR(100)    NULL COMMENT 'Ticket de Expo para revisar el recibo',
+    recibo_pendiente    BOOLEAN         NOT NULL DEFAULT FALSE,
+    error               VARCHAR(500)    NULL,
+    fecha_envio         DATETIME        NULL,
+    fecha_creacion      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id_envio),
+    INDEX idx_envios_pendientes (estado, programado_para),
+    INDEX idx_envios_recibos (recibo_pendiente, fecha_envio),
+    INDEX idx_envios_notificacion (id_notificacion),
+    CONSTRAINT fk_envios_notificacion
+        FOREIGN KEY (id_notificacion) REFERENCES notificaciones (id_notificacion)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_envios_dispositivo
+        FOREIGN KEY (id_dispositivo) REFERENCES dispositivos (id_dispositivo)
+        ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Entregas de notificaciones por push y correo (outbox)';
 
 
 CREATE TABLE recomendaciones_ia (
@@ -1089,14 +1166,25 @@ CREATE TABLE resenas (
     -- Gestión
     respuesta_negocio TEXT           NULL,
     fecha_respuesta  DATETIME        NULL,
+    -- Migración 018: edición de la respuesta, datos del reporte y señal para la moderación.
+    fecha_edicion_respuesta DATETIME NULL COMMENT 'Última edición de la respuesta (fecha_respuesta es la primera)',
     visible          BOOLEAN         NOT NULL DEFAULT TRUE,
     reportada        BOOLEAN         NOT NULL DEFAULT FALSE,
+    motivo_reporte   ENUM('lenguaje_ofensivo','datos_personales','no_relacionada','spam','otro') NULL,
+    detalle_reporte  VARCHAR(500)    NULL,
+    fecha_reporte    DATETIME        NULL,
+    id_usuario_reporta INT UNSIGNED  NULL COMMENT 'Quién del negocio la reportó',
+    cliente_registrado_por_negocio BOOLEAN NOT NULL DEFAULT FALSE
+                     COMMENT 'El autor tiene una autorización de datos con canal panel de este negocio. Solo para el super admin',
     fecha_creacion   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    -- Migración 018.
+    fecha_edicion    DATETIME        NULL COMMENT 'Última edición del autor',
+    retirada_en      DATETIME        NULL COMMENT 'El autor la retiró (visible = FALSE); no puede reseñar de nuevo esa cita',
     PRIMARY KEY (id_resena),
-    INDEX idx_resenas_negocio (id_negocio),
     INDEX idx_resenas_usuario (id_usuario),
     INDEX idx_resenas_calificacion (calificacion),
-    INDEX idx_resenas_visible (visible),
+    -- Migración 018: listado público (reemplaza idx_resenas_negocio e idx_resenas_visible).
+    INDEX idx_resenas_negocio_visible (id_negocio, visible, fecha_creacion),
     UNIQUE KEY uq_resena_cita (id_cita) COMMENT 'Una reseña por cita',
     CONSTRAINT fk_resenas_negocio
         FOREIGN KEY (id_negocio) REFERENCES negocios (id_negocio)
@@ -1107,7 +1195,14 @@ CREATE TABLE resenas (
     CONSTRAINT fk_resenas_cita
         FOREIGN KEY (id_cita) REFERENCES citas (id_cita)
         ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT chk_calificacion CHECK (calificacion BETWEEN 1 AND 5)
+    CONSTRAINT fk_resenas_reporta
+        FOREIGN KEY (id_usuario_reporta) REFERENCES usuarios (id_usuario)
+        ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT chk_calificacion CHECK (calificacion BETWEEN 1 AND 5),
+    CONSTRAINT chk_resenas_calif_atencion CHECK (calif_atencion BETWEEN 1 AND 5),
+    CONSTRAINT chk_resenas_calif_precio CHECK (calif_precio BETWEEN 1 AND 5),
+    CONSTRAINT chk_resenas_calif_instalaciones CHECK (calif_instalaciones BETWEEN 1 AND 5),
+    CONSTRAINT chk_resenas_calif_puntualidad CHECK (calif_puntualidad BETWEEN 1 AND 5)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Reseñas y calificaciones de usuarios a negocios tras una cita';
 
@@ -1259,23 +1354,83 @@ CREATE TABLE autorizaciones_datos (
   COMMENT='Autorizaciones de tratamiento de datos personales (Ley 1581 de 2012)';
 
 
+-- Migración 019: notas del negocio sobre sus clientes. Borrado físico (excepción a la
+-- convención de borrado lógico): si el negocio borra una nota, el dato personal desaparece.
+CREATE TABLE notas_cliente (
+    id_nota          INT UNSIGNED    NOT NULL AUTO_INCREMENT,
+    id_negocio       INT UNSIGNED    NOT NULL,
+    id_usuario       INT UNSIGNED    NOT NULL COMMENT 'Cliente sobre el que es la nota',
+    id_usuario_autor INT UNSIGNED    NULL COMMENT 'Propietario o empleado que la escribió',
+    texto            VARCHAR(1000)   NOT NULL,
+    fecha_creacion   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_edicion    DATETIME        NULL,
+    PRIMARY KEY (id_nota),
+    INDEX idx_notas_cliente (id_negocio, id_usuario, fecha_creacion),
+    CONSTRAINT fk_notas_negocio
+        FOREIGN KEY (id_negocio) REFERENCES negocios (id_negocio)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_notas_cliente
+        FOREIGN KEY (id_usuario) REFERENCES usuarios (id_usuario)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_notas_autor
+        FOREIGN KEY (id_usuario_autor) REFERENCES usuarios (id_usuario)
+        ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Notas internas del negocio sobre un cliente (solo las ve ese negocio)';
+
+
+-- Migración 012: archivos subidos a Cloudinary.
+CREATE TABLE archivos (
+    id_archivo          BIGINT UNSIGNED  NOT NULL AUTO_INCREMENT,
+    public_id           VARCHAR(255)     NOT NULL COMMENT 'Identificador en Cloudinary (aleatorio, con la carpeta)',
+    tipo_recurso        ENUM('image','raw') NOT NULL COMMENT 'resource_type de Cloudinary: image o raw (PDF)',
+    entrega             ENUM('upload','authenticated') NOT NULL COMMENT 'upload = público; authenticated = privado con URL firmada',
+    formato             VARCHAR(10)      NOT NULL COMMENT 'webp, jpg, png o pdf',
+    bytes               INT UNSIGNED     NOT NULL,
+    ancho               SMALLINT UNSIGNED NULL,
+    alto                SMALLINT UNSIGNED NULL,
+    nombre_original     VARCHAR(255)     NULL COMMENT 'Nombre del archivo del usuario (solo se guarda aquí)',
+    entidad             ENUM('usuario_foto','mascota_foto','empleado_foto','negocio_logo',
+                             'negocio_banner','vacuna_comprobante','historial_archivo') NOT NULL,
+    id_entidad          INT UNSIGNED     NOT NULL COMMENT 'id del registro de la entidad',
+    estado              ENUM('activo','por_eliminar','eliminado') NOT NULL DEFAULT 'activo',
+    intentos_eliminar   TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    id_usuario_subio    INT UNSIGNED     NULL,
+    id_usuario_elimino  INT UNSIGNED     NULL,
+    fecha_creacion      DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_eliminacion   DATETIME         NULL COMMENT 'Cuándo se pidió eliminar (reemplazo o DELETE)',
+    PRIMARY KEY (id_archivo),
+    UNIQUE KEY uq_archivos_public_id (public_id),
+    INDEX idx_archivos_entidad (entidad, id_entidad, estado),
+    INDEX idx_archivos_estado (estado),
+    CONSTRAINT fk_archivos_subio
+        FOREIGN KEY (id_usuario_subio) REFERENCES usuarios (id_usuario)
+        ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_archivos_elimino
+        FOREIGN KEY (id_usuario_elimino) REFERENCES usuarios (id_usuario)
+        ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Archivos subidos a Cloudinary: fotos, logos, comprobantes y archivos del historial';
+
+
 -- ═══════════════════════════════════════════════════════════════════════════
---  TRIGGERS
+--  TRIGGERS Y PROCEDIMIENTOS
 -- ═══════════════════════════════════════════════════════════════════════════
 
 DELIMITER $$
 
--- Actualizar calificación promedio del negocio al agregar una reseña
+-- Calificación promedio y total de reseñas visibles del negocio al agregar una reseña.
+-- COALESCE (migración 018): sin reseñas visibles, AVG da NULL y calificacion_promedio es NOT NULL.
 CREATE TRIGGER trg_resenas_after_insert
 AFTER INSERT ON resenas
 FOR EACH ROW
 BEGIN
     UPDATE negocios
-    SET calificacion_promedio = (
+    SET calificacion_promedio = COALESCE((
             SELECT ROUND(AVG(calificacion), 2)
             FROM resenas
             WHERE id_negocio = NEW.id_negocio AND visible = TRUE
-        ),
+        ), 0),
         total_resenas = (
             SELECT COUNT(*) FROM resenas
             WHERE id_negocio = NEW.id_negocio AND visible = TRUE
@@ -1283,22 +1438,25 @@ BEGIN
     WHERE id_negocio = NEW.id_negocio;
 END$$
 
--- Actualizar calificación promedio al eliminar o actualizar una reseña
+-- Igual al editar la calificación o cambiar la visibilidad (retiro del autor o
+-- moderación). No hay trigger de DELETE: las reseñas no se borran.
 CREATE TRIGGER trg_resenas_after_update
 AFTER UPDATE ON resenas
 FOR EACH ROW
 BEGIN
-    UPDATE negocios
-    SET calificacion_promedio = (
-            SELECT ROUND(AVG(calificacion), 2)
-            FROM resenas
-            WHERE id_negocio = NEW.id_negocio AND visible = TRUE
-        ),
-        total_resenas = (
-            SELECT COUNT(*) FROM resenas
-            WHERE id_negocio = NEW.id_negocio AND visible = TRUE
-        )
-    WHERE id_negocio = NEW.id_negocio;
+    IF NEW.calificacion <> OLD.calificacion OR NEW.visible <> OLD.visible THEN
+        UPDATE negocios
+        SET calificacion_promedio = COALESCE((
+                SELECT ROUND(AVG(calificacion), 2)
+                FROM resenas
+                WHERE id_negocio = NEW.id_negocio AND visible = TRUE
+            ), 0),
+            total_resenas = (
+                SELECT COUNT(*) FROM resenas
+                WHERE id_negocio = NEW.id_negocio AND visible = TRUE
+            )
+        WHERE id_negocio = NEW.id_negocio;
+    END IF;
 END$$
 
 -- Actualizar contador de likes en posts
@@ -1339,27 +1497,55 @@ BEGIN
     WHERE id_producto = NEW.id_producto;
 END$$
 
--- Generar recordatorio automático al confirmar una cita
+-- Migración 014: recordatorios de una cita confirmada, el del día anterior (19:00) y el de
+-- 2 horas antes, solo si su hora aún no pasó. La usan el trigger (cita que pasa a
+-- confirmada) y el servicio (cita que nace confirmada desde el panel).
+CREATE PROCEDURE sp_programar_recordatorios_cita(
+    IN p_id_cita    INT UNSIGNED,
+    IN p_id_usuario INT UNSIGNED,
+    IN p_id_mascota INT UNSIGNED,
+    IN p_fecha      DATE,
+    IN p_hora       TIME
+)
+BEGIN
+    DECLARE v_horas INT;
+    DECLARE v_hora_dia_anterior TIME;
+    DECLARE v_antes DATETIME;
+    DECLARE v_dia_anterior DATETIME;
+
+    SET v_horas = COALESCE(
+        (SELECT CAST(valor AS UNSIGNED) FROM configuracion_global WHERE clave = 'recordatorio_cita_h'), 2);
+    SET v_hora_dia_anterior = COALESCE(
+        (SELECT CAST(valor AS TIME) FROM configuracion_global WHERE clave = 'recordatorio_dia_anterior_hora'), '19:00:00');
+    SET v_antes = TIMESTAMP(p_fecha, p_hora) - INTERVAL v_horas HOUR;
+    SET v_dia_anterior = TIMESTAMP(p_fecha - INTERVAL 1 DAY, v_hora_dia_anterior);
+
+    IF v_dia_anterior > NOW() THEN
+        INSERT INTO recordatorios (id_usuario, id_mascota, id_cita, tipo, titulo, mensaje, canal, estado, fecha_programada)
+        VALUES (p_id_usuario, p_id_mascota, p_id_cita, 'cita_dia_anterior', 'Tu cita es mañana',
+                CONCAT('Tu cita es mañana, ', DATE_FORMAT(p_fecha, '%d/%m/%Y'), ', a las ', TIME_FORMAT(p_hora, '%H:%i'), '.'),
+                'push', 'pendiente', v_dia_anterior)
+        ON DUPLICATE KEY UPDATE id_recordatorio = id_recordatorio;
+    END IF;
+
+    IF v_antes > NOW() THEN
+        INSERT INTO recordatorios (id_usuario, id_mascota, id_cita, tipo, titulo, mensaje, canal, estado, fecha_programada)
+        VALUES (p_id_usuario, p_id_mascota, p_id_cita, 'cita_recordatorio', 'Recordatorio de tu cita',
+                CONCAT('Tu cita está programada para el ', DATE_FORMAT(p_fecha, '%d/%m/%Y'),
+                       ' a las ', TIME_FORMAT(p_hora, '%H:%i'), '. ¡Te esperamos!'),
+                'push', 'pendiente', v_antes)
+        ON DUPLICATE KEY UPDATE id_recordatorio = id_recordatorio;
+    END IF;
+END$$
+
+-- Programar los recordatorios al confirmar una cita
 CREATE TRIGGER trg_citas_after_update
 AFTER UPDATE ON citas
 FOR EACH ROW
 BEGIN
-    -- Si la cita pasa a confirmada, crear recordatorio automático
     IF NEW.estado = 'confirmada' AND OLD.estado != 'confirmada'
        AND NEW.recordatorio_enviado = FALSE THEN
-        INSERT INTO recordatorios (
-            id_usuario, id_mascota, id_cita, tipo,
-            titulo, mensaje, canal, estado, fecha_programada
-        ) VALUES (
-            NEW.id_usuario, NEW.id_mascota, NEW.id_cita,
-            'cita_recordatorio',
-            'Recordatorio de tu cita',
-            CONCAT('Tu cita está programada para el ', DATE_FORMAT(NEW.fecha, '%d/%m/%Y'),
-                   ' a las ', TIME_FORMAT(NEW.hora_inicio, '%H:%i'), '. ¡Te esperamos!'),
-            'push,whatsapp',
-            'pendiente',
-            DATE_SUB(CONCAT(NEW.fecha, ' ', NEW.hora_inicio), INTERVAL 2 HOUR)
-        );
+        CALL sp_programar_recordatorios_cita(NEW.id_cita, NEW.id_usuario, NEW.id_mascota, NEW.fecha, NEW.hora_inicio);
     END IF;
 END$$
 
@@ -1397,17 +1583,17 @@ VALUES
 INSERT INTO roles (nombre, descripcion, permisos_json, es_sistema) VALUES
 ('Administrador',
  'Acceso total al panel del negocio. Puede editar todo.',
- '{"citas":["ver","crear","editar","cancelar"],"servicios":["ver","crear","editar","eliminar"],"inventario":["ver","crear","editar","eliminar","editar_stock"],"clientes":["ver","editar"],"empleados":["ver","crear","editar","eliminar"],"pagos":["ver","ver_basico","reembolsar"],"roles":["ver","crear","editar","eliminar"],"reportes":["ver","exportar"],"configuracion":["ver","editar"],"historial_medico":["ver","crear","editar"],"vacunas":["ver","crear","editar"]}',
+ '{"citas":["ver","crear","editar","cancelar"],"servicios":["ver","crear","editar","eliminar"],"inventario":["ver","crear","editar","eliminar","editar_stock"],"clientes":["ver","editar"],"empleados":["ver","crear","editar","eliminar"],"pagos":["ver","ver_basico","reembolsar"],"roles":["ver","crear","editar","eliminar"],"reportes":["ver","exportar"],"configuracion":["ver","editar"],"historial_medico":["ver","crear","editar"],"vacunas":["ver","crear","editar"],"resenas":["ver","responder","reportar"]}',
  TRUE),
 
 ('Veterinario',
  'Puede gestionar citas, mascotas, historial médico y servicios.',
- '{"citas":["ver","crear","editar"],"servicios":["ver"],"inventario":["ver","editar_stock"],"clientes":["ver"],"historial_medico":["ver","crear","editar"],"vacunas":["ver","crear","editar"]}',
+ '{"citas":["ver","crear","editar"],"servicios":["ver"],"inventario":["ver","editar_stock"],"clientes":["ver"],"historial_medico":["ver","crear","editar"],"vacunas":["ver","crear","editar"],"resenas":["ver"]}',
  TRUE),
 
 ('Recepcionista',
  'Solo gestiona citas y clientes. No accede a reportes financieros.',
- '{"citas":["ver","crear","editar","cancelar"],"servicios":["ver"],"clientes":["ver"],"pagos":["ver_basico"]}',
+ '{"citas":["ver","crear","editar","cancelar"],"servicios":["ver"],"clientes":["ver"],"pagos":["ver_basico"],"resenas":["ver"]}',
  TRUE);
 
 
@@ -1447,10 +1633,10 @@ INSERT INTO configuracion_global (clave, valor, tipo, descripcion) VALUES
 ('dias_prueba_gratis',      '14',                               'integer', 'Días de prueba gratuita para plan Pro'),
 ('max_fotos_post',          '5',                                'integer', 'Máximo de fotos por post en comunidad'),
 ('radio_busqueda_km',       '10',                               'integer', 'Radio de búsqueda de negocios cercanos por defecto'),
-('whatsapp_recordatorio_h', '2',                                'integer', 'Horas antes de la cita para enviar recordatorio'),
+('recordatorio_cita_h',     '2',                                'integer', 'Horas antes de la cita para el recordatorio'),
 ('ia_modelo',               'gpt-4o-mini',                      'string',  'Modelo de IA para recomendaciones'),
 ('mantenimiento',           'false',                            'boolean', 'Modo mantenimiento activo/inactivo'),
-('contacto_soporte',        'soporte@petcat.com.co',            'string',  'Email de soporte de la plataforma'),
+('soporte_email',           'soporte@petcat.com.co',            'string',  'Correo de soporte de la plataforma: avisos del plan y correo de bienvenida (vacío = no se muestra)'),
 ('terminos_version',        '1.0',                              'string',  'Versión actual de los términos de uso'),
 -- Migración 007.
 ('intervalo_agenda_min',          '15', 'integer', 'Cuadrícula de horarios de la agenda (minutos)'),
@@ -1459,7 +1645,20 @@ INSERT INTO configuracion_global (clave, valor, tipo, descripcion) VALUES
 ('antelacion_cancelacion_app_h',  '2',  'integer', 'Horas antes de la cita hasta las que el dueño cancela o reprograma desde la app'),
 ('politica_datos_url',            '',   'string',  'URL de la política de tratamiento de datos (correo de bienvenida)'),
 -- Migración 010.
-('dias_aviso_vacuna',             '30', 'integer', 'Días antes de fecha_proxima en que una vacuna cuenta como próxima');
+('dias_aviso_vacuna',             '30', 'integer', 'Días antes de fecha_proxima en que una vacuna cuenta como próxima'),
+-- Migración 013.
+('silencio_inicio', '21:00', 'string', 'Inicio del horario de silencio de push y correos no urgentes (hora de Bogotá, HH:MM)'),
+('silencio_fin',    '07:00', 'string', 'Fin del horario de silencio (HH:MM); igual al inicio = sin silencio'),
+-- Migración 014.
+('recordatorio_dia_anterior_hora', '19:00', 'string', 'Hora del recordatorio del día anterior a la cita (hora de Bogotá, HH:MM)'),
+-- Migración 016 (soporte_email era contacto_soporte).
+('soporte_whatsapp', '', 'string', 'WhatsApp de soporte para los avisos del plan, p. ej. +57 300 123 4567 (vacío = no se muestra)'),
+-- Migración 017.
+('plazo_confirmacion_h',          '24', 'integer', 'Horas que tiene el negocio para confirmar una cita pendiente'),
+('confirmacion_antes_inicio_min', '60', 'integer', 'La cita pendiente se cancela a más tardar estos minutos antes de su inicio'),
+-- Migración 018.
+('resena_plazo_dias',   '30', 'integer', 'Días desde que se completa la cita en que el dueño puede reseñarla o editar su reseña'),
+('resena_invitacion_h', '3',  'integer', 'Horas después de completada la cita para invitar a reseñar (entre las 20:00 y las 10:00 se corre a las 10:00)');
 
 
 -- ═══════════════════════════════════════════════════════════════════════════
@@ -1615,7 +1814,15 @@ INSERT INTO schema_migrations (nombre) VALUES
 ('008_autorizaciones_canales.sql'),
 ('009_citas_cancelacion_e_inasistencias.sql'),
 ('010_historial_vacunas_y_privacidad.sql'),
-('011_rol_veterinario_vacunas_editar.sql');
+('011_rol_veterinario_vacunas_editar.sql'),
+('012_archivos.sql'),
+('013_notificaciones.sql'),
+('014_recordatorios_y_jobs.sql'),
+('015_servicios_indicaciones_previas.sql'),
+('016_soporte_contacto.sql'),
+('017_confirmacion_automatica.sql'),
+('018_resenas.sql'),
+('019_notas_cliente.sql');
 
 
 SET FOREIGN_KEY_CHECKS = 1;
@@ -1623,5 +1830,5 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- ═══════════════════════════════════════════════════════════════════════════
 --  FIN DEL SCRIPT
 --  PetCat Database v1.0 — CECAR 2026
---  Tablas: 27 | Relaciones: 48 FK | Triggers: 6 | Vistas: 4
+--  Tablas: 27 | Relaciones: 48 FK | Triggers: 6 | Procedimientos: 1 | Vistas: 4
 -- ═══════════════════════════════════════════════════════════════════════════

@@ -58,6 +58,21 @@ const schema = z
     // Máximo de solicitudes cada 15 min por IP en login, recuperación y verificación de cuenta e invitaciones.
     // Por defecto: 10 en producción, 100 en desarrollo y tests.
     AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().optional(),
+
+    // Almacenamiento de archivos. Sin las tres credenciales, las subidas responden 503
+    // (obligatorias en producción). Los tests usan un almacenamiento en memoria.
+    CLOUDINARY_CLOUD_NAME: z.string().optional(),
+    CLOUDINARY_API_KEY: z.string().optional(),
+    CLOUDINARY_API_SECRET: z.string().optional(),
+    CLOUDINARY_FOLDER: z
+      .string()
+      .regex(/^[a-z0-9_-]+$/i, "Solo letras, números, guion y guion bajo")
+      .default("petcat-dev"),
+    // Vigencia de las URLs firmadas de archivos privados (historial y comprobantes).
+    ARCHIVOS_URL_VIGENCIA_MIN: z.coerce.number().int().min(1).max(1440).default(15),
+
+    // Solo si el proyecto de Expo tiene activada la seguridad de push (Access Token).
+    EXPO_ACCESS_TOKEN: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.JWT_SECRET === data.REFRESH_SECRET) {
@@ -73,6 +88,17 @@ const schema = z
         path: ["SMTP_HOST"],
         message: "Obligatoria en producción (sin SMTP los correos solo se muestran en consola)",
       });
+    }
+    const cloudinary = ["CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"];
+    const definidas = cloudinary.filter((clave) => data[clave]);
+    if (definidas.length > 0 && definidas.length < cloudinary.length) {
+      for (const clave of cloudinary.filter((c) => !data[c])) {
+        ctx.addIssue({ code: "custom", path: [clave], message: "Las tres credenciales de Cloudinary van juntas" });
+      }
+    } else if (data.NODE_ENV === "production" && definidas.length === 0) {
+      for (const clave of cloudinary) {
+        ctx.addIssue({ code: "custom", path: [clave], message: "Obligatoria en producción (sin ella no se pueden subir archivos)" });
+      }
     }
     // Los tests borran y recrean datos: nunca deben apuntar a la base de desarrollo.
     if (data.NODE_ENV === "test" && !data.DB_NAME.endsWith("_test")) {

@@ -84,4 +84,11 @@ describe("roles del sistema", () => {
     }
     expect(roles.Veterinario.vacunas.sort()).toEqual(["crear", "editar", "ver"]);
   });
+
+  it("reseñas: el Administrador con todo; Veterinario y Recepcionista solo ver (migración 018)", async () => {
+    const roles = await rolesDelSistema();
+    expect([...roles.Administrador.resenas].sort()).toEqual(["reportar", "responder", "ver"]);
+    expect(roles.Veterinario.resenas).toEqual(["ver"]);
+    expect(roles.Recepcionista.resenas).toEqual(["ver"]);
+  });
 });

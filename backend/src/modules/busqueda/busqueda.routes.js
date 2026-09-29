@@ -44,7 +44,8 @@ const router = express.Router();
  *         tipo: { type: string }
  *         descripcion: { type: string, nullable: true }
  *         ciudad: { type: string }
- *         logo_url: { type: string, nullable: true }
+ *         logo_url: { type: string, nullable: true, description: Logo (800 px) }
+ *         logo_miniatura_url: { type: string, nullable: true, description: Miniatura cuadrada de 200 px }
  *         calificacion_promedio: { type: number, example: 4.6 }
  *         total_resenas: { type: integer }
  *         verificado: { type: boolean }
@@ -58,6 +59,7 @@ const router = express.Router();
  *         id_servicio: { type: integer }
  *         nombre: { type: string }
  *         descripcion: { type: string, nullable: true }
+ *         indicaciones_previas: { type: string, nullable: true, description: Preparación antes de la cita (ayuno, carnet...) }
  *         categoria:
  *           type: object
  *           properties:
@@ -71,6 +73,7 @@ const router = express.Router();
  *             nombre: { type: string }
  *             tipo: { type: string }
  *             logo_url: { type: string, nullable: true }
+ *             logo_miniatura_url: { type: string, nullable: true }
  *             calificacion_promedio: { type: number }
  *             verificado: { type: boolean }
  *         precio_base: { type: number }

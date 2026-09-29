@@ -121,6 +121,7 @@ const COLUMNAS_CITA = [
   "prioridad",
   "origen",
   "id_cita_origen",
+  "confirmar_antes_de",
 ];
 
 export const create = async (data, conn) => {
@@ -182,6 +183,7 @@ const CAMPOS_ACTUALIZABLES = [
   "motivo_cancelacion",
   "cancelada_por",
   "cancelacion_tardia",
+  "fecha_completada",
 ];
 
 /** Actualiza la cita con la lista blanca; `fecha_cancelacion` se pone con NOW() si se pide. */
@@ -207,13 +209,14 @@ export const incrementTotalCitas = async (id_negocio, conn) => {
 
 /**
  * Cumplimiento del cliente **en ese negocio** (nunca en otros): citas completadas,
- * inasistencias y cancelaciones tardías. Usa el índice (id_negocio, id_usuario, estado).
+ * inasistencias y cancelaciones tardías. La cancelación automática (sistema) nunca cuenta
+ * contra el cliente. Usa el índice (id_negocio, id_usuario, estado).
  */
 export const resumenCumplimiento = async (id_usuario, id_negocio, conn) => {
   const [[row]] = await (conn ?? db).query(
     `SELECT COALESCE(SUM(estado = 'completada'), 0) AS completadas,
             COALESCE(SUM(estado = 'no_asistio'), 0) AS inasistencias,
-            COALESCE(SUM(estado = 'cancelada' AND cancelacion_tardia = TRUE), 0) AS cancelaciones_tardias
+            COALESCE(SUM(estado = 'cancelada' AND cancelacion_tardia = TRUE AND NOT (cancelada_por <=> 'sistema')), 0) AS cancelaciones_tardias
      FROM citas
      WHERE id_negocio = ? AND id_usuario = ?`,
     [id_negocio, id_usuario]
@@ -249,20 +252,19 @@ export const findNombresEmpleados = async (ids) => {
 };
 
 /**
- * Recordatorio de una cita que nace confirmada (desde el panel). Es el mismo que
- * crea el trigger trg_citas_after_update al pasar a confirmada, que no actúa en INSERT.
+ * Recordatorios de una cita que nace confirmada (desde el panel): el del día anterior y el
+ * de 2 horas antes, con el mismo procedimiento que usa el trigger trg_citas_after_update
+ * al pasar a confirmada (el trigger no actúa en INSERT).
  */
-export const insertRecordatorioConfirmada = async (id_cita, conn) => {
-  await conn.query(
-    `INSERT INTO recordatorios (id_usuario, id_mascota, id_cita, tipo, titulo, mensaje, canal, estado, fecha_programada)
-     SELECT c.id_usuario, c.id_mascota, c.id_cita, 'cita_recordatorio', 'Recordatorio de tu cita',
-            CONCAT('Tu cita está programada para el ', DATE_FORMAT(c.fecha, '%d/%m/%Y'),
-                   ' a las ', TIME_FORMAT(c.hora_inicio, '%H:%i'), '. ¡Te esperamos!'),
-            'push,whatsapp', 'pendiente',
-            DATE_SUB(CONCAT(c.fecha, ' ', c.hora_inicio), INTERVAL 2 HOUR)
-     FROM citas c WHERE c.id_cita = ?`,
-    [id_cita]
-  );
+export const programarRecordatorios = async (id_cita, conn) => {
+  const [[c]] = await conn.query("SELECT id_usuario, id_mascota, fecha, hora_inicio FROM citas WHERE id_cita = ?", [id_cita]);
+  await conn.query("CALL sp_programar_recordatorios_cita(?, ?, ?, ?, ?)", [
+    id_cita,
+    c.id_usuario,
+    c.id_mascota,
+    c.fecha,
+    c.hora_inicio,
+  ]);
 };
 
 // ---------- Lectura ----------
@@ -273,11 +275,13 @@ const SELECT_CITA = `
          TIME_FORMAT(c.hora_inicio, '%H:%i') AS hora_inicio, TIME_FORMAT(c.hora_fin, '%H:%i') AS hora_fin,
          c.estado, c.origen, c.prioridad, c.precio_estimado, c.precio_final, c.notas_cliente, c.notas_internas,
          c.id_cita_origen, c.fecha_creacion,
-         c.motivo_cancelacion, c.cancelada_por, c.fecha_cancelacion, c.cancelacion_tardia,
+         c.motivo_cancelacion, c.cancelada_por, c.fecha_cancelacion, c.cancelacion_tardia, c.confirmar_antes_de,
+         c.fecha_completada, r.id_resena, r.retirada_en AS resena_retirada_en,
          n.id_negocio, n.nombre AS negocio_nombre, n.logo_url AS negocio_logo_url,
          su.id_sucursal, su.nombre AS sucursal_nombre, su.direccion AS sucursal_direccion,
          su.telefono AS sucursal_telefono, su.latitud AS sucursal_latitud, su.longitud AS sucursal_longitud,
          sv.id_servicio, sv.nombre AS servicio_nombre, sv.duracion_minutos,
+         sv.indicaciones_previas AS servicio_indicaciones_previas,
          e.id_empleado, e.nombre AS empleado_nombre, e.apellido AS empleado_apellido,
          m.id_mascota, m.nombre AS mascota_nombre, m.especie AS mascota_especie,
          u.id_usuario, u.nombre AS cliente_nombre, u.apellido AS cliente_apellido, u.telefono AS cliente_telefono
@@ -287,7 +291,8 @@ const SELECT_CITA = `
   JOIN servicios sv ON sv.id_servicio = c.id_servicio
   LEFT JOIN empleados e ON e.id_empleado = c.id_empleado
   JOIN mascotas m ON m.id_mascota = c.id_mascota
-  JOIN usuarios u ON u.id_usuario = c.id_usuario`;
+  JOIN usuarios u ON u.id_usuario = c.id_usuario
+  LEFT JOIN resenas r ON r.id_cita = c.id_cita`;
 
 export const findDetalle = async (id_cita, conn) => {
   const [rows] = await (conn ?? db).query(`${SELECT_CITA} WHERE c.id_cita = ?`, [id_cita]);
@@ -381,8 +386,72 @@ export const negocioActivo = async (id_negocio, conn) => {
   return rows.length > 0;
 };
 
+/** El negocio confirma automáticamente las citas de la app (2.5). */
+export const confirmaAutomaticamente = async (id_negocio) => {
+  const [rows] = await db.query("SELECT confirmacion_automatica FROM negocios WHERE id_negocio = ?", [id_negocio]);
+  return Boolean(rows[0]?.confirmacion_automatica);
+};
+
 /** Usuario activo (cliente de una cita del panel). */
 export const usuarioActivo = async (id_usuario, conn) => {
   const [rows] = await (conn ?? db).query("SELECT 1 FROM usuarios WHERE id_usuario = ? AND activo = TRUE", [id_usuario]);
   return rows.length > 0;
+};
+
+// ---------- Confirmación automática (job de confirmaciones, 2.5) ----------
+
+/**
+ * Citas pendientes cuyo aviso de mitad de plazo ya toca: el punto medio entre la creación y
+ * confirmar_antes_de pasó, el plazo no ha vencido y aún no se avisó.
+ */
+export const findPorAvisarConfirmacion = async (ahora, limite) => {
+  const [rows] = await db.query(
+    `SELECT id_cita FROM citas
+     WHERE estado = 'pendiente' AND confirmar_antes_de > ? AND aviso_por_confirmar_en IS NULL
+       AND fecha_creacion + INTERVAL (TIMESTAMPDIFF(SECOND, fecha_creacion, confirmar_antes_de) DIV 2) SECOND <= ?
+     ORDER BY confirmar_antes_de, id_cita
+     LIMIT ?`,
+    [ahora, ahora, limite]
+  );
+  return rows.map((row) => row.id_cita);
+};
+
+/** Citas pendientes con el plazo para confirmar vencido. */
+export const findConfirmacionVencida = async (ahora, limite) => {
+  const [rows] = await db.query(
+    `SELECT id_cita FROM citas
+     WHERE estado = 'pendiente' AND confirmar_antes_de <= ?
+     ORDER BY confirmar_antes_de, id_cita
+     LIMIT ?`,
+    [ahora, limite]
+  );
+  return rows.map((row) => row.id_cita);
+};
+
+/**
+ * Bloquea la cita sin esperar: null si otra transacción la tiene (otra instancia del job o el
+ * negocio confirmándola en ese momento); el job la retoma al minuto siguiente.
+ */
+export const lockCitaSinEsperar = async (id_cita, conn) => {
+  const [rows] = await conn.query(
+    `SELECT id_cita, id_sucursal, id_servicio, id_mascota, estado, fecha, hora_inicio, fecha_creacion,
+            confirmar_antes_de, aviso_por_confirmar_en
+     FROM citas WHERE id_cita = ? FOR UPDATE SKIP LOCKED`,
+    [id_cita]
+  );
+  return rows[0] ?? null;
+};
+
+export const marcarAvisoPorConfirmar = async (id_cita, fecha, conn) => {
+  await conn.query("UPDATE citas SET aviso_por_confirmar_en = ? WHERE id_cita = ?", [fecha, id_cita]);
+};
+
+/** Cancelación automática: nunca es tardía (no cuenta contra el cliente). */
+export const cancelarPorSistema = async (id_cita, { motivo, fecha }, conn) => {
+  await conn.query(
+    `UPDATE citas SET estado = 'cancelada', cancelada_por = 'sistema', motivo_cancelacion = ?,
+                      cancelacion_tardia = FALSE, fecha_cancelacion = ?
+     WHERE id_cita = ?`,
+    [motivo, fecha, id_cita]
+  );
 };

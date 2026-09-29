@@ -66,6 +66,26 @@ La primera vez que se crea el volumen de MySQL, compose carga automáticamente e
 
 `npm run dev` y los scripts de `npm` se ejecutan **desde `backend/`**, porque leen `backend/.env` del directorio actual.
 
+### Tareas programadas (jobs)
+
+El servidor (`npm run dev`, `npm start` o el contenedor) corre estas tareas con node-cron, en hora de Bogotá. Los tests no las arrancan: llaman a cada función directamente.
+
+| Job | Cuándo | Qué hace |
+|---|---|---|
+| `envios-notificaciones` | Cada minuto | Envía las push y los correos programados (fin del horario de silencio) y los reintentos |
+| `recibos-expo` | Cada 15 min | Revisa los recibos de Expo y desactiva tokens dados de baja |
+| `recordatorios-citas` | Cada minuto | Recordatorio del día anterior (19:00) y de 2 horas antes |
+| `confirmaciones` | Cada minuto | Aviso al negocio a mitad del plazo para confirmar y cancelación automática de las citas pendientes que vencen |
+| `invitaciones-resena` | Cada 5 min | Invita al dueño a reseñar 3 horas después de completada la cita (nunca entre las 20:00 y las 10:00) |
+| `estado-vacunas` | 00:05 | Corrige la columna `vacunas.estado` |
+| `suscripciones` | 00:10 | Vence pruebas y planes (`plan_vencido`) y avisa la prueba por terminar |
+| `recordatorios-vacunas` | 09:00 | Vacunas 7 días antes, el día y 7 días después |
+| `archivos-por-eliminar` | Cada hora | Reintenta borrar en Cloudinary lo que quedó `por_eliminar` |
+| `sesiones` | 03:30 | Borra sesiones vencidas hace más de 30 días y tokens de correo vencidos |
+| `limpieza-notificaciones` | Domingos 04:00 | Borra notificaciones leídas de más de 90 días, todas las de más de 180 y recordatorios viejos |
+
+`estado-vacunas`, `suscripciones` y `recordatorios-vacunas` también corren una vez al arrancar, para recuperar lo que no corrió con el servidor apagado. Todos son seguros si hay dos instancias a la vez (por ejemplo durante un despliegue), pero en desarrollo sigue valiendo no correr el contenedor `backend` y `npm run dev` a la vez.
+
 ---
 
 ## 2. Variables de entorno
@@ -95,6 +115,10 @@ Hay tres archivos, ninguno se sube al repositorio (solo sus plantillas `.example
 | `SMTP_TIMEOUT_MS` | | `10000` | Tiempo máximo del SMTP; si se supera, el envío responde 503 |
 | `MAIL_FROM` | | `PetCat <no-reply@petcat.co>` | Remitente de los correos |
 | `AUTH_RATE_LIMIT_MAX` | | 10 en producción, 100 en desarrollo | Máximo cada 15 min por IP en login, forgot-password, reset-password, verify-email, resend-verification e invitaciones |
+| `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | En producción | | Credenciales de Cloudinary (las tres juntas). En desarrollo, sin ellas la API funciona pero las subidas de archivos responden 503. Los tests no las usan |
+| `CLOUDINARY_FOLDER` | | `petcat-dev` | Carpeta raíz en Cloudinary, una por entorno (`petcat-prod` en producción) |
+| `ARCHIVOS_URL_VIGENCIA_MIN` | | `15` | Minutos de vigencia de las URLs firmadas de archivos privados |
+| `EXPO_ACCESS_TOKEN` | | | Solo si el proyecto de Expo tiene activada la seguridad de push; sin ella las push se envían igual |
 
 Cada variable nueva se agrega también a `backend/.env.example`.
 
@@ -131,12 +155,12 @@ Marca como aplicadas todas las migraciones que hay en `database/migrations` sin 
 
 `database/seeds/dev_seed.sql` carga datos realistas para diseñar el panel y la app, con los usuarios de la [sección 6](#usuarios-de-prueba). Se carga solo con un volumen nuevo de compose o con `db:reset`. **Las fechas son relativas al día en que se carga** (citas "hace 15 días", "en 3 días"...), así que un `db:reset` deja la agenda vigente otra vez. Las citas futuras caen en días en que abre su sucursal.
 
-**Negocios** (todos en Sincelejo, con coordenadas y una reseña cada uno):
+**Negocios** (todos en Sincelejo, con coordenadas y reseñas):
 
 | Negocio | Tipo y plan | Qué sirve para ver |
 |---|---|---|
 | Clínica Veterinaria Patitas (Centro) | veterinaria, Gratuito | Horario partido; "Vacuna antirrábica" con oferta vigente; "Baño y corte" sin empleados (no reservable); bloqueo de Carlos una tarde; recepcionista con invitación pendiente. |
-| Peluquería Canina Huellitas (Venecia) | peluquería, Gratuito | Rol propio "Estilista"; servicios con margen de 15 min; "Baño y corte premium" en oferta; "Spa felino" solo sábados; empleada sin cuenta. Calificación 4. |
+| Peluquería Canina Huellitas (Venecia) | peluquería, Gratuito | Rol propio "Estilista"; servicios con margen de 15 min; "Baño y corte premium" en oferta; "Spa felino" solo sábados; empleada sin cuenta. Calificación 3 (la reseña se editó después de la respuesta). |
 | Guardería Patas Felices (Boston) | guardería, Gratuito | Lunes a viernes; servicios por día con cupo diario (`max_citas_dia` 8); "Adiestramiento básico" sin entrenador. Sin verificar. |
 | Centro Veterinario Salud Animal 24h | clínica, **Pro en prueba**, destacado | Sede Norte (todos los días 7-21) y Sede Sur (horario partido); veterinaria con horario semanal por sede, vacaciones en unos 20 días y jornada especial el próximo domingo; urgencias con precio variable; "Desparasitación" con oferta **vencida**; "Hospitalización" sin cita. |
 
@@ -148,6 +172,19 @@ Marca como aplicadas todas las migraciones que hay en `database/migrations` sin 
 - **Jorge** (`jorge@petcat.test`): cliente **sin app** registrado desde el panel de Salud Animal; Toby tiene una cita **en curso hoy** y una inasistencia.
 
 Hay citas en los siete estados (`pendiente`, `confirmada`, `en_curso`, `completada`, `cancelada`, `no_asistio`, `reprogramada`), pasadas y futuras.
+
+**Fase 2** (planes, notificaciones, reseñas, dashboard y notas):
+
+| Qué | Dónde | Para ver |
+|---|---|---|
+| Dashboard con estadísticas avanzadas | Salud Animal (Pro en prueba): 14 citas completadas repartidas en los últimos 90 días, con dos veterinarios y dos sedes | Tendencia, comparación, por empleado y sucursal, horas pico y recurrencia (`?desde=` de hasta 366 días) |
+| Dashboard Gratuito | Patitas: dos citas **canceladas por el sistema** (nadie las confirmó) y sin confirmación automática | `citas_perdidas_por_no_confirmar` con la sugerencia, y las secciones avanzadas bloqueadas con `plan_requerido` |
+| Negocio cerca de sus límites | Guardería: 3 de 3 empleados (Diego, Sara y Tomás, sin cuenta) y unas 25 de 30 citas del mes con cinco perros de tres clientes sin app (Andrea, Luis y Marta) | `GET /negocios/:id/suscripcion`, el aviso `plan_limite_80` sin leer y, al reservar un par de citas más, el límite alcanzado |
+| Reseñas | Patitas **respondió** la de Sofía; Camilo **editó la suya después de la respuesta** en Huellitas (bajó a 3); Valeria dejó 2 estrellas en Salud Animal y el negocio la **reportó** (sigue publicada); Jorge, registrado desde el panel, reseñó Salud Animal | `editada_despues_de_respuesta`, reporte en el panel y `cliente_registrado_por_negocio` (solo con `admin@petcat.test`) |
+| Reseñar desde la app | Camilo: consulta de Mía **completada hoy** a las 07:45, con la invitación `resena_invitacion` programada a las 10:45; Sofía: consulta de Max de hace 15 días sin reseña | `resena.puede_resenar` en la cita y la invitación (el job la envía si el servidor corre después de las 10:45) |
+| Notificaciones | Sofía (una leída, una sin leer), Laura de Patitas (cita nueva sin leer y dos citas no confirmadas), Natalia de la guardería (80 % del plan), Julián de Huellitas (reseña nueva) y Camilo (respuesta a su reseña) | Globo de no leídas y deep links (`datos`) |
+| Dispositivos | Sofía (Android) y Camilo (iPhone), con tokens de Expo **inventados** | Lista de dispositivos; si el servidor intenta una push real, Expo los da de baja (`DeviceNotRegistered`) |
+| Notas de clientes | Salud Animal sobre Jorge (de Ricardo) y sobre Camilo (de Valentina); la guardería sobre Andrea | Autor, `editable` y que Patitas no ve las notas de Salud Animal sobre Camilo |
 
 ### Reiniciar la base
 
@@ -305,10 +342,13 @@ Detalle de cada uno en Swagger.
 | Búsqueda (app) | `GET /negocios` y `GET /servicios` (públicos, paginados) |
 | Disponibilidad | `GET` y `POST /empleados/:id_empleado/disponibilidad`, `PUT /empleados/:id_empleado/horario-semanal`, `GET /empleados/:id_empleado/disponibilidad-efectiva`, `PATCH` y `DELETE /disponibilidad/:id_disponibilidad` |
 | Citas | `GET /citas/horarios-libres` (público), `POST /citas` y `GET /citas/mias` (app), `GET /citas/:id_cita`, `POST /citas/:id_cita/cancelar`, `POST /citas/:id_cita/reprogramar` y `GET /citas/:id_cita/historial` (dueño o negocio), `PATCH /citas/:id_cita` y `PATCH /citas/:id_cita/estado` (panel), `GET /negocios/:id_negocio/citas/horarios-libres`, `GET` (agenda) y `POST /negocios/:id_negocio/citas` (panel) |
-| Clientes (panel) | `GET` (listado) y `POST /negocios/:id_negocio/clientes`, `GET /negocios/:id_negocio/clientes/buscar`, `GET /negocios/:id_negocio/clientes/:id_usuario` (detalle), `GET /negocios/:id_negocio/clientes/:id_usuario/citas`, `POST /negocios/:id_negocio/clientes/:id_usuario/mascotas` |
+| Clientes (panel) | `GET` (listado) y `POST /negocios/:id_negocio/clientes`, `GET /negocios/:id_negocio/clientes/buscar`, `GET /negocios/:id_negocio/clientes/:id_usuario` (detalle), `GET /negocios/:id_negocio/clientes/:id_usuario/citas`, `POST /negocios/:id_negocio/clientes/:id_usuario/mascotas`, `GET` y `POST /negocios/:id_negocio/clientes/:id_usuario/notas`, `PATCH` y `DELETE /notas-cliente/:id_nota` |
+| Dashboard (panel) | `GET /negocios/:id_negocio/dashboard` |
 | Historial médico | `GET /mascotas/:id_mascota/historial` (dueño), `GET /negocios/:id_negocio/mascotas/:id_mascota/historial`, `POST /negocios/:id_negocio/historial`, `PATCH /historial/:id_historial` (panel) |
 | Vacunas | `GET` y `POST /mascotas/:id_mascota/vacunas` (dueño), `GET /negocios/:id_negocio/mascotas/:id_mascota/vacunas`, `POST /negocios/:id_negocio/vacunas` (panel), `PATCH /vacunas/:id_vacuna` (quien la registró) |
 | Resumen de salud | `GET /mascotas/:id_mascota/resumen-salud` (dueño) y `GET /negocios/:id_negocio/mascotas/:id_mascota/resumen-salud` (panel) |
+| Reseñas | `POST /citas/:id_cita/resena`, `GET /resenas/mias`, `PUT` y `DELETE /resenas/:id_resena` (app, el autor), `GET /negocios/:id_negocio/resenas` (público), `GET /negocios/:id_negocio/resenas/gestion`, `PUT` y `DELETE /resenas/:id_resena/respuesta`, `POST /resenas/:id_resena/reportar` (panel) |
+| Notificaciones | `GET /notificaciones`, `GET /notificaciones/no-leidas`, `PATCH /notificaciones/:id_notificacion/leida`, `POST /notificaciones/leer-todas`, `POST` y `DELETE /dispositivos` (app), `GET` y `POST /correo/baja` (públicos, enlace de los correos) |
 
 ### Disponibilidad de empleados
 
@@ -319,7 +359,7 @@ Detalle de cada uno en Swagger.
 
 ### Reservar citas
 
-- **App:** `GET /citas/horarios-libres?id_servicio&id_sucursal&fecha[&id_empleado]` (público) y luego `POST /citas` con el `hora_inicio` elegido. Los horarios son de 15 en 15 minutos y con al menos 1 hora de anticipación, hasta 60 días adelante. Si no hay, la lista viene vacía con `motivo_sin_horarios` para mostrarlo. La cita queda `pendiente` hasta que el negocio la confirme.
+- **App:** `GET /citas/horarios-libres?id_servicio&id_sucursal&fecha[&id_empleado]` (público) y luego `POST /citas` con el `hora_inicio` elegido. Los horarios son de 15 en 15 minutos y con al menos 1 hora de anticipación, hasta 60 días adelante. Si no hay, la lista viene vacía con `motivo_sin_horarios` para mostrarlo. La cita queda `pendiente` hasta que el negocio la confirme (ver "Confirmación de citas").
 - **Panel:** mismos pasos con `/negocios/:id_negocio/citas/horarios-libres` y `POST /negocios/:id_negocio/citas` (lleva `id_usuario` del cliente y `origen`); permite servicios ocultos en la app y horarios desde ahora. La cita queda `confirmada`.
 - Sin `id_empleado`, cada horario lista quién puede atenderlo y la reserva se asigna al que tenga menos citas ese día.
 - Un 409 al reservar ("El horario ya no está disponible") significa que otra persona lo tomó: volver a pedir los horarios libres.
@@ -330,12 +370,31 @@ Detalle de cada uno en Swagger.
 - **Inasistencias:** el detalle de la cita en el panel trae `cliente.historial_cumplimiento` (completadas, inasistencias y cancelaciones tardías del cliente en ese negocio).
 - `PUT /sucursales/:id_sucursal/horarios` y `DELETE /empleados/:id_empleado` también responden `citas_afectadas`.
 
+### Confirmación de citas
+
+- **Plazo:** una cita pendiente trae `confirmar_antes_de`: hasta cuándo puede confirmarla el negocio. Es lo que ocurra primero entre 24 horas después de reservar y 60 minutos antes del inicio; si cae de madrugada (horario de silencio), se corre a las 08:00, sin pasar de 30 minutos antes del inicio. La app puede mostrar "el negocio tiene hasta las 3:00 p. m. para confirmar"; el panel, cuánto falta.
+- **Aviso a mitad del plazo** (`cita_por_confirmar`): al propietario y a quien tiene `citas.editar`. Nunca suena de madrugada: sigue el horario de silencio.
+- **Cancelación automática:** si nadie la confirma, al vencer el plazo la cita pasa a `cancelada` con `cancelacion.por = "sistema"`. Nunca es tardía ni cuenta contra el cliente (`historial_cumplimiento`), y en el historial de la cita aparece como `realizado_por: "sistema"`.
+- **Reservar de nuevo (app):** el aviso `cita_no_confirmada` al dueño trae en `datos` `id_negocio`, `id_sucursal`, `id_servicio` e `id_mascota`. Con ellos, la app abre la reserva ya armada: `GET /citas/horarios-libres?id_servicio&id_sucursal&fecha` y `POST /citas` con esa mascota.
+- **Confirmación automática:** con `confirmacion_automatica: true` (`PATCH /negocios/:id_negocio`, permiso `configuracion.editar`) las citas de la app y las que reprograma el dueño nacen `confirmada` (mensaje "Cita confirmada"), sin plazo y con sus recordatorios. El perfil público del negocio trae el mismo campo, para que la app muestre "confirmación inmediata". Activarla no confirma las pendientes que ya existen.
+
+### Reseñas
+
+- **Cuándo reseñar (app):** en `GET /citas/mias` y `GET /citas/:id_cita`, cada cita completada trae `resena { id_resena, retirada, resenar_antes_de, puede_resenar, puede_editar }` (null en las demás). Con `puede_resenar`, el botón "Reseñar" abre `POST /citas/:id_cita/resena`; con `puede_editar`, "Editar reseña" usa `PUT /resenas/:id_resena`. El plazo es de 30 días desde que se completó la cita, para reseñar y para editar.
+- **Invitación:** 3 horas después de completada la cita, el dueño recibe `resena_invitacion` (push y app, sin correo). Si esa hora cae entre las 20:00 y las 10:00, llega a las 10:00. Sale una sola vez y no sale si ya reseñó.
+- **Quién no puede:** el propietario y los empleados activos del negocio (403). Una reseña por cita; retirarla (`DELETE /resenas/:id_resena`) la quita de la calificación y no permite reseñar esa cita otra vez.
+- **Body:** `calificacion` (1 a 5, obligatoria), `titulo`, `comentario` y `aspectos { atencion, precio, instalaciones, puntualidad }` opcionales. Editar reemplaza la reseña completa.
+- **Perfil del negocio (app):** `GET /negocios/:id_negocio/resenas?orden=recientes|mejores|peores&calificacion=` (público, paginado). El autor viene como "Sofía G." y la visita solo con mes y año (`visita_verificada`); nunca datos de contacto. `meta.resumen` trae el promedio, el total y la `distribucion` por estrellas para el gráfico. El perfil (`GET /negocios/:id_negocio`) trae las 5 más recientes con el mismo formato.
+- **Respuesta:** `respuesta { texto, fecha, editada }` o null. Si el autor editó la reseña después de la última respuesta, `editada_despues_de_respuesta: true`: la app puede indicarlo para que la respuesta no quede fuera de contexto.
+- **Panel:** `GET /negocios/:id_negocio/resenas/gestion` (`resenas.ver`; filtros `sin_responder`, `reportada`, `visible`, `calificacion`) con el nombre completo del cliente, la cita y el reporte. Responder (`PUT /resenas/:id_resena/respuesta`) y borrar la respuesta piden `resenas.responder`, porque la respuesta es pública y habla por el negocio; el dueño recibe `resena_respondida` solo la primera vez. Los roles del sistema: Administrador con `ver`, `responder` y `reportar`; Veterinario y Recepcionista solo `ver`. Los roles propios del negocio hay que editarlos para darles el módulo.
+- **Reportar:** `POST /resenas/:id_resena/reportar` (`resenas.reportar`) con `motivo` (`lenguaje_ofensivo`, `datos_personales`, `no_relacionada`, `spam`, `otro`; con `otro`, `detalle` obligatorio). Una vez por reseña. **La reseña sigue publicada y contando en la calificación** hasta que la revise PetCat: el panel debe decirlo al reportar ("PetCat la revisará") para no dar a entender que se oculta. Una reseña que PetCat oculta aparece en el panel con `visible: false`.
+
 ### Salud de la mascota
 
 - El dueño ve el historial y las vacunas de sus mascotas en `/mascotas/:id_mascota/...` (sin notas internas). El panel usa `/negocios/:id_negocio/mascotas/:id_mascota/...` y solo funciona si la mascota tiene una cita con ese negocio que no esté cancelada ni reprogramada (403 si no).
 - `compartir_historial` (en `PATCH /mascotas/:id_mascota`, por defecto true): con false, cada negocio ve solo el historial clínico que él creó. Las **vacunas**, las alergias y las condiciones médicas siempre las ve cualquier negocio con cita.
 - En el carnet, `registrada_por: dueno` y `tiene_comprobante` distinguen las vacunas que registró el dueño de las de un profesional. `estado` ya viene calculado (`no_aplica` en dosis reemplazadas por una más reciente de la misma vacuna).
-- `archivos` del historial y `comprobante_url` aceptan solo URLs https (la subida de archivos llega en la Fase 2).
+- Los archivos del historial y el comprobante de una vacuna se suben aparte (ver "Archivos e imágenes") y llegan en `archivos` y `comprobante` con URL firmada que vence.
 - `resumen-salud` trae lo que la app necesita para la ficha: vacunas vencidas y próximas (30 días), último y próximo control, próxima cita y evolución del peso.
 
 ### Clientes sin app (panel)
@@ -345,14 +404,198 @@ Detalle de cada uno en Swagger.
 3. Si ya es cliente del negocio (tiene una cita con él o el negocio lo registró) y trae otra mascota: `POST /negocios/:id_negocio/clientes/:id_usuario/mascotas`.
 4. Agendar con `POST /negocios/:id_negocio/citas`.
 
-La sección de clientes del panel usa `GET /negocios/:id_negocio/clientes` (con `inasistencias` por fila para mostrar una alerta) y `GET /negocios/:id_negocio/clientes/:id_usuario` (contacto, cumplimiento, mascotas y citas; todo solo con ese negocio).
+La sección de clientes del panel usa `GET /negocios/:id_negocio/clientes` (con `inasistencias` por fila para mostrar una alerta) y `GET /negocios/:id_negocio/clientes/:id_usuario` (contacto, cumplimiento, mascotas, citas y las 3 últimas notas; todo solo con ese negocio).
+
+### Notas de clientes (panel)
+
+- Notas internas del negocio sobre un cliente: `GET` (con `clientes.ver`) y `POST` (con `clientes.editar`) `/negocios/:id_negocio/clientes/:id_usuario/notas`; `PATCH` y `DELETE /notas-cliente/:id_nota`. Cada nota trae `autor` (null si su cuenta ya no existe: mostrar "Ex miembro del equipo"), `fecha_creacion`, `fecha_edicion`, `editable` y `eliminable` para mostrar u ocultar los botones: edita solo el autor; borra el autor o el propietario. Borrar es definitivo.
+- Solo las ve el negocio que las escribió: nunca el cliente (en la app) ni otro negocio, aunque atienda al mismo cliente.
+- **Qué escribir (conviene mostrarlo junto al campo):** solo lo útil para atender mejor al cliente, por ejemplo "prefiere que lo llamen en la tarde" o "el perro se estresa con la secadora". **No escribir** diagnósticos ni tratamientos (van en el historial médico), datos de salud del cliente, datos financieros ni opiniones personales. La nota es un dato personal del cliente: por la Ley 1581 de 2012 puede pedir conocer lo que el negocio guarda sobre él. Regla práctica: escribe solo lo que no te incomodaría que el cliente leyera.
+
+### Dashboard (panel)
+
+- `GET /negocios/:id_negocio/dashboard?desde&hasta&id_sucursal` con `reportes.ver` (el propietario y el rol Administrador). Por defecto, los últimos 30 días hasta hoy; `hasta` no puede ser futuro. Rango máximo: **92 días en Gratuito y 366 en Pro y Enterprise**. Si un Gratuito pide más, responde 422 con `errors.plan_requerido: "Pro"`: el panel puede mostrarlo como invitación a mejorar el plan.
+- **Básico (todos los planes):** `hoy` (citas de hoy por estado y `por_confirmar`), `citas` por estado, `tasa_inasistencia`, `ingresos`, `servicios_mas_pedidos`, `clientes_nuevos`, `calificacion` (con `sin_responder`) y `citas_perdidas_por_no_confirmar`.
+- **Ingresos:** son los **registrados** por el negocio al completar cada cita (`precio_final`), no pagos verificados: la respuesta trae `verificado: false` y una `nota`. El panel debe rotularlos así ("Ingresos registrados") hasta que lleguen los pagos en la Fase 3.
+- **Citas perdidas por no confirmar:** las que se cancelaron solas porque nadie las confirmó a tiempo. Nunca cuentan contra los clientes. Si hubo alguna y la confirmación automática está apagada, `sugerencia` trae un mensaje para mostrar con un botón que lleve a activarla (`PATCH /negocios/:id_negocio` con `confirmacion_automatica: true`).
+- **Avanzado** (`avanzadas`: tendencia, comparación con el periodo anterior, por empleado, por sucursal, horas pico, recurrencia y cancelaciones): con el plan Pro, Enterprise o la prueba Pro. En Gratuito cada sección llega como `{ bloqueado: true, plan_requerido: { nombre, precio_mensual } }`, sin datos: el panel dibuja la tarjeta como invitación. Si `prueba_disponible` es true, conviene ofrecer "Probar Pro 14 días" (`POST /negocios/:id_negocio/suscripcion/prueba-pro`) en lugar de "Mejorar plan".
+- La tendencia agrupa por día hasta 31 días, por semana (desde el lunes) hasta 92 y por mes en rangos mayores; los intervalos sin citas vienen en cero.
 
 ### Servicios y búsqueda
 
 - Cada servicio tiene sus **empleados asignados** (`empleados: [id_empleado]` en el body de crear y editar; al editar reemplaza el conjunto). En el listado del panel, `sin_empleados: true` avisa que el servicio no se puede reservar: conviene mostrar una alerta para que el negocio asigne a alguien. El detalle de un empleado (`GET /empleados/:id_empleado`) trae los `servicios` que atiende.
 - En la app, los servicios no reservables se muestran igual con `reservable: false` (deshabilitar el botón de reservar). `precio_actual` ya tiene en cuenta la oferta vigente.
+- `indicaciones_previas` (opcional, hasta 500 caracteres): cómo preparar la cita (ayuno, carnet de vacunas, transporte). El panel la edita en el formulario del servicio; la app puede mostrarla antes de reservar, y va en el recordatorio del día anterior.
 - `GET /negocios` y `GET /servicios` aceptan `lat`, `lng` y `radio_km` (por defecto 10 km, máximo 50). **Con coordenadas, los negocios que no tienen coordenadas en ninguna sucursal activa ni en el negocio quedan fuera de los resultados.** El panel debería pedir la ubicación al crear una sucursal y avisar al negocio si ninguna la tiene, porque sin ella no aparece en "cerca de mí". La distancia (`distancia_km`) es la de la sucursal más cercana (`sucursal_cercana`).
 - Los textos de búsqueda (`q`) no distinguen tildes ni mayúsculas: "bano" encuentra "Baño".
+
+### Archivos e imágenes
+
+Las fotos, logos, banners, comprobantes de vacunas y archivos del historial se suben a la API como `multipart/form-data` (nunca como URL en el JSON). La API valida el tipo real por el contenido, quita los metadatos de las imágenes (incluida la ubicación GPS de la cámara) y las guarda en Cloudinary. Rutas (detalle en Swagger):
+
+| Ruta | Campo | Quién |
+|---|---|---|
+| `PUT`/`DELETE /auth/me/foto` | `foto` | El usuario |
+| `PUT`/`DELETE /mascotas/:id_mascota/foto` | `foto` | El dueño |
+| `PUT`/`DELETE /empleados/:id_empleado/foto` | `foto` | `empleados.editar` o el propio empleado |
+| `PUT`/`DELETE /negocios/:id_negocio/logo` y `/banner` | `logo` / `banner` | `configuracion.editar` |
+| `PUT`/`DELETE /vacunas/:id_vacuna/comprobante` | `comprobante` | Quien puede editar la vacuna (la del dueño, el dueño; la de un negocio, ese negocio) |
+| `POST /historial/:id_historial/archivos`, `DELETE /historial/:id_historial/archivos/:id_archivo` | `archivos` (hasta 5) | El negocio que creó el registro (`historial_medico.editar`) |
+
+Todas responden el registro actualizado. Máximo 30 subidas cada 15 minutos por usuario (429).
+
+- **Tipos:** JPEG, PNG o WebP; PDF solo en comprobantes y archivos del historial. Máximo 5 MB (fotos y logo), 8 MB (banner) y 10 MB (comprobantes e historial, hasta 5 archivos por envío). Un archivo inválido responde 422 con el detalle en `errors.archivo`.
+- **Fotos del iPhone (HEIC) — app móvil:** la API **no acepta HEIC/HEIF** (422). La app debe convertir la imagen a JPEG antes de subirla, por ejemplo con `expo-image-manipulator`, que además sirve para reducirla y ahorrar datos:
+
+  ```js
+  import * as ImageManipulator from "expo-image-manipulator";
+
+  const { uri } = await ImageManipulator.manipulateAsync(
+    asset.uri,
+    [{ resize: { width: 2048 } }],            // la API no guarda más de 2048 px
+    { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
+  );
+  const form = new FormData();
+  form.append("foto", { uri, name: "foto.jpg", type: "image/jpeg" });
+  ```
+- **Imágenes públicas** (fotos de usuario, mascota y empleado, logo y banner): los campos `*_url` traen la versión mediana (800 px) y `*_miniatura_url` una miniatura cuadrada de 200 px para listas y avatares. Se sirven por la CDN y no vencen.
+- **Archivos privados** (historial y comprobantes): llegan dentro del registro como `{ id_archivo, tipo, nombre, bytes, url, url_expira_en }`. La `url` es **firmada y vence** a los 15 minutos (`url_expira_en`, ISO 8601). No se guarda: cuando vence (o si al abrirla responde 401/403/404), la app vuelve a pedir el registro (por ejemplo `GET /mascotas/:id_mascota/historial` o `/vacunas`) y usa la URL nueva. Conviene pedirlo justo antes de abrir el archivo si la pantalla lleva un rato abierta. Solo recibe la URL quien puede ver ese registro.
+- Reemplazar una imagen borra la anterior. Eliminar una mascota no borra sus archivos (el borrado es lógico).
+
+### Notificaciones
+
+Cada aviso llega por varios canales a la vez:
+
+| Canal | Quién | Contenido |
+|---|---|---|
+| Notificación en la app/panel (`GET /notificaciones`) | Todos los destinatarios | Detalle completo (mascota, servicio, motivo) |
+| Socket.IO (evento `notificacion`) | Quien tenga el panel o la app abiertos | Lo mismo, en tiempo real |
+| Push de Expo | Usuarios con un dispositivo registrado y `notif_push` | Genérico (se ve en la pantalla bloqueada): tipo, fecha, hora y negocio |
+| Correo | Solo si no tiene dispositivo y `notif_email`: el dueño en los avisos de sus citas y vacunas, y el **propietario** del negocio en `cita_nueva`, `resena_nueva`, `plan_prueba_por_vencer` y `plan_vencido` | Discreto, con sede y dirección, y enlace "Dejar de recibir estos correos" |
+
+Tipos actuales y a quién llegan (`datos` para el deep link):
+
+| Tipo | Cuándo | Para | `datos` |
+|---|---|---|---|
+| `cita_nueva` | Reserva desde la app (pendiente, o confirmada con la confirmación automática) | Negocio (`citas.ver`) | `id_cita`, `id_negocio` |
+| `cita_agendada` | El panel agenda una cita | Dueño | `id_cita`, `id_negocio` |
+| `cita_confirmada` | El negocio confirma | Dueño | `id_cita`, `id_negocio` |
+| `cita_cancelada`, `cita_reprogramada` | Cancela o reprograma una parte | La otra parte | `id_cita`, `id_negocio` |
+| `cita_dia_anterior` | 19:00 del día anterior a una cita confirmada | Dueño | `id_cita`, `id_negocio` |
+| `cita_recordatorio` | 2 horas antes | Dueño | `id_cita`, `id_negocio` |
+| `cita_por_confirmar` | A mitad del plazo para confirmar una cita pendiente | Negocio (`citas.editar`) | `id_cita`, `id_negocio` |
+| `cita_no_confirmada` | El plazo venció y la cita se canceló sola | Dueño y negocio (`citas.ver`) | `id_cita`, `id_negocio`; al dueño también `id_sucursal`, `id_servicio`, `id_mascota` |
+| `resena_invitacion` | 3 horas después de completada la cita (entre las 20:00 y las 10:00, a las 10:00) | Dueño (sin correo) | `id_cita`, `id_negocio` |
+| `resena_nueva` | Un dueño reseña el negocio | Negocio (`resenas.responder`) | `id_cita`, `id_negocio`, `id_resena` |
+| `resena_respondida` | El negocio responde por primera vez | Dueño | `id_cita`, `id_negocio`, `id_resena` |
+| `vacuna_proxima`, `vacuna_vence_hoy`, `vacuna_vencida` | 7 días antes, el día y 7 días después de `fecha_proxima` (09:00) | Dueño | `id_mascota`, `id_vacuna` |
+| `plan_limite_80`, `plan_limite_alcanzado` | 80 % del límite de citas del mes; reserva rechazada por el límite | Negocio (`configuracion.editar`) | `id_negocio`, `mes` |
+| `plan_prueba_por_vencer` | A la prueba Pro le quedan 3 días o menos | Negocio (`configuracion.editar`) | `id_negocio` |
+| `plan_vencido` | Terminó la prueba o venció el plan pago | Negocio (`configuracion.editar`) | `id_negocio` |
+
+Del lado del negocio los reciben el propietario (siempre) y los empleados con el permiso indicado, nunca quien hizo la acción.
+
+- **Globo de no leídas:** `GET /notificaciones/no-leidas` al abrir, `meta.no_leidas` en el listado, y luego sumar con cada evento `notificacion`. Marcar con `PATCH /notificaciones/:id_notificacion/leida` o `POST /notificaciones/leer-todas`.
+- **Deep link:** `datos` trae el `tipo` y los ids de la tabla para abrir la pantalla correspondiente (la cita, el carnet de la mascota o la suscripción del negocio). Es lo mismo que llega en el `data` de la push, más `id_notificacion`.
+- **Horario de silencio (21:00 a 07:00):** push y correos esperan hasta las 07:00, salvo la cancelación o reprogramación de una cita cercana y el recordatorio de 2 horas antes de una cita temprana (antes de las 10:00), que salen enseguida con prioridad alta. La notificación en la app y el evento de Socket.IO siempre son inmediatos.
+- **Recordatorio del día anterior:** si el servicio tiene `indicaciones_previas` (ayuno, carnet...), el mensaje en la app y el correo las incluyen; la push no. Una cita agendada después de las 19:00 para el día siguiente no recibe este recordatorio.
+- **Avisos del plan:** terminan con el contacto de soporte (`soporte_email` y `soporte_whatsapp` en `configuracion_global`; lo que esté vacío se omite). Las notificaciones se borran solas: las leídas a los 90 días y todas a los 180.
+
+### Notificaciones en tiempo real (Socket.IO)
+
+El servidor de Socket.IO corre en el mismo puerto de la API (ruta `/socket.io`, sin el prefijo `/api/v1`). Se usa `socket.io-client` v4 (panel web y app):
+
+```js
+import { io } from "socket.io-client";
+
+const socket = io("http://localhost:3000", {        // la URL del servidor, sin /api/v1
+  auth: (cb) => cb({ token: getAccessToken() }),     // función: toma el token vigente en cada reconexión
+});
+
+socket.on("notificacion", (n) => {                   // misma forma que un elemento de GET /notificaciones
+  agregarAlListado(n);
+  sumarNoLeida();
+});
+socket.on("notificaciones_leidas", ({ no_leidas }) => actualizarGlobo(no_leidas)); // se marcaron desde otra sesión
+
+socket.on("connect_error", async (err) => {
+  // "Token expirado": renovar con POST /auth/refresh-token; socket.io reintenta solo con el token nuevo.
+  if (err.message === "Token expirado") await renovarToken();
+  // "Sesión inválida o expirada" o "Token inválido": la sesión se cerró; ir al login.
+});
+```
+
+- El handshake valida el access token igual que las rutas protegidas. Una vez conectado, que el token venza **no** desconecta: lo que cuenta es la sesión.
+- El servidor desconecta el socket al cerrar esa sesión (`POST /auth/logout`), al cambiar la contraseña (las demás sesiones) y al restablecerla (todas). Si el cliente recibe `disconnect` con motivo `"io server disconnect"`, no reconecta solo: tratarlo como sesión cerrada.
+- Al reconectar después de un corte, volver a pedir `GET /notificaciones/no-leidas`: los eventos emitidos mientras estaba desconectado no se repiten.
+- En el navegador, el origen del panel debe estar en `CORS_ORIGINS` (el mismo de la API). La app no envía `Origin`.
+- Para probarlo sin frontend: conectar con el token de `POST /auth/login`, y desde Swagger, con otro usuario, reservar o cancelar una cita que le toque.
+
+### Notificaciones push (app móvil) — guía para Daniel
+
+La API envía las push por el servicio de Expo (`expo-server-sdk`); la app solo tiene que conseguir su token y registrarlo.
+
+**1. Registrar el dispositivo después del login** (y cada vez que el token cambie):
+
+```js
+import * as Notifications from "expo-notifications";
+import * as Device from "expo-device";
+import Constants from "expo-constants";
+import { Platform } from "react-native";
+
+export async function registrarPush(api) {
+  if (!Device.isDevice) return;                        // simuladores/emuladores no reciben push
+  if (Platform.OS === "android") {
+    // La API no envía channelId: Android usa el canal "default", que la app debe crear.
+    await Notifications.setNotificationChannelAsync("default", {
+      name: "General",
+      importance: Notifications.AndroidImportance.HIGH,
+    });
+  }
+  const { status } = await Notifications.requestPermissionsAsync();
+  if (status !== "granted") return;
+
+  const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+  const { data: token_expo } = await Notifications.getExpoPushTokenAsync({ projectId });
+  await api.post("/dispositivos", {
+    token_expo,                                         // "ExponentPushToken[...]"
+    plataforma: Platform.OS,                            // "ios" | "android"
+    nombre: Device.modelName ?? undefined,
+  });
+}
+```
+
+- El dispositivo queda ligado a la **sesión**: al hacer logout la API lo desactiva sola (no hace falta llamar a `DELETE /dispositivos`). Tras un nuevo login hay que volver a registrarlo. `DELETE /dispositivos` es para cuando el usuario apaga las notificaciones dentro de la app.
+- Si otra cuenta inicia sesión en el mismo teléfono, el token pasa a esa cuenta (responde 200 en vez de 201).
+- Si Expo informa que el token ya no sirve (`DeviceNotRegistered`, app desinstalada o permisos retirados), la API lo desactiva. Registrarlo en cada inicio de la app evita perder push si el usuario vuelve a dar permiso.
+- Con dispositivo activo el usuario deja de recibir correos de sus citas (recibe la push en su lugar).
+
+**2. Abrir la pantalla al tocar la push.** El `data` trae `{ tipo, id_cita?, id_negocio?, mes?, id_notificacion }`:
+
+```js
+Notifications.addNotificationResponseReceivedListener(({ notification }) => {
+  const { tipo, id_cita, id_notificacion } = notification.request.content.data;
+  if (id_cita) navigation.navigate("DetalleCita", { id_cita });
+  api.patch(`/notificaciones/${id_notificacion}/leida`);
+});
+```
+
+El texto de la push es genérico a propósito (sin mascota ni motivo); el detalle se muestra con `GET /citas/:id_cita` o `GET /notificaciones`, que piden sesión.
+
+**3. Probar push reales:**
+
+1. **Development build, no Expo Go.** Desde el SDK 53, Expo Go no recibe push remotas en Android. Crear el proyecto en EAS (`npx eas init`, que deja el `projectId` en `app.json`) y generar una development build (`npx eas build --profile development --platform android`) para instalar en un teléfono físico.
+2. **Credenciales:** Android necesita FCM V1: crear un proyecto en Firebase, poner `google-services.json` en la app y subir la clave de la cuenta de servicio en EAS (`npx eas credentials` → Android → Google Service Account Key for Push Notifications (FCM V1)). iOS necesita cuenta de Apple Developer (paga); en el MVP se prueba con Android.
+3. **Probar sin la API:** con el token que imprime la app, enviar una push de prueba desde https://expo.dev/notifications. Si no llega aquí, el problema está en la app o las credenciales, no en la API.
+4. **Probar con la API:** el teléfono y el PC en la misma red; la app apunta a `http://<IP-del-PC>:3000/api/v1` (desde el teléfono `localhost` es el propio teléfono; la IP sale de `ipconfig`, y el firewall de Windows debe permitir el puerto 3000). Iniciar sesión en la app como un cliente del seed (p. ej. `cliente@petcat.test`), registrar el dispositivo y, desde Swagger con `propietario@petcat.test`, confirmar, cancelar o reprogramar una cita de ese cliente en "Clínica Veterinaria Patitas". Fuera de Docker, `npm run dev` envía push reales (solo los tests usan un envío en memoria).
+5. **De noche (21:00 a 07:00)** las push quedan programadas para las 07:00. Para probar a esa hora, desactivar el silencio en la base de desarrollo (inicio = fin) y volver a dejarlo como estaba al terminar:
+
+   ```powershell
+   "UPDATE configuracion_global SET valor = '00:00' WHERE clave IN ('silencio_inicio', 'silencio_fin');" | docker compose exec -T mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" --default-character-set=utf8mb4 petcat_db'
+   ```
+
+   (`npm run db:reset -- --yes` también lo restablece a 21:00 y 07:00.)
+6. **Si no llega:** revisar la consola del backend (los errores de envío se registran y el envío queda para el job que corre cada minuto) y la tabla `notificaciones_envios` (`estado`, `error`). `EXPO_ACCESS_TOKEN` solo hace falta si se activa "Enhanced security for push" en el proyecto de Expo.
 
 ### Usuarios de prueba
 
@@ -371,6 +614,7 @@ Con el seed cargado, todos usan la contraseña **`Petcat123!`**:
 | `camilo@petcat.test` | Dueño de Rocky (no comparte historial) y Mía |
 | `valeria@petcat.test` | Dueña de Copito y de Nala (fallecida); correo sin verificar |
 | `jorge@petcat.test` | Cliente sin app registrado desde el panel de Salud Animal (dueño de Toby) |
+| `andrea@petcat.test`, `luis@petcat.test`, `marta@petcat.test` | Clientes sin app de la guardería (Bruno y Kira; Simón y Lola; Coco) |
 
 El detalle de cada negocio y cliente está en la [sección 3](#seed-de-desarrollo).
 

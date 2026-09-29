@@ -3,10 +3,16 @@ import * as servicioRepo from "../servicios/servicio.repository.js";
 import * as disponibilidadRepo from "../disponibilidad/disponibilidad.repository.js";
 import * as configuracionRepo from "../configuracion/configuracion.repository.js";
 import * as empleadoRepo from "../empleados/empleado.repository.js";
+import * as suscripcionRepo from "../suscripciones/suscripcion.repository.js";
+import { errorLimiteCitas, getLimiteCitasMes, motivoLimiteCitas } from "../suscripciones/suscripcion.service.js";
 import { combinarHorarios, iniciosLibres } from "./citas.calculo.js";
 import { aHora, aMinutos, calcularDisponibilidad, citaCabe, diaSemana } from "../disponibilidad/disponibilidad.calculo.js";
-import { withTransaction } from "../../shared/utils/transaction.js";
-import { hoyISO } from "../../shared/utils/fechas.js";
+import { avisarLimiteAlcanzado, eventoCita, eventoUmbralPlan } from "./cita.avisos.js";
+import { conNotificaciones } from "../notificaciones/notificacion.service.js";
+import { inicioDeCita } from "../notificaciones/silencio.js";
+import { calcularPlazoConfirmacion, configConfirmacion } from "./cita.confirmacion.js";
+import { estadosResenaDueno } from "../resenas/resena.plazo.js";
+import { aDatetimeSQL, hoyISO } from "../../shared/utils/fechas.js";
 import { toNumber } from "../../shared/utils/format.js";
 import { buildMeta } from "../../shared/utils/pagination.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
@@ -16,6 +22,8 @@ const DIAS_SET = ["domingo", "lunes", "martes", "miercoles", "jueves", "viernes"
 const DIAS_TEXTO = ["domingos", "lunes", "martes", "miércoles", "jueves", "viernes", "sábados"];
 
 const invalido = (campo, mensaje) => ApiError.unprocessable("Datos inválidos", { [campo]: mensaje });
+
+const SIN_HORARIOS = "No hay horarios disponibles para esa fecha";
 
 /** Parámetros de la agenda (configuracion_global), con valores por defecto. */
 export const configAgenda = async () => {
@@ -73,16 +81,29 @@ const prepararDia = async ({ canal, id_negocio, id_servicio, id_sucursal, fecha,
     if (empleados.length === 0) throw invalido("id_empleado", "Ese empleado no atiende este servicio");
   }
 
+  // Límite de citas del mes del plan: la app no revela el plan del negocio (motivo genérico).
+  const limiteCitas = await getLimiteCitasMes(servicio.id_negocio, fecha, { excluirIdCita });
   let motivo = null;
   const dia = diaSemana(fecha);
   if (servicio.dias_disponible && !servicio.dias_disponible.split(",").includes(DIAS_SET[dia])) {
     motivo = `El servicio no se ofrece los ${DIAS_TEXTO[dia]}`;
+  } else if (limiteCitas.alcanzado) {
+    motivo = canal === "app" ? SIN_HORARIOS : motivoLimiteCitas(limiteCitas, fecha);
   } else if (servicio.max_citas_dia && (await citaRepo.countCupos({ id_servicio, id_sucursal, fecha, excluirIdCita })) >= servicio.max_citas_dia) {
     motivo = "No quedan cupos para este servicio ese día";
   }
 
   const desde = fecha === hoy ? minutoActual() + (canal === "app" ? config.antelacion : 0) : 0;
-  return { servicio, sucursal, empleados, desde, motivo, intervalo: config.intervalo };
+  return {
+    servicio,
+    sucursal,
+    empleados,
+    desde,
+    motivo,
+    porLimitePlan: motivo !== null && limiteCitas.alcanzado,
+    limiteCitas,
+    intervalo: config.intervalo,
+  };
 };
 
 /**
@@ -137,7 +158,7 @@ export const getHorariosLibres = async (canal, { id_negocio, ...query }) => {
     },
     sucursal: dia.sucursal,
     horarios: horarios.map((h) => ({ hora_inicio: aHora(h.inicio), hora_fin: aHora(h.fin), empleados: h.empleados })),
-    motivo_sin_horarios: horarios.length > 0 ? null : (dia.motivo ?? "No hay horarios disponibles para esa fecha"),
+    motivo_sin_horarios: horarios.length > 0 ? null : (dia.motivo ?? SIN_HORARIOS),
   };
 };
 
@@ -175,6 +196,8 @@ export const formatCita = (row, { conNotasInternas = false } = {}) => ({
   notas_cliente: row.notas_cliente,
   ...(conNotasInternas && { notas_internas: row.notas_internas }),
   id_cita_origen: row.id_cita_origen,
+  // Hasta cuándo puede confirmarla el negocio antes de que se cancele sola (solo pendientes).
+  confirmar_antes_de: row.estado === "pendiente" ? (row.confirmar_antes_de ?? null) : null,
   cancelacion:
     row.estado === "cancelada"
       ? {
@@ -184,6 +207,9 @@ export const formatCita = (row, { conNotasInternas = false } = {}) => ({
           motivo: row.motivo_cancelacion,
         }
       : null,
+  fecha_completada: row.fecha_completada ?? null,
+  // Reseña de la cita (una que retiró su autor no cuenta).
+  id_resena: row.id_resena && !row.resena_retirada_en ? row.id_resena : null,
   negocio: { id_negocio: row.id_negocio, nombre: row.negocio_nombre, logo_url: row.negocio_logo_url },
   // Con teléfono y coordenadas: la app muestra dónde es la cita y ofrece "Cómo llegar".
   sucursal: row.id_sucursal
@@ -205,34 +231,77 @@ export const formatCita = (row, { conNotasInternas = false } = {}) => ({
 
 /**
  * Crea una cita desde la app ("app": pendiente, origen app_movil) o el panel
- * ("panel": confirmada, con recordatorio). En una transacción bloquea, por clave
- * primaria y en este orden, el servicio (si tiene max_citas_dia), los empleados
- * candidatos y la mascota, y vuelve a comprobar el horario. Sin id_empleado asigna
- * al empleado libre con menos citas ese día (a igualdad, el de menor id).
+ * ("panel": confirmada, con recordatorio). En una transacción bloquea, en este orden,
+ * las suscripciones del negocio (si su plan limita las citas del mes) y, por clave
+ * primaria, el servicio (si tiene max_citas_dia), los empleados candidatos y la
+ * mascota, y vuelve a comprobar el límite del plan y el horario. Sin id_empleado
+ * asigna al empleado libre con menos citas ese día (a igualdad, el de menor id).
+ * Límite de citas del mes alcanzado: 409 neutro en la app, 403 con el motivo en el panel.
  * @param {"app"|"panel"} canal
  * @param {object} datos Body validado (+ id_usuario del cliente)
  * @param {{ id_usuario, id_empleado?, ip? }} actor Quién reserva (para el historial)
  * @param {number} [id_negocio] Negocio del panel
  * @param {object} [reprogramacion] Para reprogramar: `excluirIdCita` (la original no cuenta en los cupos),
  *   `antes(conn)` (bloquea y marca la original; va primero en la transacción), `despues(id, conn)`,
- *   `precio_estimado` y `origen` (los de la original) y `motivoCreacion` (historial de la nueva).
+ *   `precio_estimado` y `origen` (los de la original), `motivoCreacion` (historial de la nueva) y
+ *   `aviso` ({ fecha_anterior, hora_anterior, motivo } para la notificación de reprogramación).
+ * Notifica a la otra parte (2.3) y, si la reserva cruza el 80 % del límite del mes, al negocio.
  */
 export const crearCita = async (canal, datos, actor, id_negocio, reprogramacion) => {
+  try {
+    return await reservar(canal, datos, actor, id_negocio, reprogramacion);
+  } catch (err) {
+    // Reserva rechazada por el límite del plan: se avisa al negocio (una vez al día) y se responde el error.
+    if (err.limitePlan) await avisarLimiteAlcanzado(err.limitePlan, actor);
+    throw err;
+  }
+};
+
+/**
+ * Evento de la cita recién creada: reprogramada (a la otra parte), nueva desde la app (al
+ * negocio) o agendada desde el panel (al dueño). Con la confirmación automática, el negocio
+ * recibe el texto de cita confirmada y el dueño no recibe cita_confirmada (la respuesta ya lo dice).
+ */
+const eventoCreacion = (id_cita, canal, actor, reprogramacion, autoConfirmada, conn) => {
+  const extra = { confirmada: autoConfirmada };
+  if (reprogramacion) {
+    return eventoCita("cita_reprogramada", id_cita, {
+      para: canal === "app" ? "negocio" : "dueno",
+      actor,
+      extra: { ...reprogramacion.aviso, ...extra },
+    }, conn);
+  }
+  return canal === "app"
+    ? eventoCita("cita_nueva", id_cita, { para: "negocio", actor, extra }, conn)
+    : eventoCita("cita_agendada", id_cita, { para: "dueno", actor }, conn);
+};
+
+const reservar = async (canal, datos, actor, id_negocio, reprogramacion) => {
   const dia = await prepararDia({ canal, id_negocio, ...datos, excluirIdCita: reprogramacion?.excluirIdCita });
   const inicio = aMinutos(datos.hora_inicio);
   if (inicio % dia.intervalo !== 0) {
     throw invalido("hora_inicio", `Debe estar en la cuadrícula de ${dia.intervalo} minutos (p. ej. :00, :15, :30, :45)`);
   }
-  if (dia.motivo) throw ApiError.conflict(dia.motivo);
   const { servicio } = dia;
+  if (dia.porLimitePlan) throw errorLimiteCitas(canal, dia.limiteCitas, datos.fecha, servicio.id_negocio);
+  if (dia.motivo) throw ApiError.conflict(dia.motivo);
   const hora_fin = `${aHora(inicio + servicio.duracion_minutos)}:00`;
+  // Confirmación automática del negocio (2.5): la cita de la app nace confirmada. Si no, queda
+  // pendiente con un plazo para confirmar, calculado con la configuración de ahora.
+  const autoConfirmada = canal === "app" && (await citaRepo.confirmaAutomaticamente(dia.servicio.id_negocio));
+  const confirmacion = canal === "app" && !autoConfirmada ? await configConfirmacion() : null;
 
-  const id_cita = await withTransaction(async (conn) => {
+  // Con plan ilimitado no se bloquea ni se cuenta: las reservas del negocio no se esperan entre sí.
+  const conLimiteCitas = dia.limiteCitas.usadas !== null;
+
+  const id_cita = await conNotificaciones(async (conn, notificar) => {
     // Primero todos los bloqueos y después las lecturas: en REPEATABLE READ la primera
     // lectura sin bloqueo fija la foto de la transacción, y debe ser posterior a la
     // espera para ver las citas que otras reservas confirmaron mientras tanto.
-    // Orden: cita original (al reprogramar), servicio, empleados, mascota.
+    // Orden: cita original (al reprogramar), suscripciones (si el plan limita las
+    // citas del mes), servicio, empleados, mascota.
     if (reprogramacion) await reprogramacion.antes(conn);
+    const suscripciones = conLimiteCitas ? await suscripcionRepo.lockByNegocio(servicio.id_negocio, conn) : null;
     if (servicio.max_citas_dia) await citaRepo.lockServicio(servicio.id_servicio, conn);
     // Un empleado desactivado mientras tanto ya no cuenta (la desactivación bloquea la misma fila).
     const activos = await citaRepo.lockEmpleados(
@@ -242,6 +311,12 @@ export const crearCita = async (canal, datos, actor, id_negocio, reprogramacion)
     const empleados = dia.empleados.filter((e) => activos.includes(e.id_empleado));
     const mascota = await citaRepo.lockMascota(datos.id_mascota, conn);
 
+    let limite = null;
+    if (conLimiteCitas) {
+      // La original de una reprogramación ya está marcada como reprogramada: no cuenta.
+      limite = await getLimiteCitasMes(servicio.id_negocio, datos.fecha, { conn, suscripciones });
+      if (limite.alcanzado) throw errorLimiteCitas(canal, limite, datos.fecha, servicio.id_negocio);
+    }
     if (servicio.max_citas_dia && (await citaRepo.countCupos(datos, conn)) >= servicio.max_citas_dia) {
       throw ApiError.conflict("No quedan cupos para este servicio ese día");
     }
@@ -258,7 +333,11 @@ export const crearCita = async (canal, datos, actor, id_negocio, reprogramacion)
 
     const carga = await citaRepo.countCitasDelDia(libres, datos.fecha, conn);
     const [id_empleado] = [...libres].sort((a, b) => (carga[a] ?? 0) - (carga[b] ?? 0) || a - b);
-    const estado = canal === "app" ? "pendiente" : "confirmada";
+    const estado = canal === "app" && !autoConfirmada ? "pendiente" : "confirmada";
+    const confirmar_antes_de =
+      estado === "pendiente"
+        ? aDatetimeSQL(calcularPlazoConfirmacion({ creacion: new Date(), inicio: inicioDeCita(datos.fecha, datos.hora_inicio), ...confirmacion }))
+        : undefined;
 
     const id = await citaRepo.create(
       {
@@ -278,12 +357,20 @@ export const crearCita = async (canal, datos, actor, id_negocio, reprogramacion)
         prioridad: datos.prioridad,
         origen: reprogramacion?.origen ?? (canal === "app" ? "app_movil" : datos.origen),
         id_cita_origen: reprogramacion?.id_cita_origen,
+        confirmar_antes_de,
       },
       conn
     );
-    await citaRepo.insertHistorialCreacion({ id_cita: id, actor, estado, motivo: reprogramacion?.motivoCreacion }, conn);
-    if (estado === "confirmada") await citaRepo.insertRecordatorioConfirmada(id, conn);
+    const motivo = autoConfirmada
+      ? `${reprogramacion?.motivoCreacion ?? "Cita creada"}. Confirmada automáticamente por el negocio`
+      : reprogramacion?.motivoCreacion;
+    await citaRepo.insertHistorialCreacion({ id_cita: id, actor, estado, motivo }, conn);
+    if (estado === "confirmada") await citaRepo.programarRecordatorios(id, conn);
     if (reprogramacion) await reprogramacion.despues(id, conn);
+
+    // Avisos al final de la transacción: se envían solo si la reserva se confirma.
+    const umbral = limite && (await eventoUmbralPlan({ id_negocio: servicio.id_negocio, fecha: datos.fecha, limite, actor }, conn));
+    await notificar([await eventoCreacion(id, canal, actor, reprogramacion, autoConfirmada, conn), ...(umbral ? [umbral] : [])]);
     return id;
   });
 
@@ -342,6 +429,12 @@ const conDisponibilidad = async (rows, id_negocio, desde, hasta) => {
   return rows.map((row) => ({ ...formatCita(row, { conNotasInternas: true }), fuera_de_disponibilidad: fuera.has(row.id_cita) }));
 };
 
+/** Citas en el formato del dueño: sin notas internas y con el estado de su reseña (2.6). */
+const formatCitasDueno = async (rows, id_usuario) => {
+  const resenas = await estadosResenaDueno(rows, id_usuario);
+  return rows.map((row, i) => ({ ...formatCita(row), resena: resenas[i] }));
+};
+
 /** Citas del dueño (app), paginadas y sin notas internas. */
 export const getMisCitas = async (id_usuario, { page, limit, alcance, estado, id_mascota }) => {
   const { rows, total } = await citaRepo.findPageDeUsuario(id_usuario, {
@@ -351,7 +444,7 @@ export const getMisCitas = async (id_usuario, { page, limit, alcance, estado, id
     limit,
     offset: (page - 1) * limit,
   });
-  return { rows: rows.map((row) => formatCita(row)), meta: buildMeta(total, page, limit) };
+  return { rows: await formatCitasDueno(rows, id_usuario), meta: buildMeta(total, page, limit) };
 };
 
 /** Los filtros de la agenda deben ser del negocio (422 si no), aunque estén inactivos. */
@@ -396,11 +489,11 @@ export const getAgenda = async (negocio, id_usuario, { solo_mias, fuera_de_dispo
 /**
  * Detalle de una cita. Con acceso del panel (authorizeDuenoO): completa, con notas
  * internas, fuera_de_disponibilidad y el cumplimiento del cliente en ese negocio
- * (cliente.historial_cumplimiento). Para el dueño: sin notas internas.
+ * (cliente.historial_cumplimiento). Para el dueño: sin notas internas y con el estado de su reseña.
  */
 export const getCita = async (id_cita, acceso) => {
   const row = await citaRepo.findDetalle(id_cita);
-  if (acceso.relacion === "dueno") return formatCita(row);
+  if (acceso.relacion === "dueno") return (await formatCitasDueno([row], row.id_usuario))[0];
   const [[cita], historial_cumplimiento] = await Promise.all([
     conDisponibilidad([row], row.id_negocio, row.fecha, row.fecha),
     citaRepo.resumenCumplimiento(row.id_usuario, row.id_negocio),

@@ -22,6 +22,20 @@ export const generalLimiter = createLimiter(
 );
 
 /**
+ * Subidas de archivos: 30 cada 15 min por usuario (un solo contador para todas las
+ * rutas de subida). Va después de authMiddleware: la clave es el id del usuario.
+ */
+export const uploadLimiter = rateLimit({
+  windowMs: WINDOW_MS,
+  limit: 30,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  keyGenerator: (req) => `usuario:${req.user.id_usuario}`,
+  skip: () => isTest,
+  handler: (req, res) => sendError(res, 429, "Demasiadas subidas de archivos, espera unos minutos"),
+});
+
+/**
  * Límite estricto para endpoints sensibles a fuerza bruta (login, recuperación y verificación de cuenta,
  * invitaciones). Cada llamada crea un contador propio: usar una instancia por endpoint.
  */

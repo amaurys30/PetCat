@@ -18,6 +18,10 @@ export const findById = async (id_mascota, { conn, forUpdate = false } = {}) => 
   return rows[0];
 };
 
+export const setFoto = async (id_mascota, foto_url, conn) => {
+  await (conn ?? db).query("UPDATE mascotas SET foto_url = ? WHERE id_mascota = ?", [foto_url, id_mascota]);
+};
+
 /** Mascotas activas (no borradas) del usuario: vivas primero, luego por nombre. */
 export const findActivasByUsuario = async (id_usuario) => {
   const [rows] = await db.query(

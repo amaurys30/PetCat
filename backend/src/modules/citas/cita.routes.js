@@ -90,12 +90,39 @@ const esDuenoDeLaCita = (req) => citaRepo.esDelUsuario(req.params.id_cita, req.u
  *         notas_cliente: { type: string, nullable: true }
  *         notas_internas: { type: string, nullable: true, description: Solo en el panel }
  *         id_cita_origen: { type: integer, nullable: true, description: Cita original si esta es una reprogramación }
+ *         confirmar_antes_de:
+ *           type: string
+ *           nullable: true
+ *           example: "2026-10-04 15:00:00"
+ *           description: >
+ *             Solo en citas pendientes: hasta cuándo puede confirmarla el negocio. Si no la confirma, se cancela
+ *             sola (cancelacion.por = sistema). Lo que ocurra primero entre 24 horas después de reservar y
+ *             60 minutos antes del inicio; si eso cae de madrugada, se corre a una hora después del fin del
+ *             horario de silencio (08:00), sin pasar de 30 minutos antes del inicio.
+ *         fecha_completada: { type: string, nullable: true, example: "2026-09-20 15:42:10", description: Cuándo pasó a completada }
+ *         id_resena: { type: integer, nullable: true, description: Reseña del dueño sobre esta cita (null si no hay o la retiró) }
+ *         resena:
+ *           type: object
+ *           nullable: true
+ *           description: >
+ *             Solo en la vista del dueño (GET /citas/mias y GET /citas/{id_cita}) y solo en citas completadas.
+ *             Para mostrar "Reseñar" o "Editar reseña".
+ *           properties:
+ *             id_resena: { type: integer, nullable: true }
+ *             retirada: { type: boolean, description: El dueño retiró su reseña; no puede reseñar otra vez }
+ *             resenar_antes_de: { type: string, nullable: true, example: "2026-10-20 15:42:10", description: fecha_completada + 30 días }
+ *             puede_resenar: { type: boolean, description: Sin reseña, dentro del plazo y sin ser personal del negocio }
+ *             puede_editar: { type: boolean }
  *         cancelacion:
  *           type: object
  *           nullable: true
  *           description: Solo en citas canceladas
  *           properties:
- *             por: { type: string, enum: [dueno, negocio], nullable: true }
+ *             por:
+ *               type: string
+ *               enum: [dueno, negocio, sistema]
+ *               nullable: true
+ *               description: "sistema: el negocio no la confirmó a tiempo (nunca es tardía ni cuenta contra el cliente)"
  *             fecha: { type: string, nullable: true }
  *             tardia: { type: boolean, description: El dueño canceló a menos de 2 horas de la cita }
  *             motivo: { type: string, nullable: true }
@@ -152,7 +179,8 @@ const esDuenoDeLaCita = (req) => citaRepo.esDelUsuario(req.params.id_cita, req.u
  *       fecha: por cada empleado que lo atiende, su disponibilidad efectiva menos sus citas (contando el
  *       margen del servicio de cada una), en la cuadrícula de 15 minutos y con al menos
  *       `antelacion_minima_reserva_min` (60) de anticipación. Sin horarios responde 200 con la lista vacía
- *       y `motivo_sin_horarios`.
+ *       y `motivo_sin_horarios`. Si el negocio alcanzó el límite de citas del mes de su plan, no hay
+ *       horarios y el motivo es el genérico ("No hay horarios disponibles para esa fecha").
  *     tags: [Citas]
  *     security: []
  *     parameters:
@@ -193,7 +221,13 @@ router.get("/citas/horarios-libres", validate({ query: horariosLibresQuery }), c
  *       La mascota debe ser del usuario, estar viva y ser de una especie y un peso que el servicio
  *       atiende. Se comprueba el horario dentro de una transacción (servicio, empleados y mascota
  *       bloqueados): si otra reserva lo tomó antes, 409. La cita queda `pendiente` hasta que el negocio
- *       la confirme. El email sin verificar no impide reservar.
+ *       la confirme, con `confirmar_antes_de`: si no la confirma a tiempo se cancela sola. Si el negocio tiene
+ *       `confirmacion_automatica`, nace `confirmada` (mensaje "Cita confirmada") con sus recordatorios. El
+ *       email sin verificar no impide reservar. Si el negocio alcanzó el límite de citas
+ *       del mes de su plan, 409 con el mismo mensaje de horario no disponible (la app no ve el plan).
+ *       Avisos: `cita_nueva` al personal con `citas.ver` y al propietario; `plan_limite_80` si la reserva
+ *       cruza el 80 % del límite (una vez al mes) y `plan_limite_alcanzado` si se rechaza por el límite
+ *       (una vez al día), al propietario y a quien tiene `configuracion.editar`.
  *     tags: [Citas]
  *     requestBody:
  *       required: true
@@ -209,7 +243,10 @@ router.get("/citas/horarios-libres", validate({ query: horariosLibresQuery }), c
  *               type: object
  *               properties:
  *                 success: { type: boolean, example: true }
- *                 message: { type: string, example: "Cita solicitada: el negocio debe confirmarla" }
+ *                 message:
+ *                   type: string
+ *                   enum: ["Cita solicitada: el negocio debe confirmarla", Cita confirmada]
+ *                   example: "Cita solicitada: el negocio debe confirmarla"
  *                 data: { $ref: '#/components/schemas/Cita' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       409: { $ref: '#/components/responses/ReservaConflicto' }
@@ -364,8 +401,10 @@ router.get(
  *       Requiere `citas.editar`. Transiciones: pendiente → confirmada (se programa el recordatorio);
  *       confirmada → en_curso (desde la fecha de la cita) o no_asistio (desde la hora de inicio);
  *       en_curso → completada (con `precio_final`, por defecto el estimado; suma al total de citas del
- *       negocio); no_asistio → en_curso solo el mismo día (el cliente llegó tarde). completada, cancelada y
+ *       negocio, guarda `fecha_completada` y programa la invitación a reseñar para 3 horas después, o las
+ *       10:00 si cae entre las 20:00 y las 10:00); no_asistio → en_curso solo el mismo día (el cliente llegó tarde). completada, cancelada y
  *       reprogramada son finales. Para cancelar o reprogramar hay endpoints propios. Queda en el historial.
+ *       Al confirmar se avisa al dueño (`cita_confirmada`).
  *     tags: [Citas]
  *     parameters:
  *       - { in: path, name: id_cita, required: true, schema: { type: integer } }
@@ -406,7 +445,8 @@ router.patch(
  *       Solo citas pendientes o confirmadas. El dueño puede cancelar siempre que la cita no haya empezado
  *       (409 después); si faltan menos de `antelacion_cancelacion_app_h` (2) horas queda como cancelación
  *       tardía, que el panel ve. El negocio (`citas.cancelar`) exige motivo. Se guarda quién canceló y
- *       cuándo, y se cancelan los recordatorios pendientes.
+ *       cuándo, y se cancelan los recordatorios pendientes. Aviso `cita_cancelada` a la otra parte: al
+ *       personal con `citas.ver` y al propietario si cancela el dueño; al dueño si cancela el negocio.
  *     tags: [Citas]
  *     parameters:
  *       - { in: path, name: id_cita, required: true, schema: { type: integer } }
@@ -444,9 +484,12 @@ router.post(
  *       de horarios libres y la misma protección contra reservas simultáneas, y marca la original como
  *       `reprogramada`, en una transacción: si el horario nuevo no está libre (409) la original no cambia.
  *       El dueño lo hace con las reglas de la app y hasta 2 horas antes de la cita original; la nueva queda
- *       `pendiente`. El negocio (`citas.editar`), en cualquier momento y con las reglas del panel; la nueva queda
+ *       `pendiente` (o `confirmada` si el negocio tiene `confirmacion_automatica`). El negocio (`citas.editar`), en cualquier momento y con las reglas del panel; la nueva queda
  *       `confirmada`. Conserva servicio, mascota, precio estimado, origen, notas y prioridad; por defecto la
- *       misma sucursal. Una mascota fallecida no se reprograma (409).
+ *       misma sucursal. Una mascota fallecida no se reprograma (409). La nueva cita cuenta para el límite de
+ *       citas del mes del plan (la original deja de contar): si el mes nuevo está lleno, el dueño recibe el
+ *       409 de horario no disponible y el negocio 403 con `errors.plan`. Aviso `cita_reprogramada` (con la
+ *       fecha anterior) a la otra parte, como en la cancelación.
  *     tags: [Citas]
  *     parameters:
  *       - { in: path, name: id_cita, required: true, schema: { type: integer } }
@@ -476,7 +519,7 @@ router.post(
  *                 message: { type: string, example: Cita reprogramada }
  *                 data: { $ref: '#/components/schemas/Cita' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
- *       403: { $ref: '#/components/responses/Forbidden' }
+ *       403: { $ref: '#/components/responses/ForbiddenOrPlanLimit' }
  *       404: { $ref: '#/components/responses/NotFound' }
  *       409: { $ref: '#/components/responses/ReservaConflicto' }
  *       422: { $ref: '#/components/responses/ValidationError' }
@@ -539,7 +582,7 @@ router.patch(
  *     description: >
  *       Del más antiguo al más reciente. El personal del negocio con `citas.ver` ve todos los cambios con
  *       el usuario y el empleado que los hizo. El dueño ve solo los cambios de estado y de empleado, con su
- *       motivo, y `realizado_por` (dueno o negocio), sin nombres del personal.
+ *       motivo, y `realizado_por` (dueno, negocio o sistema: la cancelación automática), sin nombres del personal.
  *     tags: [Citas]
  *     parameters:
  *       - { in: path, name: id_cita, required: true, schema: { type: integer } }
@@ -563,7 +606,7 @@ router.patch(
  *                       valor_anterior: { type: string, nullable: true, description: En empleado, su nombre }
  *                       valor_nuevo: { type: string, nullable: true }
  *                       motivo: { type: string, nullable: true }
- *                       realizado_por: { type: string, enum: [dueno, negocio] }
+ *                       realizado_por: { type: string, enum: [dueno, negocio, sistema] }
  *                       usuario: { type: object, nullable: true, description: Solo en el panel }
  *                       empleado: { type: object, nullable: true, description: Solo en el panel }
  *       401: { $ref: '#/components/responses/Unauthorized' }
@@ -585,7 +628,9 @@ router.get(
  *     summary: Horarios libres para agendar (panel)
  *     description: >
  *       Requiere `citas.crear`. Igual que el de la app, pero admite servicios ocultos en la app (del
- *       propio negocio) y no aplica la antelación mínima (solo que el horario sea futuro).
+ *       propio negocio) y no aplica la antelación mínima (solo que el horario sea futuro). Si el negocio
+ *       alcanzó el límite de citas del mes de su plan, no hay horarios y `motivo_sin_horarios` lo dice
+ *       ("El negocio alcanzó las 30 citas de su plan Gratuito en octubre de 2026").
  *     tags: [Citas]
  *     parameters:
  *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
@@ -671,6 +716,9 @@ router.get(
  *       Requiere `citas.crear`. Para un cliente (`id_usuario`, p. ej. encontrado con clientes/buscar o
  *       recién registrado) y su mascota. Mismas reglas que la app, con las diferencias del panel (servicios
  *       ocultos, sin antelación mínima). La cita queda `confirmada` y se programa su recordatorio.
+ *       403 con `errors.plan` si el negocio alcanzó el límite de citas del mes de la cita en su plan.
+ *       Avisa al dueño (`cita_agendada`, por correo si no tiene la app) y, como la reserva de la app,
+ *       `plan_limite_80` y `plan_limite_alcanzado` al negocio.
  *     tags: [Citas]
  *     parameters:
  *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
@@ -700,7 +748,7 @@ router.get(
  *                 message: { type: string, example: Cita agendada y confirmada }
  *                 data: { $ref: '#/components/schemas/Cita' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
- *       403: { $ref: '#/components/responses/Forbidden' }
+ *       403: { $ref: '#/components/responses/ForbiddenOrPlanLimit' }
  *       404: { $ref: '#/components/responses/NotFound' }
  *       409: { $ref: '#/components/responses/ReservaConflicto' }
  *       422: { $ref: '#/components/responses/ValidationError' }

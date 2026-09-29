@@ -6,7 +6,6 @@ import {
   idParam,
   telefono,
   texto,
-  urlHttp,
 } from "../../shared/utils/schemas.js";
 
 export const idEmpleadoParams = idParam("id_empleado");
@@ -14,7 +13,7 @@ export const idEmpleadoParams = idParam("id_empleado");
 const nombre = z.string().trim().min(2).max(80);
 
 // id_usuario, id_negocio, activo y fecha_retiro no se aceptan: los maneja la API
-// (invitaciones, la ruta y desactivar/reactivar).
+// (invitaciones, la ruta y desactivar/reactivar). La foto se sube con PUT /empleados/:id_empleado/foto.
 const campos = {
   id_rol: z.int().positive(),
   nombre,
@@ -25,7 +24,6 @@ const campos = {
   especialidad: texto(150).nullable(),
   titulo_profesional: texto(150).nullable(),
   registro_profesional: texto(60).nullable(),
-  foto_url: urlHttp().nullable(),
   notas: texto(2000).nullable(),
   fecha_vinculacion: z.iso.date({ error: "Fecha inválida: usa YYYY-MM-DD" }),
 };

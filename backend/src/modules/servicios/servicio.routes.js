@@ -31,6 +31,14 @@ const router = express.Router();
  *         id_categoria: { type: integer, description: Categoría activa (GET /categorias-servicio) }
  *         nombre: { type: string, minLength: 2, maxLength: 150, description: Único entre los servicios activos del negocio }
  *         descripcion: { type: string, maxLength: 2000, nullable: true }
+ *         indicaciones_previas:
+ *           type: string
+ *           maxLength: 500
+ *           nullable: true
+ *           example: Ayuno de 8 horas (agua sí). Trae el carnet de vacunas.
+ *           description: >
+ *             Preparación antes de la cita. Se muestra en el servicio de la app y en el recordatorio del día
+ *             anterior (en la app y el correo; no en la push). null = sin indicaciones.
  *         precio_base: { type: number, minimum: 0, example: 60000 }
  *         precio_maximo: { type: number, minimum: 0, nullable: true, description: Para precios variables }
  *         tipo_precio: { type: string, enum: [fijo, por_hora, por_dia, variable], default: fijo }
@@ -88,6 +96,7 @@ const router = express.Router();
  *             nombre: { type: string }
  *         nombre: { type: string }
  *         descripcion: { type: string, nullable: true }
+ *         indicaciones_previas: { type: string, nullable: true }
  *         precio_base: { type: number }
  *         precio_maximo: { type: number, nullable: true }
  *         tipo_precio: { type: string }
@@ -257,6 +266,7 @@ router.post(
  *                                 properties:
  *                                   especialidad: { type: string, nullable: true }
  *                                   foto_url: { type: string, nullable: true }
+ *                                   foto_miniatura_url: { type: string, nullable: true }
  *       404: { $ref: '#/components/responses/NotFound' }
  *       422: { $ref: '#/components/responses/ValidationError' }
  *   patch:

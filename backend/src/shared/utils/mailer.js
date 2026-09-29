@@ -39,10 +39,11 @@ const getTransporter = () => {
  * - Sin SMTP_HOST (solo desarrollo; en producción env.js lo exige): se muestra en consola.
  * - Con SMTP_HOST: se envía con Nodemailer.
  *
- * @param {{ to: string, subject: string, text: string, html?: string }} mail
+ * @param {{ to: string, subject: string, text: string, html?: string, headers?: Record<string, string> }} mail
+ *   `headers`: cabeceras adicionales (p. ej. List-Unsubscribe en los correos de notificaciones).
  */
-export const sendMail = async ({ to, subject, text, html }) => {
-  const mail = { from: env.MAIL_FROM, to, subject, text, html };
+export const sendMail = async ({ to, subject, text, html, headers }) => {
+  const mail = { from: env.MAIL_FROM, to, subject, text, html, ...(headers && { headers }) };
 
   if (isTest) {
     outbox.push(mail);

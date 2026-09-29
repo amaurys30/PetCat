@@ -26,8 +26,8 @@ export class ApiError extends Error {
     return new ApiError(401, message);
   }
 
-  static forbidden(message = "No tienes permiso para realizar esta acción") {
-    return new ApiError(403, message);
+  static forbidden(message = "No tienes permiso para realizar esta acción", errors) {
+    return new ApiError(403, message, errors);
   }
 
   static notFound(message = "Recurso no encontrado") {

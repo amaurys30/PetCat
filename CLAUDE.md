@@ -96,11 +96,11 @@ PetCat/
 - Nunca devolver `password_hash`, `token_*`, `refresh_token` ni `credenciales_json`. Usar un `sanitizeUsuario` o seleccionar columnas explícitas.
 - Operaciones que escriben en más de una tabla van en transacción (`withTransaction`).
 - Verificar pertenencia: un dueño solo toca sus mascotas/citas; un negocio solo sus recursos. Nunca confiar en un `id_negocio` del body/query si se puede derivar del recurso.
-- Borrado lógico (`activo = FALSE`) donde exista la columna.
+- Borrado lógico (`activo = FALSE`) donde exista la columna. Excepción explícita: `notas_cliente` se borra físicamente (decisión de la 2.7).
 - Fechas: zona `America/Bogota`. El pool usa `dateStrings: true` para que `DATE`/`TIME`/`DATETIME` no se desplacen por zona horaria.
 
 **Permisos (`roles.permisos_json`)**
-Formato `{ "modulo": ["accion", ...] }`. Módulos: `citas, servicios, inventario, clientes, empleados, pagos, roles, reportes, configuracion, historial_medico, vacunas`. Sucursales, horarios, disponibilidad y datos del negocio usan `configuracion`. Uso: `authorize("citas", "editar")`. El propietario del negocio y el admin de plataforma pasan siempre. Los empleados inactivos no pasan.
+Formato `{ "modulo": ["accion", ...] }`. Módulos: `citas, servicios, inventario, clientes, empleados, pagos, roles, reportes, configuracion, historial_medico, vacunas, resenas`. Sucursales, horarios, disponibilidad y datos del negocio usan `configuracion`. Uso: `authorize("citas", "editar")`. El propietario del negocio y el admin de plataforma pasan siempre. Los empleados inactivos no pasan.
 
 **Estilo**
 - Mensajes al usuario, comentarios y Swagger en español. Nombres de funciones: verbo en inglés + entidad en español (`createEmpleado`, `findByNegocio`) — ya es el estilo del proyecto.
@@ -138,3 +138,5 @@ Get-Content ruta/archivo.sql -Raw -Encoding UTF8 | docker compose exec -T mysql 
 ```
 
 Para varias líneas, un here-string `@' ... '@` con el `'@` de cierre al inicio de la línea.
+
+**Encadenar comandos:** PowerShell 5.1 no admite `&&` ni `||`. Los comandos que se le indiquen a Amaurys se separan con `;` (por ejemplo `cd backend; npm run db:migrate`), o se escriben en líneas separadas.

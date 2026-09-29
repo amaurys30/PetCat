@@ -8,6 +8,8 @@ import { mascotaDeNegocioParams } from "../historial/historial.schemas.js";
 import { authMiddleware } from "../../shared/middlewares/auth.middleware.js";
 import { authorize, authorizeDuenoO } from "../../shared/middlewares/authorize.middleware.js";
 import { validate } from "../../shared/middlewares/validate.js";
+import { uploadLimiter } from "../../shared/middlewares/rateLimit.js";
+import { recibirArchivos } from "../../shared/utils/uploads.js";
 
 const router = express.Router();
 
@@ -18,7 +20,9 @@ const router = express.Router();
  *     VacunaInput:
  *       type: object
  *       additionalProperties: false
- *       description: Campos opcionales con `null` se vacían. `fecha_proxima` debe ser posterior a `fecha_aplicacion`.
+ *       description: >
+ *         Campos opcionales con `null` se vacían. `fecha_proxima` debe ser posterior a `fecha_aplicacion`.
+ *         El comprobante no va aquí: se sube con `PUT /vacunas/{id_vacuna}/comprobante` (`comprobante_url` da 422).
  *       properties:
  *         nombre_vacuna: { type: string, maxLength: 150, example: Antirrábica }
  *         enfermedad_objetivo: { type: string, maxLength: 150, nullable: true }
@@ -29,7 +33,6 @@ const router = express.Router();
  *         sitio_aplicacion: { type: string, maxLength: 60, nullable: true }
  *         fecha_aplicacion: { type: string, format: date, description: No puede ser futura }
  *         fecha_proxima: { type: string, format: date, nullable: true, description: Próxima dosis o refuerzo }
- *         comprobante_url: { type: string, format: uri, pattern: "^https://", nullable: true, description: Foto del carnet (solo https) }
  *         notas: { type: string, maxLength: 300, nullable: true }
  *     Vacuna:
  *       type: object
@@ -53,7 +56,11 @@ const router = express.Router();
  *             no_aplica; la vigente es vencido (fecha_proxima pasada), proximo (dentro de 30 días) o al_dia.
  *         registrada_por: { type: string, enum: [dueno, negocio], description: El dueño (externa) o un profesional }
  *         tiene_comprobante: { type: boolean }
- *         comprobante_url: { type: string, nullable: true }
+ *         comprobante:
+ *           allOf:
+ *             - $ref: '#/components/schemas/ArchivoPrivado'
+ *           nullable: true
+ *           description: Foto o PDF del carnet, con URL firmada que vence (null si no tiene)
  *         notas: { type: string, nullable: true }
  *         negocio: { type: object, nullable: true, properties: { id_negocio: { type: integer }, nombre: { type: string } } }
  *         empleado:
@@ -97,8 +104,9 @@ const router = express.Router();
  *   post:
  *     summary: Registrar una vacuna externa (app)
  *     description: >
- *       El dueño registra una vacuna aplicada fuera de PetCat, con el comprobante (foto del carnet) si lo
- *       tiene. Queda con `registrada_por: dueno` para que el veterinario la distinga. Mascota fallecida: 409.
+ *       El dueño registra una vacuna aplicada fuera de PetCat. Queda con `registrada_por: dueno` para que el
+ *       veterinario la distinga. El comprobante (foto del carnet) se sube después con
+ *       `PUT /vacunas/{id_vacuna}/comprobante`. Mascota fallecida: 409.
  *     tags: [Vacunas]
  *     parameters:
  *       - { in: path, name: id_mascota, required: true, schema: { type: integer } }
@@ -221,7 +229,8 @@ router.post(
  *     description: >
  *       La vacuna que registró el dueño solo la edita el dueño; la que registró un negocio, solo ese negocio
  *       (`vacunas.editar`). El dueño no puede enviar `id_empleado` ni `id_historial_medico`. Recalcula el estado
- *       de todas las vacunas de la mascota.
+ *       de todas las vacunas de la mascota. Si cambia `fecha_proxima`, los recordatorios al dueño (7 días antes,
+ *       el día y 7 días después) vuelven a empezar con la fecha nueva.
  *     tags: [Vacunas]
  *     parameters:
  *       - { in: path, name: id_vacuna, required: true, schema: { type: integer } }
@@ -248,14 +257,76 @@ router.post(
  *       404: { $ref: '#/components/responses/NotFound' }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
+// Dueño de la mascota de la vacuna, o el negocio de la vacuna con vacunas.editar.
+const editarVacuna = authorizeDuenoO("vacunas", "editar", {
+  esDueno: async (req) => (await vacunaRepo.findMascotaDeVacuna(req.params.id_vacuna))?.id_usuario === req.user.id_usuario,
+});
+
 router.patch(
   "/vacunas/:id_vacuna",
   authMiddleware,
   validate({ params: idVacunaParams, body: updateVacunaBody }),
-  authorizeDuenoO("vacunas", "editar", {
-    esDueno: async (req) => (await vacunaRepo.findMascotaDeVacuna(req.params.id_vacuna))?.id_usuario === req.user.id_usuario,
-  }),
+  editarVacuna,
   controller.actualizarVacuna
+);
+
+/**
+ * @swagger
+ * /vacunas/{id_vacuna}/comprobante:
+ *   put:
+ *     summary: Subir o reemplazar el comprobante de una vacuna (dueño o negocio)
+ *     description: >
+ *       Mismas reglas que editar la vacuna: la registrada por el dueño la edita el dueño; la de un negocio,
+ *       ese negocio (`vacunas.editar`). multipart/form-data con el archivo en `comprobante` (foto o PDF).
+ *       Se guarda **privado**: la vacuna trae `comprobante` con una URL firmada que vence. El anterior se borra.
+ *     tags: [Vacunas]
+ *     parameters:
+ *       - { in: path, name: id_vacuna, required: true, schema: { type: integer } }
+ *     requestBody: { $ref: '#/components/requestBodies/Comprobante' }
+ *     responses:
+ *       200:
+ *         description: Comprobante guardado
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/VacunaRespuesta' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ArchivoInvalido' }
+ *       429: { $ref: '#/components/responses/TooManyRequests' }
+ *       503: { $ref: '#/components/responses/AlmacenamientoNoDisponible' }
+ *   delete:
+ *     summary: Eliminar el comprobante de una vacuna (dueño o negocio)
+ *     description: Mismas reglas que editar la vacuna. 404 si no tiene comprobante.
+ *     tags: [Vacunas]
+ *     parameters:
+ *       - { in: path, name: id_vacuna, required: true, schema: { type: integer } }
+ *     responses:
+ *       200:
+ *         description: Comprobante eliminado
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/VacunaRespuesta' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.put(
+  "/vacunas/:id_vacuna/comprobante",
+  authMiddleware,
+  validate({ params: idVacunaParams }),
+  editarVacuna,
+  uploadLimiter,
+  recibirArchivos("vacuna_comprobante"),
+  controller.subirComprobante
+);
+router.delete(
+  "/vacunas/:id_vacuna/comprobante",
+  authMiddleware,
+  validate({ params: idVacunaParams }),
+  editarVacuna,
+  controller.eliminarComprobante
 );
 
 export default router;

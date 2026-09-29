@@ -36,6 +36,7 @@ describe("POST /auth/register", () => {
       email: datos.email,
       telefono: "300 123 4567",
       foto_url: null,
+      foto_miniatura_url: null,
       tipo_usuario: "cliente",
       email_verificado: false,
     });

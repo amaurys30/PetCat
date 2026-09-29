@@ -9,7 +9,10 @@ import {
 } from "./empleado.schemas.js";
 import { idNegocioParams } from "../negocios/negocio.schemas.js";
 import { authMiddleware } from "../../shared/middlewares/auth.middleware.js";
-import { authorize } from "../../shared/middlewares/authorize.middleware.js";
+import { authorize, authorizeAny } from "../../shared/middlewares/authorize.middleware.js";
+import { checkPlanLimit } from "../../shared/middlewares/planLimit.middleware.js";
+import { uploadLimiter } from "../../shared/middlewares/rateLimit.js";
+import { recibirArchivos } from "../../shared/utils/uploads.js";
 import { validate } from "../../shared/middlewares/validate.js";
 
 const router = express.Router();
@@ -22,9 +25,9 @@ const router = express.Router();
  *       type: object
  *       additionalProperties: false
  *       description: >
- *         `id_usuario`, `id_negocio`, `activo` y `fecha_retiro` no se aceptan (422): la cuenta se
- *         vincula con una invitación y el estado se cambia con desactivar/reactivar. Los campos
- *         opcionales se vacían con `null`.
+ *         `id_usuario`, `id_negocio`, `activo`, `fecha_retiro` y `foto_url` no se aceptan (422): la cuenta se
+ *         vincula con una invitación, el estado se cambia con desactivar/reactivar y la foto se sube con
+ *         `PUT /empleados/{id_empleado}/foto`. Los campos opcionales se vacían con `null`.
  *       properties:
  *         id_rol: { type: integer, description: Rol del sistema o propio del negocio, example: 2 }
  *         nombre: { type: string, minLength: 2, maxLength: 80, example: Carlos }
@@ -35,7 +38,6 @@ const router = express.Router();
  *         especialidad: { type: string, maxLength: 150, nullable: true }
  *         titulo_profesional: { type: string, maxLength: 150, nullable: true }
  *         registro_profesional: { type: string, maxLength: 60, nullable: true }
- *         foto_url: { type: string, format: uri, nullable: true }
  *         notas: { type: string, maxLength: 2000, nullable: true }
  *         fecha_vinculacion: { type: string, format: date, example: "2026-09-01", description: Por defecto, hoy }
  *     Empleado:
@@ -52,7 +54,8 @@ const router = express.Router();
  *         especialidad: { type: string, nullable: true }
  *         titulo_profesional: { type: string, nullable: true }
  *         registro_profesional: { type: string, nullable: true }
- *         foto_url: { type: string, nullable: true }
+ *         foto_url: { type: string, nullable: true, description: Foto (800 px) }
+ *         foto_miniatura_url: { type: string, nullable: true, description: Miniatura cuadrada de 200 px }
  *         notas: { type: string, nullable: true }
  *         activo: { type: boolean }
  *         fecha_vinculacion: { type: string, example: "2026-09-01" }
@@ -125,7 +128,9 @@ const router = express.Router();
  *     description: >
  *       Requiere `empleados.crear`. El rol debe ser del sistema o del negocio (422 si no). Un
  *       empleado que crea a otro no puede asignarle un rol con permisos que el suyo no tiene (403).
- *       El empleado queda sin cuenta hasta que acepte una invitación.
+ *       El empleado queda sin cuenta hasta que acepte una invitación. 403 con `errors.plan` si el
+ *       negocio ya tiene todos los empleados activos que permite su plan (no cuenta al propietario
+ *       registrado como empleado).
  *     tags: [Empleados]
  *     parameters:
  *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
@@ -149,7 +154,7 @@ const router = express.Router();
  *                 message: { type: string, example: Empleado creado }
  *                 data: { $ref: '#/components/schemas/Empleado' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
- *       403: { $ref: '#/components/responses/Forbidden' }
+ *       403: { $ref: '#/components/responses/ForbiddenOrPlanLimit' }
  *       404: { $ref: '#/components/responses/NotFound' }
  *       409: { $ref: '#/components/responses/EmpleadoConflict' }
  *       422: { $ref: '#/components/responses/ValidationError' }
@@ -167,6 +172,7 @@ router.post(
   authMiddleware,
   validate({ params: idNegocioParams, body: createEmpleadoBody }),
   authorize("empleados", "crear"),
+  checkPlanLimit("empleados"),
   controller.createEmpleado
 );
 
@@ -198,7 +204,6 @@ router.post(
  *               especialidad: { type: string, maxLength: 150, nullable: true, example: Medicina de pequeños animales }
  *               titulo_profesional: { type: string, maxLength: 150, nullable: true, example: Médico Veterinario Zootecnista }
  *               registro_profesional: { type: string, maxLength: 60, nullable: true }
- *               foto_url: { type: string, format: uri, nullable: true }
  *               notas: { type: string, maxLength: 2000, nullable: true }
  *               fecha_vinculacion: { type: string, format: date }
  *     responses:
@@ -360,7 +365,8 @@ router.delete(
  *     summary: Reactivar un empleado
  *     description: >
  *       Requiere `empleados.editar`. 409 si ya está activo. Un empleado no puede reactivar a uno
- *       con permisos que él no tiene (403).
+ *       con permisos que él no tiene (403). 403 con `errors.plan` si el negocio ya tiene todos los
+ *       empleados activos que permite su plan (salvo que sea el propietario registrado como empleado).
  *     tags: [Empleados]
  *     parameters:
  *       - { in: path, name: id_empleado, required: true, schema: { type: integer } }
@@ -376,7 +382,7 @@ router.delete(
  *                 message: { type: string, example: Empleado reactivado }
  *                 data: { $ref: '#/components/schemas/Empleado' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
- *       403: { $ref: '#/components/responses/Forbidden' }
+ *       403: { $ref: '#/components/responses/ForbiddenOrPlanLimit' }
  *       404: { $ref: '#/components/responses/NotFound' }
  *       409:
  *         description: El empleado ya está activo
@@ -390,6 +396,79 @@ router.patch(
   validate({ params: idEmpleadoParams }),
   authorize("empleados", "editar"),
   controller.reactivarEmpleado
+);
+
+/**
+ * @swagger
+ * /empleados/{id_empleado}/foto:
+ *   put:
+ *     summary: Subir o reemplazar la foto de un empleado
+ *     description: >
+ *       Requiere `empleados.editar` o ser el propio empleado. Un empleado no puede cambiar la foto de
+ *       otro con permisos que él no tiene (403). multipart/form-data con el archivo en `foto`; la
+ *       anterior se borra. Responde el empleado con `foto_url` (800 px) y `foto_miniatura_url` (200 px).
+ *     tags: [Empleados]
+ *     parameters:
+ *       - { in: path, name: id_empleado, required: true, schema: { type: integer } }
+ *     requestBody: { $ref: '#/components/requestBodies/Foto' }
+ *     responses:
+ *       200:
+ *         description: Foto actualizada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Foto del empleado actualizada }
+ *                 data: { $ref: '#/components/schemas/Empleado' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ArchivoInvalido' }
+ *       429: { $ref: '#/components/responses/TooManyRequests' }
+ *       503: { $ref: '#/components/responses/AlmacenamientoNoDisponible' }
+ *   delete:
+ *     summary: Eliminar la foto de un empleado
+ *     description: Mismos permisos que al subirla. 404 si no tiene foto.
+ *     tags: [Empleados]
+ *     parameters:
+ *       - { in: path, name: id_empleado, required: true, schema: { type: integer } }
+ *     responses:
+ *       200:
+ *         description: Foto eliminada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Foto del empleado eliminada }
+ *                 data: { $ref: '#/components/schemas/Empleado' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+const editarFoto = authorizeAny([["empleados", "editar"]], {
+  permitirSi: (req, acceso) => acceso.id_empleado === req.params.id_empleado,
+});
+
+router.put(
+  "/empleados/:id_empleado/foto",
+  authMiddleware,
+  validate({ params: idEmpleadoParams }),
+  editarFoto,
+  uploadLimiter,
+  recibirArchivos("empleado_foto"),
+  controller.subirFoto
+);
+router.delete(
+  "/empleados/:id_empleado/foto",
+  authMiddleware,
+  validate({ params: idEmpleadoParams }),
+  editarFoto,
+  controller.eliminarFoto
 );
 
 export default router;

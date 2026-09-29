@@ -27,13 +27,18 @@ export const findDeMascota = async (id_mascota, conn) => {
   return rows;
 };
 
-/** Bloquea la vacuna y devuelve su mascota y quién la registró. */
+/** Bloquea la vacuna y devuelve su mascota, quién la registró y el comprobante externo (anterior a la 2.2). */
 export const lockVacuna = async (id_vacuna, conn) => {
   const [rows] = await conn.query(
-    "SELECT id_vacuna, id_mascota, id_negocio, registrada_por FROM vacunas WHERE id_vacuna = ? FOR UPDATE",
+    "SELECT id_vacuna, id_mascota, id_negocio, registrada_por, comprobante_url FROM vacunas WHERE id_vacuna = ? FOR UPDATE",
     [id_vacuna]
   );
   return rows[0];
+};
+
+/** El comprobante subido vive en `archivos`: al subir o quitar uno se borra la URL externa anterior. */
+export const quitarComprobanteExterno = async (id_vacuna, conn) => {
+  await conn.query("UPDATE vacunas SET comprobante_url = NULL WHERE id_vacuna = ?", [id_vacuna]);
 };
 
 /** Dueño y mascota de la vacuna (sin bloquear; la mascota de una vacuna no cambia). */
@@ -70,6 +75,31 @@ export const guardarEstados = async (cambios, conn) => {
   for (const [id_vacuna, estado] of cambios) {
     await conn.query("UPDATE vacunas SET estado = ? WHERE id_vacuna = ?", [estado, id_vacuna]);
   }
+};
+
+/**
+ * Mascotas con alguna vacuna vigente cuyo estado guardado no corresponde a su fecha_proxima
+ * hoy (misma regla que calcularEstados; `no_aplica` solo cambia al escribir).
+ */
+export const findMascotasConEstadoDesactualizado = async (hoy, diasAviso) => {
+  const [rows] = await db.query(
+    `SELECT DISTINCT id_mascota FROM vacunas
+     WHERE estado <> 'no_aplica'
+       AND estado <> CASE
+         WHEN fecha_proxima IS NULL THEN 'al_dia'
+         WHEN fecha_proxima < ? THEN 'vencido'
+         WHEN fecha_proxima <= ? + INTERVAL ? DAY THEN 'proximo'
+         ELSE 'al_dia'
+       END
+     ORDER BY id_mascota`,
+    [hoy, hoy, diasAviso]
+  );
+  return rows.map((row) => row.id_mascota);
+};
+
+/** Borra las marcas de los recordatorios por hitos de la vacuna (cambió su fecha_proxima). */
+export const reiniciarHitos = async (id_vacuna, conn) => {
+  await conn.query("DELETE FROM recordatorios WHERE id_vacuna = ? AND hito IS NOT NULL", [id_vacuna]);
 };
 
 /** Registro de historial de ese negocio y esa mascota (para ligar la vacuna). */

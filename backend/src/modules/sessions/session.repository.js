@@ -35,8 +35,10 @@ export const findActiveByTokenHash = async (token_hash) => {
   return rows[0];
 };
 
+/** Cierra la sesión (logout) y desactiva el dispositivo registrado en ella: no más push. */
 export const deactivate = async (id_sesion) => {
   await pool.query("UPDATE sesiones SET activa = FALSE WHERE id_sesion = ?", [id_sesion]);
+  await pool.query("UPDATE dispositivos SET activo = FALSE WHERE id_sesion = ? AND activo = TRUE", [id_sesion]);
 };
 
 /**
@@ -78,11 +80,29 @@ export const rotate = async (
   );
 };
 
-/** Cierra todas las sesiones activas del usuario salvo `exceptoIdSesion` (si se pasa). */
+/**
+ * Cierra todas las sesiones activas del usuario salvo `exceptoIdSesion` (si se pasa) y
+ * desactiva los dispositivos de esas sesiones (p. ej. un teléfono robado tras cambiar la contraseña).
+ */
 export const deactivateByUsuario = async (id_usuario, { exceptoIdSesion = null } = {}, conn) => {
   await (conn ?? pool).query(
     `UPDATE sesiones SET activa = FALSE
      WHERE id_usuario = ? AND activa = TRUE AND (? IS NULL OR id_sesion <> ?)`,
     [id_usuario, exceptoIdSesion, exceptoIdSesion]
   );
+  await (conn ?? pool).query(
+    `UPDATE dispositivos SET activo = FALSE
+     WHERE id_usuario = ? AND activo = TRUE AND (? IS NULL OR id_sesion IS NULL OR id_sesion <> ?)`,
+    [id_usuario, exceptoIdSesion, exceptoIdSesion]
+  );
+};
+
+/**
+ * Borra hasta `limite` sesiones que vencieron antes de `antesDe` (activas o cerradas: una
+ * cerrada también tiene su vencimiento). El id_sesion de sus dispositivos queda en NULL
+ * (ON DELETE SET NULL) y el dispositivo sigue activo. Devuelve cuántas borró.
+ */
+export const deleteVencidasAntesDe = async (antesDe, limite) => {
+  const [result] = await pool.query("DELETE FROM sesiones WHERE expira_en < ? ORDER BY id_sesion LIMIT ?", [antesDe, limite]);
+  return result.affectedRows;
 };

@@ -12,6 +12,8 @@ import { castFields } from "../../shared/utils/format.js";
 import { sendMail } from "../../shared/utils/mailer.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
+import { quitarImagen, reemplazarImagen } from "../archivos/archivo.service.js";
+import { desconectarSesionesDeUsuario } from "../../realtime/socket.js";
 import { isTest } from "../../config/env.js";
 
 export const MAX_INTENTOS_LOGIN = 5;
@@ -186,6 +188,27 @@ export const updateMe = async (id_usuario, data) => {
   return perfilPropio(await usuarioRepo.findById(id_usuario));
 };
 
+// ---------- Foto de perfil ----------
+
+const fotoDelUsuario = (id_usuario) => ({
+  entidad: "usuario_foto",
+  id_entidad: id_usuario,
+  id_usuario,
+  bloquear: async (conn) => (await usuarioRepo.lockFoto(id_usuario, conn)).foto_url,
+  guardarUrl: (conn, url) => usuarioRepo.setFoto(id_usuario, url, conn),
+});
+
+/** Sube o reemplaza la foto de perfil; la anterior se borra. */
+export const subirFoto = async (id_usuario, archivo) => {
+  await reemplazarImagen({ ...fotoDelUsuario(id_usuario), archivo });
+  return perfilPropio(await usuarioRepo.findById(id_usuario));
+};
+
+export const eliminarFoto = async (id_usuario) => {
+  await quitarImagen({ ...fotoDelUsuario(id_usuario), sinImagen: "No tienes foto de perfil" });
+  return perfilPropio(await usuarioRepo.findById(id_usuario));
+};
+
 // ---------- Contraseña ----------
 
 /**
@@ -209,6 +232,8 @@ export const changePassword = async (id_usuario, id_sesion, { password_actual, p
     await usuarioRepo.updatePassword(id_usuario, password_hash, conn);
     await sessionRepo.deactivateByUsuario(id_usuario, { exceptoIdSesion: id_sesion }, conn);
   });
+  // Las demás sesiones ya no valen: sus sockets tampoco deben seguir recibiendo notificaciones.
+  await desconectarSesionesDeUsuario(id_usuario, { exceptoIdSesion: id_sesion });
 };
 
 /**
@@ -241,7 +266,7 @@ export const forgotPassword = async ({ email }) => {
  */
 export const resetPassword = async ({ token, password }) => {
   const password_hash = await hashPassword(password);
-  await withTransaction(async (conn) => {
+  const id_usuario = await withTransaction(async (conn) => {
     const usuario = await usuarioRepo.findByTokenHash("recuperacion", hashToken(token), { conn, forUpdate: true });
     if (!usuario) {
       throw ApiError.badRequest("El enlace para restablecer la contraseña no es válido o ya venció. Solicita uno nuevo");
@@ -251,7 +276,9 @@ export const resetPassword = async ({ token, password }) => {
     await usuarioRepo.updatePassword(usuario.id_usuario, password_hash, conn);
     await usuarioRepo.markEmailVerificado(usuario.id_usuario, conn);
     await sessionRepo.deactivateByUsuario(usuario.id_usuario, {}, conn);
+    return usuario.id_usuario;
   });
+  await desconectarSesionesDeUsuario(id_usuario);
 };
 
 // ---------- Clientes registrados por un negocio ----------
@@ -273,7 +300,7 @@ export const emitirEnlaceBienvenida = async (id_usuario, conn) => {
 export const enviarBienvenida = async ({ token, email, nombre, negocio }) => {
   const [politicaUrl, soporte] = await Promise.all([
     configuracionRepo.getValor("politica_datos_url", ""),
-    configuracionRepo.getValor("contacto_soporte", "soporte@petcat.com.co"),
+    configuracionRepo.getValor("soporte_email", ""),
   ]);
   enviarSinEsperar(
     correoBienvenida({ token, email, nombre, negocio, minutos: MINUTOS_BIENVENIDA, politicaUrl, soporte }),

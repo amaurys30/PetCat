@@ -9,6 +9,16 @@ export const findById = async (id_usuario, conn) => {
   return rows[0];
 };
 
+/** Bloquea la fila del usuario (FOR UPDATE por clave primaria) y devuelve su foto actual. */
+export const lockFoto = async (id_usuario, conn) => {
+  const [rows] = await conn.query("SELECT id_usuario, foto_url FROM usuarios WHERE id_usuario = ? FOR UPDATE", [id_usuario]);
+  return rows[0];
+};
+
+export const setFoto = async (id_usuario, foto_url, conn) => {
+  await (conn ?? pool).query("UPDATE usuarios SET foto_url = ? WHERE id_usuario = ?", [foto_url, id_usuario]);
+};
+
 export const findByEmail = async (email, conn) => {
   const [rows] = await (conn ?? pool).query("SELECT * FROM usuarios WHERE email = ?", [email]);
   return rows[0];
@@ -172,4 +182,17 @@ export const updatePerfil = async (id_usuario, data, conn) => {
      WHERE id_usuario = ?`,
     [...("telefono" in campos ? [campos.telefono] : []), ...Object.values(campos), id_usuario]
   );
+};
+
+/** Quita los tokens de verificación y de recuperación ya vencidos (el enlace da 400 igual). */
+export const limpiarTokensVencidos = async (ahora) => {
+  const [verificacion] = await pool.query(
+    "UPDATE usuarios SET token_verificacion = NULL, token_verificacion_expira = NULL WHERE token_verificacion_expira < ?",
+    [ahora]
+  );
+  const [recuperacion] = await pool.query(
+    "UPDATE usuarios SET token_recuperacion = NULL, token_recuperacion_expira = NULL WHERE token_recuperacion_expira < ?",
+    [ahora]
+  );
+  return verificacion.affectedRows + recuperacion.affectedRows;
 };

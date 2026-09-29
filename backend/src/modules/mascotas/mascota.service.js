@@ -3,6 +3,8 @@ import { withTransaction } from "../../shared/utils/transaction.js";
 import { castFields } from "../../shared/utils/format.js";
 import { hoyISO } from "../../shared/utils/fechas.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
+import { conMiniaturas } from "../../shared/utils/storage.js";
+import { quitarImagen, reemplazarImagen } from "../archivos/archivo.service.js";
 
 export const formatMascota = (mascota) => {
   if (!mascota) return mascota;
@@ -11,7 +13,7 @@ export const formatMascota = (mascota) => {
     bools: ["esterilizado", "tiene_alergias", "fallecido", "compartir_historial"],
     numbers: ["peso", "edad_meses"],
   });
-  return datos;
+  return conMiniaturas(datos);
 };
 
 /**
@@ -29,6 +31,30 @@ const conflictoCitasFuturas = async (id_mascota, conn, accion) => {
   if ((await mascotaRepo.countCitasFuturasActivas(id_mascota, conn)) > 0) {
     throw ApiError.conflict(`La mascota tiene citas pendientes o confirmadas: cancélalas antes de ${accion}`);
   }
+};
+
+/**
+ * Foto de la mascota: solo el dueño. Se comprueba antes de subir (sin tocar Cloudinary
+ * si no es suya) y otra vez dentro de la transacción, con la mascota bloqueada.
+ * Una mascota fallecida conserva y puede cambiar su foto.
+ */
+const fotoDeMascota = (id_usuario, id_mascota) => ({
+  entidad: "mascota_foto",
+  id_entidad: id_mascota,
+  id_usuario,
+  bloquear: async (conn) => (await findPropia(id_usuario, id_mascota, { conn, forUpdate: true })).foto_url,
+  guardarUrl: (conn, url) => mascotaRepo.setFoto(id_mascota, url, conn),
+});
+
+export const subirFoto = async (id_usuario, id_mascota, archivo) => {
+  await findPropia(id_usuario, id_mascota);
+  await reemplazarImagen({ ...fotoDeMascota(id_usuario, id_mascota), archivo });
+  return getMascota(id_usuario, id_mascota);
+};
+
+export const eliminarFoto = async (id_usuario, id_mascota) => {
+  await quitarImagen({ ...fotoDeMascota(id_usuario, id_mascota), sinImagen: "La mascota no tiene foto" });
+  return getMascota(id_usuario, id_mascota);
 };
 
 export const getMisMascotas = async (id_usuario) =>

@@ -1,3 +1,5 @@
+import { conMiniaturas } from "./storage.js";
+
 // Columnas de `usuarios` que nunca salen de la API.
 const USUARIO_PRIVATE_FIELDS = [
   "password_hash",
@@ -32,7 +34,7 @@ const USUARIO_PUBLIC_FIELDS = [
 
 /**
  * Perfil del usuario con una lista blanca de campos. Los booleanos de MySQL
- * (0/1) se devuelven como true/false.
+ * (0/1) se devuelven como true/false; la foto trae su miniatura.
  */
 export const usuarioPublico = (usuario) => {
   if (!usuario) return null;
@@ -41,5 +43,5 @@ export const usuarioPublico = (usuario) => {
     if (field in usuario) result[field] = usuario[field];
   }
   if ("email_verificado" in result) result.email_verificado = Boolean(result.email_verificado);
-  return result;
+  return conMiniaturas(result);
 };

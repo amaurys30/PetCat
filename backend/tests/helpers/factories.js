@@ -49,9 +49,11 @@ export const crearUsuario = async (overrides = {}) => {
 export const crearAdmin = (overrides = {}) => crearUsuario({ tipo_usuario: "admin", ...overrides });
 
 /**
- * Negocio con suscripción al plan Gratuito. Si no se pasa propietario, se crea uno.
+ * Negocio con suscripción activa sin vencimiento al plan `plan` (por defecto Gratuito,
+ * con sus límites: 1 sucursal, 3 empleados, 30 citas al mes). Si no se pasa
+ * propietario, se crea uno.
  */
-export const crearNegocio = async (propietario, overrides = {}) => {
+export const crearNegocio = async (propietario, { plan = "Gratuito", ...overrides } = {}) => {
   const owner = propietario ?? (await crearUsuario({ tipo_usuario: "negocio" }));
   const id = await insert("negocios", {
     id_usuario_propietario: owner.id_usuario,
@@ -61,8 +63,8 @@ export const crearNegocio = async (propietario, overrides = {}) => {
   });
   await pool.query(
     `INSERT INTO suscripciones (id_negocio, id_plan, estado, fecha_inicio, fecha_fin)
-     VALUES (?, (SELECT id_plan FROM planes_suscripcion WHERE nombre = 'Gratuito'), 'activa', CURDATE(), '9999-12-31')`,
-    [id]
+     VALUES (?, (SELECT id_plan FROM planes_suscripcion WHERE nombre = ?), 'activa', CURDATE(), '9999-12-31')`,
+    [id, plan]
   );
   return { ...(await findOne("negocios", "id_negocio", id)), propietario: owner };
 };
@@ -228,6 +230,28 @@ export const crearResena = async (negocio, overrides = {}) => {
     ...overrides,
   });
   return findOne("resenas", "id_resena", id);
+};
+
+/**
+ * Horario de silencio de las notificaciones ("HH:MM"). Los tests que esperan envíos
+ * inmediatos lo desactivan (inicio = fin) para no depender de la hora a la que corren.
+ */
+export const configurarSilencio = async (inicio, fin) => {
+  await pool.query("UPDATE configuracion_global SET valor = ? WHERE clave = 'silencio_inicio'", [inicio]);
+  await pool.query("UPDATE configuracion_global SET valor = ? WHERE clave = 'silencio_fin'", [fin]);
+};
+
+export const sinSilencio = () => configurarSilencio("00:00", "00:00");
+
+/** Dispositivo activo del usuario con un token de Expo único (sin sesión). */
+export const crearDispositivo = async (usuario, overrides = {}) => {
+  const id = await insert("dispositivos", {
+    id_usuario: usuario.id_usuario,
+    token_expo: `ExponentPushToken[${unique()}${unique()}]`,
+    plataforma: "android",
+    ...overrides,
+  });
+  return findOne("dispositivos", "id_dispositivo", id);
 };
 
 /**

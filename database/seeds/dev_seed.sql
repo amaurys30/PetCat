@@ -15,6 +15,7 @@
 --    camilo@petcat.test          Dueño de Rocky (no comparte historial) y Mía
 --    valeria@petcat.test         Dueña de Copito y Nala (fallecida)
 --    jorge@petcat.test           Cliente sin app registrado desde el panel (Toby)
+--    andrea@, luis@, marta@petcat.test  Clientes sin app de la guardería (Fase 2)
 --  El detalle de lo que hay en cada negocio está en backend/README.md (Seed de desarrollo).
 --  Empleado sin cuenta:
 --    recepcionista@petcat.test   Rol Recepcionista, con invitación pendiente.
@@ -452,6 +453,9 @@ VALUES (@c_original, @u_valeria, 'estado', 'confirmada', 'reprogramada', CONCAT(
 UPDATE negocios n
 SET total_citas = (SELECT COUNT(*) FROM citas c WHERE c.id_negocio = n.id_negocio AND c.estado = 'completada');
 
+-- Se completaron al terminar su horario (plazo para reseñar, migración 018).
+UPDATE citas SET fecha_completada = TIMESTAMP(fecha, hora_fin) WHERE estado = 'completada';
+
 -- ---------------------------------------------------------------------------
 -- Historial médico (con notas internas de cada negocio)
 -- ---------------------------------------------------------------------------
@@ -514,3 +518,215 @@ JOIN (
   UNION ALL SELECT @n_salud, @m_rocky, CURDATE() - INTERVAL 45 DAY, 5, 5, 'Nos salvaron la noche', 'Atención rápida en urgencias.'
 ) r ON r.id_negocio = c.id_negocio AND r.id_mascota = c.id_mascota AND r.fecha = c.fecha
 WHERE c.estado = 'completada';
+
+-- ═══════════════════════════════════════════════════════════════════════════
+--  Fase 2: dashboard, límites del plan, confirmación automática, reseñas,
+--  notificaciones, dispositivos y notas de clientes
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- ---------------------------------------------------------------------------
+-- Salud Animal (Pro en prueba, con estadísticas avanzadas): citas completadas
+-- repartidas en los últimos 90 días para la tendencia y la comparación del dashboard
+-- ---------------------------------------------------------------------------
+INSERT INTO citas (id_negocio, id_sucursal, id_usuario, id_mascota, id_servicio, id_empleado, fecha, hora_inicio, hora_fin,
+                   estado, precio_estimado, precio_final, origen) VALUES
+(@n_salud, @s_norte, @u_camilo,  @m_rocky,  @sv_consulta_esp, @e_vale,    CURDATE() - INTERVAL 84 DAY, '09:00:00', '09:45:00', 'completada',  90000,  90000, 'app_movil'),
+(@n_salud, @s_norte, @u_camilo,  @m_mia,    @sv_consulta_esp, @e_ricardo, CURDATE() - INTERVAL 77 DAY, '16:00:00', '16:45:00', 'completada',  90000,  90000, 'app_movil'),
+(@n_salud, @s_sur,   @u_valeria, @m_copito, @sv_despara,      @e_ricardo, CURDATE() - INTERVAL 70 DAY, '15:00:00', '15:15:00', 'completada',  35000,  35000, 'app_movil'),
+(@n_salud, @s_norte, @u_jorge,   @m_toby,   @sv_eco,          @e_vale,    CURDATE() - INTERVAL 63 DAY, '10:00:00', '10:30:00', 'completada', 110000, 110000, 'telefono'),
+(@n_salud, @s_norte, @u_camilo,  @m_rocky,  @sv_eco,          @e_vale,    CURDATE() - INTERVAL 56 DAY, '11:00:00', '11:30:00', 'completada', 110000, 110000, 'app_movil'),
+(@n_salud, @s_norte, @u_camilo,  @m_mia,    @sv_despara,      @e_ricardo, CURDATE() - INTERVAL 49 DAY, '17:00:00', '17:15:00', 'completada',  35000,  35000, 'app_movil'),
+(@n_salud, @s_norte, @u_valeria, @m_copito, @sv_consulta_esp, @e_ricardo, CURDATE() - INTERVAL 38 DAY, '10:00:00', '10:45:00', 'completada',  90000,  95000, 'app_movil'),
+(@n_salud, @s_norte, @u_jorge,   @m_toby,   @sv_consulta_esp, @e_ricardo, CURDATE() - INTERVAL 31 DAY, '08:00:00', '08:45:00', 'completada',  90000,  90000, 'presencial'),
+(@n_salud, @s_norte, @u_camilo,  @m_rocky,  @sv_consulta_esp, @e_vale,    CURDATE() - INTERVAL 24 DAY, '09:00:00', '09:45:00', 'completada',  90000,  90000, 'app_movil'),
+(@n_salud, @s_norte, @u_jorge,   @m_toby,   @sv_consulta_esp, @e_ricardo, CURDATE() - INTERVAL 20 DAY, '08:00:00', '08:45:00', 'completada',  90000,  90000, 'presencial'),
+(@n_salud, @s_norte, @u_camilo,  @m_mia,    @sv_eco,          @e_vale,    CURDATE() - INTERVAL 17 DAY, '11:00:00', '11:30:00', 'completada', 110000, 110000, 'app_movil'),
+(@n_salud, @s_sur,   @u_valeria, @m_copito, @sv_despara,      @e_ricardo, CURDATE() - INTERVAL 9 DAY,  '15:00:00', '15:15:00', 'completada',  35000,  35000, 'app_movil'),
+(@n_salud, @s_norte, @u_camilo,  @m_rocky,  @sv_urgencias,    @e_vale,    CURDATE() - INTERVAL 3 DAY,  '19:00:00', '20:00:00', 'completada', 120000, 150000, 'telefono'),
+-- Completada hoy a las 07:45: su invitación a reseñar sale a las 10:45 (más abajo).
+(@n_salud, @s_norte, @u_camilo,  @m_mia,    @sv_consulta_esp, @e_vale,    CURDATE(),                   '07:00:00', '07:45:00', 'completada',  90000,  90000, 'app_movil');
+
+-- ---------------------------------------------------------------------------
+-- Patitas (Gratuito, sin confirmación automática): dos citas que se cancelaron
+-- solas porque nadie las confirmó. No cuentan contra los clientes; el dashboard
+-- sugiere activar la confirmación automática.
+-- ---------------------------------------------------------------------------
+INSERT INTO citas (id_negocio, id_sucursal, id_usuario, id_mascota, id_servicio, id_empleado, fecha, hora_inicio, hora_fin,
+                   estado, precio_estimado, origen, motivo_cancelacion, cancelada_por, fecha_cancelacion, cancelacion_tardia,
+                   confirmar_antes_de) VALUES
+(@id_negocio, @id_sucursal, @u_camilo,   @m_rocky, @sv_consulta, @id_veterinario, CURDATE() - INTERVAL 12 DAY, '15:00:00', '15:30:00',
+ 'cancelada', 60000, 'app_movil', 'El negocio no confirmó la cita a tiempo', 'sistema',
+ CONCAT(CURDATE() - INTERVAL 13 DAY, ' 15:00:00'), FALSE, CONCAT(CURDATE() - INTERVAL 13 DAY, ' 15:00:00')),
+(@id_negocio, @id_sucursal, @id_cliente, @m_luna,  @sv_consulta, @id_veterinario, CURDATE() - INTERVAL 26 DAY, '09:00:00', '09:30:00',
+ 'cancelada', 60000, 'app_movil', 'El negocio no confirmó la cita a tiempo', 'sistema',
+ CONCAT(CURDATE() - INTERVAL 27 DAY, ' 09:00:00'), FALSE, CONCAT(CURDATE() - INTERVAL 27 DAY, ' 09:00:00'));
+-- El historial de la cancelación automática va sin usuario ni empleado (realizado_por: sistema).
+INSERT INTO historial_citas (id_cita, campo_modificado, valor_anterior, valor_nuevo, motivo, fecha_cambio)
+SELECT id_cita, 'estado', 'pendiente', 'cancelada', motivo_cancelacion, fecha_cancelacion
+FROM citas WHERE id_negocio = @id_negocio AND cancelada_por = 'sistema';
+
+-- ---------------------------------------------------------------------------
+-- Guardería Patas Felices (Gratuito) cerca de sus límites: 3 de 3 empleados y unas
+-- 25 de 30 citas del mes, con el aviso del 80 %. Sus clientes nuevos no tienen app:
+-- los registró la guardería desde el panel.
+-- ---------------------------------------------------------------------------
+INSERT INTO empleados (id_negocio, id_rol, nombre, apellido, email, telefono, especialidad, fecha_vinculacion) VALUES
+(@n_guarderia, (SELECT id_rol FROM roles WHERE nombre = 'Recepcionista' AND es_sistema = TRUE),
+ 'Sara', 'Gil', 'sara@patasfelices.test', '3005550233', 'Recepción', CURDATE() - INTERVAL 3 MONTH),
+(@n_guarderia, (SELECT id_rol FROM roles WHERE nombre = 'Recepcionista' AND es_sistema = TRUE),
+ 'Tomás', 'León', 'tomas@patasfelices.test', '3005550244', 'Paseos', CURDATE() - INTERVAL 1 MONTH);
+
+INSERT INTO usuarios (nombre, apellido, email, password_hash, telefono, tipo_usuario, email_verificado) VALUES
+('Andrea', 'Paz',    'andrea@petcat.test', @password_hash, '3008880101', 'cliente', FALSE),
+('Luis',   'Ortega', 'luis@petcat.test',   @password_hash, '3008880202', 'cliente', FALSE),
+('Marta',  'Díaz',   'marta@petcat.test',  @password_hash, '3008880303', 'cliente', FALSE);
+SET @u_andrea = (SELECT id_usuario FROM usuarios WHERE email = 'andrea@petcat.test');
+SET @u_luis   = (SELECT id_usuario FROM usuarios WHERE email = 'luis@petcat.test');
+SET @u_marta  = (SELECT id_usuario FROM usuarios WHERE email = 'marta@petcat.test');
+INSERT INTO autorizaciones_datos (id_usuario, canal, id_negocio, id_usuario_registro, version_politica)
+SELECT id_usuario, 'panel', @n_guarderia, @u_guarderia, @version FROM usuarios
+WHERE email IN ('andrea@petcat.test', 'luis@petcat.test', 'marta@petcat.test');
+
+INSERT INTO mascotas (id_usuario, nombre, especie, raza, sexo, fecha_nacimiento, peso) VALUES
+(@u_andrea, 'Bruno', 'perro', 'Golden retriever', 'macho',  '2022-01-10', 30.00),
+(@u_andrea, 'Kira',  'perro', 'Pinscher',         'hembra', '2023-04-22',  4.50),
+(@u_luis,   'Simón', 'perro', 'Border collie',    'macho',  '2021-09-05', 19.00),
+(@u_luis,   'Lola',  'perro', 'Criolla',          'hembra', '2020-12-12', 11.00),
+(@u_marta,  'Coco',  'perro', 'Poodle',           'macho',  '2019-06-30',  7.00);
+
+-- Cinco perros en cinco días hábiles del mes en curso (días 2, 6, 10, 14 y 18, o el lunes
+-- siguiente si caen en fin de semana): completadas las pasadas, confirmadas las demás.
+INSERT INTO citas (id_negocio, id_sucursal, id_usuario, id_mascota, id_servicio, id_empleado, fecha, hora_inicio, hora_fin,
+                   estado, precio_estimado, precio_final, origen)
+SELECT @n_guarderia, @s_guarderia, m.id_usuario, m.id_mascota, @sv_guarderia_dia, @e_diego, d.fecha, '07:00:00', '17:00:00',
+       IF(d.fecha < CURDATE(), 'completada', 'confirmada'), 35000, IF(d.fecha < CURDATE(), 35000, NULL), 'presencial'
+FROM (
+  SELECT b.base + INTERVAL (CASE DAYOFWEEK(b.base) WHEN 7 THEN 2 WHEN 1 THEN 1 ELSE 0 END) DAY AS fecha
+  FROM (
+    SELECT CAST(DATE_FORMAT(CURDATE(), '%Y-%m-01') AS DATE) + INTERVAL (k.k - 1) DAY AS base
+    FROM (SELECT 2 AS k UNION SELECT 6 UNION SELECT 10 UNION SELECT 14 UNION SELECT 18) k
+  ) b
+) d
+CROSS JOIN mascotas m
+WHERE m.id_usuario IN (@u_andrea, @u_luis, @u_marta);
+
+-- ---------------------------------------------------------------------------
+-- Fechas de completada, contador de citas e invitación a reseñar pendiente
+-- ---------------------------------------------------------------------------
+UPDATE citas SET fecha_completada = TIMESTAMP(fecha, hora_fin) WHERE estado = 'completada' AND fecha_completada IS NULL;
+UPDATE negocios n
+SET total_citas = (SELECT COUNT(*) FROM citas c WHERE c.id_negocio = n.id_negocio AND c.estado = 'completada');
+
+-- La consulta de Mía de hoy (07:45) invita a reseñar 3 horas después. Si el seed se carga
+-- después de las 10:45, el job la envía en su siguiente corrida.
+INSERT INTO recordatorios (id_usuario, id_mascota, id_cita, tipo, titulo, mensaje, canal, fecha_programada)
+SELECT id_usuario, id_mascota, id_cita, 'resena_invitacion', 'Invitación a reseñar', 'Invitación a reseñar la cita completada',
+       'push', TIMESTAMP(CURDATE(), '10:45:00')
+FROM citas WHERE id_negocio = @n_salud AND id_mascota = @m_mia AND fecha = CURDATE() AND estado = 'completada';
+
+-- ---------------------------------------------------------------------------
+-- Reseñas: fechas realistas, respuesta, una editada después de la respuesta, una
+-- reportada (sigue visible) y una de un cliente registrado por el negocio
+-- ---------------------------------------------------------------------------
+UPDATE resenas r JOIN citas c ON c.id_cita = r.id_cita
+SET r.fecha_creacion = TIMESTAMP(c.fecha + INTERVAL 1 DAY, '18:30:00');
+
+-- Patitas respondió la reseña de Sofía.
+UPDATE resenas r JOIN citas c ON c.id_cita = r.id_cita
+SET r.respuesta_negocio = '¡Gracias, Sofía! Max es un paciente muy juicioso. Lo esperamos en su próximo control.',
+    r.fecha_respuesta = r.fecha_creacion + INTERVAL 1 DAY
+WHERE r.id_negocio = @id_negocio AND c.id_mascota = @m_max;
+
+-- Huellitas respondió a Camilo y él editó su reseña después (bajó a 3 estrellas).
+UPDATE resenas r JOIN citas c ON c.id_cita = r.id_cita
+SET r.respuesta_negocio = 'Gracias por venir, Camilo. Ese día tuvimos mucha demanda; ya reforzamos el equipo.',
+    r.fecha_respuesta = r.fecha_creacion + INTERVAL 1 DAY
+WHERE r.id_negocio = @n_huellitas AND c.id_mascota = @m_rocky;
+UPDATE resenas r JOIN citas c ON c.id_cita = r.id_cita
+SET r.calificacion = 3, r.comentario = 'Rocky quedó limpio, pero tardaron más de una hora en entregarlo.',
+    r.fecha_edicion = r.fecha_respuesta + INTERVAL 1 DAY
+WHERE r.id_negocio = @n_huellitas AND c.id_mascota = @m_rocky;
+
+-- Valeria critica a Salud Animal y el negocio la reportó: sigue visible hasta que la revise PetCat.
+INSERT INTO resenas (id_negocio, id_usuario, id_cita, calificacion, titulo, comentario, calif_precio,
+                     reportada, motivo_reporte, detalle_reporte, fecha_reporte, id_usuario_reporta, fecha_creacion)
+SELECT @n_salud, @u_valeria, c.id_cita, 2, 'Caro para lo que es', 'Me cobraron la desparasitación sin la oferta.', 1,
+       TRUE, 'otro', 'La oferta había vencido y el precio fue el publicado.', TIMESTAMP(c.fecha + INTERVAL 3 DAY, '09:00:00'), @u_salud,
+       TIMESTAMP(c.fecha + INTERVAL 1 DAY, '20:00:00')
+FROM citas c WHERE c.id_negocio = @n_salud AND c.id_mascota = @m_copito AND c.fecha = CURDATE() - INTERVAL 90 DAY;
+
+-- Jorge (registrado desde el panel de Salud Animal) reseña su consulta: la señal para la
+-- moderación queda en TRUE (solo la ve el super admin).
+INSERT INTO resenas (id_negocio, id_usuario, id_cita, calificacion, titulo, comentario, calif_atencion,
+                     cliente_registrado_por_negocio, fecha_creacion)
+SELECT @n_salud, @u_jorge, c.id_cita, 5, 'Muy profesionales', 'Toby ya camina bien.', 5,
+       EXISTS (SELECT 1 FROM autorizaciones_datos a WHERE a.id_usuario = @u_jorge AND a.id_negocio = @n_salud AND a.canal = 'panel'),
+       TIMESTAMP(c.fecha + INTERVAL 1 DAY, '12:00:00')
+FROM citas c WHERE c.id_negocio = @n_salud AND c.id_mascota = @m_toby AND c.fecha = CURDATE() - INTERVAL 20 DAY;
+
+-- ---------------------------------------------------------------------------
+-- Notas de los negocios sobre sus clientes (solo las ve cada negocio)
+-- ---------------------------------------------------------------------------
+INSERT INTO notas_cliente (id_negocio, id_usuario, id_usuario_autor, texto, fecha_creacion) VALUES
+(@n_salud,     @u_jorge,  @u_salud,     'Prefiere que lo llamen en la tarde; en la mañana no contesta.', NOW() - INTERVAL 12 DAY),
+(@n_salud,     @u_camilo, @u_vale,      'Rocky se pone nervioso en la sala de espera: hacerlo pasar directo al consultorio.', NOW() - INTERVAL 24 DAY),
+(@n_guarderia, @u_andrea, @u_guarderia, 'Kira no se lleva con perros grandes: separarla de Bruno en el patio.', NOW() - INTERVAL 5 DAY);
+
+-- ---------------------------------------------------------------------------
+-- Dispositivos de ejemplo (tokens inventados: si el servidor intenta una push real,
+-- Expo responde DeviceNotRegistered y el dispositivo queda desactivado)
+-- ---------------------------------------------------------------------------
+INSERT INTO dispositivos (id_usuario, token_expo, plataforma, nombre) VALUES
+(@id_cliente, 'ExponentPushToken[seedSofiaAndroid00001]', 'android', 'Samsung Galaxy A54'),
+(@u_camilo,   'ExponentPushToken[seedCamiloIphone000001]', 'ios',     'iPhone 13');
+
+-- ---------------------------------------------------------------------------
+-- Notificaciones en la app, leídas y sin leer (datos_extra_json.enlace es el deep link)
+-- ---------------------------------------------------------------------------
+INSERT INTO notificaciones (id_usuario, id_negocio, tipo, titulo, mensaje, datos_extra_json, canal, estado, leida_en, fecha_creacion)
+SELECT @id_cliente, @id_negocio, 'cita_confirmada', 'Cita confirmada',
+       CONCAT('Clínica Veterinaria Patitas confirmó la cita de Max (Vacuna antirrábica) del ', DATE_FORMAT(c.fecha, '%d/%m/%Y'), ' a las 9:00 a. m.'),
+       JSON_OBJECT('enlace', JSON_OBJECT('tipo', 'cita_confirmada', 'id_cita', c.id_cita, 'id_negocio', @id_negocio)),
+       'in_app', 'leida', NOW() - INTERVAL 1 DAY, NOW() - INTERVAL 2 DAY
+FROM citas c WHERE c.id_negocio = @id_negocio AND c.id_mascota = @m_max AND c.estado = 'confirmada';
+
+INSERT INTO notificaciones (id_usuario, id_negocio, tipo, titulo, mensaje, datos_extra_json, canal, estado, fecha_creacion)
+SELECT @id_cliente, NULL, 'vacuna_proxima', 'Vacuna próxima',
+       'La vacuna Parvovirus de Max vence pronto. Agenda la aplicación con tu veterinaria.',
+       JSON_OBJECT('enlace', JSON_OBJECT('tipo', 'vacuna_proxima', 'id_mascota', @m_max, 'id_vacuna', v.id_vacuna)),
+       'in_app', 'enviada', NOW() - INTERVAL 3 HOUR
+FROM vacunas v WHERE v.id_mascota = @m_max AND v.nombre_vacuna = 'Parvovirus';
+
+INSERT INTO notificaciones (id_usuario, id_negocio, tipo, titulo, mensaje, datos_extra_json, canal, estado, fecha_creacion)
+SELECT @id_propietario, @id_negocio, 'cita_nueva', 'Nueva cita por confirmar',
+       'Sofía Gómez reservó Consulta general para Luna. Queda pendiente hasta que la confirmes.',
+       JSON_OBJECT('enlace', JSON_OBJECT('tipo', 'cita_nueva', 'id_cita', c.id_cita, 'id_negocio', @id_negocio)),
+       'in_app', 'enviada', NOW() - INTERVAL 5 HOUR
+FROM citas c WHERE c.id_negocio = @id_negocio AND c.id_mascota = @m_luna AND c.estado = 'pendiente';
+
+INSERT INTO notificaciones (id_usuario, id_negocio, tipo, titulo, mensaje, datos_extra_json, canal, estado, leida_en, fecha_creacion)
+SELECT @id_propietario, @id_negocio, 'cita_no_confirmada', 'Cita cancelada sin confirmar',
+       'Una cita se canceló porque nadie la confirmó a tiempo. Con la confirmación automática, las citas de la app quedan confirmadas al reservar.',
+       JSON_OBJECT('enlace', JSON_OBJECT('tipo', 'cita_no_confirmada', 'id_cita', c.id_cita, 'id_negocio', @id_negocio)),
+       'in_app', 'leida', c.fecha_cancelacion + INTERVAL 2 HOUR, c.fecha_cancelacion
+FROM citas c WHERE c.id_negocio = @id_negocio AND c.cancelada_por = 'sistema';
+
+INSERT INTO notificaciones (id_usuario, id_negocio, tipo, titulo, mensaje, datos_extra_json, canal, estado, fecha_creacion)
+VALUES (@u_guarderia, @n_guarderia, 'plan_limite_80', 'Te quedan pocas citas este mes',
+        'Tu negocio lleva 24 de las 30 citas del mes que permite el plan Gratuito. Al llegar al límite, la app deja de mostrar horarios.',
+        JSON_OBJECT('enlace', JSON_OBJECT('tipo', 'plan_limite_80', 'id_negocio', @n_guarderia, 'mes', DATE_FORMAT(CURDATE(), '%Y-%m'))),
+        'in_app', 'enviada', NOW() - INTERVAL 1 DAY);
+
+INSERT INTO notificaciones (id_usuario, id_negocio, tipo, titulo, mensaje, datos_extra_json, canal, estado, leida_en, fecha_creacion)
+SELECT @u_huellitas, @n_huellitas, 'resena_nueva', 'Nueva reseña',
+       'Camilo Torres calificó con 4 estrellas Baño básico. "Muy buen baño" Puedes responderla desde el panel.',
+       JSON_OBJECT('enlace', JSON_OBJECT('tipo', 'resena_nueva', 'id_cita', r.id_cita, 'id_negocio', @n_huellitas, 'id_resena', r.id_resena)),
+       'in_app', 'leida', r.fecha_creacion + INTERVAL 1 HOUR, r.fecha_creacion
+FROM resenas r WHERE r.id_negocio = @n_huellitas;
+
+INSERT INTO notificaciones (id_usuario, id_negocio, tipo, titulo, mensaje, datos_extra_json, canal, estado, fecha_creacion)
+SELECT @u_camilo, @n_huellitas, 'resena_respondida', 'Respondieron tu reseña',
+       'Peluquería Canina Huellitas respondió tu reseña de Baño básico. Ábrela para leer la respuesta.',
+       JSON_OBJECT('enlace', JSON_OBJECT('tipo', 'resena_respondida', 'id_cita', r.id_cita, 'id_negocio', @n_huellitas, 'id_resena', r.id_resena)),
+       'in_app', 'enviada', r.fecha_respuesta
+FROM resenas r WHERE r.id_negocio = @n_huellitas;

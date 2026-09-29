@@ -4,6 +4,8 @@ import { createNegocioBody, idNegocioParams, updateNegocioBody } from "./negocio
 import { authMiddleware } from "../../shared/middlewares/auth.middleware.js";
 import { authorize } from "../../shared/middlewares/authorize.middleware.js";
 import { validate } from "../../shared/middlewares/validate.js";
+import { uploadLimiter } from "../../shared/middlewares/rateLimit.js";
+import { recibirArchivos } from "../../shared/utils/uploads.js";
 
 const router = express.Router();
 
@@ -17,6 +19,7 @@ const router = express.Router();
  *       description: >
  *         Campos opcionales con `null` se vacían. `latitud` y `longitud` van juntas.
  *         `ciudad`, `departamento` y `pais` toman por defecto Sincelejo, Sucre y Colombia.
+ *         `logo_url` y `banner_url` no se aceptan (422): se suben con `PUT /negocios/{id_negocio}/logo` y `/banner`.
  *       properties:
  *         nombre: { type: string, minLength: 2, maxLength: 150, example: Clínica Veterinaria Patitas }
  *         tipo: { type: string, enum: [veterinaria, tienda_mascotas, peluqueria_canina, guarderia, entrenador, clinica, multiservicio] }
@@ -34,13 +37,20 @@ const router = express.Router();
  *         codigo_postal: { type: string, maxLength: 10, nullable: true }
  *         latitud: { type: number, minimum: -90, maximum: 90, nullable: true, example: 9.30472 }
  *         longitud: { type: number, minimum: -180, maximum: 180, nullable: true, example: -75.39778 }
- *         logo_url: { type: string, format: uri, nullable: true }
- *         banner_url: { type: string, format: uri, nullable: true }
+ *         confirmacion_automatica:
+ *           type: boolean
+ *           default: false
+ *           description: >
+ *             Las citas de la app (y las que reprograma el dueño) nacen confirmadas. Sin ella quedan pendientes
+ *             y, si el negocio no las confirma a tiempo (`confirmar_antes_de` de la cita), se cancelan solas.
  *     Negocio:
  *       allOf:
  *         - $ref: '#/components/schemas/NegocioInput'
  *         - type: object
  *           properties:
+ *             logo_url: { type: string, nullable: true, description: "Logo (800 px); se sube con PUT /negocios/{id_negocio}/logo" }
+ *             logo_miniatura_url: { type: string, nullable: true, description: Miniatura cuadrada de 200 px }
+ *             banner_url: { type: string, nullable: true, description: "Banner (hasta 1600 px); se sube con PUT /negocios/{id_negocio}/banner" }
  *             id_negocio: { type: integer, example: 1 }
  *             id_usuario_propietario: { type: integer, example: 2 }
  *             calificacion_promedio: { type: number, example: 4.5 }
@@ -59,6 +69,7 @@ const router = express.Router();
  *         tipo: { type: string }
  *         ciudad: { type: string }
  *         logo_url: { type: string, nullable: true }
+ *         logo_miniatura_url: { type: string, nullable: true }
  *         verificado: { type: boolean }
  *         activo: { type: boolean }
  *         relacion: { type: string, enum: [propietario, empleado] }
@@ -70,6 +81,13 @@ const router = express.Router();
  *           properties:
  *             id_rol: { type: integer }
  *             nombre: { type: string, example: Veterinario }
+ *         plan:
+ *           type: object
+ *           description: Plan efectivo (el Gratuito si la prueba o el plan pago vencieron)
+ *           properties:
+ *             id_plan: { type: integer }
+ *             nombre: { type: string, example: Pro }
+ *             en_prueba: { type: boolean }
  *     HorarioRango:
  *       type: object
  *       properties:
@@ -93,10 +111,12 @@ const router = express.Router();
  *         latitud: { type: number, nullable: true }
  *         longitud: { type: number, nullable: true }
  *         logo_url: { type: string, nullable: true }
+ *         logo_miniatura_url: { type: string, nullable: true }
  *         banner_url: { type: string, nullable: true }
  *         calificacion_promedio: { type: number }
  *         total_resenas: { type: integer }
  *         verificado: { type: boolean }
+ *         confirmacion_automatica: { type: boolean, description: "La reserva queda confirmada al instante (la app puede mostrarlo)" }
  *         sucursales:
  *           type: array
  *           description: Solo activas, la principal primero
@@ -129,18 +149,8 @@ const router = express.Router();
  *               categoria: { type: string }
  *         resenas_recientes:
  *           type: array
- *           description: Las 5 reseñas visibles más recientes
- *           items:
- *             type: object
- *             properties:
- *               id_resena: { type: integer }
- *               calificacion: { type: integer, minimum: 1, maximum: 5 }
- *               titulo: { type: string, nullable: true }
- *               comentario: { type: string, nullable: true }
- *               respuesta_negocio: { type: string, nullable: true }
- *               fecha_respuesta: { type: string, nullable: true }
- *               fecha_creacion: { type: string }
- *               autor: { type: string, example: Sofía G. }
+ *           description: Las 5 reseñas visibles más recientes (todas en GET /negocios/{id_negocio}/resenas)
+ *           items: { $ref: '#/components/schemas/ResenaPublica' }
  */
 
 /**
@@ -260,5 +270,124 @@ router.patch(
   authorize("configuracion", "editar"),
   controller.updateNegocio
 );
+
+/**
+ * @swagger
+ * /negocios/{id_negocio}/logo:
+ *   put:
+ *     summary: Subir o reemplazar el logo del negocio
+ *     description: >
+ *       Requiere `configuracion.editar`. multipart/form-data con el archivo en `logo` (PNG con
+ *       transparencia se conserva). El logo anterior se borra. Responde el negocio con `logo_url`
+ *       (800 px) y `logo_miniatura_url` (200 px).
+ *     tags: [Negocios]
+ *     parameters:
+ *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
+ *     requestBody: { $ref: '#/components/requestBodies/Logo' }
+ *     responses:
+ *       200:
+ *         description: Logo actualizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Logo actualizado }
+ *                 data: { $ref: '#/components/schemas/Negocio' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ArchivoInvalido' }
+ *       429: { $ref: '#/components/responses/TooManyRequests' }
+ *       503: { $ref: '#/components/responses/AlmacenamientoNoDisponible' }
+ *   delete:
+ *     summary: Eliminar el logo del negocio
+ *     description: Requiere `configuracion.editar`. 404 si no tiene logo.
+ *     tags: [Negocios]
+ *     parameters:
+ *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
+ *     responses:
+ *       200:
+ *         description: Logo eliminado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Logo eliminado }
+ *                 data: { $ref: '#/components/schemas/Negocio' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ * /negocios/{id_negocio}/banner:
+ *   put:
+ *     summary: Subir o reemplazar el banner del negocio
+ *     description: >
+ *       Requiere `configuracion.editar`. multipart/form-data con el archivo en `banner`. El banner
+ *       anterior se borra. `banner_url` es una versión de hasta 1600 px.
+ *     tags: [Negocios]
+ *     parameters:
+ *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
+ *     requestBody: { $ref: '#/components/requestBodies/Banner' }
+ *     responses:
+ *       200:
+ *         description: Banner actualizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Banner actualizado }
+ *                 data: { $ref: '#/components/schemas/Negocio' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ArchivoInvalido' }
+ *       429: { $ref: '#/components/responses/TooManyRequests' }
+ *       503: { $ref: '#/components/responses/AlmacenamientoNoDisponible' }
+ *   delete:
+ *     summary: Eliminar el banner del negocio
+ *     description: Requiere `configuracion.editar`. 404 si no tiene banner.
+ *     tags: [Negocios]
+ *     parameters:
+ *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
+ *     responses:
+ *       200:
+ *         description: Banner eliminado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Banner eliminado }
+ *                 data: { $ref: '#/components/schemas/Negocio' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+for (const tipo of ["logo", "banner"]) {
+  router.put(
+    `/negocios/:id_negocio/${tipo}`,
+    authMiddleware,
+    validate({ params: idNegocioParams }),
+    authorize("configuracion", "editar"),
+    uploadLimiter,
+    recibirArchivos(`negocio_${tipo}`),
+    controller.subirImagen(tipo)
+  );
+  router.delete(
+    `/negocios/:id_negocio/${tipo}`,
+    authMiddleware,
+    validate({ params: idNegocioParams }),
+    authorize("configuracion", "editar"),
+    controller.eliminarImagen(tipo)
+  );
+}
 
 export default router;

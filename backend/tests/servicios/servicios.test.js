@@ -289,6 +289,27 @@ describe("PATCH /servicios/:id_servicio", () => {
     expect(res.body.data).toMatchObject({ descripcion: "Nueva", margen_minutos: 10, precio_maximo: 70000, dias_disponible: null });
   });
 
+  it("indicaciones_previas: se crean, se editan, null las quita, máximo 500 y se ven en el detalle público", async () => {
+    const { negocio, token, id_categoria } = await contexto();
+    const creado = await api(token)
+      .post(`/negocios/${negocio.id_negocio}/servicios`)
+      .send({ id_categoria, nombre: "Cirugía menor", precio_base: 250000, indicaciones_previas: "  Ayuno de 8 horas  " });
+    expect(creado.status).toBe(201);
+    expect(creado.body.data.indicaciones_previas).toBe("Ayuno de 8 horas");
+    const url = `/servicios/${creado.body.data.id_servicio}`;
+
+    const editado = await api(token).patch(url).send({ indicaciones_previas: "Ayuno de 12 horas. Trae el carnet de vacunas." });
+    expect(editado.body.data.indicaciones_previas).toBe("Ayuno de 12 horas. Trae el carnet de vacunas.");
+    expect((await api().get(url)).body.data.indicaciones_previas).toBe("Ayuno de 12 horas. Trae el carnet de vacunas.");
+
+    const largo = await api(token).patch(url).send({ indicaciones_previas: "a".repeat(501) });
+    expect(largo.status).toBe(422);
+    expect(largo.body.errors).toHaveProperty("indicaciones_previas");
+
+    const vacio = await api(token).patch(url).send({ indicaciones_previas: null });
+    expect(vacio.body.data.indicaciones_previas).toBeNull();
+  });
+
   it("empleados reemplaza los activos asignados y conserva los inactivos; [] lo deja sin empleados", async () => {
     const { negocio, token } = await contexto();
     const [a, b, c] = [await crearEmpleado(negocio), await crearEmpleado(negocio), await crearEmpleado(negocio)];

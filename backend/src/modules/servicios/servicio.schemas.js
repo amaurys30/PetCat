@@ -27,6 +27,8 @@ const campos = {
   id_categoria: z.number().int().positive(),
   nombre: z.string().trim().min(2).max(150),
   descripcion: texto(2000).nullable(),
+  // Preparación antes de la cita (ayuno, carnet...): va en el recordatorio del día anterior.
+  indicaciones_previas: texto(500).nullable(),
   precio_base: dinero,
   precio_maximo: dinero.nullable(),
   tipo_precio: z.enum(TIPOS_PRECIO, { error: `Debe ser uno de: ${TIPOS_PRECIO.join(", ")}` }),

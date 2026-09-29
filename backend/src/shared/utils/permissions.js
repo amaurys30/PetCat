@@ -19,6 +19,8 @@ export const CATALOGO_PERMISOS = Object.freeze({
   configuracion: ["ver", "editar"],
   historial_medico: ["ver", "crear", "editar"],
   vacunas: ["ver", "crear", "editar"],
+  // Responder es hablar en público en nombre del negocio (migración 018).
+  resenas: ["ver", "responder", "reportar"],
 });
 
 export const existePermiso = (modulo, accion) =>

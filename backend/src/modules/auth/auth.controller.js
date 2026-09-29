@@ -1,8 +1,10 @@
 import * as service from "./auth.service.js";
 import * as sessionRepo from "../sessions/session.repository.js";
 import { refreshSession } from "../sessions/session.service.js";
+import { desconectarSesion } from "../../realtime/socket.js";
 import { ok, created } from "../../shared/utils/response.js";
 import { clienteDe } from "../../shared/utils/cliente.js";
+import { archivoUnico } from "../../shared/utils/uploads.js";
 
 export const register = async (req, res) => {
   const usuario = await service.register(req.body, clienteDe(req));
@@ -16,6 +18,7 @@ export const login = async (req, res) => {
 
 export const logout = async (req, res) => {
   await sessionRepo.deactivate(req.session.id_sesion);
+  desconectarSesion(req.session.id_sesion);
   return ok(res, null, "Sesión cerrada");
 };
 
@@ -26,6 +29,15 @@ export const refreshToken = async (req, res) => {
 
 export const getMe = async (req, res) => {
   return ok(res, await service.getMe(req.user.id_usuario));
+};
+
+export const subirFoto = async (req, res) => {
+  const perfil = await service.subirFoto(req.user.id_usuario, archivoUnico(req, "usuario_foto"));
+  return ok(res, perfil, "Foto de perfil actualizada");
+};
+
+export const eliminarFoto = async (req, res) => {
+  return ok(res, await service.eliminarFoto(req.user.id_usuario), "Foto de perfil eliminada");
 };
 
 export const updateMe = async (req, res) => {

@@ -1,6 +1,7 @@
 import * as service from "./empleado.service.js";
 import { ok, created, paginated } from "../../shared/utils/response.js";
 import { mensajeConAfectadas } from "../disponibilidad/disponibilidad.service.js";
+import { archivoUnico } from "../../shared/utils/uploads.js";
 
 export const getEmpleados = async (req, res) => {
   const { rows, meta } = await service.getEmpleados(req.negocio.id_negocio, req.query);
@@ -36,4 +37,15 @@ export const desactivarEmpleado = async (req, res) => {
 export const reactivarEmpleado = async (req, res) => {
   const empleado = await service.reactivarEmpleado(req.params.id_empleado, req.acceso);
   return ok(res, empleado, "Empleado reactivado");
+};
+
+export const subirFoto = async (req, res) => {
+  const archivo = archivoUnico(req, "empleado_foto");
+  const empleado = await service.subirFoto(req.params.id_empleado, req.acceso, req.user.id_usuario, archivo);
+  return ok(res, empleado, "Foto del empleado actualizada");
+};
+
+export const eliminarFoto = async (req, res) => {
+  const empleado = await service.eliminarFoto(req.params.id_empleado, req.acceso, req.user.id_usuario);
+  return ok(res, empleado, "Foto del empleado eliminada");
 };
