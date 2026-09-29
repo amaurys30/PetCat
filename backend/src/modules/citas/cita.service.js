@@ -255,18 +255,20 @@ export const crearCita = async (canal, datos, actor, id_negocio, reprogramacion)
 
 /**
  * Evento de la cita recién creada: reprogramada (a la otra parte), nueva desde la app (al
- * negocio) o agendada desde el panel (al dueño).
+ * negocio) o agendada desde el panel (al dueño). Con la confirmación automática, el negocio
+ * recibe el texto de cita confirmada y el dueño no recibe cita_confirmada (la respuesta ya lo dice).
  */
-const eventoCreacion = (id_cita, canal, actor, reprogramacion, conn) => {
+const eventoCreacion = (id_cita, canal, actor, reprogramacion, autoConfirmada, conn) => {
+  const extra = { confirmada: autoConfirmada };
   if (reprogramacion) {
     return eventoCita("cita_reprogramada", id_cita, {
       para: canal === "app" ? "negocio" : "dueno",
       actor,
-      extra: reprogramacion.aviso,
+      extra: { ...reprogramacion.aviso, ...extra },
     }, conn);
   }
   return canal === "app"
-    ? eventoCita("cita_nueva", id_cita, { para: "negocio", actor }, conn)
+    ? eventoCita("cita_nueva", id_cita, { para: "negocio", actor, extra }, conn)
     : eventoCita("cita_agendada", id_cita, { para: "dueno", actor }, conn);
 };
 
@@ -280,8 +282,10 @@ const reservar = async (canal, datos, actor, id_negocio, reprogramacion) => {
   if (dia.porLimitePlan) throw errorLimiteCitas(canal, dia.limiteCitas, datos.fecha, servicio.id_negocio);
   if (dia.motivo) throw ApiError.conflict(dia.motivo);
   const hora_fin = `${aHora(inicio + servicio.duracion_minutos)}:00`;
-  // Plazo para confirmar (2.5): se calcula al crear la cita pendiente, con la configuración de ahora.
-  const confirmacion = canal === "app" ? await configConfirmacion() : null;
+  // Confirmación automática del negocio (2.5): la cita de la app nace confirmada. Si no, queda
+  // pendiente con un plazo para confirmar, calculado con la configuración de ahora.
+  const autoConfirmada = canal === "app" && (await citaRepo.confirmaAutomaticamente(dia.servicio.id_negocio));
+  const confirmacion = canal === "app" && !autoConfirmada ? await configConfirmacion() : null;
 
   // Con plan ilimitado no se bloquea ni se cuenta: las reservas del negocio no se esperan entre sí.
   const conLimiteCitas = dia.limiteCitas.usadas !== null;
@@ -325,7 +329,7 @@ const reservar = async (canal, datos, actor, id_negocio, reprogramacion) => {
 
     const carga = await citaRepo.countCitasDelDia(libres, datos.fecha, conn);
     const [id_empleado] = [...libres].sort((a, b) => (carga[a] ?? 0) - (carga[b] ?? 0) || a - b);
-    const estado = canal === "app" ? "pendiente" : "confirmada";
+    const estado = canal === "app" && !autoConfirmada ? "pendiente" : "confirmada";
     const confirmar_antes_de =
       estado === "pendiente"
         ? aDatetimeSQL(calcularPlazoConfirmacion({ creacion: new Date(), inicio: inicioDeCita(datos.fecha, datos.hora_inicio), ...confirmacion }))
@@ -353,13 +357,16 @@ const reservar = async (canal, datos, actor, id_negocio, reprogramacion) => {
       },
       conn
     );
-    await citaRepo.insertHistorialCreacion({ id_cita: id, actor, estado, motivo: reprogramacion?.motivoCreacion }, conn);
+    const motivo = autoConfirmada
+      ? `${reprogramacion?.motivoCreacion ?? "Cita creada"}. Confirmada automáticamente por el negocio`
+      : reprogramacion?.motivoCreacion;
+    await citaRepo.insertHistorialCreacion({ id_cita: id, actor, estado, motivo }, conn);
     if (estado === "confirmada") await citaRepo.programarRecordatorios(id, conn);
     if (reprogramacion) await reprogramacion.despues(id, conn);
 
     // Avisos al final de la transacción: se envían solo si la reserva se confirma.
     const umbral = limite && (await eventoUmbralPlan({ id_negocio: servicio.id_negocio, fecha: datos.fecha, limite, actor }, conn));
-    await notificar([await eventoCreacion(id, canal, actor, reprogramacion, conn), ...(umbral ? [umbral] : [])]);
+    await notificar([await eventoCreacion(id, canal, actor, reprogramacion, autoConfirmada, conn), ...(umbral ? [umbral] : [])]);
     return id;
   });
 

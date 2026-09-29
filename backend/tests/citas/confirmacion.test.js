@@ -140,3 +140,70 @@ describe("cancelación del sistema", () => {
     expect(historialPanel.body.data.at(-1)).toMatchObject({ realizado_por: "sistema", usuario: null, empleado: null });
   });
 });
+
+describe("confirmación automática al reservar", () => {
+  const reserva = (ctx, extra = {}) => ({
+    id_servicio: ctx.servicio.id_servicio,
+    id_sucursal: ctx.sucursal.id_sucursal,
+    fecha: lunesLejano(),
+    hora_inicio: "10:00",
+    id_mascota: ctx.mascota.id_mascota,
+    ...extra,
+  });
+  const notificacionesDe = async (usuario) => {
+    const [rows] = await pool.query("SELECT tipo, titulo, mensaje FROM notificaciones WHERE id_usuario = ? ORDER BY id_notificacion", [usuario.id_usuario]);
+    return rows;
+  };
+  const conAutomatica = async () => {
+    const ctx = await contexto();
+    await pool.query("UPDATE negocios SET confirmacion_automatica = TRUE WHERE id_negocio = ?", [ctx.negocio.id_negocio]);
+    return ctx;
+  };
+
+  it("la cita de la app nace confirmada, con recordatorios y sin plazo; el negocio recibe cita_nueva confirmada", async () => {
+    const ctx = await conAutomatica();
+    const res = await api(ctx.tokenCliente).post("/citas").send(reserva(ctx));
+
+    expect(res.status).toBe(201);
+    expect(res.body.message).toBe("Cita confirmada");
+    expect(res.body.data).toMatchObject({ estado: "confirmada", confirmar_antes_de: null });
+    const { id_cita } = res.body.data;
+    const [recordatorios] = await pool.query("SELECT tipo FROM recordatorios WHERE id_cita = ? ORDER BY fecha_programada", [id_cita]);
+    expect(recordatorios.map((r) => r.tipo)).toEqual(["cita_dia_anterior", "cita_recordatorio"]);
+    const [[fila]] = await pool.query("SELECT confirmar_antes_de FROM citas WHERE id_cita = ?", [id_cita]);
+    expect(fila.confirmar_antes_de).toBeNull();
+
+    const historial = await api(ctx.tokenPropietario).get(`/citas/${id_cita}/historial`);
+    expect(historial.body.data[0]).toMatchObject({ valor_nuevo: "confirmada", motivo: "Cita creada. Confirmada automáticamente por el negocio" });
+
+    const [aviso] = await notificacionesDe(ctx.negocio.propietario);
+    expect(aviso).toMatchObject({ tipo: "cita_nueva", titulo: "Nueva cita confirmada" });
+    expect(aviso.mensaje).toMatch(/Quedó confirmada automáticamente\.$/);
+    expect(await notificacionesDe(ctx.cliente)).toEqual([]); // la respuesta ya dice que quedó confirmada
+  });
+
+  it("la reprogramación del dueño también nace confirmada", async () => {
+    const ctx = await conAutomatica();
+    const original = await api(ctx.tokenCliente).post("/citas").send(reserva(ctx));
+    const res = await api(ctx.tokenCliente)
+      .post(`/citas/${original.body.data.id_cita}/reprogramar`)
+      .send({ fecha: lunesLejano(), hora_inicio: "11:00" });
+
+    expect(res.status).toBe(201);
+    expect(res.body.message).toBe("Cita reprogramada");
+    expect(res.body.data.estado).toBe("confirmada");
+    const avisos = await notificacionesDe(ctx.negocio.propietario);
+    expect(avisos.at(-1).tipo).toBe("cita_reprogramada");
+    expect(avisos.at(-1).mensaje).toMatch(/Quedó confirmada automáticamente\.$/);
+  });
+
+  it("activarla no confirma las pendientes que ya existen", async () => {
+    const ctx = await contexto();
+    const pendiente = await api(ctx.tokenCliente).post("/citas").send(reserva(ctx));
+    expect(pendiente.body.data.estado).toBe("pendiente");
+
+    await api(ctx.tokenPropietario).patch(`/negocios/${ctx.negocio.id_negocio}`).send({ confirmacion_automatica: true });
+    const detalle = await api(ctx.tokenCliente).get(`/citas/${pendiente.body.data.id_cita}`);
+    expect(detalle.body.data).toMatchObject({ estado: "pendiente", confirmar_antes_de: pendiente.body.data.confirmar_antes_de });
+  });
+});

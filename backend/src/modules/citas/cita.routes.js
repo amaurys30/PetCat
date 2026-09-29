@@ -207,7 +207,9 @@ router.get("/citas/horarios-libres", validate({ query: horariosLibresQuery }), c
  *       La mascota debe ser del usuario, estar viva y ser de una especie y un peso que el servicio
  *       atiende. Se comprueba el horario dentro de una transacción (servicio, empleados y mascota
  *       bloqueados): si otra reserva lo tomó antes, 409. La cita queda `pendiente` hasta que el negocio
- *       la confirme. El email sin verificar no impide reservar. Si el negocio alcanzó el límite de citas
+ *       la confirme, con `confirmar_antes_de`: si no la confirma a tiempo se cancela sola. Si el negocio tiene
+ *       `confirmacion_automatica`, nace `confirmada` (mensaje "Cita confirmada") con sus recordatorios. El
+ *       email sin verificar no impide reservar. Si el negocio alcanzó el límite de citas
  *       del mes de su plan, 409 con el mismo mensaje de horario no disponible (la app no ve el plan).
  *       Avisos: `cita_nueva` al personal con `citas.ver` y al propietario; `plan_limite_80` si la reserva
  *       cruza el 80 % del límite (una vez al mes) y `plan_limite_alcanzado` si se rechaza por el límite
@@ -227,7 +229,10 @@ router.get("/citas/horarios-libres", validate({ query: horariosLibresQuery }), c
  *               type: object
  *               properties:
  *                 success: { type: boolean, example: true }
- *                 message: { type: string, example: "Cita solicitada: el negocio debe confirmarla" }
+ *                 message:
+ *                   type: string
+ *                   enum: ["Cita solicitada: el negocio debe confirmarla", Cita confirmada]
+ *                   example: "Cita solicitada: el negocio debe confirmarla"
  *                 data: { $ref: '#/components/schemas/Cita' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       409: { $ref: '#/components/responses/ReservaConflicto' }
@@ -464,7 +469,7 @@ router.post(
  *       de horarios libres y la misma protección contra reservas simultáneas, y marca la original como
  *       `reprogramada`, en una transacción: si el horario nuevo no está libre (409) la original no cambia.
  *       El dueño lo hace con las reglas de la app y hasta 2 horas antes de la cita original; la nueva queda
- *       `pendiente`. El negocio (`citas.editar`), en cualquier momento y con las reglas del panel; la nueva queda
+ *       `pendiente` (o `confirmada` si el negocio tiene `confirmacion_automatica`). El negocio (`citas.editar`), en cualquier momento y con las reglas del panel; la nueva queda
  *       `confirmada`. Conserva servicio, mascota, precio estimado, origen, notas y prioridad; por defecto la
  *       misma sucursal. Una mascota fallecida no se reprograma (409). La nueva cita cuenta para el límite de
  *       citas del mes del plan (la original deja de contar): si el mes nuevo está lleno, el dueño recibe el

@@ -12,7 +12,7 @@ export const getHorariosLibresPanel = async (req, res) => {
 
 export const createCita = async (req, res) => {
   const cita = await service.crearCitaApp(req.body, { id_usuario: req.user.id_usuario, ip: req.ip });
-  return created(res, cita, "Cita solicitada: el negocio debe confirmarla");
+  return created(res, cita, cita.estado === "confirmada" ? "Cita confirmada" : "Cita solicitada: el negocio debe confirmarla");
 };
 
 export const createCitaPanel = async (req, res) => {

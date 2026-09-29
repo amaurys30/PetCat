@@ -383,6 +383,12 @@ export const negocioActivo = async (id_negocio, conn) => {
   return rows.length > 0;
 };
 
+/** El negocio confirma automáticamente las citas de la app (2.5). */
+export const confirmaAutomaticamente = async (id_negocio) => {
+  const [rows] = await db.query("SELECT confirmacion_automatica FROM negocios WHERE id_negocio = ?", [id_negocio]);
+  return Boolean(rows[0]?.confirmacion_automatica);
+};
+
 /** Usuario activo (cliente de una cita del panel). */
 export const usuarioActivo = async (id_usuario, conn) => {
   const [rows] = await (conn ?? db).query("SELECT 1 FROM usuarios WHERE id_usuario = ? AND activo = TRUE", [id_usuario]);

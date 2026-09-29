@@ -78,20 +78,35 @@ const urgentePorCita = (d, fin) =>
   citaCercana(fin, inicioDeCita(d.fecha, d.hora_inicio), d.fecha_anterior && inicioDeCita(d.fecha_anterior, d.hora_anterior));
 
 export const TIPOS = {
+  // `d.confirmada`: el negocio tiene la confirmación automática (2.5) y la cita ya nació confirmada.
   cita_nueva: {
     correo: ["propietario"],
-    contenido: (d) => ({
-      titulo: "Nueva cita por confirmar",
-      push: `Hay una cita nueva para el ${cuando(d.fecha, d.hora_inicio)}. Confírmala en el panel de PetCat.`,
-      mensaje: `${d.cliente} reservó ${d.servicio} para ${d.mascota} el ${cuando(d.fecha, d.hora_inicio)} en ${d.sucursal}. Queda pendiente hasta que la confirmes.`,
-      correo: {
-        asunto: "Tienes una cita nueva por confirmar en PetCat",
-        parrafos: [
-          `Llegó una reserva desde la app para el ${cuando(d.fecha, d.hora_inicio)} en ${d.sucursal}.`,
-          "Queda pendiente hasta que la confirmes en el panel de PetCat. Si nadie la confirma a tiempo, se cancela sola.",
-        ],
-      },
-    }),
+    contenido: (d) =>
+      d.confirmada
+        ? {
+            titulo: "Nueva cita confirmada",
+            push: `Hay una cita nueva para el ${cuando(d.fecha, d.hora_inicio)}. Quedó confirmada automáticamente.`,
+            mensaje: `${d.cliente} reservó ${d.servicio} para ${d.mascota} el ${cuando(d.fecha, d.hora_inicio)} en ${d.sucursal}. Quedó confirmada automáticamente.`,
+            correo: {
+              asunto: "Tienes una cita nueva en PetCat",
+              parrafos: [
+                `Llegó una reserva desde la app para el ${cuando(d.fecha, d.hora_inicio)} en ${d.sucursal}.`,
+                "Quedó confirmada automáticamente. Puedes verla en la agenda del panel de PetCat.",
+              ],
+            },
+          }
+        : {
+            titulo: "Nueva cita por confirmar",
+            push: `Hay una cita nueva para el ${cuando(d.fecha, d.hora_inicio)}. Confírmala en el panel de PetCat.`,
+            mensaje: `${d.cliente} reservó ${d.servicio} para ${d.mascota} el ${cuando(d.fecha, d.hora_inicio)} en ${d.sucursal}. Queda pendiente hasta que la confirmes.`,
+            correo: {
+              asunto: "Tienes una cita nueva por confirmar en PetCat",
+              parrafos: [
+                `Llegó una reserva desde la app para el ${cuando(d.fecha, d.hora_inicio)} en ${d.sucursal}.`,
+                "Queda pendiente hasta que la confirmes en el panel de PetCat. Si nadie la confirma a tiempo, se cancela sola.",
+              ],
+            },
+          },
   },
 
   cita_agendada: {
@@ -152,7 +167,7 @@ export const TIPOS = {
         : {
             titulo: "Cita reprogramada",
             push: `Una cita se movió al ${cuando(d.fecha, d.hora_inicio)}.`,
-            mensaje: `${d.cliente} movió la cita de ${d.mascota} (${d.servicio}) del ${cuando(d.fecha_anterior, d.hora_anterior)} al ${cuando(d.fecha, d.hora_inicio)}. Queda pendiente de confirmar.`,
+            mensaje: `${d.cliente} movió la cita de ${d.mascota} (${d.servicio}) del ${cuando(d.fecha_anterior, d.hora_anterior)} al ${cuando(d.fecha, d.hora_inicio)}. ${d.confirmada ? "Quedó confirmada automáticamente." : "Queda pendiente de confirmar."}`,
           },
   },
 
