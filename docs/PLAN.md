@@ -208,7 +208,12 @@ Jobs sobre la base de node-cron de la 2.3 (funciones exportadas que los tests ll
 
 ### Cierre de la Fase 2
 - [x] Seed ampliado: notificaciones, reseñas con respuesta, editada después de la respuesta y reportada, dispositivos de ejemplo, un negocio Gratuito cerca de sus límites (guardería: 3 de 3 empleados y unas 25 de 30 citas del mes), citas canceladas por el sistema, 90 días de citas completadas para el dashboard de Salud Animal, notas de clientes y una invitación a reseñar pendiente. Detalle en `backend/README.md`.
-- [ ] Verificación desde cero, como en las fases anteriores.
+- [x] Verificación desde cero, como en las fases anteriores. Verificado el 29/09/2026 desde un clon limpio de `fase-2` (fde32ee), con un proyecto de compose aparte (otros nombres y puertos):
+  - MySQL y backend healthy; esquema y seed cargados con tildes correctas; `db:migrate --status` con las 19 migraciones aplicadas y ninguna pendiente. Al arrancar, los jobs diarios corrieron sin errores.
+  - Ruta de actualización: una base en el estado de `main` (Fase 1) más `db:migrate` (012 a 019) queda igual que una instalación nueva en 56 objetos (tablas, vistas, triggers, procedimiento, roles del sistema, configuración, planes y `schema_migrations`); solo cambia el orden en que MySQL lista los índices de `citas`.
+  - Prueba de humo sobre el seed (30 comprobaciones): login de los 14 usuarios; planes, límite de empleados (403 con `errors.plan`) y prueba Pro que desbloquea el dashboard; dashboard Gratuito (citas perdidas con sugerencia, avanzadas bloqueadas, 422 con `plan_requerido` a los 121 días) y de Salud Animal (tendencia semanal, por empleado); subida sin credenciales de Cloudinary (503); notificaciones, dispositivo y leer todas; reserva con y sin confirmación automática; reseña, respuesta, permisos de reporte, reseña reportada visible y 409 por duplicada; notas con permisos y sin fuga al cliente. El job `invitaciones-resena` envió la invitación del seed a las 13:40, y Expo rechazó los tokens inventados con `DeviceNotRegistered`, que la API desactivó.
+  - Swagger con 92 rutas y 129 operaciones (las mismas que registran los routers), todas con resumen y respuestas y sin referencias rotas.
+  - La suite (725 tests) pasa en el clon contra un MySQL 8 nuevo con los mismos pasos del workflow de CI.
 - [ ] PR de `fase-2` a `main`.
 
 ## Requisitos antes de lanzar con usuarios reales
