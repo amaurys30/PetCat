@@ -329,7 +329,8 @@ Detalle de cada uno en Swagger.
 | Búsqueda (app) | `GET /negocios` y `GET /servicios` (públicos, paginados) |
 | Disponibilidad | `GET` y `POST /empleados/:id_empleado/disponibilidad`, `PUT /empleados/:id_empleado/horario-semanal`, `GET /empleados/:id_empleado/disponibilidad-efectiva`, `PATCH` y `DELETE /disponibilidad/:id_disponibilidad` |
 | Citas | `GET /citas/horarios-libres` (público), `POST /citas` y `GET /citas/mias` (app), `GET /citas/:id_cita`, `POST /citas/:id_cita/cancelar`, `POST /citas/:id_cita/reprogramar` y `GET /citas/:id_cita/historial` (dueño o negocio), `PATCH /citas/:id_cita` y `PATCH /citas/:id_cita/estado` (panel), `GET /negocios/:id_negocio/citas/horarios-libres`, `GET` (agenda) y `POST /negocios/:id_negocio/citas` (panel) |
-| Clientes (panel) | `GET` (listado) y `POST /negocios/:id_negocio/clientes`, `GET /negocios/:id_negocio/clientes/buscar`, `GET /negocios/:id_negocio/clientes/:id_usuario` (detalle), `GET /negocios/:id_negocio/clientes/:id_usuario/citas`, `POST /negocios/:id_negocio/clientes/:id_usuario/mascotas` |
+| Clientes (panel) | `GET` (listado) y `POST /negocios/:id_negocio/clientes`, `GET /negocios/:id_negocio/clientes/buscar`, `GET /negocios/:id_negocio/clientes/:id_usuario` (detalle), `GET /negocios/:id_negocio/clientes/:id_usuario/citas`, `POST /negocios/:id_negocio/clientes/:id_usuario/mascotas`, `GET` y `POST /negocios/:id_negocio/clientes/:id_usuario/notas`, `PATCH` y `DELETE /notas-cliente/:id_nota` |
+| Dashboard (panel) | `GET /negocios/:id_negocio/dashboard` |
 | Historial médico | `GET /mascotas/:id_mascota/historial` (dueño), `GET /negocios/:id_negocio/mascotas/:id_mascota/historial`, `POST /negocios/:id_negocio/historial`, `PATCH /historial/:id_historial` (panel) |
 | Vacunas | `GET` y `POST /mascotas/:id_mascota/vacunas` (dueño), `GET /negocios/:id_negocio/mascotas/:id_mascota/vacunas`, `POST /negocios/:id_negocio/vacunas` (panel), `PATCH /vacunas/:id_vacuna` (quien la registró) |
 | Resumen de salud | `GET /mascotas/:id_mascota/resumen-salud` (dueño) y `GET /negocios/:id_negocio/mascotas/:id_mascota/resumen-salud` (panel) |
@@ -390,7 +391,22 @@ Detalle de cada uno en Swagger.
 3. Si ya es cliente del negocio (tiene una cita con él o el negocio lo registró) y trae otra mascota: `POST /negocios/:id_negocio/clientes/:id_usuario/mascotas`.
 4. Agendar con `POST /negocios/:id_negocio/citas`.
 
-La sección de clientes del panel usa `GET /negocios/:id_negocio/clientes` (con `inasistencias` por fila para mostrar una alerta) y `GET /negocios/:id_negocio/clientes/:id_usuario` (contacto, cumplimiento, mascotas y citas; todo solo con ese negocio).
+La sección de clientes del panel usa `GET /negocios/:id_negocio/clientes` (con `inasistencias` por fila para mostrar una alerta) y `GET /negocios/:id_negocio/clientes/:id_usuario` (contacto, cumplimiento, mascotas, citas y las 3 últimas notas; todo solo con ese negocio).
+
+### Notas de clientes (panel)
+
+- Notas internas del negocio sobre un cliente: `GET` (con `clientes.ver`) y `POST` (con `clientes.editar`) `/negocios/:id_negocio/clientes/:id_usuario/notas`; `PATCH` y `DELETE /notas-cliente/:id_nota`. Cada nota trae `autor` (null si su cuenta ya no existe: mostrar "Ex miembro del equipo"), `fecha_creacion`, `fecha_edicion`, `editable` y `eliminable` para mostrar u ocultar los botones: edita solo el autor; borra el autor o el propietario. Borrar es definitivo.
+- Solo las ve el negocio que las escribió: nunca el cliente (en la app) ni otro negocio, aunque atienda al mismo cliente.
+- **Qué escribir (conviene mostrarlo junto al campo):** solo lo útil para atender mejor al cliente, por ejemplo "prefiere que lo llamen en la tarde" o "el perro se estresa con la secadora". **No escribir** diagnósticos ni tratamientos (van en el historial médico), datos de salud del cliente, datos financieros ni opiniones personales. La nota es un dato personal del cliente: por la Ley 1581 de 2012 puede pedir conocer lo que el negocio guarda sobre él. Regla práctica: escribe solo lo que no te incomodaría que el cliente leyera.
+
+### Dashboard (panel)
+
+- `GET /negocios/:id_negocio/dashboard?desde&hasta&id_sucursal` con `reportes.ver` (el propietario y el rol Administrador). Por defecto, los últimos 30 días hasta hoy; `hasta` no puede ser futuro. Rango máximo: **92 días en Gratuito y 366 en Pro y Enterprise**. Si un Gratuito pide más, responde 422 con `errors.plan_requerido: "Pro"`: el panel puede mostrarlo como invitación a mejorar el plan.
+- **Básico (todos los planes):** `hoy` (citas de hoy por estado y `por_confirmar`), `citas` por estado, `tasa_inasistencia`, `ingresos`, `servicios_mas_pedidos`, `clientes_nuevos`, `calificacion` (con `sin_responder`) y `citas_perdidas_por_no_confirmar`.
+- **Ingresos:** son los **registrados** por el negocio al completar cada cita (`precio_final`), no pagos verificados: la respuesta trae `verificado: false` y una `nota`. El panel debe rotularlos así ("Ingresos registrados") hasta que lleguen los pagos en la Fase 3.
+- **Citas perdidas por no confirmar:** las que se cancelaron solas porque nadie las confirmó a tiempo. Nunca cuentan contra los clientes. Si hubo alguna y la confirmación automática está apagada, `sugerencia` trae un mensaje para mostrar con un botón que lleve a activarla (`PATCH /negocios/:id_negocio` con `confirmacion_automatica: true`).
+- **Avanzado** (`avanzadas`: tendencia, comparación con el periodo anterior, por empleado, por sucursal, horas pico, recurrencia y cancelaciones): con el plan Pro, Enterprise o la prueba Pro. En Gratuito cada sección llega como `{ bloqueado: true, plan_requerido: { nombre, precio_mensual } }`, sin datos: el panel dibuja la tarjeta como invitación. Si `prueba_disponible` es true, conviene ofrecer "Probar Pro 14 días" (`POST /negocios/:id_negocio/suscripcion/prueba-pro`) en lugar de "Mejorar plan".
+- La tendencia agrupa por día hasta 31 días, por semana (desde el lunes) hasta 92 y por mes en rangos mayores; los intervalos sin citas vienen en cero.
 
 ### Servicios y búsqueda
 
