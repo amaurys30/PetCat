@@ -127,21 +127,6 @@ export const findServiciosPublicos = async (id_negocio) => {
   return rows;
 };
 
-export const findResenasVisibles = async (id_negocio, limit = 5) => {
-  const [rows] = await db.query(
-    `SELECT r.id_resena, r.calificacion, r.titulo, r.comentario, r.respuesta_negocio,
-            r.fecha_respuesta, r.fecha_creacion,
-            CONCAT(u.nombre, ' ', LEFT(u.apellido, 1), '.') AS autor
-     FROM resenas r
-     JOIN usuarios u ON u.id_usuario = r.id_usuario
-     WHERE r.id_negocio = ? AND r.visible = TRUE
-     ORDER BY r.fecha_creacion DESC, r.id_resena DESC
-     LIMIT ?`,
-    [id_negocio, limit]
-  );
-  return rows;
-};
-
 // ---------- Resolución del negocio de un recurso (authorize) ----------
 
 // Consulta que da el id_negocio de un recurso a partir del parámetro de ruta que lo identifica.
@@ -155,6 +140,8 @@ const NEGOCIO_DE_RECURSO = {
   // NULL = registro sin negocio (vacuna del dueño): recurso global para authorize.
   id_historial: "SELECT id_negocio FROM historial_medico WHERE id_historial = ?",
   id_vacuna: "SELECT id_negocio FROM vacunas WHERE id_vacuna = ?",
+  // Una reseña que retiró su autor ya no existe para el negocio.
+  id_resena: "SELECT id_negocio FROM resenas WHERE id_resena = ? AND retirada_en IS NULL",
   id_disponibilidad: `SELECT e.id_negocio
                       FROM disponibilidad_empleado d
                       JOIN empleados e ON e.id_empleado = d.id_empleado

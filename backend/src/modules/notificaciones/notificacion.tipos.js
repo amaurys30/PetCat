@@ -261,6 +261,52 @@ export const TIPOS = {
     }),
   },
 
+  // Reseñas (2.6). La push no lleva el comentario ni la mascota.
+  // Invitación al dueño unas horas después de completada la cita (job, fuera de 20:00-10:00).
+  // Sin correo: sin la app no se puede reseñar. `d.resenar_antes_de`: fin del plazo.
+  resena_invitacion: {
+    correo: [],
+    contenido: (d) => {
+      const [fechaPlazo, horaPlazo] = d.resenar_antes_de.split(" ");
+      return {
+        titulo: `¿Cómo te fue en ${d.negocio}?`,
+        push: `Cuéntanos cómo te fue en ${d.negocio}. Tu reseña ayuda a otros dueños de mascotas.`,
+        mensaje: `${d.mascota} tuvo ${d.servicio} en ${d.negocio}. Tienes hasta el ${cuando(fechaPlazo, horaPlazo)} para calificar tu experiencia.`,
+      };
+    },
+  },
+
+  // Al propietario y a quien tiene resenas.responder. `d.calificacion`, `d.titulo`.
+  resena_nueva: {
+    correo: ["propietario"],
+    contenido: (d) => {
+      const estrellas = `${d.calificacion} ${d.calificacion === 1 ? "estrella" : "estrellas"}`;
+      return {
+        titulo: "Nueva reseña",
+        push: `${d.negocio} recibió una reseña de ${estrellas}.`,
+        mensaje: `${d.cliente} calificó con ${estrellas} ${d.servicio} del ${cuando(d.fecha, d.hora_inicio)}.${d.titulo ? ` "${d.titulo}"` : ""} Puedes responderla desde el panel.`,
+        correo: {
+          asunto: "Tu negocio recibió una reseña nueva en PetCat",
+          parrafos: [`${d.negocio} recibió una reseña de ${estrellas}.`, "Puedes leerla y responderla en el panel de PetCat."],
+        },
+      };
+    },
+  },
+
+  // Al dueño, solo con la primera respuesta del negocio.
+  resena_respondida: {
+    correo: ["dueno"],
+    contenido: (d) => ({
+      titulo: "Respondieron tu reseña",
+      push: `${d.negocio} respondió tu reseña.`,
+      mensaje: `${d.negocio} respondió tu reseña de ${d.servicio}. Ábrela para leer la respuesta.`,
+      correo: {
+        asunto: `${d.negocio} respondió tu reseña`,
+        parrafos: [`${d.negocio} respondió la reseña que dejaste en PetCat.`, "Puedes leer la respuesta en la app PetCat."],
+      },
+    }),
+  },
+
   // Recordatorios de vacunas (job diario, hitos -7, 0 y +7 días respecto a fecha_proxima).
   // La push y el correo no llevan mascota ni vacuna; el detalle está en la app.
   vacuna_proxima: {

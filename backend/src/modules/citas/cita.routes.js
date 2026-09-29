@@ -99,6 +99,20 @@ const esDuenoDeLaCita = (req) => citaRepo.esDelUsuario(req.params.id_cita, req.u
  *             sola (cancelacion.por = sistema). Lo que ocurra primero entre 24 horas después de reservar y
  *             60 minutos antes del inicio; si eso cae de madrugada, se corre a una hora después del fin del
  *             horario de silencio (08:00), sin pasar de 30 minutos antes del inicio.
+ *         fecha_completada: { type: string, nullable: true, example: "2026-09-20 15:42:10", description: Cuándo pasó a completada }
+ *         id_resena: { type: integer, nullable: true, description: Reseña del dueño sobre esta cita (null si no hay o la retiró) }
+ *         resena:
+ *           type: object
+ *           nullable: true
+ *           description: >
+ *             Solo en la vista del dueño (GET /citas/mias y GET /citas/{id_cita}) y solo en citas completadas.
+ *             Para mostrar "Reseñar" o "Editar reseña".
+ *           properties:
+ *             id_resena: { type: integer, nullable: true }
+ *             retirada: { type: boolean, description: El dueño retiró su reseña; no puede reseñar otra vez }
+ *             resenar_antes_de: { type: string, nullable: true, example: "2026-10-20 15:42:10", description: fecha_completada + 30 días }
+ *             puede_resenar: { type: boolean, description: Sin reseña, dentro del plazo y sin ser personal del negocio }
+ *             puede_editar: { type: boolean }
  *         cancelacion:
  *           type: object
  *           nullable: true
@@ -387,7 +401,8 @@ router.get(
  *       Requiere `citas.editar`. Transiciones: pendiente → confirmada (se programa el recordatorio);
  *       confirmada → en_curso (desde la fecha de la cita) o no_asistio (desde la hora de inicio);
  *       en_curso → completada (con `precio_final`, por defecto el estimado; suma al total de citas del
- *       negocio); no_asistio → en_curso solo el mismo día (el cliente llegó tarde). completada, cancelada y
+ *       negocio, guarda `fecha_completada` y programa la invitación a reseñar para 3 horas después, o las
+ *       10:00 si cae entre las 20:00 y las 10:00); no_asistio → en_curso solo el mismo día (el cliente llegó tarde). completada, cancelada y
  *       reprogramada son finales. Para cancelar o reprogramar hay endpoints propios. Queda en el historial.
  *       Al confirmar se avisa al dueño (`cita_confirmada`).
  *     tags: [Citas]

@@ -149,18 +149,8 @@ const router = express.Router();
  *               categoria: { type: string }
  *         resenas_recientes:
  *           type: array
- *           description: Las 5 reseñas visibles más recientes
- *           items:
- *             type: object
- *             properties:
- *               id_resena: { type: integer }
- *               calificacion: { type: integer, minimum: 1, maximum: 5 }
- *               titulo: { type: string, nullable: true }
- *               comentario: { type: string, nullable: true }
- *               respuesta_negocio: { type: string, nullable: true }
- *               fecha_respuesta: { type: string, nullable: true }
- *               fecha_creacion: { type: string }
- *               autor: { type: string, example: Sofía G. }
+ *           description: Las 5 reseñas visibles más recientes (todas en GET /negocios/{id_negocio}/resenas)
+ *           items: { $ref: '#/components/schemas/ResenaPublica' }
  */
 
 /**

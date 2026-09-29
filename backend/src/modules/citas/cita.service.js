@@ -11,6 +11,7 @@ import { avisarLimiteAlcanzado, eventoCita, eventoUmbralPlan } from "./cita.avis
 import { conNotificaciones } from "../notificaciones/notificacion.service.js";
 import { inicioDeCita } from "../notificaciones/silencio.js";
 import { calcularPlazoConfirmacion, configConfirmacion } from "./cita.confirmacion.js";
+import { estadosResenaDueno } from "../resenas/resena.plazo.js";
 import { aDatetimeSQL, hoyISO } from "../../shared/utils/fechas.js";
 import { toNumber } from "../../shared/utils/format.js";
 import { buildMeta } from "../../shared/utils/pagination.js";
@@ -206,6 +207,9 @@ export const formatCita = (row, { conNotasInternas = false } = {}) => ({
           motivo: row.motivo_cancelacion,
         }
       : null,
+  fecha_completada: row.fecha_completada ?? null,
+  // Reseña de la cita (una que retiró su autor no cuenta).
+  id_resena: row.id_resena && !row.resena_retirada_en ? row.id_resena : null,
   negocio: { id_negocio: row.id_negocio, nombre: row.negocio_nombre, logo_url: row.negocio_logo_url },
   // Con teléfono y coordenadas: la app muestra dónde es la cita y ofrece "Cómo llegar".
   sucursal: row.id_sucursal
@@ -425,6 +429,12 @@ const conDisponibilidad = async (rows, id_negocio, desde, hasta) => {
   return rows.map((row) => ({ ...formatCita(row, { conNotasInternas: true }), fuera_de_disponibilidad: fuera.has(row.id_cita) }));
 };
 
+/** Citas en el formato del dueño: sin notas internas y con el estado de su reseña (2.6). */
+const formatCitasDueno = async (rows, id_usuario) => {
+  const resenas = await estadosResenaDueno(rows, id_usuario);
+  return rows.map((row, i) => ({ ...formatCita(row), resena: resenas[i] }));
+};
+
 /** Citas del dueño (app), paginadas y sin notas internas. */
 export const getMisCitas = async (id_usuario, { page, limit, alcance, estado, id_mascota }) => {
   const { rows, total } = await citaRepo.findPageDeUsuario(id_usuario, {
@@ -434,7 +444,7 @@ export const getMisCitas = async (id_usuario, { page, limit, alcance, estado, id
     limit,
     offset: (page - 1) * limit,
   });
-  return { rows: rows.map((row) => formatCita(row)), meta: buildMeta(total, page, limit) };
+  return { rows: await formatCitasDueno(rows, id_usuario), meta: buildMeta(total, page, limit) };
 };
 
 /** Los filtros de la agenda deben ser del negocio (422 si no), aunque estén inactivos. */
@@ -479,11 +489,11 @@ export const getAgenda = async (negocio, id_usuario, { solo_mias, fuera_de_dispo
 /**
  * Detalle de una cita. Con acceso del panel (authorizeDuenoO): completa, con notas
  * internas, fuera_de_disponibilidad y el cumplimiento del cliente en ese negocio
- * (cliente.historial_cumplimiento). Para el dueño: sin notas internas.
+ * (cliente.historial_cumplimiento). Para el dueño: sin notas internas y con el estado de su reseña.
  */
 export const getCita = async (id_cita, acceso) => {
   const row = await citaRepo.findDetalle(id_cita);
-  if (acceso.relacion === "dueno") return formatCita(row);
+  if (acceso.relacion === "dueno") return (await formatCitasDueno([row], row.id_usuario))[0];
   const [[cita], historial_cumplimiento] = await Promise.all([
     conDisponibilidad([row], row.id_negocio, row.fecha, row.fecha),
     citaRepo.resumenCumplimiento(row.id_usuario, row.id_negocio),

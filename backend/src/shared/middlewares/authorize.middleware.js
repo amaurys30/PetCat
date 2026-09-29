@@ -14,6 +14,7 @@ const RECURSO_NO_ENCONTRADO = {
   id_disponibilidad: "Disponibilidad no encontrada",
   id_historial: "Registro de historial no encontrado",
   id_vacuna: "Vacuna no encontrada",
+  id_resena: "Reseña no encontrada",
 };
 
 /**

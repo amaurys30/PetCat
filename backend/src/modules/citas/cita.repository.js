@@ -183,6 +183,7 @@ const CAMPOS_ACTUALIZABLES = [
   "motivo_cancelacion",
   "cancelada_por",
   "cancelacion_tardia",
+  "fecha_completada",
 ];
 
 /** Actualiza la cita con la lista blanca; `fecha_cancelacion` se pone con NOW() si se pide. */
@@ -275,6 +276,7 @@ const SELECT_CITA = `
          c.estado, c.origen, c.prioridad, c.precio_estimado, c.precio_final, c.notas_cliente, c.notas_internas,
          c.id_cita_origen, c.fecha_creacion,
          c.motivo_cancelacion, c.cancelada_por, c.fecha_cancelacion, c.cancelacion_tardia, c.confirmar_antes_de,
+         c.fecha_completada, r.id_resena, r.retirada_en AS resena_retirada_en,
          n.id_negocio, n.nombre AS negocio_nombre, n.logo_url AS negocio_logo_url,
          su.id_sucursal, su.nombre AS sucursal_nombre, su.direccion AS sucursal_direccion,
          su.telefono AS sucursal_telefono, su.latitud AS sucursal_latitud, su.longitud AS sucursal_longitud,
@@ -289,7 +291,8 @@ const SELECT_CITA = `
   JOIN servicios sv ON sv.id_servicio = c.id_servicio
   LEFT JOIN empleados e ON e.id_empleado = c.id_empleado
   JOIN mascotas m ON m.id_mascota = c.id_mascota
-  JOIN usuarios u ON u.id_usuario = c.id_usuario`;
+  JOIN usuarios u ON u.id_usuario = c.id_usuario
+  LEFT JOIN resenas r ON r.id_cita = c.id_cita`;
 
 export const findDetalle = async (id_cita, conn) => {
   const [rows] = await (conn ?? db).query(`${SELECT_CITA} WHERE c.id_cita = ?`, [id_cita]);

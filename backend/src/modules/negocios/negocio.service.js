@@ -6,6 +6,7 @@ import { castFields } from "../../shared/utils/format.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
 import { conMiniaturas } from "../../shared/utils/storage.js";
 import { quitarImagen, reemplazarImagen } from "../archivos/archivo.service.js";
+import { getRecientesPublicas } from "../resenas/resena.service.js";
 
 const formatNegocio = (negocio) =>
   conMiniaturas(
@@ -62,7 +63,7 @@ export const getPerfilPublico = async (id_negocio) => {
     negocioRepo.findSucursalesPublicas(id_negocio),
     negocioRepo.findHorariosPublicos(id_negocio),
     negocioRepo.findServiciosPublicos(id_negocio),
-    negocioRepo.findResenasVisibles(id_negocio),
+    getRecientesPublicas(id_negocio),
   ]);
 
   return {
