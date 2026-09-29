@@ -171,7 +171,7 @@ export const getSuscripcion = async (id_negocio) => {
 
 const yaUsoPrueba = (suscripciones) => suscripciones.some((s) => s.fecha_prueba_fin !== null);
 
-const puedeProbar = (suscripciones, plan) => plan.nombre === PLAN_POR_DEFECTO && !yaUsoPrueba(suscripciones);
+export const puedeProbar = (suscripciones, plan) => plan.nombre === PLAN_POR_DEFECTO && !yaUsoPrueba(suscripciones);
 
 /**
  * Prueba Pro de `dias_prueba_gratis` días, una vez por negocio y solo desde el plan
