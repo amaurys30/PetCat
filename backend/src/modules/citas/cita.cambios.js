@@ -6,7 +6,8 @@ import { aMinutos } from "../disponibilidad/disponibilidad.calculo.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
 import { eventoCita } from "./cita.avisos.js";
 import { conNotificaciones } from "../notificaciones/notificacion.service.js";
-import { hoyISO } from "../../shared/utils/fechas.js";
+import { programarInvitacion } from "../resenas/resena.plazo.js";
+import { aDatetimeSQL, hoyISO } from "../../shared/utils/fechas.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
 
 /**
@@ -41,7 +42,8 @@ const invalido = (campo, mensaje) => ApiError.unprocessable("Datos inválidos", 
 /**
  * Cambia el estado según TRANSICIONES. en_curso solo desde la fecha de la cita
  * (desde no_asistio, solo el mismo día); no_asistio solo desde la hora de inicio.
- * Al completar se guarda precio_final (por defecto el estimado) y suma total_citas.
+ * Al completar se guarda precio_final (por defecto el estimado) y fecha_completada, suma
+ * total_citas y se programa la invitación a reseñar (2.6).
  */
 export const cambiarEstado = async (id_cita, { estado, motivo, precio_final }, actor, acceso) => {
   await conNotificaciones(async (conn, notificar) => {
@@ -69,7 +71,11 @@ export const cambiarEstado = async (id_cita, { estado, motivo, precio_final }, a
     }
 
     const cambios = { estado };
-    if (estado === "completada") cambios.precio_final = precio_final ?? cita.precio_estimado;
+    const ahora = new Date();
+    if (estado === "completada") {
+      cambios.precio_final = precio_final ?? cita.precio_estimado;
+      cambios.fecha_completada = aDatetimeSQL(ahora);
+    }
     await citaRepo.update(id_cita, cambios, conn);
     await citaRepo.insertHistorial({ id_cita, actor, campo: "estado", anterior: cita.estado, nuevo: estado, motivo }, conn);
     if (estado === "completada") {
@@ -78,6 +84,7 @@ export const cambiarEstado = async (id_cita, { estado, motivo, precio_final }, a
         conn
       );
       await citaRepo.incrementTotalCitas(cita.id_negocio, conn);
+      await programarInvitacion(cita, ahora, conn);
     }
     if (estado === "confirmada") {
       await notificar([await eventoCita("cita_confirmada", id_cita, { para: "dueno", actor }, conn)]);
