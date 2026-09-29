@@ -236,18 +236,20 @@ describe("horario de silencio", () => {
 
   it("a las 22:00 un aviso no urgente queda para las 07:00 y el job lo envía entonces", async () => {
     const dueno = await crearUsuario();
-    await crearDispositivo(dueno);
+    const dispositivo = await crearDispositivo(dueno);
+    // El job también envía lo que otros archivos dejaron pendiente antes de esa fecha: solo cuentan las de este dueño.
+    const suyas = () => pushSender.enviados.filter((m) => m.to === dispositivo.token_expo);
     await notificarA(a(12, 22), cancelada(dueno, { fecha: "2026-10-20" }));
 
     const [envio] = await enviosDe(dueno.id_usuario);
     expect(envio).toMatchObject({ estado: "pendiente", intentos: 0, programado_para: "2026-10-13 07:00:00" });
-    expect(pushSender.enviados).toHaveLength(0);
+    expect(suyas()).toHaveLength(0);
 
     await procesarEnviosPendientes({ ahora: a(13, 6, 59) });
-    expect(pushSender.enviados).toHaveLength(0);
+    expect(suyas()).toHaveLength(0);
     await procesarEnviosPendientes({ ahora: a(13, 7) });
-    expect(pushSender.enviados).toHaveLength(1);
-    expect(pushSender.enviados[0].priority).toBe("default");
+    expect(suyas()).toHaveLength(1);
+    expect(suyas()[0].priority).toBe("default");
   });
 
   it("urgente: la cancelación de una cita de antes de las 10:00 del día siguiente sale de inmediato y con prioridad alta", async () => {
