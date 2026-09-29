@@ -188,7 +188,7 @@ Jobs sobre la base de node-cron de la 2.3 (funciones exportadas que los tests ll
 - [x] Migración `017_confirmacion_automatica.sql` (`negocios.confirmacion_automatica`, `citas.confirmar_antes_de` y `aviso_por_confirmar_en`, `cancelada_por = 'sistema'`, `plazo_confirmacion_h` y `confirmacion_antes_inicio_min`); la opción en el CRUD y el perfil público del negocio; plazo al crear la cita pendiente (con el ajuste del silencio); `sistema` en la cita y su historial, fuera de `historial_cumplimiento`.
 - [x] Con la opción activa, las citas de la app y las que reprograma el dueño nacen `confirmada` con recordatorio.
 - [x] Job `confirmaciones`: aviso a mitad del plazo (`cita_por_confirmar`, también por correo al propietario sin dispositivo, nunca urgente) y cancelación automática al vencer (`cita_no_confirmada` a las dos partes, con los datos para reservar de nuevo); seguro con dos instancias.
-- [ ] README: confirmación automática, `confirmar_antes_de`, tipos nuevos y cómo reservar de nuevo desde el aviso.
+- [x] README: confirmación automática, `confirmar_antes_de`, tipos nuevos y cómo reservar de nuevo desde el aviso.
 
 ### 2.6 Reseñas
 - [ ] `POST /citas/:id_cita/resena` (solo el dueño, cita completada, 409 si ya existe), `GET /negocios/:id_negocio/resenas` (público, paginado) y listado del panel.

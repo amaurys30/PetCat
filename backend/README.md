@@ -75,6 +75,7 @@ El servidor (`npm run dev`, `npm start` o el contenedor) corre estas tareas con 
 | `envios-notificaciones` | Cada minuto | Envía las push y los correos programados (fin del horario de silencio) y los reintentos |
 | `recibos-expo` | Cada 15 min | Revisa los recibos de Expo y desactiva tokens dados de baja |
 | `recordatorios-citas` | Cada minuto | Recordatorio del día anterior (19:00) y de 2 horas antes |
+| `confirmaciones` | Cada minuto | Aviso al negocio a mitad del plazo para confirmar y cancelación automática de las citas pendientes que vencen |
 | `estado-vacunas` | 00:05 | Corrige la columna `vacunas.estado` |
 | `suscripciones` | 00:10 | Vence pruebas y planes (`plan_vencido`) y avisa la prueba por terminar |
 | `recordatorios-vacunas` | 09:00 | Vacunas 7 días antes, el día y 7 días después |
@@ -342,7 +343,7 @@ Detalle de cada uno en Swagger.
 
 ### Reservar citas
 
-- **App:** `GET /citas/horarios-libres?id_servicio&id_sucursal&fecha[&id_empleado]` (público) y luego `POST /citas` con el `hora_inicio` elegido. Los horarios son de 15 en 15 minutos y con al menos 1 hora de anticipación, hasta 60 días adelante. Si no hay, la lista viene vacía con `motivo_sin_horarios` para mostrarlo. La cita queda `pendiente` hasta que el negocio la confirme.
+- **App:** `GET /citas/horarios-libres?id_servicio&id_sucursal&fecha[&id_empleado]` (público) y luego `POST /citas` con el `hora_inicio` elegido. Los horarios son de 15 en 15 minutos y con al menos 1 hora de anticipación, hasta 60 días adelante. Si no hay, la lista viene vacía con `motivo_sin_horarios` para mostrarlo. La cita queda `pendiente` hasta que el negocio la confirme (ver "Confirmación de citas").
 - **Panel:** mismos pasos con `/negocios/:id_negocio/citas/horarios-libres` y `POST /negocios/:id_negocio/citas` (lleva `id_usuario` del cliente y `origen`); permite servicios ocultos en la app y horarios desde ahora. La cita queda `confirmada`.
 - Sin `id_empleado`, cada horario lista quién puede atenderlo y la reserva se asigna al que tenga menos citas ese día.
 - Un 409 al reservar ("El horario ya no está disponible") significa que otra persona lo tomó: volver a pedir los horarios libres.
@@ -352,6 +353,14 @@ Detalle de cada uno en Swagger.
 - **Cambios:** el panel confirma, inicia, completa o marca inasistencia con `PATCH /citas/:id_cita/estado` y edita notas, prioridad, precio final o empleado con `PATCH /citas/:id_cita`. Dueño y negocio cancelan con `POST /citas/:id_cita/cancelar` (el negocio con motivo; si el dueño cancela a menos de 2 horas, `cancelacion.tardia: true`) y reprograman con `POST /citas/:id_cita/reprogramar` (el dueño hasta 2 horas antes; devuelve la cita nueva). `GET /citas/:id_cita/historial` muestra los cambios.
 - **Inasistencias:** el detalle de la cita en el panel trae `cliente.historial_cumplimiento` (completadas, inasistencias y cancelaciones tardías del cliente en ese negocio).
 - `PUT /sucursales/:id_sucursal/horarios` y `DELETE /empleados/:id_empleado` también responden `citas_afectadas`.
+
+### Confirmación de citas
+
+- **Plazo:** una cita pendiente trae `confirmar_antes_de`: hasta cuándo puede confirmarla el negocio. Es lo que ocurra primero entre 24 horas después de reservar y 60 minutos antes del inicio; si cae de madrugada (horario de silencio), se corre a las 08:00, sin pasar de 30 minutos antes del inicio. La app puede mostrar "el negocio tiene hasta las 3:00 p. m. para confirmar"; el panel, cuánto falta.
+- **Aviso a mitad del plazo** (`cita_por_confirmar`): al propietario y a quien tiene `citas.editar`. Nunca suena de madrugada: sigue el horario de silencio.
+- **Cancelación automática:** si nadie la confirma, al vencer el plazo la cita pasa a `cancelada` con `cancelacion.por = "sistema"`. Nunca es tardía ni cuenta contra el cliente (`historial_cumplimiento`), y en el historial de la cita aparece como `realizado_por: "sistema"`.
+- **Reservar de nuevo (app):** el aviso `cita_no_confirmada` al dueño trae en `datos` `id_negocio`, `id_sucursal`, `id_servicio` e `id_mascota`. Con ellos, la app abre la reserva ya armada: `GET /citas/horarios-libres?id_servicio&id_sucursal&fecha` y `POST /citas` con esa mascota.
+- **Confirmación automática:** con `confirmacion_automatica: true` (`PATCH /negocios/:id_negocio`, permiso `configuracion.editar`) las citas de la app y las que reprograma el dueño nacen `confirmada` (mensaje "Cita confirmada"), sin plazo y con sus recordatorios. El perfil público del negocio trae el mismo campo, para que la app muestre "confirmación inmediata". Activarla no confirma las pendientes que ya existen.
 
 ### Salud de la mascota
 
@@ -426,12 +435,14 @@ Tipos actuales y a quién llegan (`datos` para el deep link):
 
 | Tipo | Cuándo | Para | `datos` |
 |---|---|---|---|
-| `cita_nueva` | Reserva desde la app | Negocio (`citas.ver`) | `id_cita`, `id_negocio` |
+| `cita_nueva` | Reserva desde la app (pendiente, o confirmada con la confirmación automática) | Negocio (`citas.ver`) | `id_cita`, `id_negocio` |
 | `cita_agendada` | El panel agenda una cita | Dueño | `id_cita`, `id_negocio` |
 | `cita_confirmada` | El negocio confirma | Dueño | `id_cita`, `id_negocio` |
 | `cita_cancelada`, `cita_reprogramada` | Cancela o reprograma una parte | La otra parte | `id_cita`, `id_negocio` |
 | `cita_dia_anterior` | 19:00 del día anterior a una cita confirmada | Dueño | `id_cita`, `id_negocio` |
 | `cita_recordatorio` | 2 horas antes | Dueño | `id_cita`, `id_negocio` |
+| `cita_por_confirmar` | A mitad del plazo para confirmar una cita pendiente | Negocio (`citas.editar`) | `id_cita`, `id_negocio` |
+| `cita_no_confirmada` | El plazo venció y la cita se canceló sola | Dueño y negocio (`citas.ver`) | `id_cita`, `id_negocio`; al dueño también `id_sucursal`, `id_servicio`, `id_mascota` |
 | `vacuna_proxima`, `vacuna_vence_hoy`, `vacuna_vencida` | 7 días antes, el día y 7 días después de `fecha_proxima` (09:00) | Dueño | `id_mascota`, `id_vacuna` |
 | `plan_limite_80`, `plan_limite_alcanzado` | 80 % del límite de citas del mes; reserva rechazada por el límite | Negocio (`configuracion.editar`) | `id_negocio`, `mes` |
 | `plan_prueba_por_vencer` | A la prueba Pro le quedan 3 días o menos | Negocio (`configuracion.editar`) | `id_negocio` |
