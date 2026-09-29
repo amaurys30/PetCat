@@ -394,3 +394,61 @@ export const usuarioActivo = async (id_usuario, conn) => {
   const [rows] = await (conn ?? db).query("SELECT 1 FROM usuarios WHERE id_usuario = ? AND activo = TRUE", [id_usuario]);
   return rows.length > 0;
 };
+
+// ---------- Confirmación automática (job de confirmaciones, 2.5) ----------
+
+/**
+ * Citas pendientes cuyo aviso de mitad de plazo ya toca: el punto medio entre la creación y
+ * confirmar_antes_de pasó, el plazo no ha vencido y aún no se avisó.
+ */
+export const findPorAvisarConfirmacion = async (ahora, limite) => {
+  const [rows] = await db.query(
+    `SELECT id_cita FROM citas
+     WHERE estado = 'pendiente' AND confirmar_antes_de > ? AND aviso_por_confirmar_en IS NULL
+       AND fecha_creacion + INTERVAL (TIMESTAMPDIFF(SECOND, fecha_creacion, confirmar_antes_de) DIV 2) SECOND <= ?
+     ORDER BY confirmar_antes_de, id_cita
+     LIMIT ?`,
+    [ahora, ahora, limite]
+  );
+  return rows.map((row) => row.id_cita);
+};
+
+/** Citas pendientes con el plazo para confirmar vencido. */
+export const findConfirmacionVencida = async (ahora, limite) => {
+  const [rows] = await db.query(
+    `SELECT id_cita FROM citas
+     WHERE estado = 'pendiente' AND confirmar_antes_de <= ?
+     ORDER BY confirmar_antes_de, id_cita
+     LIMIT ?`,
+    [ahora, limite]
+  );
+  return rows.map((row) => row.id_cita);
+};
+
+/**
+ * Bloquea la cita sin esperar: null si otra transacción la tiene (otra instancia del job o el
+ * negocio confirmándola en ese momento); el job la retoma al minuto siguiente.
+ */
+export const lockCitaSinEsperar = async (id_cita, conn) => {
+  const [rows] = await conn.query(
+    `SELECT id_cita, id_sucursal, id_servicio, id_mascota, estado, fecha, hora_inicio, fecha_creacion,
+            confirmar_antes_de, aviso_por_confirmar_en
+     FROM citas WHERE id_cita = ? FOR UPDATE SKIP LOCKED`,
+    [id_cita]
+  );
+  return rows[0] ?? null;
+};
+
+export const marcarAvisoPorConfirmar = async (id_cita, fecha, conn) => {
+  await conn.query("UPDATE citas SET aviso_por_confirmar_en = ? WHERE id_cita = ?", [fecha, id_cita]);
+};
+
+/** Cancelación automática: nunca es tardía (no cuenta contra el cliente). */
+export const cancelarPorSistema = async (id_cita, { motivo, fecha }, conn) => {
+  await conn.query(
+    `UPDATE citas SET estado = 'cancelada', cancelada_por = 'sistema', motivo_cancelacion = ?,
+                      cancelacion_tardia = FALSE, fecha_cancelacion = ?
+     WHERE id_cita = ?`,
+    [motivo, fecha, id_cita]
+  );
+};

@@ -171,6 +171,62 @@ export const TIPOS = {
           },
   },
 
+  // Job de confirmaciones (2.5). `d.plazo`: confirmar_antes_de ("YYYY-MM-DD HH:MM:SS").
+  // Aviso de mitad de plazo al negocio: nunca urgente (nadie confirma citas de madrugada).
+  cita_por_confirmar: {
+    correo: ["propietario"],
+    contenido: (d) => {
+      const [fechaPlazo, horaPlazo] = d.plazo.split(" ");
+      const antesDe = cuando(fechaPlazo, horaPlazo);
+      return {
+        titulo: "Cita sin confirmar",
+        push: `Una cita del ${cuando(d.fecha, d.hora_inicio)} sigue sin confirmar. Se cancela sola si no la confirmas.`,
+        mensaje: `La cita de ${d.cliente} (${d.servicio} para ${d.mascota}) del ${cuando(d.fecha, d.hora_inicio)} en ${d.sucursal} sigue sin confirmar. Si no la confirmas antes del ${antesDe}, se cancelará sola.`,
+        correo: {
+          asunto: "Tienes una cita sin confirmar en PetCat",
+          parrafos: [
+            `Una cita del ${cuando(d.fecha, d.hora_inicio)} en ${d.sucursal} sigue sin confirmar.`,
+            `Si nadie la confirma en el panel de PetCat antes del ${antesDe}, se cancelará sola.`,
+          ],
+        },
+      };
+    },
+  },
+
+  // Cancelación automática: al dueño (con los ids para reservar de nuevo; urgente si la cita
+  // está cerca, `d.destino === "dueno"`) y al negocio.
+  cita_no_confirmada: {
+    correo: ["dueno", "propietario"],
+    urgente: (d, fin) => d.destino === "dueno" && urgentePorCita(d, fin),
+    contenido: (d, rol) =>
+      rol === "dueno"
+        ? {
+            titulo: "Tu cita se canceló",
+            push: `Tu cita con ${d.negocio} del ${cuando(d.fecha, d.hora_inicio)} se canceló porque el negocio no la confirmó a tiempo.`,
+            mensaje: `${d.negocio} no confirmó a tiempo la cita de ${d.mascota} (${d.servicio}) del ${cuando(d.fecha, d.hora_inicio)} y se canceló. No tienes que hacer nada. Puedes reservar de nuevo desde la app.`,
+            correo: {
+              asunto: `Tu cita en ${d.negocio} se canceló`,
+              parrafos: [
+                `${d.negocio} no confirmó a tiempo tu cita y se canceló.`,
+                `Era para el ${cuando(d.fecha, d.hora_inicio)}.`,
+                "No tienes que hacer nada. Puedes reservar de nuevo en la app PetCat.",
+              ],
+            },
+          }
+        : {
+            titulo: "Cita cancelada sin confirmar",
+            push: `Se canceló una cita del ${cuando(d.fecha, d.hora_inicio)}: nadie la confirmó a tiempo.`,
+            mensaje: `La cita de ${d.cliente} (${d.servicio} para ${d.mascota}) del ${cuando(d.fecha, d.hora_inicio)} se canceló porque nadie la confirmó a tiempo. Con la confirmación automática del negocio, las citas de la app quedan confirmadas al reservar.`,
+            correo: {
+              asunto: "Se canceló una cita sin confirmar en PetCat",
+              parrafos: [
+                `La cita del ${cuando(d.fecha, d.hora_inicio)} en ${d.sucursal} se canceló porque nadie la confirmó a tiempo.`,
+                "Con la confirmación automática del negocio (en su configuración), las citas de la app quedan confirmadas al reservar.",
+              ],
+            },
+          },
+  },
+
   // Recordatorios de la 2.4 (job de recordatorios de citas).
   cita_dia_anterior: {
     correo: ["dueno"],

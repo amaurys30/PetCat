@@ -1,10 +1,13 @@
+import * as citaRepo from "./cita.repository.js";
 import * as configuracionRepo from "../configuracion/configuracion.repository.js";
-import { configSilencio } from "../notificaciones/notificacion.service.js";
-import { enSilencio, finDelSilencio } from "../notificaciones/silencio.js";
+import { eventoCita } from "./cita.avisos.js";
+import { conNotificaciones, configSilencio } from "../notificaciones/notificacion.service.js";
+import { enSilencio, finDelSilencio, inicioDeCita } from "../notificaciones/silencio.js";
+import { aDatetimeSQL, deDatetimeSQL } from "../../shared/utils/fechas.js";
 
 /**
- * Plazo del negocio para confirmar una cita pendiente (2.5). Al vencer, el job de
- * confirmaciones la cancela (cancelada_por = 'sistema').
+ * Plazo del negocio para confirmar una cita pendiente (2.5) y el job que avisa a mitad de
+ * plazo y la cancela al vencer (cancelada_por = 'sistema').
  */
 
 const MINUTO = 60_000;
@@ -40,4 +43,100 @@ export const calcularPlazoConfirmacion = ({ creacion, inicio, plazoH, antesInici
     }
   }
   return new Date(Math.max(plazo.getTime(), creacion.getTime()));
+};
+
+// ---------- Job de confirmaciones (cada minuto) ----------
+
+export const MOTIVO_SISTEMA = "El negocio no confirmó la cita a tiempo";
+
+/** Punto medio entre la creación y el plazo: cuándo se avisa al negocio. */
+const mitadDelPlazo = (cita) => {
+  const creacion = deDatetimeSQL(cita.fecha_creacion).getTime();
+  return new Date(creacion + (deDatetimeSQL(cita.confirmar_antes_de).getTime() - creacion) / 2);
+};
+
+/**
+ * Aviso de mitad de plazo en su propia transacción: bloquea la cita (sin esperar), comprueba
+ * que siga pendiente, sin avisar y con el plazo vigente, y marca `aviso_por_confirmar_en` en la
+ * misma transacción que notifica: con dos instancias, un solo aviso. Al propietario y a quien
+ * tiene `citas.editar` (quien puede confirmar); nunca urgente. Devuelve true si avisó.
+ */
+const avisarPorConfirmar = (id_cita, { ahora }) =>
+  conNotificaciones(
+    async (conn, notificar) => {
+      const cita = await citaRepo.lockCitaSinEsperar(id_cita, conn);
+      if (!cita || cita.estado !== "pendiente" || cita.aviso_por_confirmar_en || !cita.confirmar_antes_de) return false;
+      if (deDatetimeSQL(cita.confirmar_antes_de) <= ahora || mitadDelPlazo(cita) > ahora) return false;
+
+      await citaRepo.marcarAvisoPorConfirmar(id_cita, aDatetimeSQL(ahora), conn);
+      await notificar([
+        await eventoCita(
+          "cita_por_confirmar",
+          id_cita,
+          { para: "negocio", permiso: ["citas", "editar"], extra: { plazo: cita.confirmar_antes_de } },
+          conn
+        ),
+      ]);
+      return true;
+    },
+    { ahora }
+  );
+
+/**
+ * Cancelación automática en su propia transacción, con la cita bloqueada (sin esperar): si
+ * sigue pendiente con el plazo vencido pasa a cancelada por el sistema (nunca tardía), queda
+ * en su historial sin usuario ni empleado y se cancelan sus recordatorios. Si la cita aún no
+ * empezó, avisa al dueño (con los ids para reservar de nuevo; urgente si la cita está cerca) y
+ * al negocio. Si el negocio la confirmó a la vez, gana quien bloqueó primero. Devuelve true si canceló.
+ */
+const cancelarSinConfirmar = (id_cita, { ahora }) =>
+  conNotificaciones(
+    async (conn, notificar) => {
+      const cita = await citaRepo.lockCitaSinEsperar(id_cita, conn);
+      if (!cita || cita.estado !== "pendiente" || !cita.confirmar_antes_de) return false;
+      if (deDatetimeSQL(cita.confirmar_antes_de) > ahora) return false;
+
+      await citaRepo.cancelarPorSistema(id_cita, { motivo: MOTIVO_SISTEMA, fecha: aDatetimeSQL(ahora) }, conn);
+      await citaRepo.insertHistorial(
+        { id_cita, actor: { id_usuario: null }, campo: "estado", anterior: "pendiente", nuevo: "cancelada", motivo: MOTIVO_SISTEMA },
+        conn
+      );
+      await citaRepo.cancelarRecordatoriosPendientes(id_cita, conn);
+
+      // Tras una caída larga, una cita que ya empezó se cancela sin avisar a nadie.
+      if (inicioDeCita(cita.fecha, cita.hora_inicio) > ahora) {
+        const reservaDeNuevo = { id_sucursal: cita.id_sucursal, id_servicio: cita.id_servicio, id_mascota: cita.id_mascota };
+        await notificar([
+          await eventoCita("cita_no_confirmada", id_cita, { para: "dueno", extra: { destino: "dueno" }, enlace: reservaDeNuevo }, conn),
+          await eventoCita("cita_no_confirmada", id_cita, { para: "negocio" }, conn),
+        ]);
+      }
+      return true;
+    },
+    { ahora }
+  );
+
+/**
+ * Job de cada minuto: primero los avisos de mitad de plazo y después las cancelaciones de
+ * las citas pendientes cuyo plazo venció. Un error en una cita no detiene las demás.
+ * Devuelve cuántos avisos y cancelaciones hizo.
+ */
+export const procesarConfirmaciones = async ({ ahora = new Date(), limite = 200 } = {}) => {
+  const total = { avisos: 0, canceladas: 0 };
+  const momento = aDatetimeSQL(ahora);
+  for (const id_cita of await citaRepo.findPorAvisarConfirmacion(momento, limite)) {
+    try {
+      if (await avisarPorConfirmar(id_cita, { ahora })) total.avisos += 1;
+    } catch (err) {
+      console.error(`[confirmaciones] No se pudo avisar la cita ${id_cita}:`, err.message);
+    }
+  }
+  for (const id_cita of await citaRepo.findConfirmacionVencida(momento, limite)) {
+    try {
+      if (await cancelarSinConfirmar(id_cita, { ahora })) total.canceladas += 1;
+    } catch (err) {
+      console.error(`[confirmaciones] No se pudo cancelar la cita ${id_cita}:`, err.message);
+    }
+  }
+  return total;
 };

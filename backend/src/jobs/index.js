@@ -9,6 +9,7 @@ import { refrescarEstados as refrescarEstadosVacunas } from "../modules/vacunas/
 import { vencerSuscripciones } from "../modules/suscripciones/suscripcion.jobs.js";
 import { limpiarSesiones } from "../modules/sessions/session.service.js";
 import { reintentarEliminaciones } from "../modules/archivos/archivo.service.js";
+import { procesarConfirmaciones } from "../modules/citas/cita.confirmacion.js";
 
 /**
  * Tareas programadas (node-cron, hora de Bogotá). Cada job es una función exportada de
@@ -25,6 +26,8 @@ export const JOBS = [
   { nombre: "recibos-expo", cada: "*/15 * * * *", tarea: () => revisarRecibos() },
   // Recordatorios de citas: el del día anterior (19:00) y el de 2 horas antes.
   { nombre: "recordatorios-citas", cada: "* * * * *", tarea: () => enviarRecordatoriosCitas() },
+  // Citas pendientes: aviso al negocio a mitad del plazo y cancelación automática al vencer (2.5).
+  { nombre: "confirmaciones", cada: "* * * * *", tarea: () => procesarConfirmaciones() },
   // Columna vacunas.estado (las vistas la usan; la API calcula el estado al leer).
   { nombre: "estado-vacunas", cada: "5 0 * * *", tarea: () => refrescarEstadosVacunas(), alArrancar: true },
   // Pruebas y planes vencidos pasan a `vencida` (plan_vencido) y aviso de prueba por terminar.

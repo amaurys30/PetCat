@@ -12,6 +12,9 @@ export const hoyISO = (ahora = new Date()) =>
 export const diasEntre = (desde, hasta) =>
   Math.round((new Date(`${hasta}T12:00:00`) - new Date(`${desde}T12:00:00`)) / 86_400_000);
 
+/** "YYYY-MM-DD HH:MM:SS" (DATETIME de MySQL, hora de Bogotá) -> Date. */
+export const deDatetimeSQL = (texto) => new Date(String(texto).replace(" ", "T"));
+
 /** Fecha y hora en Bogotá como DATETIME de MySQL: "YYYY-MM-DD HH:MM:SS". */
 export const aDatetimeSQL = (fecha) =>
   `${hoyISO(fecha)} ${dosDigitos(fecha.getHours())}:${dosDigitos(fecha.getMinutes())}:${dosDigitos(fecha.getSeconds())}`;
