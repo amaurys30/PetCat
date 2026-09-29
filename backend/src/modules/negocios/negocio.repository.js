@@ -142,6 +142,7 @@ const NEGOCIO_DE_RECURSO = {
   id_vacuna: "SELECT id_negocio FROM vacunas WHERE id_vacuna = ?",
   // Una reseña que retiró su autor ya no existe para el negocio.
   id_resena: "SELECT id_negocio FROM resenas WHERE id_resena = ? AND retirada_en IS NULL",
+  id_nota: "SELECT id_negocio FROM notas_cliente WHERE id_nota = ?",
   id_disponibilidad: `SELECT e.id_negocio
                       FROM disponibilidad_empleado d
                       JOIN empleados e ON e.id_empleado = d.id_empleado

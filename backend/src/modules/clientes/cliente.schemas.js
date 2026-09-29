@@ -49,6 +49,12 @@ export const listClientesQuery = paginationSchema.extend({
   orden: z.enum(["ultima_cita", "nombre", "inasistencias"], { error: "Debe ser ultima_cita, nombre o inasistencias" }).default("ultima_cita"),
 });
 
+export const idNotaParams = idParam("id_nota");
+
+export const notaBody = z.strictObject({ texto: z.string().trim().min(1).max(1000) });
+
+export const notasQuery = paginationSchema;
+
 export const citasClienteQuery = paginationSchema.extend({
   estado: z
     .string()

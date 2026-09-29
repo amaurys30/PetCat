@@ -12,6 +12,7 @@ import * as citaRepo from "../citas/cita.repository.js";
 import { formatCitasPanel } from "../citas/cita.service.js";
 import { buildMeta } from "../../shared/utils/pagination.js";
 import { castFields } from "../../shared/utils/format.js";
+import { getResumenNotas } from "./nota.service.js";
 
 const MAX_CITAS_RECIENTES = 10;
 
@@ -94,15 +95,16 @@ export const listarClientes = async (id_negocio, { page, limit, q, orden }) => {
  * Detalle del cliente en el negocio. 404 si no es cliente de este negocio (no se
  * revela si la cuenta existe). Todo (citas, cumplimiento, conteos) es solo de este negocio.
  */
-export const getCliente = async (id_negocio, id_usuario) => {
+export const getCliente = async (id_negocio, id_usuario, usuario, acceso) => {
   const cliente = await clienteRepo.findClienteDeNegocio(id_usuario, id_negocio);
   if (!cliente) throw ApiError.notFound(NO_ES_CLIENTE);
 
-  const [historial_cumplimiento, mascotas, proximas, recientes] = await Promise.all([
+  const [historial_cumplimiento, mascotas, proximas, recientes, notas] = await Promise.all([
     citaRepo.resumenCumplimiento(id_usuario, id_negocio),
     clienteRepo.findMascotasDeCliente(id_usuario, id_negocio),
     citaRepo.findPageDeUsuario(id_usuario, { id_negocio, alcance: "proximas", estados: ["pendiente", "confirmada"], limit: 50, offset: 0 }),
     citaRepo.findPageDeUsuario(id_usuario, { id_negocio, alcance: "pasadas", limit: MAX_CITAS_RECIENTES, offset: 0 }),
+    getResumenNotas(id_negocio, id_usuario, usuario, acceso),
   ]);
   const fechas = [cliente.primera_cita, cliente.primera_autorizacion].filter(Boolean).sort();
 
@@ -125,6 +127,8 @@ export const getCliente = async (id_negocio, id_usuario) => {
       proximas: await formatCitasPanel(proximas.rows, id_negocio),
       recientes: await formatCitasPanel(recientes.rows, id_negocio),
     },
+    // Solo de este negocio (2.7).
+    ...notas,
   };
 };
 

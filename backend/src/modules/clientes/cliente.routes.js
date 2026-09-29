@@ -5,7 +5,10 @@ import {
   buscarClienteQuery,
   citasClienteQuery,
   clienteParams,
+  idNotaParams,
   listClientesQuery,
+  notaBody,
+  notasQuery,
   registrarClienteBody,
 } from "./cliente.schemas.js";
 import { idNegocioParams } from "../negocios/negocio.schemas.js";
@@ -198,6 +201,8 @@ router.get(
  *           properties:
  *             proximas: { type: array, items: { $ref: '#/components/schemas/CitaPanel' } }
  *             recientes: { type: array, description: Las últimas 10, items: { $ref: '#/components/schemas/CitaPanel' } }
+ *         notas_recientes: { type: array, description: Las 3 últimas notas del negocio sobre el cliente, items: { $ref: '#/components/schemas/NotaCliente' } }
+ *         total_notas: { type: integer }
  */
 
 /**
@@ -248,7 +253,7 @@ router.get(
  *     summary: Detalle de un cliente del negocio (panel)
  *     description: >
  *       Requiere `clientes.ver`. Contacto, cumplimiento (completadas, inasistencias y cancelaciones tardías),
- *       mascotas y citas próximas y recientes, todo solo con este negocio. 404 si el usuario no es cliente del
+ *       mascotas, citas próximas y recientes y las últimas notas del negocio, todo solo con este negocio. 404 si el usuario no es cliente del
  *       negocio (no se revela si la cuenta existe).
  *     tags: [Clientes]
  *     parameters:
@@ -314,6 +319,177 @@ router.get(
   validate({ params: clienteParams, query: citasClienteQuery }),
   authorize("clientes", "ver"),
   controller.getCitasCliente
+);
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     NotaCliente:
+ *       type: object
+ *       properties:
+ *         id_nota: { type: integer }
+ *         texto: { type: string, maxLength: 1000 }
+ *         autor:
+ *           type: object
+ *           nullable: true
+ *           description: null si la cuenta del autor ya no existe ("Ex miembro del equipo")
+ *           properties: { id_usuario: { type: integer }, nombre: { type: string }, apellido: { type: string } }
+ *         fecha_creacion: { type: string, example: "2026-09-29 10:15:00" }
+ *         fecha_edicion: { type: string, nullable: true }
+ *         editable: { type: boolean, description: Quien consulta es el autor }
+ *         eliminable: { type: boolean, description: Quien consulta es el autor o el propietario }
+ *     NotaInput:
+ *       type: object
+ *       additionalProperties: false
+ *       required: [texto]
+ *       properties:
+ *         texto: { type: string, minLength: 1, maxLength: 1000, example: Prefiere que lo llamen en la tarde }
+ */
+
+/**
+ * @swagger
+ * /negocios/{id_negocio}/clientes/{id_usuario}/notas:
+ *   get:
+ *     summary: Notas del negocio sobre un cliente (panel)
+ *     description: >
+ *       Requiere `clientes.ver`. Solo las de este negocio, de la más reciente a la más antigua. Nunca las ve el
+ *       cliente ni otro negocio. 404 si el usuario no es cliente del negocio.
+ *     tags: [Clientes]
+ *     parameters:
+ *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
+ *       - { in: path, name: id_usuario, required: true, schema: { type: integer } }
+ *       - $ref: '#/components/parameters/page'
+ *       - $ref: '#/components/parameters/limit'
+ *     responses:
+ *       200:
+ *         description: Página de notas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: OK }
+ *                 data: { type: array, items: { $ref: '#/components/schemas/NotaCliente' } }
+ *                 meta: { $ref: '#/components/schemas/PaginationMeta' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ *   post:
+ *     summary: Escribir una nota sobre un cliente (panel)
+ *     description: >
+ *       Requiere `clientes.editar`. Queda con su autor y fecha. No escribir diagnósticos (van al historial
+ *       médico) ni datos sensibles: la nota es un dato personal del cliente y, por la Ley 1581, el titular
+ *       puede pedir conocerla.
+ *     tags: [Clientes]
+ *     parameters:
+ *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
+ *       - { in: path, name: id_usuario, required: true, schema: { type: integer } }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema: { $ref: '#/components/schemas/NotaInput' }
+ *     responses:
+ *       201:
+ *         description: Nota guardada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Nota guardada }
+ *                 data: { $ref: '#/components/schemas/NotaCliente' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.get(
+  "/negocios/:id_negocio/clientes/:id_usuario/notas",
+  authMiddleware,
+  validate({ params: clienteParams, query: notasQuery }),
+  authorize("clientes", "ver"),
+  controller.getNotas
+);
+
+router.post(
+  "/negocios/:id_negocio/clientes/:id_usuario/notas",
+  authMiddleware,
+  validate({ params: clienteParams, body: notaBody }),
+  authorize("clientes", "editar"),
+  controller.crearNota
+);
+
+/**
+ * @swagger
+ * /notas-cliente/{id_nota}:
+ *   patch:
+ *     summary: Editar una nota (panel)
+ *     description: Requiere `clientes.editar` y ser su autor (403 si no). Una nota de otro negocio da 403, como todo recurso ajeno.
+ *     tags: [Clientes]
+ *     parameters:
+ *       - { in: path, name: id_nota, required: true, schema: { type: integer } }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema: { $ref: '#/components/schemas/NotaInput' }
+ *     responses:
+ *       200:
+ *         description: Nota actualizada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Nota actualizada }
+ *                 data: { $ref: '#/components/schemas/NotaCliente' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ *   delete:
+ *     summary: Borrar una nota (panel)
+ *     description: >
+ *       Requiere `clientes.editar` y ser su autor o el propietario del negocio. Borrado físico: la nota
+ *       desaparece (excepción a la convención de borrado lógico).
+ *     tags: [Clientes]
+ *     parameters:
+ *       - { in: path, name: id_nota, required: true, schema: { type: integer } }
+ *     responses:
+ *       200:
+ *         description: Nota eliminada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Nota eliminada }
+ *                 data: { nullable: true, example: null }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
+router.patch(
+  "/notas-cliente/:id_nota",
+  authMiddleware,
+  validate({ params: idNotaParams, body: notaBody }),
+  authorize("clientes", "editar"),
+  controller.editarNota
+);
+
+router.delete(
+  "/notas-cliente/:id_nota",
+  authMiddleware,
+  validate({ params: idNotaParams }),
+  authorize("clientes", "editar"),
+  controller.borrarNota
 );
 
 router.post(
