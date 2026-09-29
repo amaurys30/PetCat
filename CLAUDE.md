@@ -96,7 +96,7 @@ PetCat/
 - Nunca devolver `password_hash`, `token_*`, `refresh_token` ni `credenciales_json`. Usar un `sanitizeUsuario` o seleccionar columnas explícitas.
 - Operaciones que escriben en más de una tabla van en transacción (`withTransaction`).
 - Verificar pertenencia: un dueño solo toca sus mascotas/citas; un negocio solo sus recursos. Nunca confiar en un `id_negocio` del body/query si se puede derivar del recurso.
-- Borrado lógico (`activo = FALSE`) donde exista la columna.
+- Borrado lógico (`activo = FALSE`) donde exista la columna. Excepción explícita: `notas_cliente` se borra físicamente (decisión de la 2.7).
 - Fechas: zona `America/Bogota`. El pool usa `dateStrings: true` para que `DATE`/`TIME`/`DATETIME` no se desplacen por zona horaria.
 
 **Permisos (`roles.permisos_json`)**

@@ -200,8 +200,11 @@ Jobs sobre la base de node-cron de la 2.3 (funciones exportadas que los tests ll
 - [x] Swagger, README para la app y el panel.
 
 ### 2.7 Dashboard y notas de clientes
-- [ ] `GET /negocios/:id_negocio/dashboard?desde&hasta` (`reportes.ver`): citas del día por estado, ingresos por citas completadas (`precio_final`; `v_ingresos_negocio` depende de `pagos`, Fase 3), servicios más pedidos, clientes nuevos, tasa de inasistencia y calificación. Solo el resumen básico sin `estadisticas_avanzadas`.
-- [ ] Notas del negocio sobre el cliente (`clientes.editar`).
+- [x] Migración `019_notas_cliente.sql` (tabla `notas_cliente`, borrado físico).
+- [ ] Notas del negocio sobre el cliente: `GET|POST /negocios/:id_negocio/clientes/:id_usuario/notas` (`clientes.ver` / `clientes.editar`), `PATCH|DELETE /notas-cliente/:id_nota`; `notas_recientes` y `total_notas` en el detalle del cliente; tests de privacidad.
+- [ ] `GET /negocios/:id_negocio/dashboard?desde&hasta&id_sucursal` (`reportes.ver`), básico: hoy, citas por estado, tasa de inasistencia, ingresos registrados (`precio_final`, `verificado: false`), servicios más pedidos, clientes nuevos, calificación y citas perdidas por no confirmar con la sugerencia de la confirmación automática.
+- [ ] Secciones avanzadas (`estadisticas_avanzadas`): tendencia, comparación, por empleado, por sucursal, horas pico, recurrencia y cancelaciones; en Gratuito `{ bloqueado: true, plan_requerido }` sin datos. Rango: 92 días en Gratuito (más: 422 con `plan_requerido`) y 366 en Pro y Enterprise.
+- [ ] Swagger, README (dashboard y notas, con la recomendación de no escribir datos sensibles).
 
 ### Cierre de la Fase 2
 - [ ] Seed ampliado: notificaciones, reseñas con respuesta y reportadas, dispositivos de ejemplo y un negocio Gratuito cerca de sus límites.
@@ -209,7 +212,7 @@ Jobs sobre la base de node-cron de la 2.3 (funciones exportadas que los tests ll
 - [ ] PR de `fase-2` a `main`.
 
 ## Requisitos antes de lanzar con usuarios reales
-- [ ] Supresión de datos (Ley 1581 de 2012): que el titular pueda pedir la supresión de su cuenta y sus datos, incluido el **borrado físico** de sus archivos en Cloudinary (fotos, comprobantes y, según lo que exija la conservación de la historia clínica, los archivos del historial) y la revocación de su autorización (`autorizaciones_datos.revocada_en`). Hasta entonces el borrado de mascotas y cuentas es lógico y los archivos se conservan (decisión de la 2.2).
+- [ ] Supresión de datos (Ley 1581 de 2012): que el titular pueda pedir la supresión de su cuenta y sus datos, incluido el **borrado físico** de sus archivos en Cloudinary (fotos, comprobantes y, según lo que exija la conservación de la historia clínica, los archivos del historial) y la revocación de su autorización (`autorizaciones_datos.revocada_en`). Incluye la consulta del titular: exportar lo que un negocio guarda sobre él, también las notas de clientes (2.7). Hasta entonces el borrado de mascotas y cuentas es lógico y los archivos se conservan (decisión de la 2.2).
 - [ ] Contacto de soporte real: configurar `soporte_email` y `soporte_whatsapp` en `configuracion_global` con los contactos reales de PetCat (los avisos del plan y el correo de bienvenida los muestran; vacíos se omiten).
 - [ ] SMTP real (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`) para que los correos se envíen; sin `SMTP_HOST`, en desarrollo solo se muestran en la consola.
 
@@ -507,3 +510,13 @@ Jobs sobre la base de node-cron de la 2.3 (funciones exportadas que los tests ll
 - "Editada después de la respuesta": la última edición del autor es posterior a la última versión de la respuesta.
 - `cliente_registrado_por_negocio` sale solo en `GET /negocios/:id_negocio/resenas/gestion` cuando consulta el super admin, hasta que exista su panel (Fase 4).
 - El perfil público del negocio (`resenas_recientes`) usa el mismo formato que `GET /negocios/:id_negocio/resenas`: `respuesta { texto, fecha, editada }` en lugar de `respuesta_negocio` y `fecha_respuesta`.
+
+**Dashboard y notas de clientes (2.7)**
+- Dashboard con `reportes.ver` (propietario y Administrador). Periodo por `citas.fecha`; por defecto los últimos 30 días; `hasta` no puede ser posterior a hoy (lo futuro está en la agenda). Rango máximo: 92 días en Gratuito y 366 en Pro y Enterprise (según el plan efectivo; la prueba Pro cuenta como Pro). Un Gratuito que pide más de 92 días recibe 422 con `plan_requerido`, para que el panel lo muestre como invitación a Pro.
+- Básico para todos: hoy (sin importar el rango), citas por estado, tasa de inasistencia (`no_asistio / (completadas + no_asistio)`), ingresos, servicios más pedidos, clientes nuevos (la relación empezó en el periodo: primera cita o registro desde el panel), calificación y `citas_perdidas_por_no_confirmar`.
+- Ingresos: suma de `precio_final` de las citas completadas del periodo, con `origen: "citas_completadas"`, `verificado: false` y una nota que dice que no son pagos verificados. En la Fase 3 el mismo bloque podrá venir de `pagos` con `verificado: true`.
+- Cancelaciones del sistema (`cancelada_por = 'sistema'`): nunca cuentan contra clientes, pero son una métrica del negocio (`citas_perdidas_por_no_confirmar`) con la sugerencia de activar la confirmación automática si está apagada. Van en lo básico; el desglose de todas las cancelaciones es avanzado.
+- Avanzado (`estadisticas_avanzadas`): tendencia (por día hasta 31 días, por semana hasta 92, por mes en rangos mayores), comparación con el periodo anterior de igual duración, por empleado, por sucursal, horas pico, recurrencia y cancelaciones. En Gratuito cada sección llega como `{ bloqueado: true, plan_requerido }`, sin datos y sin ejecutar sus consultas. `plan_requerido` es el plan activo más barato con `estadisticas_avanzadas`, leído de la base.
+- Notas de clientes (migración 019): solo dentro del negocio que las escribió, con autor y fecha; nunca en endpoints del dueño ni de otros negocios. Leer con `clientes.ver`; crear con `clientes.editar`; editar solo el autor; borrar el autor o el propietario. El usuario debe ser cliente del negocio (404 si no, como en la 1.7).
+- **Excepción explícita a la convención de borrado lógico:** las notas se borran físicamente. Si el negocio borra una nota, el dato personal desaparece. Negocio y cliente en cascada, para que la supresión de datos del titular arrastre sus notas.
+- Ley 1581: las notas son datos personales del cliente y el titular puede pedir conocer lo que el negocio guarda sobre él. "Nunca visibles para el cliente" vale para la app; ante una solicitud formal habría que entregarlas. El README del panel recomienda no escribir datos sensibles. La exportación para esas solicitudes queda junto al requisito de supresión de datos, antes de lanzar.
