@@ -100,7 +100,7 @@ PetCat/
 - Fechas: zona `America/Bogota`. El pool usa `dateStrings: true` para que `DATE`/`TIME`/`DATETIME` no se desplacen por zona horaria.
 
 **Permisos (`roles.permisos_json`)**
-Formato `{ "modulo": ["accion", ...] }`. Módulos: `citas, servicios, inventario, clientes, empleados, pagos, roles, reportes, configuracion, historial_medico, vacunas`. Sucursales, horarios, disponibilidad y datos del negocio usan `configuracion`. Uso: `authorize("citas", "editar")`. El propietario del negocio y el admin de plataforma pasan siempre. Los empleados inactivos no pasan.
+Formato `{ "modulo": ["accion", ...] }`. Módulos: `citas, servicios, inventario, clientes, empleados, pagos, roles, reportes, configuracion, historial_medico, vacunas, resenas`. Sucursales, horarios, disponibilidad y datos del negocio usan `configuracion`. Uso: `authorize("citas", "editar")`. El propietario del negocio y el admin de plataforma pasan siempre. Los empleados inactivos no pasan.
 
 **Estilo**
 - Mensajes al usuario, comentarios y Swagger en español. Nombres de funciones: verbo en inglés + entidad en español (`createEmpleado`, `findByNegocio`) — ya es el estilo del proyecto.

@@ -645,7 +645,10 @@ CREATE TABLE citas (
                      COMMENT 'Plazo para confirmar una cita pendiente; al vencer se cancela sola',
     aviso_por_confirmar_en DATETIME  NULL
                      COMMENT 'Cuándo se avisó al negocio a mitad del plazo (NULL = no se ha avisado)',
-    prioridad        ENUM('normal','alta','urgente') NOT NULL DEFAULT 'normal',
+    -- Migración 018.
+    fecha_completada DATETIME        NULL
+                     COMMENT 'Cuándo pasó a completada: invitación y plazo para reseñar',
+    prioridad       ENUM('normal','alta','urgente') NOT NULL DEFAULT 'normal',
     -- Comunicación
     recordatorio_enviado BOOLEAN     NOT NULL DEFAULT FALSE,
     confirmacion_enviada BOOLEAN     NOT NULL DEFAULT FALSE,
@@ -971,8 +974,9 @@ CREATE TABLE recordatorios (
     id_vacuna        INT UNSIGNED    NULL,
     -- Migración 014: hito de las vacunas y recordatorio del día anterior a la cita.
     hito             SMALLINT        NULL COMMENT 'Vacunas: días respecto a fecha_proxima (-7, 0 o 7)',
-    tipo             ENUM('cita_confirmacion','cita_recordatorio','cita_dia_anterior','vacuna_proxima',
-                          'vacuna_vencida','control_medico','alimentacion',
+    -- resena_invitacion: migración 018.
+    tipo             ENUM('cita_confirmacion','cita_recordatorio','cita_dia_anterior','resena_invitacion',
+                          'vacuna_proxima','vacuna_vencida','control_medico','alimentacion',
                           'desparasitacion','bano','medicamento','personalizado') NOT NULL,
     titulo           VARCHAR(200)    NOT NULL,
     mensaje          TEXT            NOT NULL,
@@ -1162,14 +1166,25 @@ CREATE TABLE resenas (
     -- Gestión
     respuesta_negocio TEXT           NULL,
     fecha_respuesta  DATETIME        NULL,
+    -- Migración 018: edición de la respuesta, datos del reporte y señal para la moderación.
+    fecha_edicion_respuesta DATETIME NULL COMMENT 'Última edición de la respuesta (fecha_respuesta es la primera)',
     visible          BOOLEAN         NOT NULL DEFAULT TRUE,
     reportada        BOOLEAN         NOT NULL DEFAULT FALSE,
+    motivo_reporte   ENUM('lenguaje_ofensivo','datos_personales','no_relacionada','spam','otro') NULL,
+    detalle_reporte  VARCHAR(500)    NULL,
+    fecha_reporte    DATETIME        NULL,
+    id_usuario_reporta INT UNSIGNED  NULL COMMENT 'Quién del negocio la reportó',
+    cliente_registrado_por_negocio BOOLEAN NOT NULL DEFAULT FALSE
+                     COMMENT 'El autor tiene una autorización de datos con canal panel de este negocio. Solo para el super admin',
     fecha_creacion   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    -- Migración 018.
+    fecha_edicion    DATETIME        NULL COMMENT 'Última edición del autor',
+    retirada_en      DATETIME        NULL COMMENT 'El autor la retiró (visible = FALSE); no puede reseñar de nuevo esa cita',
     PRIMARY KEY (id_resena),
-    INDEX idx_resenas_negocio (id_negocio),
     INDEX idx_resenas_usuario (id_usuario),
     INDEX idx_resenas_calificacion (calificacion),
-    INDEX idx_resenas_visible (visible),
+    -- Migración 018: listado público (reemplaza idx_resenas_negocio e idx_resenas_visible).
+    INDEX idx_resenas_negocio_visible (id_negocio, visible, fecha_creacion),
     UNIQUE KEY uq_resena_cita (id_cita) COMMENT 'Una reseña por cita',
     CONSTRAINT fk_resenas_negocio
         FOREIGN KEY (id_negocio) REFERENCES negocios (id_negocio)
@@ -1180,7 +1195,14 @@ CREATE TABLE resenas (
     CONSTRAINT fk_resenas_cita
         FOREIGN KEY (id_cita) REFERENCES citas (id_cita)
         ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT chk_calificacion CHECK (calificacion BETWEEN 1 AND 5)
+    CONSTRAINT fk_resenas_reporta
+        FOREIGN KEY (id_usuario_reporta) REFERENCES usuarios (id_usuario)
+        ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT chk_calificacion CHECK (calificacion BETWEEN 1 AND 5),
+    CONSTRAINT chk_resenas_calif_atencion CHECK (calif_atencion BETWEEN 1 AND 5),
+    CONSTRAINT chk_resenas_calif_precio CHECK (calif_precio BETWEEN 1 AND 5),
+    CONSTRAINT chk_resenas_calif_instalaciones CHECK (calif_instalaciones BETWEEN 1 AND 5),
+    CONSTRAINT chk_resenas_calif_puntualidad CHECK (calif_puntualidad BETWEEN 1 AND 5)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Reseñas y calificaciones de usuarios a negocios tras una cita';
 
@@ -1372,17 +1394,18 @@ CREATE TABLE archivos (
 
 DELIMITER $$
 
--- Actualizar calificación promedio del negocio al agregar una reseña
+-- Calificación promedio y total de reseñas visibles del negocio al agregar una reseña.
+-- COALESCE (migración 018): sin reseñas visibles, AVG da NULL y calificacion_promedio es NOT NULL.
 CREATE TRIGGER trg_resenas_after_insert
 AFTER INSERT ON resenas
 FOR EACH ROW
 BEGIN
     UPDATE negocios
-    SET calificacion_promedio = (
+    SET calificacion_promedio = COALESCE((
             SELECT ROUND(AVG(calificacion), 2)
             FROM resenas
             WHERE id_negocio = NEW.id_negocio AND visible = TRUE
-        ),
+        ), 0),
         total_resenas = (
             SELECT COUNT(*) FROM resenas
             WHERE id_negocio = NEW.id_negocio AND visible = TRUE
@@ -1390,22 +1413,25 @@ BEGIN
     WHERE id_negocio = NEW.id_negocio;
 END$$
 
--- Actualizar calificación promedio al eliminar o actualizar una reseña
+-- Igual al editar la calificación o cambiar la visibilidad (retiro del autor o
+-- moderación). No hay trigger de DELETE: las reseñas no se borran.
 CREATE TRIGGER trg_resenas_after_update
 AFTER UPDATE ON resenas
 FOR EACH ROW
 BEGIN
-    UPDATE negocios
-    SET calificacion_promedio = (
-            SELECT ROUND(AVG(calificacion), 2)
-            FROM resenas
-            WHERE id_negocio = NEW.id_negocio AND visible = TRUE
-        ),
-        total_resenas = (
-            SELECT COUNT(*) FROM resenas
-            WHERE id_negocio = NEW.id_negocio AND visible = TRUE
-        )
-    WHERE id_negocio = NEW.id_negocio;
+    IF NEW.calificacion <> OLD.calificacion OR NEW.visible <> OLD.visible THEN
+        UPDATE negocios
+        SET calificacion_promedio = COALESCE((
+                SELECT ROUND(AVG(calificacion), 2)
+                FROM resenas
+                WHERE id_negocio = NEW.id_negocio AND visible = TRUE
+            ), 0),
+            total_resenas = (
+                SELECT COUNT(*) FROM resenas
+                WHERE id_negocio = NEW.id_negocio AND visible = TRUE
+            )
+        WHERE id_negocio = NEW.id_negocio;
+    END IF;
 END$$
 
 -- Actualizar contador de likes en posts
@@ -1532,17 +1558,17 @@ VALUES
 INSERT INTO roles (nombre, descripcion, permisos_json, es_sistema) VALUES
 ('Administrador',
  'Acceso total al panel del negocio. Puede editar todo.',
- '{"citas":["ver","crear","editar","cancelar"],"servicios":["ver","crear","editar","eliminar"],"inventario":["ver","crear","editar","eliminar","editar_stock"],"clientes":["ver","editar"],"empleados":["ver","crear","editar","eliminar"],"pagos":["ver","ver_basico","reembolsar"],"roles":["ver","crear","editar","eliminar"],"reportes":["ver","exportar"],"configuracion":["ver","editar"],"historial_medico":["ver","crear","editar"],"vacunas":["ver","crear","editar"]}',
+ '{"citas":["ver","crear","editar","cancelar"],"servicios":["ver","crear","editar","eliminar"],"inventario":["ver","crear","editar","eliminar","editar_stock"],"clientes":["ver","editar"],"empleados":["ver","crear","editar","eliminar"],"pagos":["ver","ver_basico","reembolsar"],"roles":["ver","crear","editar","eliminar"],"reportes":["ver","exportar"],"configuracion":["ver","editar"],"historial_medico":["ver","crear","editar"],"vacunas":["ver","crear","editar"],"resenas":["ver","responder","reportar"]}',
  TRUE),
 
 ('Veterinario',
  'Puede gestionar citas, mascotas, historial médico y servicios.',
- '{"citas":["ver","crear","editar"],"servicios":["ver"],"inventario":["ver","editar_stock"],"clientes":["ver"],"historial_medico":["ver","crear","editar"],"vacunas":["ver","crear","editar"]}',
+ '{"citas":["ver","crear","editar"],"servicios":["ver"],"inventario":["ver","editar_stock"],"clientes":["ver"],"historial_medico":["ver","crear","editar"],"vacunas":["ver","crear","editar"],"resenas":["ver"]}',
  TRUE),
 
 ('Recepcionista',
  'Solo gestiona citas y clientes. No accede a reportes financieros.',
- '{"citas":["ver","crear","editar","cancelar"],"servicios":["ver"],"clientes":["ver"],"pagos":["ver_basico"]}',
+ '{"citas":["ver","crear","editar","cancelar"],"servicios":["ver"],"clientes":["ver"],"pagos":["ver_basico"],"resenas":["ver"]}',
  TRUE);
 
 
@@ -1604,7 +1630,10 @@ INSERT INTO configuracion_global (clave, valor, tipo, descripcion) VALUES
 ('soporte_whatsapp', '', 'string', 'WhatsApp de soporte para los avisos del plan, p. ej. +57 300 123 4567 (vacío = no se muestra)'),
 -- Migración 017.
 ('plazo_confirmacion_h',          '24', 'integer', 'Horas que tiene el negocio para confirmar una cita pendiente'),
-('confirmacion_antes_inicio_min', '60', 'integer', 'La cita pendiente se cancela a más tardar estos minutos antes de su inicio');
+('confirmacion_antes_inicio_min', '60', 'integer', 'La cita pendiente se cancela a más tardar estos minutos antes de su inicio'),
+-- Migración 018.
+('resena_plazo_dias',   '30', 'integer', 'Días desde que se completa la cita en que el dueño puede reseñarla o editar su reseña'),
+('resena_invitacion_h', '3',  'integer', 'Horas después de completada la cita para invitar a reseñar (entre las 20:00 y las 10:00 se corre a las 10:00)');
 
 
 -- ═══════════════════════════════════════════════════════════════════════════
@@ -1766,7 +1795,8 @@ INSERT INTO schema_migrations (nombre) VALUES
 ('014_recordatorios_y_jobs.sql'),
 ('015_servicios_indicaciones_previas.sql'),
 ('016_soporte_contacto.sql'),
-('017_confirmacion_automatica.sql');
+('017_confirmacion_automatica.sql'),
+('018_resenas.sql');
 
 
 SET FOREIGN_KEY_CHECKS = 1;

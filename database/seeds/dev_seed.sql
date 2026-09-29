@@ -452,6 +452,9 @@ VALUES (@c_original, @u_valeria, 'estado', 'confirmada', 'reprogramada', CONCAT(
 UPDATE negocios n
 SET total_citas = (SELECT COUNT(*) FROM citas c WHERE c.id_negocio = n.id_negocio AND c.estado = 'completada');
 
+-- Se completaron al terminar su horario (plazo para reseñar, migración 018).
+UPDATE citas SET fecha_completada = TIMESTAMP(fecha, hora_fin) WHERE estado = 'completada';
+
 -- ---------------------------------------------------------------------------
 -- Historial médico (con notas internas de cada negocio)
 -- ---------------------------------------------------------------------------
