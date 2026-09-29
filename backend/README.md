@@ -76,6 +76,7 @@ El servidor (`npm run dev`, `npm start` o el contenedor) corre estas tareas con 
 | `recibos-expo` | Cada 15 min | Revisa los recibos de Expo y desactiva tokens dados de baja |
 | `recordatorios-citas` | Cada minuto | Recordatorio del día anterior (19:00) y de 2 horas antes |
 | `confirmaciones` | Cada minuto | Aviso al negocio a mitad del plazo para confirmar y cancelación automática de las citas pendientes que vencen |
+| `invitaciones-resena` | Cada 5 min | Invita al dueño a reseñar 3 horas después de completada la cita (nunca entre las 20:00 y las 10:00) |
 | `estado-vacunas` | 00:05 | Corrige la columna `vacunas.estado` |
 | `suscripciones` | 00:10 | Vence pruebas y planes (`plan_vencido`) y avisa la prueba por terminar |
 | `recordatorios-vacunas` | 09:00 | Vacunas 7 días antes, el día y 7 días después |
@@ -332,6 +333,7 @@ Detalle de cada uno en Swagger.
 | Historial médico | `GET /mascotas/:id_mascota/historial` (dueño), `GET /negocios/:id_negocio/mascotas/:id_mascota/historial`, `POST /negocios/:id_negocio/historial`, `PATCH /historial/:id_historial` (panel) |
 | Vacunas | `GET` y `POST /mascotas/:id_mascota/vacunas` (dueño), `GET /negocios/:id_negocio/mascotas/:id_mascota/vacunas`, `POST /negocios/:id_negocio/vacunas` (panel), `PATCH /vacunas/:id_vacuna` (quien la registró) |
 | Resumen de salud | `GET /mascotas/:id_mascota/resumen-salud` (dueño) y `GET /negocios/:id_negocio/mascotas/:id_mascota/resumen-salud` (panel) |
+| Reseñas | `POST /citas/:id_cita/resena`, `GET /resenas/mias`, `PUT` y `DELETE /resenas/:id_resena` (app, el autor), `GET /negocios/:id_negocio/resenas` (público), `GET /negocios/:id_negocio/resenas/gestion`, `PUT` y `DELETE /resenas/:id_resena/respuesta`, `POST /resenas/:id_resena/reportar` (panel) |
 | Notificaciones | `GET /notificaciones`, `GET /notificaciones/no-leidas`, `PATCH /notificaciones/:id_notificacion/leida`, `POST /notificaciones/leer-todas`, `POST` y `DELETE /dispositivos` (app), `GET` y `POST /correo/baja` (públicos, enlace de los correos) |
 
 ### Disponibilidad de empleados
@@ -361,6 +363,17 @@ Detalle de cada uno en Swagger.
 - **Cancelación automática:** si nadie la confirma, al vencer el plazo la cita pasa a `cancelada` con `cancelacion.por = "sistema"`. Nunca es tardía ni cuenta contra el cliente (`historial_cumplimiento`), y en el historial de la cita aparece como `realizado_por: "sistema"`.
 - **Reservar de nuevo (app):** el aviso `cita_no_confirmada` al dueño trae en `datos` `id_negocio`, `id_sucursal`, `id_servicio` e `id_mascota`. Con ellos, la app abre la reserva ya armada: `GET /citas/horarios-libres?id_servicio&id_sucursal&fecha` y `POST /citas` con esa mascota.
 - **Confirmación automática:** con `confirmacion_automatica: true` (`PATCH /negocios/:id_negocio`, permiso `configuracion.editar`) las citas de la app y las que reprograma el dueño nacen `confirmada` (mensaje "Cita confirmada"), sin plazo y con sus recordatorios. El perfil público del negocio trae el mismo campo, para que la app muestre "confirmación inmediata". Activarla no confirma las pendientes que ya existen.
+
+### Reseñas
+
+- **Cuándo reseñar (app):** en `GET /citas/mias` y `GET /citas/:id_cita`, cada cita completada trae `resena { id_resena, retirada, resenar_antes_de, puede_resenar, puede_editar }` (null en las demás). Con `puede_resenar`, el botón "Reseñar" abre `POST /citas/:id_cita/resena`; con `puede_editar`, "Editar reseña" usa `PUT /resenas/:id_resena`. El plazo es de 30 días desde que se completó la cita, para reseñar y para editar.
+- **Invitación:** 3 horas después de completada la cita, el dueño recibe `resena_invitacion` (push y app, sin correo). Si esa hora cae entre las 20:00 y las 10:00, llega a las 10:00. Sale una sola vez y no sale si ya reseñó.
+- **Quién no puede:** el propietario y los empleados activos del negocio (403). Una reseña por cita; retirarla (`DELETE /resenas/:id_resena`) la quita de la calificación y no permite reseñar esa cita otra vez.
+- **Body:** `calificacion` (1 a 5, obligatoria), `titulo`, `comentario` y `aspectos { atencion, precio, instalaciones, puntualidad }` opcionales. Editar reemplaza la reseña completa.
+- **Perfil del negocio (app):** `GET /negocios/:id_negocio/resenas?orden=recientes|mejores|peores&calificacion=` (público, paginado). El autor viene como "Sofía G." y la visita solo con mes y año (`visita_verificada`); nunca datos de contacto. `meta.resumen` trae el promedio, el total y la `distribucion` por estrellas para el gráfico. El perfil (`GET /negocios/:id_negocio`) trae las 5 más recientes con el mismo formato.
+- **Respuesta:** `respuesta { texto, fecha, editada }` o null. Si el autor editó la reseña después de la última respuesta, `editada_despues_de_respuesta: true`: la app puede indicarlo para que la respuesta no quede fuera de contexto.
+- **Panel:** `GET /negocios/:id_negocio/resenas/gestion` (`resenas.ver`; filtros `sin_responder`, `reportada`, `visible`, `calificacion`) con el nombre completo del cliente, la cita y el reporte. Responder (`PUT /resenas/:id_resena/respuesta`) y borrar la respuesta piden `resenas.responder`, porque la respuesta es pública y habla por el negocio; el dueño recibe `resena_respondida` solo la primera vez. Los roles del sistema: Administrador con `ver`, `responder` y `reportar`; Veterinario y Recepcionista solo `ver`. Los roles propios del negocio hay que editarlos para darles el módulo.
+- **Reportar:** `POST /resenas/:id_resena/reportar` (`resenas.reportar`) con `motivo` (`lenguaje_ofensivo`, `datos_personales`, `no_relacionada`, `spam`, `otro`; con `otro`, `detalle` obligatorio). Una vez por reseña. **La reseña sigue publicada y contando en la calificación** hasta que la revise PetCat: el panel debe decirlo al reportar ("PetCat la revisará") para no dar a entender que se oculta. Una reseña que PetCat oculta aparece en el panel con `visible: false`.
 
 ### Salud de la mascota
 
@@ -429,7 +442,7 @@ Cada aviso llega por varios canales a la vez:
 | Notificación en la app/panel (`GET /notificaciones`) | Todos los destinatarios | Detalle completo (mascota, servicio, motivo) |
 | Socket.IO (evento `notificacion`) | Quien tenga el panel o la app abiertos | Lo mismo, en tiempo real |
 | Push de Expo | Usuarios con un dispositivo registrado y `notif_push` | Genérico (se ve en la pantalla bloqueada): tipo, fecha, hora y negocio |
-| Correo | Solo si no tiene dispositivo y `notif_email`: el dueño en los avisos de sus citas y vacunas, y el **propietario** del negocio en `cita_nueva`, `plan_prueba_por_vencer` y `plan_vencido` | Discreto, con sede y dirección, y enlace "Dejar de recibir estos correos" |
+| Correo | Solo si no tiene dispositivo y `notif_email`: el dueño en los avisos de sus citas y vacunas, y el **propietario** del negocio en `cita_nueva`, `resena_nueva`, `plan_prueba_por_vencer` y `plan_vencido` | Discreto, con sede y dirección, y enlace "Dejar de recibir estos correos" |
 
 Tipos actuales y a quién llegan (`datos` para el deep link):
 
@@ -443,6 +456,9 @@ Tipos actuales y a quién llegan (`datos` para el deep link):
 | `cita_recordatorio` | 2 horas antes | Dueño | `id_cita`, `id_negocio` |
 | `cita_por_confirmar` | A mitad del plazo para confirmar una cita pendiente | Negocio (`citas.editar`) | `id_cita`, `id_negocio` |
 | `cita_no_confirmada` | El plazo venció y la cita se canceló sola | Dueño y negocio (`citas.ver`) | `id_cita`, `id_negocio`; al dueño también `id_sucursal`, `id_servicio`, `id_mascota` |
+| `resena_invitacion` | 3 horas después de completada la cita (entre las 20:00 y las 10:00, a las 10:00) | Dueño (sin correo) | `id_cita`, `id_negocio` |
+| `resena_nueva` | Un dueño reseña el negocio | Negocio (`resenas.responder`) | `id_cita`, `id_negocio`, `id_resena` |
+| `resena_respondida` | El negocio responde por primera vez | Dueño | `id_cita`, `id_negocio`, `id_resena` |
 | `vacuna_proxima`, `vacuna_vence_hoy`, `vacuna_vencida` | 7 días antes, el día y 7 días después de `fecha_proxima` (09:00) | Dueño | `id_mascota`, `id_vacuna` |
 | `plan_limite_80`, `plan_limite_alcanzado` | 80 % del límite de citas del mes; reserva rechazada por el límite | Negocio (`configuracion.editar`) | `id_negocio`, `mes` |
 | `plan_prueba_por_vencer` | A la prueba Pro le quedan 3 días o menos | Negocio (`configuracion.editar`) | `id_negocio` |

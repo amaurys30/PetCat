@@ -192,12 +192,12 @@ Jobs sobre la base de node-cron de la 2.3 (funciones exportadas que los tests ll
 
 ### 2.6 Reseñas
 - [x] Migración `018_resenas.sql`: `citas.fecha_completada`; en `resenas`, edición de la reseña y de la respuesta, `retirada_en`, datos del reporte y `cliente_registrado_por_negocio`; CHECK de las calificaciones por aspecto; índice del listado público; triggers con `COALESCE` y recálculo solo si cambian calificación o visibilidad; `recordatorios.tipo = 'resena_invitacion'`; `resena_plazo_dias` y `resena_invitacion_h`; módulo de permisos `resenas` en los roles del sistema.
-- [ ] `fecha_completada` al pasar a `completada` y programación de la invitación en la misma transacción.
-- [ ] `POST /citas/:id_cita/resena` (solo el dueño, cita completada, dentro del plazo, no es personal del negocio; 409 si ya existe o se retiró), `PUT` y `DELETE /resenas/:id_resena` (autor, dentro del plazo), `GET /resenas/mias`; `puede_resenar`, `resenar_antes_de` e `id_resena` en la cita del dueño.
-- [ ] `GET /negocios/:id_negocio/resenas` (público, paginado, autor "Nombre I.", "visita verificada" con mes y año) y `GET /negocios/:id_negocio/resenas/gestion` (`resenas.ver`).
-- [ ] `PUT|DELETE /resenas/:id_resena/respuesta` (`resenas.responder`) y `POST /resenas/:id_resena/reportar` (`resenas.reportar`); avisos `resena_nueva` y `resena_respondida`.
-- [ ] Invitación `resena_invitacion` en el job de recordatorios, con su test de dos procesos.
-- [ ] Swagger, README para la app y el panel.
+- [x] `fecha_completada` al pasar a `completada` y programación de la invitación en la misma transacción.
+- [x] `POST /citas/:id_cita/resena` (solo el dueño, cita completada, dentro del plazo, no es personal del negocio; 409 si ya existe o se retiró), `PUT` y `DELETE /resenas/:id_resena` (autor, dentro del plazo), `GET /resenas/mias`; `puede_resenar`, `resenar_antes_de` e `id_resena` en la cita del dueño.
+- [x] `GET /negocios/:id_negocio/resenas` (público, paginado, autor "Nombre I.", "visita verificada" con mes y año) y `GET /negocios/:id_negocio/resenas/gestion` (`resenas.ver`).
+- [x] `PUT|DELETE /resenas/:id_resena/respuesta` (`resenas.responder`) y `POST /resenas/:id_resena/reportar` (`resenas.reportar`); avisos `resena_nueva` y `resena_respondida`.
+- [x] Invitación `resena_invitacion` con su job (`invitaciones-resena`), con su test de dos procesos.
+- [x] Swagger, README para la app y el panel.
 
 ### 2.7 Dashboard y notas de clientes
 - [ ] `GET /negocios/:id_negocio/dashboard?desde&hasta` (`reportes.ver`): citas del día por estado, ingresos por citas completadas (`precio_final`; `v_ingresos_negocio` depende de `pagos`, Fase 3), servicios más pedidos, clientes nuevos, tasa de inasistencia y calificación. Solo el resumen básico sin `estadisticas_avanzadas`.
@@ -501,3 +501,9 @@ Jobs sobre la base de node-cron de la 2.3 (funciones exportadas que los tests ll
 - `resenas.cliente_registrado_por_negocio`: se calcula al crear la reseña (el autor tiene una autorización de datos con canal `panel` de ese negocio, revocada o no). Es una señal para la moderación de la Fase 4 (posibles reseñas de clientes creados por el propio negocio); solo la ve el super admin, nunca lo público ni el panel del negocio.
 - Promedio: triggers con `COALESCE(AVG, 0)` (ocultar la última reseña visible intentaba guardar NULL en una columna NOT NULL) y recálculo solo si cambian `calificacion` o `visible`. Toda escritura que los cambie bloquea antes la fila del negocio, para que dos reseñas simultáneas no choquen en los bloqueos que toma el trigger. No hay borrado físico, así que no hace falta trigger de DELETE.
 - Destinatarios de `resena_nueva`: el propietario y quien tenga `resenas.responder`; el propietario sin dispositivo, por correo. La push no incluye el comentario.
+- Job propio `invitaciones-resena` cada 5 minutos (`resena.jobs.js`), con el patrón de los recordatorios: la invitación es una fila de `recordatorios`, cada una en su transacción con la cita bloqueada con `SKIP LOCKED`, la comprobación y `notificar()` juntos. Dentro del horario sin invitaciones (de `silencio_inicio` − 1 h a `silencio_fin` + 3 h) el job no hace nada, así tras una caída lo atrasado sale a las 10:00 y no de noche. Solo toma invitaciones programadas dentro del plazo para reseñar; la limpieza semanal borra las pendientes viejas.
+- Retirar la reseña deja `retirada_en` además de `visible = FALSE`, para distinguirla de una oculta por la moderación: el autor puede retirarla en cualquier momento (es su contenido), el negocio deja de verla (`authorize` responde 404) y su cita ya no admite otra reseña. En el panel, `visible: false` significa oculta por PetCat.
+- Borrar la respuesta del negocio conserva `fecha_respuesta`: si responde otra vez no se repite `resena_respondida` y la respuesta nueva queda como editada.
+- "Editada después de la respuesta": la última edición del autor es posterior a la última versión de la respuesta.
+- `cliente_registrado_por_negocio` sale solo en `GET /negocios/:id_negocio/resenas/gestion` cuando consulta el super admin, hasta que exista su panel (Fase 4).
+- El perfil público del negocio (`resenas_recientes`) usa el mismo formato que `GET /negocios/:id_negocio/resenas`: `respuesta { texto, fecha, editada }` en lugar de `respuesta_negocio` y `fecha_respuesta`.
