@@ -16,3 +16,6 @@ dist/
 Thumbs.db
 ~$*
 *.log
+
+# Capturas del Figma para el panel web (solo locales)
+frontend/web/docs/mockups/
