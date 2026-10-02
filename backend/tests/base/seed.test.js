@@ -152,6 +152,15 @@ describe("seed de desarrollo: datos realistas", () => {
     "Centro Veterinario Salud Animal 24h",
   ];
 
+  it("vet.salud entra a dos negocios (selector del panel), con el rol y los permisos de cada uno", async () => {
+    const res = await api(await login("vet.salud@petcat.test")).get("/negocios/mios");
+    expect(res.body.data.map((n) => [n.nombre, n.relacion, n.rol.nombre])).toEqual([
+      ["Centro Veterinario Salud Animal 24h", "empleado", "Veterinario"],
+      ["Peluquería Canina Huellitas", "empleado", "Recepcionista"],
+    ]);
+    expect(res.body.data[1].rol.permisos_json.citas).toEqual(expect.arrayContaining(["ver", "crear"]));
+  });
+
   it("cuatro negocios de distintos tipos en Sincelejo, con coordenadas y calificación por reseñas", async () => {
     const [filas] = await pool.query(
       "SELECT nombre, tipo, ciudad, latitud, calificacion_promedio, total_resenas FROM negocios WHERE nombre IN (?) ORDER BY id_negocio",

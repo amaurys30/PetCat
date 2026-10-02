@@ -162,7 +162,7 @@ Marca como aplicadas todas las migraciones que hay en `database/migrations` sin 
 | Clínica Veterinaria Patitas (Centro) | veterinaria, Gratuito | Horario partido; "Vacuna antirrábica" con oferta vigente; "Baño y corte" sin empleados (no reservable); bloqueo de Carlos una tarde; recepcionista con invitación pendiente. |
 | Peluquería Canina Huellitas (Venecia) | peluquería, Gratuito | Rol propio "Estilista"; servicios con margen de 15 min; "Baño y corte premium" en oferta; "Spa felino" solo sábados; empleada sin cuenta. Calificación 3 (la reseña se editó después de la respuesta). |
 | Guardería Patas Felices (Boston) | guardería, Gratuito | Lunes a viernes; servicios por día con cupo diario (`max_citas_dia` 8); "Adiestramiento básico" sin entrenador. Sin verificar. |
-| Centro Veterinario Salud Animal 24h | clínica, **Pro en prueba**, destacado | Sede Norte (todos los días 7-21) y Sede Sur (horario partido); veterinaria con horario semanal por sede, vacaciones en unos 20 días y jornada especial el próximo domingo; urgencias con precio variable; "Desparasitación" con oferta **vencida**; "Hospitalización" sin cita. |
+| Centro Veterinario Salud Animal 24h | clínica, **Pro en prueba**, destacado | Sede Norte (todos los días 7-21) y Sede Sur (horario partido); veterinaria con horario semanal por sede, vacaciones en unos 20 días y jornada especial el próximo domingo (también es recepcionista de Huellitas); urgencias con precio variable; "Desparasitación" con oferta **vencida**; "Hospitalización" sin cita. |
 
 **Clientes y mascotas:**
 
@@ -320,7 +320,7 @@ Todas las respuestas son JSON con esta forma:
 4. `POST /auth/logout` cierra solo la sesión de ese token. `POST /auth/change-password` cierra las demás sesiones y mantiene la actual.
 5. Tras 5 contraseñas erróneas seguidas la cuenta se bloquea 15 minutos (403). Restablecer la contraseña la desbloquea.
 6. `GET /auth/me` devuelve el perfil, las preferencias y los negocios a los que puede entrar; `PATCH /auth/me` edita nombre, apellido, teléfono, idioma, zona horaria y notificaciones.
-7. Si `GET /auth/me` trae `requiere_aceptar_politica: true` (cuenta sin autorización de datos para la versión vigente de la política), mostrar la política y enviar `POST /auth/politica-datos/aceptar` con `{ "acepta_politica_datos": true }`.
+7. Si `GET /auth/me` trae `requiere_aceptar_politica: true` (cuenta sin autorización de datos para la versión vigente de la política), mostrar la política y enviar `POST /auth/politica-datos/aceptar` con `{ "acepta_politica_datos": true }`. `politica { version, url }` trae la versión vigente y el enlace al texto completo (`url` es null mientras PetCat no lo configure en `configuracion_global.politica_datos_url`).
 
 Registro: `POST /auth/register` con `nombre`, `apellido`, `email`, `password` (8 a 72 caracteres, con letra y número), `acepta_politica_datos: true` (obligatorio: autorización de tratamiento de datos, Ley 1581 de 2012; la app debe mostrar la política y un check sin marcar) y opcionales `telefono` y `tipo_usuario` (`cliente` o `negocio`). No inicia sesión. Si el email ya existe (también cuando un negocio registró a esa persona desde el panel), el 409 sugiere usar "Olvidé mi contraseña". Envía un correo de verificación; el email sin verificar no impide iniciar sesión ni reservar.
 
@@ -335,7 +335,7 @@ Pantallas del frontend que abren los enlaces de los correos (el token va en la r
 ### Acceso al panel de un negocio
 
 - El acceso se decide por **pertenencia**, no por `tipo_usuario`: el usuario es propietario del negocio o empleado activo con su cuenta vinculada. Cualquier usuario puede crear un negocio (`POST /negocios`).
-- `GET /negocios/mios` devuelve los negocios a los que el usuario puede entrar, con `relacion` (`propietario` o `empleado`) y su `rol`. Úsalo para el selector de negocio del panel.
+- `GET /negocios/mios` (y `negocios` en `GET /auth/me`) devuelve los negocios a los que el usuario puede entrar, con `relacion` (`propietario` o `empleado`), su `rol` con `permisos_json` y el `plan`. Úsalo para el selector de negocio del panel y para mostrar u ocultar secciones según los permisos (el propietario, con `rol: null`, tiene todos). La API decide igual en cada ruta: maneja siempre el 403.
 - Los empleados tienen permisos por rol (`{ modulo: [acciones] }`); el catálogo completo está en `GET /permisos`. Un 403 dice qué falta.
 - Invitaciones de empleados: el panel envía la invitación y el empleado recibe el enlace `${FRONTEND_URL}/invitacion/<token>`. La pantalla de ese enlace consulta `GET /invitaciones/:token` (dice si la cuenta ya existe y, con `requiere_aceptar_politica`, si hay que pedir la autorización de datos) y acepta con `POST /invitaciones/:token/aceptar`, que devuelve la sesión igual que el login. Si se crea una cuenta nueva, el body lleva `acepta_politica_datos: true`.
 
@@ -625,7 +625,7 @@ Con el seed cargado, todos usan la contraseña **`Petcat123!`**:
 | `huellitas@petcat.test` | Dueño de "Peluquería Canina Huellitas" |
 | `guarderia@petcat.test` | Dueña de "Guardería Patas Felices" |
 | `saludanimal@petcat.test` | Dueño de "Centro Veterinario Salud Animal 24h" (también atiende como empleado) |
-| `vet.salud@petcat.test` | Veterinaria de Salud Animal (horario semanal, vacaciones y jornada especial) |
+| `vet.salud@petcat.test` | Veterinaria de Salud Animal (horario semanal, vacaciones y jornada especial) y recepcionista de Huellitas: entra a **dos negocios** (selector del panel) |
 | `camilo@petcat.test` | Dueño de Rocky (no comparte historial) y Mía |
 | `valeria@petcat.test` | Dueña de Copito y de Nala (fallecida); correo sin verificar |
 | `jorge@petcat.test` | Cliente sin app registrado desde el panel de Salud Animal (dueño de Toby) |

@@ -77,10 +77,13 @@ const router = express.Router();
  *         rol:
  *           type: object
  *           nullable: true
- *           description: Rol del empleado en ese negocio (null para el propietario)
+ *           description: >
+ *             Rol del empleado en ese negocio (null para el propietario, que tiene todos los permisos).
+ *             Trae sus permisos para que el panel muestre u oculte secciones; la API decide igual en cada ruta.
  *           properties:
  *             id_rol: { type: integer }
  *             nombre: { type: string, example: Veterinario }
+ *             permisos_json: { $ref: '#/components/schemas/Permisos' }
  *         plan:
  *           type: object
  *           description: Plan efectivo (el Gratuito si la prueba o el plan pago vencieron)

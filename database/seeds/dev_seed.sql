@@ -11,7 +11,7 @@
 --    huellitas@petcat.test       Dueño de "Peluquería Canina Huellitas"
 --    guarderia@petcat.test       Dueña de "Guardería Patas Felices"
 --    saludanimal@petcat.test     Dueño de "Centro Veterinario Salud Animal 24h" (plan Pro en prueba)
---    vet.salud@petcat.test       Veterinaria de Salud Animal
+--    vet.salud@petcat.test       Veterinaria de Salud Animal y recepcionista de Huellitas (dos negocios)
 --    camilo@petcat.test          Dueño de Rocky (no comparte historial) y Mía
 --    valeria@petcat.test         Dueña de Copito y Nala (fallecida)
 --    jorge@petcat.test           Cliente sin app registrado desde el panel (Toby)
@@ -217,6 +217,11 @@ INSERT INTO empleados (id_negocio, id_rol, nombre, apellido, email, telefono, es
 VALUES (@n_huellitas, @rol_estilista, 'Paola', 'Díaz', 'paola@huellitas.test', '3005550111', 'Estilismo canino',
         CURDATE() - INTERVAL 1 YEAR);
 SET @e_paola = LAST_INSERT_ID();
+-- Valentina (veterinaria de Salud Animal) también es recepcionista aquí: un usuario con
+-- varios negocios para el selector del panel (A5). No atiende servicios en Huellitas.
+INSERT INTO empleados (id_negocio, id_rol, id_usuario, nombre, apellido, email, telefono, fecha_vinculacion)
+VALUES (@n_huellitas, (SELECT id_rol FROM roles WHERE nombre = 'Recepcionista' AND es_sistema = TRUE), @u_vale,
+        'Valentina', 'Ruiz', 'vet.salud@petcat.test', '3005550404', CURDATE() - INTERVAL 6 MONTH);
 
 SET @cat_bano = (SELECT id_categoria FROM categorias_servicio WHERE nombre = 'Baño y estética');
 INSERT INTO servicios (id_negocio, id_categoria, nombre, descripcion, precio_base, duracion_minutos, margen_minutos, tipo_mascota,

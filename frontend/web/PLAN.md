@@ -87,6 +87,9 @@ Orden pensado para que cada fase deje datos listos para la siguiente: primero ac
 ## Pendientes de API
 _(Lo que el panel necesite y la API no tenga. No se inventa: se anota aquí.)_
 
+- **A3 Crear / restablecer contraseña:** el diseño dice "Clínica Veterinaria Patitas te registró" y "Guardar y entrar", pero no hay forma de saber qué negocio registró al cliente a partir del token, y `POST /auth/reset-password` no inicia sesión. Mientras tanto: texto genérico y, al guardar, ir al login con un aviso de éxito. Propuesta: `GET /auth/reset-password/:token` que devuelva el negocio (solo en el enlace de bienvenida), o que el restablecimiento devuelva la sesión.
+- Resueltos antes de P0: permisos del rol en `/negocios/mios` y `/auth/me` (`rol.permisos_json`); `politica { version, url }` en `/auth/me`; `vet.salud@petcat.test` con dos negocios en el seed. La sección "Qué cambió" de A9 no tiene datos en la API y no se muestra.
+
 ## Decisiones
 - Calendario propio en lugar de FullCalendar Scheduler (licencia comercial). Sin arrastrar y soltar en el v1: mover una cita es reprogramar. Alternativa futura: react-big-calendar (MIT).
 - Mapas con Google Maps (`@vis.gl/react-google-maps`) y Places Autocomplete, por la calidad de las direcciones colombianas. Clave restringida por dominio y por API, con alerta de presupuesto en Google Cloud. El panel funciona sin clave (coordenadas manuales).

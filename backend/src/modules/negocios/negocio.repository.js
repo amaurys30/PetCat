@@ -55,12 +55,12 @@ export const findMios = async (id_usuario) => {
   const columnas = "n.id_negocio, n.nombre, n.tipo, n.ciudad, n.logo_url, n.verificado, n.activo";
   const [rows] = await db.query(
     `SELECT ${columnas}, 'propietario' AS relacion,
-            NULL AS id_empleado, NULL AS id_rol, NULL AS rol_nombre
+            NULL AS id_empleado, NULL AS id_rol, NULL AS rol_nombre, NULL AS permisos_json
      FROM negocios n
      WHERE n.id_usuario_propietario = ?
      UNION ALL
      SELECT ${columnas}, 'empleado' AS relacion,
-            e.id_empleado, r.id_rol, r.nombre AS rol_nombre
+            e.id_empleado, r.id_rol, r.nombre AS rol_nombre, r.permisos_json
      FROM empleados e
      JOIN negocios n ON n.id_negocio = e.id_negocio
      JOIN roles r ON r.id_rol = e.id_rol

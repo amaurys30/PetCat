@@ -154,15 +154,24 @@ const perfilPropio = (usuario) => ({
 /**
  * Perfil y negocios a los que el usuario puede entrar (mismo formato que GET /negocios/mios).
  * `requiere_aceptar_politica`: no tiene una autorización vigente para la versión actual de la política.
+ * `politica`: versión vigente y enlace al texto completo, para mostrarlos al pedir la aceptación.
  */
 export const getMe = async (id_usuario) => {
-  const version = await versionPolitica();
+  const [version, url] = await Promise.all([
+    versionPolitica(),
+    configuracionRepo.getValor("politica_datos_url", ""),
+  ]);
   const [usuario, negocios, vigente] = await Promise.all([
     usuarioRepo.findById(id_usuario),
     getMisNegocios(id_usuario),
     autorizacionRepo.findVigente(id_usuario, version),
   ]);
-  return { ...perfilPropio(usuario), requiere_aceptar_politica: !vigente, negocios };
+  return {
+    ...perfilPropio(usuario),
+    requiere_aceptar_politica: !vigente,
+    politica: { version, url: url || null },
+    negocios,
+  };
 };
 
 /**
