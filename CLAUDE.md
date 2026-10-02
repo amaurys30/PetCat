@@ -116,6 +116,14 @@ Formato `{ "modulo": ["accion", ...] }`. Módulos: `citas, servicios, inventario
 - No leer ni modificar `backend/.env`; mantener `backend/.env.example` al día con cada variable nueva.
 - Al terminar una tarea, marcarla en `docs/PLAN.md`. Si surge una decisión de diseño nueva, anotarla en la sección "Decisiones" de `docs/PLAN.md`.
 
+## Monorepo
+
+- `backend/` y `database/`: la API (este archivo).
+- `frontend/web/`: panel web para negocios (React + Vite + TypeScript). Para trabajar ahí, leer **también** `frontend/web/CLAUDE.md` (stack, convenciones y tokens de diseño) y su plan `frontend/web/PLAN.md`; esas reglas mandan dentro de `frontend/web`. Ramas `panel-p0`, `panel-p1`...
+- `frontend/mobile/`: app móvil de Daniel. **No se lee ni se modifica** desde aquí.
+- El panel se prueba contra la base de demo `petcat_demo` (`npm run db:demo` y `npm run dev:demo` en `backend/`), nunca contra `petcat_db`.
+- Si el panel necesita algo que la API no tiene, se anota en "Pendientes de API" de `frontend/web/PLAN.md`; los cambios de la API siguen las reglas de este archivo.
+
 ## Comandos
 
 ```bash
@@ -124,6 +132,8 @@ cd backend && npm run dev         # API con nodemon en http://localhost:3000
 npm test                          # Vitest
 npm run db:migrate                # migraciones pendientes (--status para ver el estado)
 npm run db:reset -- --yes         # recrea la base de backend/.env con esquema y seed
+npm run db:demo                   # recrea petcat_demo (base del panel web) con esquema y seed
+npm run dev:demo                  # API contra petcat_demo
 # Swagger: http://localhost:3000/api/v1/docs
 ```
 

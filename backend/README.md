@@ -193,7 +193,22 @@ npm run db:reset -- --yes            # BORRA la base de backend/.env y la recrea
 npm run db:reset -- --yes --sin-seed # solo el esquema
 ```
 
+Para una base de pruebas aparte que no toque esta, ver [Base de demo](#base-de-demo-para-probar-el-panel-web).
+
 Se niega a correr con `NODE_ENV=production` o sin `--yes`.
+
+### Base de demo (para probar el panel web)
+
+`petcat_demo` es una base aparte con el esquema y el seed de desarrollo, para probar el panel web (y sus pruebas de Playwright) contra datos conocidos sin tocar `petcat_db`. Usa el mismo MySQL y el resto de `backend/.env` (credenciales, JWT, SMTP); solo cambia el nombre de la base.
+
+```powershell
+npm run db:demo     # BORRA y recrea petcat_demo con esquema + seed (no pide --yes: es solo para pruebas)
+npm run dev:demo    # API con nodemon en http://localhost:3000, contra petcat_demo
+```
+
+- Como el seed usa fechas relativas al día en que se carga, `npm run db:demo` vuelve a dejar la agenda vigente.
+- `dev:demo` y `npm run dev` usan el mismo puerto: corre uno a la vez (y detén el contenedor `backend`, como con `npm run dev`). Para tenerlos a la vez, cambia el puerto de uno: `$env:PORT=3001; npm run dev:demo`.
+- `db:migrate` no aplica a `petcat_demo`: cuando haya una migración nueva, se recrea con `npm run db:demo`, porque `petcat.sql` ya la trae.
 
 ### Tildes dañadas en bases creadas antes del arreglo de codificación
 
