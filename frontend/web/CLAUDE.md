@@ -117,9 +117,12 @@ frontend/web/
 ## Comandos
 
 ```powershell
+cd backend; npm run db:demo; npm run dev:demo   # API con la base de demo (puerto 3000)
 cd frontend/web; npm run dev        # http://localhost:5173
 npm run api:types                   # regenera src/api/schema.d.ts (API encendida)
 npm run typecheck; npm run lint; npm test
-npm run test:e2e                    # Playwright contra la API de demo
+npm run test:e2e                    # Playwright contra la API de demo (usa el Chrome instalado)
 npm run build
 ```
+
+Si la API de demo corre en otro puerto (por ejemplo porque el contenedor `backend` ocupa el 3000), `VITE_API_PROXY` cambia el destino del proxy: `$env:VITE_API_PROXY="http://localhost:3001"; npm run dev`. En desarrollo, `/dev/estados` muestra los estados del sistema (S1), los de cita y los botones.

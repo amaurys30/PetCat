@@ -10,29 +10,29 @@ Orden pensado para que cada fase deje datos listos para la siguiente: primero ac
 
 **Entorno**
 - [x] Base de demo separada: `petcat_demo` con esquema y seed, sin tocar `petcat_db`. Script en el backend (por ejemplo `npm run db:demo`) y forma de levantar la API contra esa base (por ejemplo `npm run dev:demo`). Documentarlo en el README.
-- [ ] Crear el proyecto en `frontend/web` (Vite + React + TypeScript), ESLint, Prettier, alias `@/`.
-- [ ] Proxy de Vite a la API, `.env.example` (`VITE_API_URL`, `VITE_SOCKET_URL`, `VITE_GOOGLE_MAPS_API_KEY` opcional) y `.env.local` en el `.gitignore`.
-- [ ] `npm run api:types` con openapi-typescript y primera generación de `schema.d.ts`.
-- [ ] Vitest + Testing Library; Playwright con un flujo de humo (login con el seed).
-- [ ] CI: agregar al workflow un job para `frontend/web` (typecheck, lint, tests, build).
+- [x] Crear el proyecto en `frontend/web` (Vite + React + TypeScript), ESLint, Prettier, alias `@/`.
+- [x] Proxy de Vite a la API, `.env.example` (`VITE_API_URL`, `VITE_SOCKET_URL`, `VITE_GOOGLE_MAPS_API_KEY` opcional) y `.env.local` en el `.gitignore`.
+- [x] `npm run api:types` con openapi-typescript y primera generación de `schema.d.ts`.
+- [x] Vitest + Testing Library; Playwright con un flujo de humo (login con el seed).
+- [x] CI: agregar al workflow un job para `frontend/web` (typecheck, lint, tests, build).
 - [x] Sección "Monorepo" en el `CLAUDE.md` de la raíz que remita a `frontend/web/CLAUDE.md`.
 
 **Sistema de diseño** (Figma 00)
-- [ ] Tokens en Tailwind, fuente Inter, componentes shadcn adaptados: Button, Input, Select, Checkbox, Switch, Tabs, Badge, Card, Dialog, Sheet (panel lateral), Tooltip, Toast.
-- [ ] Comunes: PageHeader, EstadoCitaBadge, Avatar con iniciales, EmptyState, Skeleton, DataTable, Chips, PlanLimitDialog.
-- [ ] PanelLayout con Sidebar (selector de negocio, menú por grupos, tarjeta del plan, usuario) y Topbar (título, búsqueda, campana, avatar). AuthLayout con el panel de marca degradado.
+- [x] Tokens en Tailwind, fuente Inter, componentes shadcn adaptados: Button, Input, Select, Checkbox, Switch, Tabs, Badge, Card, Dialog, Sheet (panel lateral), Tooltip, Toast.
+- [x] Comunes: PageHeader, EstadoCitaBadge, Avatar con iniciales, EmptyState, Skeleton, DataTable, Chips, PlanLimitDialog.
+- [x] PanelLayout con Sidebar (selector de negocio, menú por grupos, tarjeta del plan, usuario) y Topbar (título, búsqueda, campana, avatar). AuthLayout con el panel de marca degradado.
 
 **Infraestructura**
-- [ ] Cliente Axios: token, refresh con una sola promesa compartida, normalización de errores.
-- [ ] Stores de sesión y negocio activo; rutas protegidas; rutas `/n/:idNegocio/...`; helper `puede()`.
-- [ ] `lib/format.ts` (fechas, horas, dinero) con pruebas.
+- [x] Cliente Axios: token, refresh con una sola promesa compartida, normalización de errores. Sesión compartida entre pestañas (BroadcastChannel) y una sola renovación a la vez (`navigator.locks`).
+- [x] Stores de sesión y negocio activo; rutas protegidas; rutas `/n/:idNegocio/...`; helper `puede()`.
+- [x] `lib/format.ts` (fechas, horas, dinero) con pruebas.
 
 **Pantallas**
-- [ ] A1 Iniciar sesión (incluye cuenta bloqueada y credenciales inválidas)
-- [ ] A2 Recuperar contraseña · A3 Crear / restablecer contraseña
-- [ ] A5 Seleccionar negocio
-- [ ] A9 Aceptar política de datos (cuando `requiere_aceptar_politica`)
-- [ ] S1 Estados del sistema (sin permiso, no encontrado, vacío, carga, sin conexión, sesión vencida, límite del plan, avisos flotantes)
+- [x] A1 Iniciar sesión (incluye cuenta bloqueada y credenciales inválidas)
+- [x] A2 Recuperar contraseña · A3 Crear / restablecer contraseña
+- [x] A5 Seleccionar negocio
+- [x] A9 Aceptar política de datos (cuando `requiere_aceptar_politica`)
+- [x] S1 Estados del sistema (sin permiso, no encontrado, vacío, carga, sin conexión, sesión vencida, límite del plan, avisos flotantes)
 
 ## P1 — Onboarding, perfil y configuración
 - [ ] A7 Crear cuenta · A8 Verificación de correo (y reenviar enlace)
@@ -88,6 +88,7 @@ Orden pensado para que cada fase deje datos listos para la siguiente: primero ac
 _(Lo que el panel necesite y la API no tenga. No se inventa: se anota aquí.)_
 
 - **A3 Crear / restablecer contraseña:** el diseño dice "Clínica Veterinaria Patitas te registró" y "Guardar y entrar", pero no hay forma de saber qué negocio registró al cliente a partir del token, y `POST /auth/reset-password` no inicia sesión. Mientras tanto: texto genérico y, al guardar, ir al login con un aviso de éxito. Propuesta: `GET /auth/reset-password/:token` que devuelva el negocio (solo en el enlace de bienvenida), o que el restablecimiento devuelva la sesión.
+- **Swagger sin `required`:** ningún esquema marca sus campos obligatorios, así que openapi-typescript los genera todos opcionales. El panel usa `Completo<T>` (`src/api/types.ts`) para las respuestas que la API siempre envía completas. Conviene agregar `required` en los esquemas de Swagger para que los tipos lo digan solos.
 - Resueltos antes de P0: permisos del rol en `/negocios/mios` y `/auth/me` (`rol.permisos_json`); `politica { version, url }` en `/auth/me`; `vet.salud@petcat.test` con dos negocios en el seed. La sección "Qué cambió" de A9 no tiene datos en la API y no se muestra.
 
 ## Decisiones
@@ -96,3 +97,10 @@ _(Lo que el panel necesite y la API no tenga. No se inventa: se anota aquí.)_
 - Access token en memoria y refresh token en `localStorage` en el MVP (deuda: cookie httpOnly).
 - Negocio activo en la URL (`/n/:idNegocio/...`).
 - Diseño de escritorio, ancho mínimo 1280 px.
+- Sesión entre pestañas (P0): la pestaña que renueva el token avisa a las demás por BroadcastChannel con los tokens nuevos; `navigator.locks` deja renovar a una pestaña a la vez, y la que esperaba usa los tokens que llegaron en lugar de volver a renovar. También se avisan el inicio y el cierre de sesión. "Recordarme" guarda el refresh token en `localStorage`; sin él va en `sessionStorage` y una pestaña nueva se lo pide a las abiertas (al cerrar todas, la sesión termina).
+- TypeScript 5.9 (no 6 ni 7): openapi-typescript y typescript-eslint todavía no los soportan.
+- Playwright usa el Chrome instalado en el equipo (`channel: "chrome"`), sin descargar navegadores; `E2E_CHANNEL=chromium` usa el de Playwright. Las pruebas de punta a punta no corren en CI porque necesitan la API con la base de demo.
+- Radios: 8 controles, 16 tarjetas y 20 modales, como en este CLAUDE.md (la guía de estilo del Figma dice 12 en tarjetas).
+- Las secciones del menú existen desde P0 como rutas con permiso y un aviso "en construcción"; cada fase reemplaza el aviso por la pantalla real.
+- En P0 la búsqueda y la campana del Topbar están deshabilitadas (llegan en P5 y P6). La tarjeta del plan usa `GET /negocios/:id/suscripcion` solo si el rol tiene `configuracion.ver`; si no, muestra solo el nombre del plan.
+- `/dev/estados` (solo en desarrollo) reúne los estados de S1, los estados de cita y los botones para revisarlos contra el Figma.
