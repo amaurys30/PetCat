@@ -83,6 +83,11 @@ export function fechaHora(valor: string): string {
   return `${fechaCorta(fecha)}, ${hora(horaTexto)}`;
 }
 
+/** "2026-09-28 09:00:00" -> "28 de septiembre, 9:00 a.m." (vencimientos en una frase) */
+export function fechaHoraLarga(valor: string): string {
+  return format(parseFechaHora(valor), "d 'de' MMMM, h:mm aaaa", { locale: es });
+}
+
 const COP = new Intl.NumberFormat("es-CO", {
   style: "currency",
   currency: "COP",

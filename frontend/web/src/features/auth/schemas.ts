@@ -61,3 +61,21 @@ export const registroSchema = z.object({
   acepta_politica_datos: z.boolean().refine((v) => v, "Debes aceptar la política de tratamiento de datos"),
 });
 export type RegistroValores = z.infer<typeof registroSchema>;
+
+/** A4 sin cuenta: contraseña nueva y, si la API lo pide, la política. */
+export const invitacionNuevaSchema = (requierePolitica: boolean) =>
+  z.object({
+    nombre,
+    apellido: nombre,
+    password: passwordNueva,
+    acepta_politica_datos: z
+      .boolean()
+      .refine((v) => v || !requierePolitica, "Debes aceptar la política de tratamiento de datos"),
+  });
+export type InvitacionNuevaValores = z.infer<ReturnType<typeof invitacionNuevaSchema>>;
+
+/** A4 con cuenta: solo la contraseña actual. */
+export const invitacionExistenteSchema = z.object({
+  password: z.string().min(1, "Escribe tu contraseña actual"),
+});
+export type InvitacionExistenteValores = z.infer<typeof invitacionExistenteSchema>;

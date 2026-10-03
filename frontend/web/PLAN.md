@@ -36,7 +36,7 @@ Orden pensado para que cada fase deje datos listos para la siguiente: primero ac
 
 ## P1 — Onboarding, perfil y configuración
 - [x] A7 Crear cuenta · A8 Verificación de correo (y reenviar enlace)
-- [ ] A4 Aceptar invitación (cuenta nueva y existente; auto-login)
+- [x] A4 Aceptar invitación (cuenta nueva y existente; auto-login)
 - [ ] Componente de ubicación de sede: Google Maps con pin arrastrable y Places Autocomplete; sin clave, latitud y longitud manuales.
 - [ ] A6 / A6b / A6c Crear negocio: datos, sede principal con mapa, horarios con plantillas
 - [ ] E0 Perfil del negocio (resumen)
@@ -114,4 +114,6 @@ _(Lo que el panel necesite y la API no tenga. No se inventa: se anota aquí.)_
 - P1: `VITE_GOOGLE_MAPS_MAP_ID` opcional (el `AdvancedMarker` lo exige); sin él se usa `DEMO_MAP_ID`.
 - P1: no hay ruta `/bienvenida`. Después de crear la cuenta se va a `/negocios`, que sin negocios muestra la bienvenida (aviso de verificación con reenvío, crear negocio o "Ya acepté la invitación"). Es el mismo estado vacío de A5. El registro envía `tipo_usuario: "negocio"` y `canal: "panel_web"` y luego inicia sesión con las mismas credenciales.
 - P1: A8 funciona con o sin sesión y llama a la API una sola vez. Con el enlace vencido: con sesión, reenvía (`resend-verification`); sin sesión, pide el correo (`request-verification`, respuesta neutra).
+- P1: A4 con otra sesión abierta avisa antes y, al aceptar, cierra la sesión anterior y entra con la invitada (`reemplazar` en el store). El orden importa: primero se acepta (si falla, la sesión anterior sigue), luego se cierra la anterior (las otras pestañas quedan sin sesión) y por último se entra (las otras pestañas toman la nueva).
+- Pruebas de punta a punta de A4: Salud Animal 24h (Pro en prueba, sin límite de empleados) crea e invita empleados con correos únicos, y el enlace se lee del log de `backend-demo`. Cada corrida deja empleados de prueba en `petcat_demo`; se limpian recargando la demo.
 - `/dev/estados` (solo en desarrollo) reúne los estados de S1, los estados de cita y los botones para revisarlos contra el Figma.

@@ -4,6 +4,7 @@ import { PasswordNuevaPage } from "@/features/auth/pages/PasswordNuevaPage";
 import { RecuperarPasswordPage } from "@/features/auth/pages/RecuperarPasswordPage";
 import { RegistroPage } from "@/features/auth/pages/RegistroPage";
 import { VerificarEmailPage } from "@/features/auth/pages/VerificarEmailPage";
+import { AceptarInvitacionPage } from "@/features/invitaciones/pages/AceptarInvitacionPage";
 import { SeleccionarNegocioPage } from "@/features/negocios/pages/SeleccionarNegocioPage";
 import { Inicio, RequireAuth, SoloAnonimo } from "./guards";
 import { AuthLayout } from "./layouts/AuthLayout";
@@ -44,6 +45,8 @@ export const rutas: RouteObject[] = [
           { path: "crear-password/:token", element: <PasswordNuevaPage modo="crear" /> },
           // Con o sin sesión: el enlace del correo se puede abrir en cualquier navegador.
           { path: "verificar-email/:token", element: <VerificarEmailPage /> },
+          // Con o sin sesión: si hay otra cuenta abierta, al aceptar se reemplaza.
+          { path: "invitacion/:token", element: <AceptarInvitacionPage /> },
         ],
       },
       {

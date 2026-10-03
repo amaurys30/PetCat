@@ -26,6 +26,11 @@ interface AuthState {
   /** Al cargar la app: si hay refresh token (propio o de otra pestaña), renueva y trae el perfil. */
   iniciar: () => Promise<void>;
   entrar: (sesion: Sesion, recordar: boolean) => Promise<Me>;
+  /**
+   * Entra con una sesión nueva cerrando antes la que hubiera (aceptar una invitación con
+   * otra cuenta abierta). Las demás pestañas cierran la anterior y toman la nueva.
+   */
+  reemplazar: (sesion: Sesion) => Promise<Me>;
   recargarUsuario: () => Promise<Me>;
   salir: () => Promise<void>;
 }
@@ -35,7 +40,7 @@ const quedarAnonimo = (salida: AuthState["salida"]) => {
   useAuth.setState({ estado: "anonimo", usuario: null, salida });
 };
 
-export const useAuth = create<AuthState>()((set) => ({
+export const useAuth = create<AuthState>()((set, get) => ({
   estado: "iniciando",
   usuario: null,
   salida: null,
@@ -62,6 +67,18 @@ export const useAuth = create<AuthState>()((set) => ({
     const usuario = await authApi.getMe();
     set({ estado: "autenticado", usuario, salida: null });
     return usuario;
+  },
+
+  reemplazar: async (sesion) => {
+    if (get().estado === "autenticado") {
+      try {
+        await authApi.logout();
+      } catch {
+        // La sesión anterior vence sola; lo importante es no seguir usándola.
+      }
+      cerrarSesionLocal();
+    }
+    return get().entrar(sesion, true);
   },
 
   recargarUsuario: async () => {

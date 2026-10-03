@@ -3,6 +3,7 @@ import {
   dinero,
   fechaCorta,
   fechaHora,
+  fechaHoraLarga,
   fechaLarga,
   fechaLargaTitulo,
   hora,
@@ -29,6 +30,11 @@ describe("fechas", () => {
     expect(fechaLargaTitulo("2026-09-25")).toBe("Viernes, 25 de septiembre de 2026");
     expect(fechaCorta("2026-09-25")).toBe("25 sep 2026");
     expect(fechaHora("2026-09-25 08:05:00")).toBe("25 sep 2026, 08:05");
+  });
+
+  it("fechaHoraLarga para vencimientos en una frase", () => {
+    expect(fechaHoraLarga("2026-09-28 09:00:00")).toBe("28 de septiembre, 9:00 a.m.");
+    expect(fechaHoraLarga("2026-09-28 15:30:00")).toBe("28 de septiembre, 3:30 p.m.");
   });
 
   it("hora quita los segundos", () => {
