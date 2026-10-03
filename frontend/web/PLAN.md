@@ -37,7 +37,7 @@ Orden pensado para que cada fase deje datos listos para la siguiente: primero ac
 ## P1 — Onboarding, perfil y configuración
 - [x] A7 Crear cuenta · A8 Verificación de correo (y reenviar enlace)
 - [x] A4 Aceptar invitación (cuenta nueva y existente; auto-login)
-- [ ] Componente de ubicación de sede: Google Maps con pin arrastrable y Places Autocomplete; sin clave, latitud y longitud manuales.
+- [x] Componente de ubicación de sede: Google Maps con pin arrastrable y Places Autocomplete; sin clave, latitud y longitud manuales.
 - [ ] A6 / A6b / A6c Crear negocio: datos, sede principal con mapa, horarios con plantillas
 - [ ] E0 Perfil del negocio (resumen)
 - [ ] E1 Configuración del negocio: datos, logo, banner, confirmación automática
