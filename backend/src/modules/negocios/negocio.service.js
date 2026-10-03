@@ -3,6 +3,7 @@ import * as suscripcionRepo from "../suscripciones/suscripcion.repository.js";
 import { getPlanesDeNegocios } from "../suscripciones/suscripcion.service.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
 import { castFields } from "../../shared/utils/format.js";
+import { parsePermisos } from "../../shared/utils/permissions.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
 import { conMiniaturas } from "../../shared/utils/storage.js";
 import { quitarImagen, reemplazarImagen } from "../archivos/archivo.service.js";
@@ -42,10 +43,12 @@ export const createNegocio = async (id_usuario, data) => {
 export const getMisNegocios = async (id_usuario) => {
   const rows = await negocioRepo.findMios(id_usuario);
   const planes = await getPlanesDeNegocios(rows.map((row) => row.id_negocio));
-  return rows.map(({ id_empleado, id_rol, rol_nombre, ...negocio }) => ({
+  return rows.map(({ id_empleado, id_rol, rol_nombre, permisos_json, ...negocio }) => ({
     ...formatNegocio(negocio),
     id_empleado,
-    rol: id_rol === null ? null : { id_rol, nombre: rol_nombre },
+    // Los permisos van aquí porque un empleado sin roles.ver no puede consultar su rol,
+    // y el panel los necesita para mostrar u ocultar secciones.
+    rol: id_rol === null ? null : { id_rol, nombre: rol_nombre, permisos_json: parsePermisos(permisos_json) },
     plan: planes[negocio.id_negocio],
   }));
 };

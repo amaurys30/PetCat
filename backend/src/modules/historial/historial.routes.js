@@ -70,8 +70,8 @@ const router = express.Router();
  *           type: object
  *           nullable: true
  *           properties: { id_empleado: { type: integer }, nombre: { type: string }, apellido: { type: string } }
- *         es_propio: { type: boolean, description: Solo en el panel; lo creó el negocio que consulta }
- *         notas_internas: { type: string, nullable: true, description: Solo en los registros del negocio que consulta }
+ *         es_propio: { type: boolean, x-opcional: true, description: Solo en el panel; lo creó el negocio que consulta }
+ *         notas_internas: { type: string, nullable: true, x-opcional: true, description: Solo en los registros del negocio que consulta }
  *         fecha_creacion: { type: string }
  *     HistorialPagina:
  *       type: object

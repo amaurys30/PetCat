@@ -49,5 +49,38 @@ services:
       retries: 3
       start_period: 15s
 
+  # API para el panel web contra la base de demo (petcat_demo), en 127.0.0.1:3001.
+  # Solo arranca con el perfil "panel": docker compose --profile panel up -d
+  # La primera vez crea petcat_demo con el esquema y el seed; para recargarla:
+  #   docker compose exec backend-demo node scripts/db-demo.js
+  backend-demo:
+    build: ./backend
+    container_name: petcat_backend_demo
+    profiles: [panel]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    env_file:
+      - ./backend/.env
+    environment:
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_USER: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DB_NAME: petcat_demo
+    # Esquema y seed para crear o recargar petcat_demo desde el contenedor.
+    volumes:
+      - ./database:/database:ro
+    command: sh -c "node scripts/db-demo.js --si-no-existe && node src/server.js"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:' + (process.env.PORT || 3000) + '/api/v1/health').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
 volumes:
   mysql_data:

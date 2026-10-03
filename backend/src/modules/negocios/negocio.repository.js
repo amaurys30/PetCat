@@ -55,12 +55,12 @@ export const findMios = async (id_usuario) => {
   const columnas = "n.id_negocio, n.nombre, n.tipo, n.ciudad, n.logo_url, n.verificado, n.activo";
   const [rows] = await db.query(
     `SELECT ${columnas}, 'propietario' AS relacion,
-            NULL AS id_empleado, NULL AS id_rol, NULL AS rol_nombre
+            NULL AS id_empleado, NULL AS id_rol, NULL AS rol_nombre, NULL AS permisos_json
      FROM negocios n
      WHERE n.id_usuario_propietario = ?
      UNION ALL
      SELECT ${columnas}, 'empleado' AS relacion,
-            e.id_empleado, r.id_rol, r.nombre AS rol_nombre
+            e.id_empleado, r.id_rol, r.nombre AS rol_nombre, r.permisos_json
      FROM empleados e
      JOIN negocios n ON n.id_negocio = e.id_negocio
      JOIN roles r ON r.id_rol = e.id_rol
@@ -88,7 +88,7 @@ export const findPublicoById = async (id_negocio) => {
 
 export const findSucursalesPublicas = async (id_negocio) => {
   const [rows] = await db.query(
-    `SELECT id_sucursal, nombre, descripcion, telefono, direccion, ciudad, latitud, longitud, es_principal
+    `SELECT id_sucursal, id_negocio, nombre, descripcion, telefono, direccion, ciudad, latitud, longitud, es_principal
      FROM sucursales
      WHERE id_negocio = ? AND activo = TRUE
      ORDER BY es_principal DESC, id_sucursal`,

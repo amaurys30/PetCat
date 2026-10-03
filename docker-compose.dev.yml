@@ -1,0 +1,30 @@
+# Modo desarrollo de las APIs en Docker: el código de backend/ se monta en el contenedor
+# y nodemon reinicia la API al guardar, sin reconstruir la imagen.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile panel up -d --build
+#
+# (o COMPOSE_FILE y COMPOSE_PROFILES en el .env de la raíz; ver .env.example y backend/README.md).
+#
+# - node_modules no se monta: queda el del contenedor (Linux), porque el de Windows no sirve
+#   ahí (sharp y otros módulos nativos). Si cambia package.json: --build -V.
+# - --legacy-watch: los cambios en archivos de Windows no llegan al contenedor como eventos;
+#   nodemon revisa los archivos cada poco tiempo.
+services:
+  backend:
+    build:
+      context: ./backend
+      target: dev
+    command: npx nodemon --legacy-watch --watch src src/server.js
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+  backend-demo:
+    build:
+      context: ./backend
+      target: dev
+    command: sh -c "node scripts/db-demo.js --si-no-existe && npx nodemon --legacy-watch --watch src src/server.js"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - ./database:/database:ro

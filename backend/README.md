@@ -66,6 +66,61 @@ La primera vez que se crea el volumen de MySQL, compose carga automáticamente e
 
 `npm run dev` y los scripts de `npm` se ejecutan **desde `backend/`**, porque leen `backend/.env` del directorio actual.
 
+### Dos backends en Docker: desarrollo y demo del panel
+
+| Servicio | Contenedor | Dirección | Base | Para qué |
+|---|---|---|---|---|
+| `backend` | `petcat_backend` | `http://localhost:3000` | `petcat_db` | La API de siempre (desarrollo del backend, app móvil) |
+| `backend-demo` | `petcat_backend_demo` | `http://127.0.0.1:3001` | `petcat_demo` | El panel web (`frontend/web`) y sus pruebas, con datos conocidos |
+
+`backend-demo` usa la misma imagen y el mismo `backend/.env`; solo cambia la base y el puerto. Está en el **perfil `panel`**: un `docker compose up -d` normal no lo arranca. La primera vez crea `petcat_demo` con el esquema y el seed.
+
+Cada servicio puede correr en dos modos:
+
+- **Normal** (`docker-compose.yml`): la imagen lleva el código copiado; un cambio en la API pide reconstruirla (`--build`).
+- **Desarrollo** (`docker-compose.yml` + `docker-compose.dev.yml`): el código de `backend/` se monta en el contenedor y **nodemon reinicia la API al guardar**, sin reconstruir. `node_modules` sigue siendo el del contenedor (Linux): si cambia `package.json`, se reconstruye con `--build -V`.
+
+```powershell
+# Desde la raíz del repositorio (PetCat/)
+
+# Los dos backends en modo desarrollo (recarga al guardar)
+docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile panel up -d --build
+
+# Solo la API del panel en modo desarrollo, sin tocar petcat_backend
+docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile panel up -d --build backend-demo
+
+# Los dos en modo normal (imagen con el código copiado)
+docker compose --profile panel up -d --build
+
+# Estado y salud
+docker compose --profile panel ps
+Invoke-RestMethod http://localhost:3000/api/v1/health
+Invoke-RestMethod http://localhost:3001/api/v1/health
+
+# Recargar petcat_demo con el esquema y el seed (borra lo que hayas creado en la demo)
+docker compose exec backend-demo node scripts/db-demo.js
+
+# Ver los correos de desarrollo: sin SMTP_HOST, cada correo (enlaces de recuperación,
+# invitaciones, verificación) se imprime en el log del contenedor que lo envió
+docker compose logs -f backend-demo
+docker compose logs -f backend
+docker compose logs --since 10m backend-demo | Select-String -Pattern "http://localhost:5173"
+
+# Detener solo la API del panel
+docker compose stop backend-demo
+```
+
+Para no repetir los `-f` y el perfil, se pueden poner en el `.env` de la raíz (ver `.env.example`); desde ese momento `docker compose up -d` usa el modo desarrollo y levanta los dos backends:
+
+```
+COMPOSE_FILE=docker-compose.yml;docker-compose.dev.yml
+COMPOSE_PROFILES=panel
+```
+
+- Las dos APIs corren los jobs (recordatorios, confirmaciones…), cada una sobre su base.
+- En modo desarrollo, nodemon revisa `backend/src` cada poco tiempo (`--legacy-watch`), porque los cambios en archivos de Windows no llegan al contenedor como eventos.
+- `npm run db:migrate` solo migra `petcat_db`. `petcat_demo` se recarga con `scripts/db-demo.js`, porque `petcat.sql` ya trae todas las migraciones.
+
 ### Tareas programadas (jobs)
 
 El servidor (`npm run dev`, `npm start` o el contenedor) corre estas tareas con node-cron, en hora de Bogotá. Los tests no las arrancan: llaman a cada función directamente.
@@ -162,7 +217,7 @@ Marca como aplicadas todas las migraciones que hay en `database/migrations` sin 
 | Clínica Veterinaria Patitas (Centro) | veterinaria, Gratuito | Horario partido; "Vacuna antirrábica" con oferta vigente; "Baño y corte" sin empleados (no reservable); bloqueo de Carlos una tarde; recepcionista con invitación pendiente. |
 | Peluquería Canina Huellitas (Venecia) | peluquería, Gratuito | Rol propio "Estilista"; servicios con margen de 15 min; "Baño y corte premium" en oferta; "Spa felino" solo sábados; empleada sin cuenta. Calificación 3 (la reseña se editó después de la respuesta). |
 | Guardería Patas Felices (Boston) | guardería, Gratuito | Lunes a viernes; servicios por día con cupo diario (`max_citas_dia` 8); "Adiestramiento básico" sin entrenador. Sin verificar. |
-| Centro Veterinario Salud Animal 24h | clínica, **Pro en prueba**, destacado | Sede Norte (todos los días 7-21) y Sede Sur (horario partido); veterinaria con horario semanal por sede, vacaciones en unos 20 días y jornada especial el próximo domingo; urgencias con precio variable; "Desparasitación" con oferta **vencida**; "Hospitalización" sin cita. |
+| Centro Veterinario Salud Animal 24h | clínica, **Pro en prueba**, destacado | Sede Norte (todos los días 7-21) y Sede Sur (horario partido); veterinaria con horario semanal por sede, vacaciones en unos 20 días y jornada especial el próximo domingo (también es recepcionista de Huellitas); urgencias con precio variable; "Desparasitación" con oferta **vencida**; "Hospitalización" sin cita. |
 
 **Clientes y mascotas:**
 
@@ -193,7 +248,24 @@ npm run db:reset -- --yes            # BORRA la base de backend/.env y la recrea
 npm run db:reset -- --yes --sin-seed # solo el esquema
 ```
 
+Para una base de pruebas aparte que no toque esta, ver [Base de demo](#base-de-demo-para-probar-el-panel-web).
+
 Se niega a correr con `NODE_ENV=production` o sin `--yes`.
+
+### Base de demo (para probar el panel web)
+
+`petcat_demo` es una base aparte con el esquema y el seed de desarrollo, para probar el panel web (y sus pruebas de Playwright) contra datos conocidos sin tocar `petcat_db`. Usa el mismo MySQL y el resto de `backend/.env` (credenciales, JWT, SMTP); solo cambia el nombre de la base.
+
+En Docker la sirve el servicio `backend-demo` (ver [Dos backends en Docker](#dos-backends-en-docker-desarrollo-y-demo-del-panel)). Sin Docker, desde `backend/`:
+
+```powershell
+npm run db:demo     # BORRA y recrea petcat_demo con esquema + seed (no pide --yes: es solo para pruebas)
+npm run dev:demo    # API con nodemon en http://localhost:3000, contra petcat_demo
+```
+
+- Como el seed usa fechas relativas al día en que se carga, `npm run db:demo` vuelve a dejar la agenda vigente.
+- `dev:demo` y `npm run dev` usan el mismo puerto: corre uno a la vez (y detén el contenedor `backend`, como con `npm run dev`). Para tenerlos a la vez, cambia el puerto de uno: `$env:PORT=3001; npm run dev:demo`.
+- `db:migrate` no aplica a `petcat_demo`: cuando haya una migración nueva, se recrea con `npm run db:demo`, porque `petcat.sql` ya la trae.
 
 ### Tildes dañadas en bases creadas antes del arreglo de codificación
 
@@ -246,6 +318,8 @@ npm run test:watch  # modo observación
 - Interfaz: `http://localhost:3000/api/v1/docs` ("Try it out" funciona contra el mismo servidor).
 - Especificación OpenAPI en JSON: `http://localhost:3000/api/v1/docs.json`.
 - Cada endpoint nuevo o modificado se documenta en el JSDoc `@swagger` de su `<modulo>.routes.js`, con request, respuestas y errores.
+- **Campos requeridos en las respuestas:** en las respuestas 2xx, todo campo documentado se marca como requerido al generar la especificación (`marcarRequeridos` en `src/docs/swagger.js`), porque la API lo envía siempre (con `null` si no tiene valor). Un campo que puede faltar se marca en su YAML con `x-opcional: true` y se dice cuándo viene (por ejemplo `notas_internas`, solo en el panel). Los request bodies conservan su propio `required`. Así los tipos generados desde `docs.json` (panel y app) no quedan con todo opcional.
+- **Contrato en los tests:** el cliente `api()` de los tests compara cada respuesta 2xx con su esquema de Swagger (`tests/helpers/contrato.js`) y falla si falta un campo requerido o si la respuesta no está documentada. Si un test falla con "Contrato: …", o la API dejó de enviar el campo o hay que marcarlo `x-opcional` en la documentación. Para revisar todo de una vez sin que fallen: `$env:CONTRATO_INFORME="contrato.tsv"; npm test`.
 - Para probar rutas protegidas: haz login en `POST /auth/login`, copia `data.access_token` y pégalo en **Authorize**.
 
 ---
@@ -305,7 +379,7 @@ Todas las respuestas son JSON con esta forma:
 4. `POST /auth/logout` cierra solo la sesión de ese token. `POST /auth/change-password` cierra las demás sesiones y mantiene la actual.
 5. Tras 5 contraseñas erróneas seguidas la cuenta se bloquea 15 minutos (403). Restablecer la contraseña la desbloquea.
 6. `GET /auth/me` devuelve el perfil, las preferencias y los negocios a los que puede entrar; `PATCH /auth/me` edita nombre, apellido, teléfono, idioma, zona horaria y notificaciones.
-7. Si `GET /auth/me` trae `requiere_aceptar_politica: true` (cuenta sin autorización de datos para la versión vigente de la política), mostrar la política y enviar `POST /auth/politica-datos/aceptar` con `{ "acepta_politica_datos": true }`.
+7. Si `GET /auth/me` trae `requiere_aceptar_politica: true` (cuenta sin autorización de datos para la versión vigente de la política), mostrar la política y enviar `POST /auth/politica-datos/aceptar` con `{ "acepta_politica_datos": true }`. `politica { version, url }` trae la versión vigente y el enlace al texto completo (`url` es null mientras PetCat no lo configure en `configuracion_global.politica_datos_url`).
 
 Registro: `POST /auth/register` con `nombre`, `apellido`, `email`, `password` (8 a 72 caracteres, con letra y número), `acepta_politica_datos: true` (obligatorio: autorización de tratamiento de datos, Ley 1581 de 2012; la app debe mostrar la política y un check sin marcar) y opcionales `telefono` y `tipo_usuario` (`cliente` o `negocio`). No inicia sesión. Si el email ya existe (también cuando un negocio registró a esa persona desde el panel), el 409 sugiere usar "Olvidé mi contraseña". Envía un correo de verificación; el email sin verificar no impide iniciar sesión ni reservar.
 
@@ -320,7 +394,7 @@ Pantallas del frontend que abren los enlaces de los correos (el token va en la r
 ### Acceso al panel de un negocio
 
 - El acceso se decide por **pertenencia**, no por `tipo_usuario`: el usuario es propietario del negocio o empleado activo con su cuenta vinculada. Cualquier usuario puede crear un negocio (`POST /negocios`).
-- `GET /negocios/mios` devuelve los negocios a los que el usuario puede entrar, con `relacion` (`propietario` o `empleado`) y su `rol`. Úsalo para el selector de negocio del panel.
+- `GET /negocios/mios` (y `negocios` en `GET /auth/me`) devuelve los negocios a los que el usuario puede entrar, con `relacion` (`propietario` o `empleado`), su `rol` con `permisos_json` y el `plan`. Úsalo para el selector de negocio del panel y para mostrar u ocultar secciones según los permisos (el propietario, con `rol: null`, tiene todos). La API decide igual en cada ruta: maneja siempre el 403.
 - Los empleados tienen permisos por rol (`{ modulo: [acciones] }`); el catálogo completo está en `GET /permisos`. Un 403 dice qué falta.
 - Invitaciones de empleados: el panel envía la invitación y el empleado recibe el enlace `${FRONTEND_URL}/invitacion/<token>`. La pantalla de ese enlace consulta `GET /invitaciones/:token` (dice si la cuenta ya existe y, con `requiere_aceptar_politica`, si hay que pedir la autorización de datos) y acepta con `POST /invitaciones/:token/aceptar`, que devuelve la sesión igual que el login. Si se crea una cuenta nueva, el body lleva `acepta_politica_datos: true`.
 
@@ -610,7 +684,7 @@ Con el seed cargado, todos usan la contraseña **`Petcat123!`**:
 | `huellitas@petcat.test` | Dueño de "Peluquería Canina Huellitas" |
 | `guarderia@petcat.test` | Dueña de "Guardería Patas Felices" |
 | `saludanimal@petcat.test` | Dueño de "Centro Veterinario Salud Animal 24h" (también atiende como empleado) |
-| `vet.salud@petcat.test` | Veterinaria de Salud Animal (horario semanal, vacaciones y jornada especial) |
+| `vet.salud@petcat.test` | Veterinaria de Salud Animal (horario semanal, vacaciones y jornada especial) y recepcionista de Huellitas: entra a **dos negocios** (selector del panel) |
 | `camilo@petcat.test` | Dueño de Rocky (no comparte historial) y Mía |
 | `valeria@petcat.test` | Dueña de Copito y de Nala (fallecida); correo sin verificar |
 | `jorge@petcat.test` | Cliente sin app registrado desde el panel de Salud Animal (dueño de Toby) |

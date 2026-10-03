@@ -69,8 +69,9 @@ const router = express.Router();
  *           properties:
  *             id_rol: { type: integer }
  *             nombre: { type: string, example: Veterinario }
- *             permisos_json: { $ref: '#/components/schemas/Permisos' }
+ *             permisos_json: { $ref: '#/components/schemas/Permisos', x-opcional: true, description: Solo en el detalle }
  *         servicios:
+ *           x-opcional: true
  *           type: array
  *           description: >
  *             Solo en el detalle (y en las respuestas de crear y editar): servicios activos que atiende.

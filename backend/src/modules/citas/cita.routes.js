@@ -88,7 +88,7 @@ const esDuenoDeLaCita = (req) => citaRepo.esDelUsuario(req.params.id_cita, req.u
  *         precio_estimado: { type: number, description: Precio actual del servicio al reservar (con la oferta vigente) }
  *         precio_final: { type: number, nullable: true }
  *         notas_cliente: { type: string, nullable: true }
- *         notas_internas: { type: string, nullable: true, description: Solo en el panel }
+ *         notas_internas: { type: string, nullable: true, x-opcional: true, description: Solo en el panel }
  *         id_cita_origen: { type: integer, nullable: true, description: Cita original si esta es una reprogramación }
  *         confirmar_antes_de:
  *           type: string
@@ -104,6 +104,7 @@ const esDuenoDeLaCita = (req) => citaRepo.esDelUsuario(req.params.id_cita, req.u
  *         resena:
  *           type: object
  *           nullable: true
+ *           x-opcional: true
  *           description: >
  *             Solo en la vista del dueño (GET /citas/mias y GET /citas/{id_cita}) y solo en citas completadas.
  *             Para mostrar "Reseñar" o "Editar reseña".
@@ -607,8 +608,8 @@ router.patch(
  *                       valor_nuevo: { type: string, nullable: true }
  *                       motivo: { type: string, nullable: true }
  *                       realizado_por: { type: string, enum: [dueno, negocio, sistema] }
- *                       usuario: { type: object, nullable: true, description: Solo en el panel }
- *                       empleado: { type: object, nullable: true, description: Solo en el panel }
+ *                       usuario: { type: object, nullable: true, x-opcional: true, description: Solo en el panel }
+ *                       empleado: { type: object, nullable: true, x-opcional: true, description: Solo en el panel }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       403: { $ref: '#/components/responses/Forbidden' }
  *       404: { $ref: '#/components/responses/NotFound' }

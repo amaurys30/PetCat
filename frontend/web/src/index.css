@@ -1,0 +1,83 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+
+/* Tokens del sistema de diseño (Figma, sección 00). Ver frontend/web/CLAUDE.md. */
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+
+  --color-primary: #14a39a;
+  --color-primary-dark: #0d7f78;
+  --color-primary-soft: #e3f6f3;
+  --color-selected: #f0faf9;
+  --color-ink: #1e2a3b;
+  --color-muted: #5b6b7c;
+  --color-subtle: #9aa6b2;
+  --color-border: #e3e8ec;
+  --color-surface: #f5f7f8;
+  --color-track: #eef2f4;
+  --color-info: #2f80ed;
+  --color-info-soft: #eaf2fe;
+  --color-warning: #f29921;
+  --color-warning-ink: #a86100;
+  --color-warning-soft: #fff2d9;
+  --color-danger: #e5484d;
+  --color-danger-soft: #fdecec;
+  --color-done: #7c5cd6;
+  --color-done-soft: #eee8fb;
+
+  --radius-control: 8px;
+  --radius-card: 16px;
+  --radius-modal: 20px;
+
+  /* Escala tipográfica del Figma */
+  --text-kpi: 28px;
+  --text-kpi--line-height: 34px;
+  --text-title: 18px;
+  --text-title--line-height: 24px;
+  --text-card: 14px;
+  --text-card--line-height: 20px;
+  --text-body: 13px;
+  --text-body--line-height: 18px;
+  --text-label: 11px;
+  --text-label--line-height: 14px;
+
+  --shadow-card: 0 1px 2px rgb(30 42 59 / 0.04);
+  --shadow-modal: 0 24px 48px rgb(30 42 59 / 0.18);
+
+  --animate-fade-in: fade-in 150ms ease-out;
+  --animate-slide-in-right: slide-in-right 200ms ease-out;
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes slide-in-right {
+    from {
+      transform: translateX(100%);
+    }
+  }
+}
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-border);
+  }
+  html {
+    color-scheme: light;
+  }
+  body {
+    @apply bg-surface text-body text-ink antialiased;
+    min-width: 1280px;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+}
+
+/* Degradado de los paneles de acceso */
+@utility bg-marca {
+  background-image: linear-gradient(160deg, #17b5ab 0%, #0b6f69 100%);
+}

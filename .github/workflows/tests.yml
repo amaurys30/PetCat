@@ -1,5 +1,5 @@
-# Suite de tests del backend (Vitest + supertest) contra un MySQL 8 de servicio.
-# Corre en cada pull request y en cada push a main.
+# Suite de tests del backend (Vitest + supertest) contra un MySQL 8 de servicio,
+# y comprobaciones del panel web. Corre en cada pull request y en cada push a main.
 name: Tests
 
 on:
@@ -57,3 +57,38 @@ jobs:
 
       - name: Tests
         run: npm test
+
+  # Panel web: tipos, lint, pruebas de unidad y componentes (con la API simulada) y build.
+  # Los flujos de Playwright necesitan la API de demo y se corren en local (npm run test:e2e).
+  panel-web:
+    name: Panel web (typecheck, lint, tests, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        working-directory: frontend/web
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/web/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests
+        run: npm test
+
+      - name: Build
+        run: npm run build

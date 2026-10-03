@@ -74,12 +74,18 @@ const swaggerSpec = swaggerJSDoc({
             "(15 minutos por defecto): no se guarda; al vencer se vuelve a pedir el registro. Con `externo: true` " +
             "es una URL guardada antes de la subida de archivos (sin firma ni vencimiento, sin `id_archivo`).",
           properties: {
-            id_archivo: { type: "integer", example: 31 },
-            tipo: { type: "string", enum: ["imagen", "pdf"] },
-            nombre: { type: "string", nullable: true, example: "radiografia.jpg" },
-            bytes: { type: "integer", example: 184320 },
+            // Los archivos `externo` solo traen `url` y `externo`.
+            id_archivo: { type: "integer", example: 31, "x-opcional": true },
+            tipo: { type: "string", enum: ["imagen", "pdf"], "x-opcional": true },
+            nombre: { type: "string", nullable: true, example: "radiografia.jpg", "x-opcional": true },
+            bytes: { type: "integer", example: 184320, "x-opcional": true },
             url: { type: "string", example: "https://api.cloudinary.com/v1_1/<cloud>/image/download?..." },
-            url_expira_en: { type: "string", format: "date-time", example: "2026-09-28T15:31:16.000Z" },
+            url_expira_en: {
+              type: "string",
+              format: "date-time",
+              example: "2026-09-28T15:31:16.000Z",
+              "x-opcional": true,
+            },
             externo: { type: "boolean", example: false },
           },
         },
@@ -184,5 +190,93 @@ const swaggerSpec = swaggerJSDoc({
   },
   apis: [routesGlob],
 });
+
+/** Nombres de los esquemas a los que se llega desde un objeto (por $ref), sin repetir. */
+const referencias = (nodo, encontrados = new Set()) => {
+  if (!nodo || typeof nodo !== "object") return encontrados;
+  if (typeof nodo.$ref === "string") encontrados.add(nodo.$ref.split("/").pop());
+  for (const valor of Object.values(nodo)) referencias(valor, encontrados);
+  return encontrados;
+};
+
+/** Respuesta de una operación, siguiendo `$ref` a components.responses. */
+export const resolverRespuesta = (spec, respuesta) =>
+  respuesta?.$ref ? spec.components.responses[respuesta.$ref.split("/").pop()] : respuesta;
+
+const respuestasExitosas = (spec) => [
+  ...new Set(
+    Object.values(spec.paths).flatMap((operaciones) =>
+      Object.values(operaciones).flatMap((operacion) =>
+        Object.entries(operacion.responses ?? {})
+          .filter(([codigo]) => codigo.startsWith("2"))
+          .flatMap(([, respuesta]) => Object.values(resolverRespuesta(spec, respuesta)?.content ?? {}))
+      )
+    )
+  ),
+];
+
+/**
+ * Convención de la documentación: en las respuestas exitosas, todo campo documentado
+ * viene siempre (con `null` si no tiene valor) y queda en `required`. Un campo que puede
+ * faltar se marca en su YAML con `x-opcional: true`. Así los tipos generados desde
+ * /docs.json (panel y app) no quedan con todo opcional.
+ *
+ * - Solo se recorren las respuestas 2xx: los esquemas de los request bodies conservan su
+ *   propio `required`. Si un esquema se usa en los dos lados (NegocioInput dentro de
+ *   Negocio), la respuesta recibe una copia marcada y el body queda igual.
+ * - Un objeto que ya declara `required` se respeta tal cual.
+ * - tests/helpers/contrato.js comprueba en cada test que la API cumple lo marcado.
+ */
+export const marcarRequeridos = (spec) => {
+  const esquemas = spec.components.schemas;
+
+  const deEntrada = new Set();
+  const pendientes = Object.values(spec.paths).flatMap((ops) =>
+    Object.values(ops).flatMap((op) => [...referencias(op.requestBody)])
+  );
+  while (pendientes.length > 0) {
+    const nombre = pendientes.pop();
+    if (deEntrada.has(nombre)) continue;
+    deEntrada.add(nombre);
+    pendientes.push(...referencias(esquemas[nombre]));
+  }
+
+  const marcados = new Set();
+  const marcar = (esquema) => {
+    if (!esquema || typeof esquema !== "object") return esquema;
+    if (esquema.$ref) {
+      const nombre = esquema.$ref.split("/").pop();
+      if (deEntrada.has(nombre)) return marcar(structuredClone(esquemas[nombre]));
+      if (!marcados.has(nombre)) {
+        marcados.add(nombre);
+        esquemas[nombre] = marcar(esquemas[nombre]);
+      }
+      return esquema;
+    }
+    for (const clave of ["allOf", "oneOf", "anyOf"]) {
+      if (esquema[clave]) esquema[clave] = esquema[clave].map(marcar);
+    }
+    if (esquema.items) esquema.items = marcar(esquema.items);
+    if (esquema.additionalProperties && typeof esquema.additionalProperties === "object") {
+      esquema.additionalProperties = marcar(esquema.additionalProperties);
+    }
+    if (esquema.properties) {
+      // Antes de recorrer: una propiedad $ref puede volver como copia, sin su `x-opcional`.
+      const requeridos = Object.entries(esquema.properties)
+        .filter(([, propiedad]) => !propiedad["x-opcional"])
+        .map(([campo]) => campo);
+      for (const [campo, propiedad] of Object.entries(esquema.properties)) {
+        esquema.properties[campo] = marcar(propiedad);
+      }
+      if (!esquema.required && requeridos.length > 0) esquema.required = requeridos;
+    }
+    return esquema;
+  };
+
+  for (const contenido of respuestasExitosas(spec)) contenido.schema = marcar(contenido.schema);
+  return spec;
+};
+
+marcarRequeridos(swaggerSpec);
 
 export default swaggerSpec;

@@ -47,7 +47,7 @@ export const permisosSchema = z
     )
   );
 
-const parsePermisos = (permisos) => {
+export const parsePermisos = (permisos) => {
   if (!permisos) return {};
   if (typeof permisos !== "string") return permisos;
   try {

@@ -90,8 +90,20 @@ describe("GET /negocios/mios", () => {
     expect(porId[ajeno.id_negocio]).toMatchObject({
       relacion: "empleado",
       id_empleado: empleado.id_empleado,
-      rol: { id_rol: rol.id_rol, nombre: "Auxiliar" },
+      rol: { id_rol: rol.id_rol, nombre: "Auxiliar", permisos_json: { citas: ["ver"] } },
     });
+  });
+
+  it("trae los permisos del rol aunque el empleado no tenga roles.ver", async () => {
+    const usuario = await crearUsuario();
+    const negocio = await crearNegocio();
+    const rol = await crearRol(negocio, { citas: ["ver", "editar"], vacunas: ["ver"] });
+    await crearEmpleado(negocio, { usuario, rol: rol.id_rol });
+    const token = await tokenDe(usuario);
+
+    expect((await api(token).get(`/negocios/${negocio.id_negocio}/roles`)).status).toBe(403);
+    const [mio] = (await api(token).get("/negocios/mios")).body.data;
+    expect(mio.rol.permisos_json).toEqual({ citas: ["ver", "editar"], vacunas: ["ver"] });
   });
 
   it("lista vacía si no tiene negocios", async () => {

@@ -123,6 +123,7 @@ const router = express.Router();
  *                   nullable: true
  *                   properties: { id_usuario: { type: integer }, nombre: { type: string }, apellido: { type: string } }
  *             cliente_registrado_por_negocio:
+ *               x-opcional: true
  *               type: boolean
  *               description: Solo para el super admin (moderación). El cliente fue registrado desde el panel de este negocio.
  */

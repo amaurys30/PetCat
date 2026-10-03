@@ -42,14 +42,28 @@ describe("GET /auth/me", () => {
       ultimo_acceso: null,
       fecha_registro: expect.stringMatching(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/),
       requiere_aceptar_politica: true,
+      politica: { version: "1.0", url: null },
     });
     expect(negocios).toHaveLength(2);
     expect(negocios.find((n) => n.id_negocio === propio.id_negocio)).toMatchObject({ relacion: "propietario", rol: null });
     expect(negocios.find((n) => n.id_negocio === ajeno.id_negocio)).toMatchObject({
       relacion: "empleado",
       id_empleado: empleado.id_empleado,
-      rol: { nombre: "Recepcionista" },
+      rol: { nombre: "Recepcionista", permisos_json: expect.objectContaining({ citas: expect.any(Array) }) },
     });
+  });
+
+  it("politica trae la versión vigente y el enlace configurado", async () => {
+    const usuario = await crearUsuario();
+    await pool.query("UPDATE configuracion_global SET valor = ? WHERE clave = 'politica_datos_url'", [
+      "https://petcat.co/politica",
+    ]);
+    try {
+      const res = await api(await tokenDe(usuario)).get("/auth/me");
+      expect(res.body.data.politica).toEqual({ version: "1.0", url: "https://petcat.co/politica" });
+    } finally {
+      await pool.query("UPDATE configuracion_global SET valor = '' WHERE clave = 'politica_datos_url'");
+    }
   });
 });
 
