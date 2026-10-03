@@ -139,19 +139,22 @@ describe("POST /auth/register", () => {
     ]);
   });
 
-  it("con canal panel guarda la autorización con ese canal y sin negocio; otro canal -> 422", async () => {
-    const res = await api().post("/auth/register").send(datosRegistro({ tipo_usuario: "negocio", canal: "panel" }));
+  it("con canal panel_web guarda la autorización con ese canal y sin negocio; otro canal -> 422", async () => {
+    const res = await api().post("/auth/register").send(datosRegistro({ tipo_usuario: "negocio", canal: "panel_web" }));
     expect(res.status).toBe(201);
     const [autorizaciones] = await pool.query(
       "SELECT canal, id_negocio, id_usuario_registro FROM autorizaciones_datos WHERE id_usuario = ?",
       [res.body.data.id_usuario]
     );
-    expect(autorizaciones).toEqual([{ canal: "panel", id_negocio: null, id_usuario_registro: res.body.data.id_usuario }]);
+    expect(autorizaciones).toEqual([
+      { canal: "panel_web", id_negocio: null, id_usuario_registro: res.body.data.id_usuario },
+    ]);
 
-    for (const canal of ["invitacion", "aceptacion", "web"]) {
+    // "panel" es solo de un negocio que registra a un tercero.
+    for (const canal of ["panel", "invitacion", "aceptacion", "web"]) {
       const invalido = await api().post("/auth/register").send(datosRegistro({ canal }));
       expect(invalido.status).toBe(422);
-      expect(invalido.body.errors).toEqual({ canal: "Debe ser 'app' o 'panel'" });
+      expect(invalido.body.errors).toEqual({ canal: "Debe ser 'app' o 'panel_web'" });
     }
   });
 });

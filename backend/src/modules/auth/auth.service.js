@@ -50,7 +50,7 @@ export { versionPolitica };
 
 /**
  * El registro exige aceptar la política de datos y la guarda con el canal del
- * registro ("app" o "panel", sin negocio: es el propio titular), deja
+ * registro ("app" o "panel_web"), deja
  * un token de verificación y envía el correo; si el envío falla, se pide otro
  * con resend-verification. Email existente: 409 que sugiere "Olvidé mi
  * contraseña" (la cuenta pudo crearla un negocio desde el panel).

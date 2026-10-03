@@ -28,7 +28,7 @@ export const registerBody = z.strictObject({
     .default("cliente"),
   acepta_politica_datos: aceptaPolitica,
   // Desde dónde se registra; queda en la autorización de datos.
-  canal: z.enum(["app", "panel"], { error: "Debe ser 'app' o 'panel'" }).default("app"),
+  canal: z.enum(["app", "panel_web"], { error: "Debe ser 'app' o 'panel_web'" }).default("app"),
 });
 
 export const loginBody = z.strictObject({

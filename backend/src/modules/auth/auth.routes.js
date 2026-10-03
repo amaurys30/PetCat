@@ -89,11 +89,11 @@ const router = express.Router();
  *               tipo_usuario: { type: string, enum: [cliente, negocio], default: cliente }
  *               canal:
  *                 type: string
- *                 enum: [app, panel]
+ *                 enum: [app, panel_web]
  *                 default: app
  *                 description: >
- *                   Desde dónde se registra (el panel web envía `panel`). Queda en la autorización de datos,
- *                   sin negocio: la diferencia con un cliente que registró un negocio, que sí lo tiene.
+ *                   Desde dónde se registra el titular (el panel web envía `panel_web`). Es el canal de su
+ *                   autorización de datos. `panel` no se acepta: es el de un cliente que registró un negocio.
  *     responses:
  *       201:
  *         description: Cuenta creada
@@ -306,9 +306,9 @@ router.post("/refresh-token", validate({ body: refreshTokenBody }), controller.r
  *                             fecha: { type: string, example: "2026-09-27 10:00:00" }
  *                             canal:
  *                               type: string
- *                               enum: [app, panel, invitacion, aceptacion]
+ *                               enum: [app, panel, panel_web, invitacion, aceptacion]
  *                               description: >
- *                                 Dónde se aceptó. `panel`: se registró en el panel web o lo registró un negocio.
+ *                                 Dónde se aceptó. `panel_web`: se registró en el panel web; `panel`: lo registró un negocio.
  *                         negocios: { type: array, items: { $ref: '#/components/schemas/NegocioMio' } }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *   patch:
@@ -382,7 +382,7 @@ router.post("/refresh-token", validate({ body: refreshTokenBody }), controller.r
  *                   type: object
  *                   properties:
  *                     id_autorizacion: { type: integer }
- *                     canal: { type: string, enum: [app, panel, invitacion, aceptacion] }
+ *                     canal: { type: string, enum: [app, panel, panel_web, invitacion, aceptacion] }
  *                     version_politica: { type: string, example: "1.0" }
  *                     fecha_autorizacion: { type: string, example: "2026-09-27 10:00:00" }
  *       401: { $ref: '#/components/responses/Unauthorized' }
