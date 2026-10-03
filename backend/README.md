@@ -73,7 +73,7 @@ La primera vez que se crea el volumen de MySQL, compose carga automáticamente e
 | `backend` | `petcat_backend` | `http://localhost:3000` | `petcat_db` | La API de siempre (desarrollo del backend, app móvil) |
 | `backend-demo` | `petcat_backend_demo` | `http://127.0.0.1:3001` | `petcat_demo` | El panel web (`frontend/web`) y sus pruebas, con datos conocidos |
 
-`backend-demo` usa la misma imagen y el mismo `backend/.env`; solo cambia la base y el puerto. Está en el **perfil `panel`**: un `docker compose up -d` normal no lo arranca. La primera vez crea `petcat_demo` con el esquema y el seed.
+`backend-demo` usa la misma imagen y el mismo `backend/.env`; solo cambia la base, el puerto y los límites de solicitudes (`RATE_LIMIT_MAX` y `AUTH_RATE_LIMIT_MAX` mucho más altos, para que las pruebas de punta a punta no reciban 429). Está en el **perfil `panel`**: un `docker compose up -d` normal no lo arranca. La primera vez crea `petcat_demo` con el esquema y el seed.
 
 Cada servicio puede correr en dos modos:
 
@@ -169,6 +169,7 @@ Hay tres archivos, ninguno se sube al repositorio (solo sus plantillas `.example
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | En producción | puerto `587` | Sin `SMTP_HOST`, en desarrollo los correos se muestran en la consola |
 | `SMTP_TIMEOUT_MS` | | `10000` | Tiempo máximo del SMTP; si se supera, el envío responde 503 |
 | `MAIL_FROM` | | `PetCat <no-reply@petcat.co>` | Remitente de los correos |
+| `RATE_LIMIT_MAX` | | 300 | Máximo cada 15 min por IP en toda la API (límite general). La API de demo (`backend-demo`) usa uno mucho más alto |
 | `AUTH_RATE_LIMIT_MAX` | | 10 en producción, 100 en desarrollo | Máximo cada 15 min por IP en login, forgot-password, reset-password, verify-email, resend-verification, request-verification e invitaciones |
 | `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | En producción | | Credenciales de Cloudinary (las tres juntas). En desarrollo, sin ellas la API funciona pero las subidas de archivos responden 503. Los tests no las usan |
 | `CLOUDINARY_FOLDER` | | `petcat-dev` | Carpeta raíz en Cloudinary, una por entorno (`petcat-prod` en producción) |
@@ -701,5 +702,5 @@ Invitación pendiente de la recepcionista (`recepcionista@petcat.test`, sin cuen
 
 - El navegador solo puede llamar a la API desde los orígenes de `CORS_ORIGINS` (por defecto `http://localhost:5173`, el de Vite). Si el panel corre en otro puerto, agrégalo en `backend/.env`.
 - La app móvil no envía cabecera `Origin`, así que CORS no la afecta.
-- Límite general: 300 solicitudes cada 15 minutos por IP. Login, forgot-password, reset-password, verify-email, resend-verification, request-verification e invitaciones tienen un límite más estricto (`AUTH_RATE_LIMIT_MAX`). Al superarlo: 429.
+- Límite general: 300 solicitudes cada 15 minutos por IP (`RATE_LIMIT_MAX`). Login, forgot-password, reset-password, verify-email, resend-verification, request-verification e invitaciones tienen un límite más estricto (`AUTH_RATE_LIMIT_MAX`). Al superarlo: 429.
 - En desarrollo sin SMTP, los correos (por ejemplo, las invitaciones) se imprimen en la consola del backend (`docker compose logs -f backend` si corre en Docker).
