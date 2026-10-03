@@ -35,7 +35,7 @@ Orden pensado para que cada fase deje datos listos para la siguiente: primero ac
 - [x] S1 Estados del sistema (sin permiso, no encontrado, vacío, carga, sin conexión, sesión vencida, límite del plan, avisos flotantes)
 
 ## P1 — Onboarding, perfil y configuración
-- [ ] A7 Crear cuenta · A8 Verificación de correo (y reenviar enlace)
+- [x] A7 Crear cuenta · A8 Verificación de correo (y reenviar enlace)
 - [ ] A4 Aceptar invitación (cuenta nueva y existente; auto-login)
 - [ ] Componente de ubicación de sede: Google Maps con pin arrastrable y Places Autocomplete; sin clave, latitud y longitud manuales.
 - [ ] A6 / A6b / A6c Crear negocio: datos, sede principal con mapa, horarios con plantillas
@@ -112,4 +112,6 @@ _(Lo que el panel necesite y la API no tenga. No se inventa: se anota aquí.)_
 - P1: los huecos de API que bloquean o simplifican P1 se resuelven en el backend, en commits propios con Swagger y tests, antes de las pantallas: `GET /negocios/:id/gestion` con reglas de confirmación, `configuracion_pendiente` en `/negocios/mios` y `/auth/me` (el panel no lo calcula), `GET /politica-datos` público, fecha y versión aceptadas en `/auth/me`, reenvío de verificación sin sesión (respuesta neutra y límite estricto), registro con canal `panel` y el texto de `citas_afectadas` en horarios.
 - P1: el asistente de crear negocio escribe en la API en cada paso (el negocio se crea en el paso 1) y se retoma desde `configuracion_pendiente`. Solo el propietario es redirigido al asistente.
 - P1: `VITE_GOOGLE_MAPS_MAP_ID` opcional (el `AdvancedMarker` lo exige); sin él se usa `DEMO_MAP_ID`.
+- P1: no hay ruta `/bienvenida`. Después de crear la cuenta se va a `/negocios`, que sin negocios muestra la bienvenida (aviso de verificación con reenvío, crear negocio o "Ya acepté la invitación"). Es el mismo estado vacío de A5. El registro envía `tipo_usuario: "negocio"` y `canal: "panel_web"` y luego inicia sesión con las mismas credenciales.
+- P1: A8 funciona con o sin sesión y llama a la API una sola vez. Con el enlace vencido: con sesión, reenvía (`resend-verification`); sin sesión, pide el correo (`request-verification`, respuesta neutra).
 - `/dev/estados` (solo en desarrollo) reúne los estados de S1, los estados de cita y los botones para revisarlos contra el Figma.

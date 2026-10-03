@@ -1,46 +1,21 @@
-import { ArrowRight, Plus, Store } from "lucide-react";
+import { ArrowRight, Plus } from "lucide-react";
 import { Link } from "react-router";
 import { AuthCard, AuthTitulo } from "@/app/layouts/AuthLayout";
 import { Avatar } from "@/components/common/Avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/stores/auth";
+import { Bienvenida } from "../components/Bienvenida";
 import { rolEnNegocio, textoPlan } from "../textos";
 
-/** A5 · Seleccionar negocio. Sin negocios: estado vacío para crear uno o revisar la invitación. */
+/** A5 · Seleccionar negocio. Sin negocios: la bienvenida (crear uno o revisar la invitación). */
 export function SeleccionarNegocioPage() {
   const usuario = useAuth((s) => s.usuario);
   const salir = useAuth((s) => s.salir);
   if (!usuario) return null;
   const { negocios } = usuario;
 
-  if (negocios.length === 0) {
-    return (
-      <AuthCard className="text-center">
-        <span className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-primary-soft text-primary-dark">
-          <Store className="size-6" aria-hidden />
-        </span>
-        <AuthTitulo
-          titulo={`Hola, ${usuario.nombre}`}
-          descripcion="Tu cuenta todavía no tiene un negocio en PetCat. Créalo para empezar a recibir reservas desde la app."
-        />
-        <Button asChild size="lg" className="w-full">
-          <Link to="/negocios/nuevo">Crear mi negocio</Link>
-        </Button>
-        <p className="mt-4 rounded-control bg-surface px-3 py-2.5 text-body text-muted">
-          ¿Te invitaron a trabajar en un negocio? Revisa tu correo y abre el enlace de la invitación: al
-          aceptarla, el negocio aparecerá aquí.
-        </p>
-        <button
-          type="button"
-          onClick={() => void salir()}
-          className="mt-4 text-body text-muted hover:text-ink"
-        >
-          Cerrar sesión
-        </button>
-      </AuthCard>
-    );
-  }
+  if (negocios.length === 0) return <Bienvenida />;
 
   return (
     <AuthCard>
