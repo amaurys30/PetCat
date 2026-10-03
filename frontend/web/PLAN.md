@@ -88,6 +88,11 @@ Orden pensado para que cada fase deje datos listos para la siguiente: primero ac
 _(Lo que el panel necesite y la API no tenga. No se inventa: se anota aquí.)_
 
 - **A3 Crear / restablecer contraseña:** el diseño dice "Clínica Veterinaria Patitas te registró" y "Guardar y entrar", pero no hay forma de saber qué negocio registró al cliente a partir del token, y `POST /auth/reset-password` no inicia sesión. Mientras tanto: texto genérico y, al guardar, ir al login con un aviso de éxito. Propuesta: `GET /auth/reset-password/:token` que devuelva el negocio (solo en el enlace de bienvenida), o que el restablecimiento devuelva la sesión.
+- **Horarios (E2):** `PUT /sucursales/:id/horarios` devuelve `citas_afectadas` solo en esa respuesta. Falta una simulación antes de guardar (`?simular=true`) o poder consultar después las citas que quedaron fuera del horario. Mientras tanto, el diálogo de E2 permite copiar la lista.
+- **Motivo del 401:** cuando el servidor cierra una sesión (cambio de contraseña en otro dispositivo), el 401 no dice por qué. Algo como `errors.motivo: "password_cambiada"` permitiría explicarlo en el login; mientras tanto el texto es genérico.
+- **`GET /invitaciones/mias`:** quien espera una invitación no la ve en `/bienvenida` sin abrir el correo.
+- **Instagram (E1):** el mockup muestra un usuario de Instagram como "Sitio web", pero `negocios` no tiene columnas de redes sociales y `sitio_web` exige una URL. El panel muestra "Sitio web" con URL. Propuesta: columna `instagram` (usuario sin `@`) o una tabla de redes.
+- Resuelto en P1: `GET /negocios/:id/gestion` (datos privados, negocio inactivo y reglas de confirmación con las citas perdidas en 30 días).
 - Resuelto: Swagger marca como requeridos los campos de las respuestas (convención `x-opcional` y verificación en los tests del backend); `schema.d.ts` ya no deja todo opcional.
 - Resueltos antes de P0: permisos del rol en `/negocios/mios` y `/auth/me` (`rol.permisos_json`); `politica { version, url }` en `/auth/me`; `vet.salud@petcat.test` con dos negocios en el seed. La sección "Qué cambió" de A9 no tiene datos en la API y no se muestra.
 
@@ -104,4 +109,7 @@ _(Lo que el panel necesite y la API no tenga. No se inventa: se anota aquí.)_
 - La API del panel en desarrollo es el servicio `backend-demo` de Docker (127.0.0.1:3001, `petcat_demo`), con recarga automática usando `docker-compose.dev.yml`. El proxy de Vite apunta a `VITE_API_PROXY_TARGET` (por defecto ese puerto). `petcat_backend` (3000, `petcat_db`) no se usa para el panel.
 - Las secciones del menú existen desde P0 como rutas con permiso y un aviso "en construcción"; cada fase reemplaza el aviso por la pantalla real.
 - En P0 la búsqueda y la campana del Topbar están deshabilitadas (llegan en P5 y P6). La tarjeta del plan usa `GET /negocios/:id/suscripcion` solo si el rol tiene `configuracion.ver`; si no, muestra solo el nombre del plan.
+- P1: los huecos de API que bloquean o simplifican P1 se resuelven en el backend, en commits propios con Swagger y tests, antes de las pantallas: `GET /negocios/:id/gestion` con reglas de confirmación, `configuracion_pendiente` en `/negocios/mios` y `/auth/me` (el panel no lo calcula), `GET /politica-datos` público, fecha y versión aceptadas en `/auth/me`, reenvío de verificación sin sesión (respuesta neutra y límite estricto), registro con canal `panel` y el texto de `citas_afectadas` en horarios.
+- P1: el asistente de crear negocio escribe en la API en cada paso (el negocio se crea en el paso 1) y se retoma desde `configuracion_pendiente`. Solo el propietario es redirigido al asistente.
+- P1: `VITE_GOOGLE_MAPS_MAP_ID` opcional (el `AdvancedMarker` lo exige); sin él se usa `DEMO_MAP_ID`.
 - `/dev/estados` (solo en desarrollo) reúne los estados de S1, los estados de cita y los botones para revisarlos contra el Figma.

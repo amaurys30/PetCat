@@ -72,6 +72,16 @@ export const findMios = async (id_usuario) => {
   return rows;
 };
 
+/** Citas del negocio que el sistema canceló (nadie las confirmó) desde `desde` (DATETIME). */
+export const countCanceladasPorSistema = async (id_negocio, desde) => {
+  const [[row]] = await db.query(
+    `SELECT COUNT(*) AS total FROM citas
+     WHERE id_negocio = ? AND estado = 'cancelada' AND cancelada_por = 'sistema' AND fecha_cancelacion >= ?`,
+    [id_negocio, desde]
+  );
+  return Number(row.total);
+};
+
 // ---------- Perfil público (app) ----------
 
 export const findPublicoById = async (id_negocio) => {
@@ -97,6 +107,7 @@ export const findSucursalesPublicas = async (id_negocio) => {
   return rows;
 };
 
+/** Horarios activos de las sucursales activas del negocio (sin mirar si el negocio está activo). */
 export const findHorariosPublicos = async (id_negocio) => {
   const [rows] = await db.query(
     `SELECT h.id_sucursal, h.dia_semana,

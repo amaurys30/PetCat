@@ -79,7 +79,8 @@ const formatIngresos = ({ ingresos, completadas }) => ({
   nota: NOTA_INGRESOS,
 });
 
-const citasPerdidas = (porSistema, confirmacionAutomatica) => ({
+/** Citas canceladas por el sistema y, si la confirmación automática está apagada, la sugerencia de activarla. */
+export const citasPerdidas = (porSistema, confirmacionAutomatica) => ({
   total: porSistema,
   sugerencia:
     porSistema > 0 && !confirmacionAutomatica

@@ -1,7 +1,9 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { pool } from "../../src/config/db.js";
 import { api } from "../helpers/api.js";
+import { aDatetimeSQL } from "../../src/shared/utils/fechas.js";
 import {
+  crearCita,
   crearEmpleado,
   crearHorarios,
   crearNegocio,
@@ -171,6 +173,93 @@ describe("GET /negocios/:id_negocio (perfil público)", () => {
     const res = await api().get("/negocios/abc");
     expect(res.status).toBe(422);
     expect(res.body.errors).toHaveProperty("id_negocio");
+  });
+});
+
+describe("GET /negocios/:id_negocio/gestion", () => {
+  const haceDias = (dias) => aDatetimeSQL(new Date(Date.now() - dias * 86_400_000));
+  const perdida = (negocio, dias) =>
+    crearCita(negocio, { estado: "cancelada", cancelada_por: "sistema", fecha_cancelacion: haceDias(dias) });
+
+  it("trae los datos privados, las sucursales activas con horarios y las reglas de confirmación", async () => {
+    const negocio = await crearNegocio(null, { nit: "900123456-7", razon_social: "Patitas SAS", codigo_postal: "700001" });
+    const principal = await crearSucursal(negocio, { nombre: "Principal", es_principal: true });
+    await crearSucursal(negocio, { nombre: "Cerrada", activo: false });
+    await crearHorarios(principal, [[1, "08:00", "12:00"]]);
+    // Cuentan las canceladas por el sistema en los últimos 30 días, no las del dueño ni las viejas.
+    await perdida(negocio, 1);
+    await perdida(negocio, 29);
+    await perdida(negocio, 31);
+    await crearCita(negocio, { estado: "cancelada", cancelada_por: "dueno", fecha_cancelacion: haceDias(2) });
+
+    const res = await api(await tokenDe(negocio.propietario)).get(`/negocios/${negocio.id_negocio}/gestion`);
+    expect(res.status).toBe(200);
+    const datos = res.body.data;
+    expect(datos).toMatchObject({
+      id_negocio: negocio.id_negocio,
+      nit: "900123456-7",
+      razon_social: "Patitas SAS",
+      codigo_postal: "700001",
+      pais: "Colombia",
+      activo: true,
+      confirmacion_automatica: false,
+    });
+    expect(datos.sucursales.map((s) => s.nombre)).toEqual(["Principal"]);
+    expect(datos.sucursales[0].horarios).toEqual([{ dia_semana: 1, hora_apertura: "08:00", hora_cierre: "12:00" }]);
+    expect(datos.reglas_confirmacion).toMatchObject({
+      confirmacion_automatica: false,
+      plazo_confirmacion_h: 24,
+      confirmacion_antes_inicio_min: 60,
+      citas_perdidas: { dias: 30, total: 2, sugerencia: { codigo: "activar_confirmacion_automatica" } },
+    });
+  });
+
+  it("sin sugerencia con la confirmación automática encendida o sin citas perdidas", async () => {
+    const automatico = await crearNegocio(null, { confirmacion_automatica: true });
+    await perdida(automatico, 3);
+    const conAuto = await api(await tokenDe(automatico.propietario)).get(`/negocios/${automatico.id_negocio}/gestion`);
+    expect(conAuto.body.data.reglas_confirmacion.citas_perdidas).toEqual({ dias: 30, total: 1, sugerencia: null });
+
+    const limpio = await crearNegocio();
+    const sinPerdidas = await api(await tokenDe(limpio.propietario)).get(`/negocios/${limpio.id_negocio}/gestion`);
+    expect(sinPerdidas.body.data.reglas_confirmacion.citas_perdidas).toEqual({ dias: 30, total: 0, sugerencia: null });
+  });
+
+  it("el propietario ve su negocio inactivo (el perfil público da 404)", async () => {
+    const negocio = await crearNegocio(null, { activo: false });
+    await crearSucursal(negocio, { nombre: "Única", es_principal: true });
+    expect((await api().get(`/negocios/${negocio.id_negocio}`)).status).toBe(404);
+
+    const res = await api(await tokenDe(negocio.propietario)).get(`/negocios/${negocio.id_negocio}/gestion`);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({ activo: false, sucursales: [{ nombre: "Única" }] });
+  });
+
+  it("empleado con configuracion.ver puede; sin el permiso o inactivo -> 403", async () => {
+    const negocio = await crearNegocio();
+    const lector = await crearUsuario();
+    const sinPermiso = await crearUsuario();
+    const inactivo = await crearUsuario();
+    const rolLector = (await crearRol(negocio, { configuracion: ["ver"] })).id_rol;
+    await crearEmpleado(negocio, { usuario: lector, rol: rolLector });
+    await crearEmpleado(negocio, { usuario: sinPermiso, rol: (await crearRol(negocio, { citas: ["ver"] })).id_rol });
+    await crearEmpleado(negocio, { usuario: inactivo, rol: rolLector, activo: false });
+    const url = `/negocios/${negocio.id_negocio}/gestion`;
+
+    expect((await api(await tokenDe(lector)).get(url)).status).toBe(200);
+    expect((await api(await tokenDe(sinPermiso)).get(url)).status).toBe(403);
+    expect((await api(await tokenDe(inactivo)).get(url)).status).toBe(403);
+  });
+
+  it("401 sin token, 403 negocio ajeno, 404 inexistente, 422 id inválido", async () => {
+    const negocio = await crearNegocio();
+    const url = `/negocios/${negocio.id_negocio}/gestion`;
+    expect((await api().get(url)).status).toBe(401);
+    expect((await api(await tokenDe(await crearUsuario())).get(url)).status).toBe(403);
+
+    const propio = await tokenDe(negocio.propietario);
+    expect((await api(propio).get("/negocios/999999/gestion")).status).toBe(404);
+    expect((await api(propio).get("/negocios/abc/gestion")).status).toBe(422);
   });
 });
 
