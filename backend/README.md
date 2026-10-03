@@ -66,6 +66,61 @@ La primera vez que se crea el volumen de MySQL, compose carga automáticamente e
 
 `npm run dev` y los scripts de `npm` se ejecutan **desde `backend/`**, porque leen `backend/.env` del directorio actual.
 
+### Dos backends en Docker: desarrollo y demo del panel
+
+| Servicio | Contenedor | Dirección | Base | Para qué |
+|---|---|---|---|---|
+| `backend` | `petcat_backend` | `http://localhost:3000` | `petcat_db` | La API de siempre (desarrollo del backend, app móvil) |
+| `backend-demo` | `petcat_backend_demo` | `http://127.0.0.1:3001` | `petcat_demo` | El panel web (`frontend/web`) y sus pruebas, con datos conocidos |
+
+`backend-demo` usa la misma imagen y el mismo `backend/.env`; solo cambia la base y el puerto. Está en el **perfil `panel`**: un `docker compose up -d` normal no lo arranca. La primera vez crea `petcat_demo` con el esquema y el seed.
+
+Cada servicio puede correr en dos modos:
+
+- **Normal** (`docker-compose.yml`): la imagen lleva el código copiado; un cambio en la API pide reconstruirla (`--build`).
+- **Desarrollo** (`docker-compose.yml` + `docker-compose.dev.yml`): el código de `backend/` se monta en el contenedor y **nodemon reinicia la API al guardar**, sin reconstruir. `node_modules` sigue siendo el del contenedor (Linux): si cambia `package.json`, se reconstruye con `--build -V`.
+
+```powershell
+# Desde la raíz del repositorio (PetCat/)
+
+# Los dos backends en modo desarrollo (recarga al guardar)
+docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile panel up -d --build
+
+# Solo la API del panel en modo desarrollo, sin tocar petcat_backend
+docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile panel up -d --build backend-demo
+
+# Los dos en modo normal (imagen con el código copiado)
+docker compose --profile panel up -d --build
+
+# Estado y salud
+docker compose --profile panel ps
+Invoke-RestMethod http://localhost:3000/api/v1/health
+Invoke-RestMethod http://localhost:3001/api/v1/health
+
+# Recargar petcat_demo con el esquema y el seed (borra lo que hayas creado en la demo)
+docker compose exec backend-demo node scripts/db-demo.js
+
+# Ver los correos de desarrollo: sin SMTP_HOST, cada correo (enlaces de recuperación,
+# invitaciones, verificación) se imprime en el log del contenedor que lo envió
+docker compose logs -f backend-demo
+docker compose logs -f backend
+docker compose logs --since 10m backend-demo | Select-String -Pattern "http://localhost:5173"
+
+# Detener solo la API del panel
+docker compose stop backend-demo
+```
+
+Para no repetir los `-f` y el perfil, se pueden poner en el `.env` de la raíz (ver `.env.example`); desde ese momento `docker compose up -d` usa el modo desarrollo y levanta los dos backends:
+
+```
+COMPOSE_FILE=docker-compose.yml;docker-compose.dev.yml
+COMPOSE_PROFILES=panel
+```
+
+- Las dos APIs corren los jobs (recordatorios, confirmaciones…), cada una sobre su base.
+- En modo desarrollo, nodemon revisa `backend/src` cada poco tiempo (`--legacy-watch`), porque los cambios en archivos de Windows no llegan al contenedor como eventos.
+- `npm run db:migrate` solo migra `petcat_db`. `petcat_demo` se recarga con `scripts/db-demo.js`, porque `petcat.sql` ya trae todas las migraciones.
+
 ### Tareas programadas (jobs)
 
 El servidor (`npm run dev`, `npm start` o el contenedor) corre estas tareas con node-cron, en hora de Bogotá. Los tests no las arrancan: llaman a cada función directamente.
@@ -200,6 +255,8 @@ Se niega a correr con `NODE_ENV=production` o sin `--yes`.
 ### Base de demo (para probar el panel web)
 
 `petcat_demo` es una base aparte con el esquema y el seed de desarrollo, para probar el panel web (y sus pruebas de Playwright) contra datos conocidos sin tocar `petcat_db`. Usa el mismo MySQL y el resto de `backend/.env` (credenciales, JWT, SMTP); solo cambia el nombre de la base.
+
+En Docker la sirve el servicio `backend-demo` (ver [Dos backends en Docker](#dos-backends-en-docker-desarrollo-y-demo-del-panel)). Sin Docker, desde `backend/`:
 
 ```powershell
 npm run db:demo     # BORRA y recrea petcat_demo con esquema + seed (no pide --yes: es solo para pruebas)

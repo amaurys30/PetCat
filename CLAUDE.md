@@ -121,7 +121,7 @@ Formato `{ "modulo": ["accion", ...] }`. Módulos: `citas, servicios, inventario
 - `backend/` y `database/`: la API (este archivo).
 - `frontend/web/`: panel web para negocios (React + Vite + TypeScript). Para trabajar ahí, leer **también** `frontend/web/CLAUDE.md` (stack, convenciones y tokens de diseño) y su plan `frontend/web/PLAN.md`; esas reglas mandan dentro de `frontend/web`. Ramas `panel-p0`, `panel-p1`...
 - `frontend/mobile/`: app móvil de Daniel. **No se lee ni se modifica** desde aquí.
-- El panel se prueba contra la base de demo `petcat_demo` (`npm run db:demo` y `npm run dev:demo` en `backend/`), nunca contra `petcat_db`.
+- El panel se prueba contra la base de demo `petcat_demo`, servida por el contenedor `backend-demo` (127.0.0.1:3001), nunca contra `petcat_db`. El contenedor `petcat_backend` (3000, `petcat_db`) no se toca para trabajar en el panel.
 - Si el panel necesita algo que la API no tiene, se anota en "Pendientes de API" de `frontend/web/PLAN.md`; los cambios de la API siguen las reglas de este archivo.
 
 ## Comandos
@@ -134,6 +134,11 @@ npm run db:migrate                # migraciones pendientes (--status para ver el
 npm run db:reset -- --yes         # recrea la base de backend/.env con esquema y seed
 npm run db:demo                   # recrea petcat_demo (base del panel web) con esquema y seed
 npm run dev:demo                  # API contra petcat_demo
+
+# Docker (Amaurys trabaja así; detalle en backend/README.md, "Dos backends en Docker")
+docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile panel up -d --build   # 3000 (petcat_db) y 3001 (petcat_demo) con recarga
+docker compose exec backend-demo node scripts/db-demo.js   # recarga petcat_demo
+docker compose logs -f backend-demo                         # correos de desarrollo de la demo
 # Swagger: http://localhost:3000/api/v1/docs
 ```
 
