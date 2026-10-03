@@ -287,6 +287,16 @@ router.post("/refresh-token", validate({ body: refreshTokenBody }), controller.r
  *                             No tiene una autorización de datos vigente para la versión actual de la política:
  *                             la app o el panel deben pedirla y enviarla a POST /auth/politica-datos/aceptar.
  *                         politica: { $ref: '#/components/schemas/PoliticaDatos' }
+ *                         politica_aceptada:
+ *                           type: object
+ *                           nullable: true
+ *                           description: >
+ *                             Última autorización de datos no revocada del usuario. Puede ser de una versión
+ *                             anterior a la vigente (entonces `requiere_aceptar_politica` es true). null si nunca aceptó.
+ *                           properties:
+ *                             version: { type: string, example: "1.0" }
+ *                             fecha: { type: string, example: "2026-09-27 10:00:00" }
+ *                             canal: { type: string, enum: [app, panel, invitacion, aceptacion], description: Dónde se aceptó }
  *                         negocios: { type: array, items: { $ref: '#/components/schemas/NegocioMio' } }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *   patch:

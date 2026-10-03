@@ -17,6 +17,19 @@ export const create = async (
   return result.insertId;
 };
 
+/** Última autorización no revocada del usuario, de cualquier versión de la política. */
+export const findUltima = async (id_usuario) => {
+  const [rows] = await db.query(
+    `SELECT canal, version_politica, fecha_autorizacion
+     FROM autorizaciones_datos
+     WHERE id_usuario = ? AND revocada_en IS NULL
+     ORDER BY fecha_autorizacion DESC, id_autorizacion DESC
+     LIMIT 1`,
+    [id_usuario]
+  );
+  return rows[0];
+};
+
 /** Autorización no revocada del usuario para esa versión de la política (la más reciente). */
 export const findVigente = async (id_usuario, version_politica, conn) => {
   const [rows] = await (conn ?? db).query(

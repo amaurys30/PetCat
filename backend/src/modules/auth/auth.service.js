@@ -155,18 +155,23 @@ const perfilPropio = (usuario) => ({
  * Perfil y negocios a los que el usuario puede entrar (mismo formato que GET /negocios/mios).
  * `requiere_aceptar_politica`: no tiene una autorización vigente para la versión actual de la política.
  * `politica`: versión vigente y enlace al texto completo, para mostrarlos al pedir la aceptación.
+ * `politica_aceptada`: la última autorización no revocada (puede ser de una versión anterior).
  */
 export const getMe = async (id_usuario) => {
   const politica = await getPoliticaVigente();
-  const [usuario, negocios, vigente] = await Promise.all([
+  const [usuario, negocios, vigente, ultima] = await Promise.all([
     usuarioRepo.findById(id_usuario),
     getMisNegocios(id_usuario),
     autorizacionRepo.findVigente(id_usuario, politica.version),
+    autorizacionRepo.findUltima(id_usuario),
   ]);
   return {
     ...perfilPropio(usuario),
     requiere_aceptar_politica: !vigente,
     politica,
+    politica_aceptada: ultima
+      ? { version: ultima.version_politica, fecha: ultima.fecha_autorizacion, canal: ultima.canal }
+      : null,
     negocios,
   };
 };
