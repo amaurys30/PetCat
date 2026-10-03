@@ -79,6 +79,7 @@ v1.use("/auth/forgot-password", strictLimiter());
 v1.use("/auth/reset-password", strictLimiter());
 v1.use("/auth/verify-email", strictLimiter());
 v1.use("/auth/resend-verification", strictLimiter());
+v1.use("/auth/request-verification", strictLimiter());
 v1.use("/invitaciones", strictLimiter());
 // Búsqueda exacta de clientes: sin límite estricto se podrían recorrer teléfonos.
 v1.use("/negocios/:id_negocio/clientes/buscar", strictLimiter());

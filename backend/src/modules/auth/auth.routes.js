@@ -7,6 +7,7 @@ import {
   updateMeBody,
   changePasswordBody,
   forgotPasswordBody,
+  requestVerificationBody,
   resetPasswordBody,
   verifyEmailParams,
   aceptarPoliticaBody,
@@ -658,5 +659,44 @@ router.get("/verify-email/:token", validate({ params: verifyEmailParams }), cont
  *             schema: { $ref: '#/components/schemas/ErrorResponse' }
  */
 router.post("/resend-verification", authMiddleware, controller.resendVerification);
+
+/**
+ * @swagger
+ * /auth/request-verification:
+ *   post:
+ *     summary: Pedir un enlace de verificación sin sesión
+ *     description: >
+ *       Para cuando el enlace venció o se abrió en otro dispositivo sin sesión. Responde igual exista
+ *       o no el email, y aunque ya esté verificado. Si la cuenta existe, está activa y no está
+ *       verificada, envía `${FRONTEND_URL}/verificar-email/<token>` (vigente 24 horas; cada enlace
+ *       nuevo invalida el anterior; máximo uno por minuto). Con sesión, usar `POST /auth/resend-verification`,
+ *       que sí informa si ya está verificado o si el correo no se pudo enviar.
+ *     tags: [Auth]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             additionalProperties: false
+ *             required: [email]
+ *             properties:
+ *               email: { type: string, format: email }
+ *     responses:
+ *       200:
+ *         description: Solicitud recibida
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Si el correo está registrado y sin verificar, te enviamos un nuevo enlace de verificación }
+ *                 data: { nullable: true, example: null }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ *       429: { $ref: '#/components/responses/TooManyRequests' }
+ */
+router.post("/request-verification", validate({ body: requestVerificationBody }), controller.requestVerification);
 
 export default router;

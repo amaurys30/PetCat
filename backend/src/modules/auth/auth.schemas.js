@@ -71,6 +71,8 @@ export const changePasswordBody = z.strictObject({
 
 export const forgotPasswordBody = z.strictObject({ email });
 
+export const requestVerificationBody = z.strictObject({ email });
+
 // Tokens de los enlaces de correo: 64 caracteres hexadecimales.
 const tokenCorreo = z.string().regex(/^[0-9a-f]{64}$/, "Token inválido");
 

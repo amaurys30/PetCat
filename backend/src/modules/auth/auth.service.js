@@ -331,6 +331,29 @@ export const verifyEmail = async (token) => {
 };
 
 /**
+ * Sin sesión (el enlace venció o se abrió en otro dispositivo): envía un enlace de
+ * verificación nuevo si la cuenta existe, está activa y no está verificada. Responde
+ * igual en todos los casos (no delata cuentas) y el correo se envía sin esperar.
+ * Máximo uno por minuto por cuenta; cada enlace nuevo invalida el anterior.
+ */
+export const requestVerification = async ({ email }) => {
+  const usuario = await usuarioRepo.findByEmail(email);
+  if (!usuario?.activo || usuario.email_verificado) return;
+
+  const { token, token_hash } = nuevoToken();
+  const guardado = await usuarioRepo.setToken(usuario.id_usuario, "verificacion", {
+    token_hash,
+    minutos: MINUTOS_VERIFICACION,
+  });
+  if (!guardado) return;
+
+  enviarSinEsperar(
+    correoVerificacion({ token, email: usuario.email, nombre: usuario.nombre, minutos: MINUTOS_VERIFICACION }),
+    "verificación"
+  );
+};
+
+/**
  * Envía un enlace de verificación nuevo (invalida el anterior). 409 si el correo
  * ya está verificado; 429 si se envió otro hace menos de un minuto; 503 si el
  * correo no se pudo enviar (no se guarda el token).
