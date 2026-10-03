@@ -80,7 +80,9 @@ const editar = authorize("configuracion", "editar");
  *         motivo: { type: string, nullable: true }
  *     CitaAfectada:
  *       type: object
- *       description: Cita futura pendiente o confirmada del empleado que ya no cabe en su disponibilidad
+ *       description: >
+ *         Cita futura pendiente o confirmada que ya no cabe tras el cambio (en la disponibilidad del
+ *         empleado o en el horario de la sucursal, según el endpoint)
  *       properties:
  *         id_cita: { type: integer }
  *         fecha: { type: string, format: date }
@@ -113,9 +115,10 @@ const editar = authorize("configuracion", "editar");
  *     CitasAfectadas:
  *       type: array
  *       description: >
- *         Siempre viene (vacía si no hay). Citas futuras pendientes o confirmadas del empleado que, tras el
- *         cambio, no caben en su disponibilidad: el panel debe reprogramarlas o reasignarlas. El cambio se
- *         guarda igual.
+ *         Siempre viene (vacía si no hay). Citas futuras pendientes o confirmadas que, tras el cambio, ya no
+ *         caben: en la disponibilidad del empleado (endpoints de disponibilidad) o en el horario de la sucursal
+ *         (`PUT /sucursales/{id_sucursal}/horarios`). El panel debe reprogramarlas o reasignarlas. El cambio se
+ *         guarda igual, y la lista solo viene en esta respuesta.
  *       items: { $ref: '#/components/schemas/CitaAfectada' }
  *   responses:
  *     EmpleadoInactivo:
