@@ -18,7 +18,8 @@ export const logout = () => apiPost<null>("/auth/logout", undefined, { sinRenova
 export const getMe = () => apiGet<Me>("/auth/me");
 
 /** Pública: para enlazar la política antes de que haya sesión. */
-export const getPoliticaVigente = () => apiGet<PoliticaDatos>("/politica-datos", undefined, { sinRenovar: true });
+export const getPoliticaVigente = () =>
+  apiGet<PoliticaDatos>("/politica-datos", undefined, { sinRenovar: true });
 
 export const forgotPassword = (email: string) =>
   apiPost<null>("/auth/forgot-password", { email }, { sinRenovar: true });

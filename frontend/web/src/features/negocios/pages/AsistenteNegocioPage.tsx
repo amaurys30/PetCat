@@ -197,9 +197,6 @@ function PasoSede({ negocio }: { negocio: NegocioGestion }) {
       <Field label="Teléfono de la sede" error={errors.telefono?.message}>
         <Input type="tel" {...form.register("telefono")} />
       </Field>
-      {guardar.error && guardar.error.status !== 422 && !guardar.error.limitePlan && (
-        <Alert tono="error">{guardar.error.message}</Alert>
-      )}
       <div className="flex justify-end gap-2">
         <Button asChild variant="secondary">
           <Link to={irA("negocio")}>

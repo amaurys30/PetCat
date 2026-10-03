@@ -11,11 +11,7 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { aplicarErroresApi } from "@/lib/forms";
 import { useAuth } from "@/stores/auth";
-import {
-  usePedirVerificacion,
-  useReenviarVerificacion,
-  useVerificarEmail,
-} from "../hooks/useAuthMutations";
+import { usePedirVerificacion, useReenviarVerificacion, useVerificarEmail } from "../hooks/useAuthMutations";
 import { emailSchema, type EmailValores } from "../schemas";
 
 const TOKEN_VALIDO = /^[0-9a-f]{64}$/;
@@ -129,12 +125,7 @@ function EnlaceInvalidoConSesion() {
           Te enviamos un enlace nuevo a {reenviar.data.email}. Revisa también la carpeta de spam.
         </Alert>
       ) : (
-        <Button
-          size="lg"
-          className="w-full"
-          cargando={reenviar.isPending}
-          onClick={() => reenviar.mutate()}
-        >
+        <Button size="lg" className="w-full" cargando={reenviar.isPending} onClick={() => reenviar.mutate()}>
           Enviarme un enlace nuevo
         </Button>
       )}
@@ -162,8 +153,8 @@ function EnlaceInvalidoSinSesion() {
       <EncabezadoInvalido />
       {pedir.isSuccess ? (
         <Alert tono="exito">
-          Si el correo está registrado y sin verificar, te enviamos un enlace nuevo. Revisa también la
-          carpeta de spam.
+          Si el correo está registrado y sin verificar, te enviamos un enlace nuevo. Revisa también la carpeta
+          de spam.
         </Alert>
       ) : (
         <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">

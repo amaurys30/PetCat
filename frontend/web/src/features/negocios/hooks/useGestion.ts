@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as negociosApi from "@/api/negocios";
 import { queryKeys } from "@/lib/queryKeys";
 import { useAuth } from "@/stores/auth";
+import { useUi } from "@/stores/ui";
 
 /** Negocio del panel con sus sedes, horarios y reglas de confirmación (configuracion.ver). */
 export function useGestion(idNegocio: number, habilitada = true) {
@@ -81,6 +82,11 @@ export function useEliminarSede(idNegocio: number) {
   });
 }
 
+/**
+ * Guarda la semana de una sede. Las citas que quedaron fuera se muestran aquí, antes de
+ * recargar el perfil: si la semana queda sin horario, el propietario vuelve al asistente
+ * y la pantalla que guardó ya no existe para mostrarlas.
+ */
 export function useGuardarHorarios(idNegocio: number) {
   const refrescar = useRefrescarNegocio(idNegocio);
   return useMutation({
@@ -92,6 +98,9 @@ export function useGuardarHorarios(idNegocio: number) {
       idSucursal: number;
       horarios: negociosApi.HorariosBody["horarios"];
     }) => negociosApi.guardarHorarios(idSucursal, { horarios }),
-    onSuccess: refrescar,
+    onSuccess: ({ citas_afectadas }) => {
+      useUi.getState().mostrarCitasAfectadas(citas_afectadas);
+      return refrescar();
+    },
   });
 }

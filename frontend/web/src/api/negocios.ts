@@ -47,7 +47,10 @@ export const eliminarSucursal = (idSucursal: number) => apiDelete<unknown>(`/suc
 
 /** Reemplaza la semana completa. `citas_afectadas` solo viene en esta respuesta. */
 export const guardarHorarios = (idSucursal: number, body: HorariosBody) =>
-  apiPut<{ horarios: Horario[]; citas_afectadas: CitaAfectada[] }>(`/sucursales/${idSucursal}/horarios`, body);
+  apiPut<{ horarios: Horario[]; citas_afectadas: CitaAfectada[] }>(
+    `/sucursales/${idSucursal}/horarios`,
+    body,
+  );
 
 export type TipoImagen = "logo" | "banner";
 

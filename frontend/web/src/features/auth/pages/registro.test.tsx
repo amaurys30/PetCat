@@ -102,7 +102,9 @@ describe("A7 · Crear cuenta", () => {
 
   it("los errores 422 de la API van a su campo", async () => {
     servidor.use(
-      http.post(`${API}/auth/register`, () => fallo(422, "Datos inválidos", { telefono: "Teléfono inválido" })),
+      http.post(`${API}/auth/register`, () =>
+        fallo(422, "Datos inválidos", { telefono: "Teléfono inválido" }),
+      ),
     );
     renderRuta("/registro");
     await llenar({ telefono: "3001234567" });
@@ -143,7 +145,9 @@ describe("Bienvenida (A5 sin negocios)", () => {
     );
     renderRuta("/negocios", { usuario: nuevo });
     await userEvent.setup().click(screen.getByRole("button", { name: "Reenviar enlace" }));
-    await waitFor(() => expect(screen.queryByRole("button", { name: "Reenviar enlace" })).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Reenviar enlace" })).not.toBeInTheDocument(),
+    );
   });
 
   it("con la cuenta verificada no muestra el aviso", () => {
@@ -160,7 +164,9 @@ describe("Bienvenida (A5 sin negocios)", () => {
     await user.click(screen.getByRole("button", { name: "Ya la acepté, actualizar" }));
     expect(await screen.findByText(/Todavía no tienes acceso a ningún negocio/)).toBeInTheDocument();
 
-    negocios = [negocioDemo({ relacion: "empleado", rol: { id_rol: 3, nombre: "Recepcionista", permisos_json: {} } })];
+    negocios = [
+      negocioDemo({ relacion: "empleado", rol: { id_rol: 3, nombre: "Recepcionista", permisos_json: {} } }),
+    ];
     await user.click(screen.getByRole("button", { name: "Ya la acepté, actualizar" }));
     expect(await screen.findByText("Empleado · Rol: Recepcionista")).toBeInTheDocument();
   });
@@ -208,7 +214,10 @@ describe("A8 · Verificación de correo", () => {
 
   it("enlace ya usado con el correo verificado: lo dice", async () => {
     const verificado = { ...nuevo, email_verificado: true };
-    servidor.use(vencido, http.get(`${API}/auth/me`, () => ok(verificado)));
+    servidor.use(
+      vencido,
+      http.get(`${API}/auth/me`, () => ok(verificado)),
+    );
     renderRuta(`/verificar-email/${TOKEN}`, { usuario: verificado });
     expect(await screen.findByRole("heading", { name: "Tu correo ya está verificado" })).toBeInTheDocument();
   });

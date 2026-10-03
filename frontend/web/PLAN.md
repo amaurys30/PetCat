@@ -41,7 +41,7 @@ Orden pensado para que cada fase deje datos listos para la siguiente: primero ac
 - [x] A6 / A6b / A6c Crear negocio: datos, sede principal con mapa, horarios con plantillas
 - [ ] E0 Perfil del negocio (resumen)
 - [ ] E1 Configuración del negocio: datos, logo, banner, confirmación automática
-- [ ] E2 Sedes y horarios: CRUD de sedes, ubicación, horario partido
+- [x] E2 Sedes y horarios: CRUD de sedes, ubicación, horario partido
 - [ ] E6 Mi perfil: datos, foto, cambio de contraseña, notificaciones, política
 
 ## P2 — Equipo
@@ -117,4 +117,7 @@ _(Lo que el panel necesite y la API no tenga. No se inventa: se anota aquí.)_
 - P1: A4 con otra sesión abierta avisa antes y, al aceptar, cierra la sesión anterior y entra con la invitada (`reemplazar` en el store). El orden importa: primero se acepta (si falla, la sesión anterior sigue), luego se cierra la anterior (las otras pestañas quedan sin sesión) y por último se entra (las otras pestañas toman la nueva).
 - Pruebas de punta a punta de A4: Salud Animal 24h (Pro en prueba, sin límite de empleados) crea e invita empleados con correos únicos, y el enlace se lee del log de `backend-demo`. Cada corrida deja empleados de prueba en `petcat_demo`; se limpian recargando la demo.
 - P1: el último paso de A6 dice "Terminar" y no "Crear negocio" como el mockup: el negocio ya existe desde el paso 1. El aviso del plan Gratuito usa los límites de `GET /planes`. `api:types` genera con `--default-non-nullable false`: un campo con `default` en un cuerpo de petición no es obligatorio.
+- P1: Configuración tiene las pestañas Resumen, Perfil del negocio y Sedes y horarios; carga una vez `/gestion` para las tres. "Reglas de agenda" no se crea: su único dato es la confirmación automática, que está en E1.
+- P1: el diálogo de citas afectadas vive en Raiz (store de UI) y lo abre el hook al guardar: si la semana queda sin horario, el propietario vuelve al asistente y la pantalla que guardó ya no existe. Se puede copiar la lista porque la API no la vuelve a dar.
+- P1: el aviso de cambios sin guardar consulta el estado al momento de salir (no al pintar), para que se pueda navegar justo después de guardar. Una sola instancia por pantalla (React Router admite un bloqueador a la vez).
 - `/dev/estados` (solo en desarrollo) reúne los estados de S1, los estados de cita y los botones para revisarlos contra el Figma.

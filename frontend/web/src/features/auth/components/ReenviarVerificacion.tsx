@@ -34,8 +34,8 @@ export function ReenviarVerificacion({ className }: { className?: string }) {
       <p className="flex gap-2 text-body text-ink">
         <MailCheck className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
         <span>
-          Confirma tu correo: te enviamos un enlace a <strong className="font-semibold">{usuario.email}</strong>.
-          Vence en 24 horas.
+          Confirma tu correo: te enviamos un enlace a{" "}
+          <strong className="font-semibold">{usuario.email}</strong>. Vence en 24 horas.
         </span>
       </p>
       <div className="mt-2.5 flex flex-wrap items-center gap-3 pl-6">
