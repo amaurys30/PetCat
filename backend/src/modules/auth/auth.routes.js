@@ -87,6 +87,13 @@ const router = express.Router();
  *                 example: Petcat123!
  *               telefono: { type: string, example: "3003334455" }
  *               tipo_usuario: { type: string, enum: [cliente, negocio], default: cliente }
+ *               canal:
+ *                 type: string
+ *                 enum: [app, panel]
+ *                 default: app
+ *                 description: >
+ *                   Desde dónde se registra (el panel web envía `panel`). Queda en la autorización de datos,
+ *                   sin negocio: la diferencia con un cliente que registró un negocio, que sí lo tiene.
  *     responses:
  *       201:
  *         description: Cuenta creada
@@ -297,7 +304,11 @@ router.post("/refresh-token", validate({ body: refreshTokenBody }), controller.r
  *                           properties:
  *                             version: { type: string, example: "1.0" }
  *                             fecha: { type: string, example: "2026-09-27 10:00:00" }
- *                             canal: { type: string, enum: [app, panel, invitacion, aceptacion], description: Dónde se aceptó }
+ *                             canal:
+ *                               type: string
+ *                               enum: [app, panel, invitacion, aceptacion]
+ *                               description: >
+ *                                 Dónde se aceptó. `panel`: se registró en el panel web o lo registró un negocio.
  *                         negocios: { type: array, items: { $ref: '#/components/schemas/NegocioMio' } }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *   patch:

@@ -2,7 +2,10 @@ import db from "../../config/db.js";
 
 /**
  * Registra la autorización de tratamiento de datos (Ley 1581 de 2012).
- * `canal` "app": el titular se registró; "panel": lo registró un negocio.
+ * `canal` "app": el titular se registró en la app; "panel" con `id_negocio`: lo registró ese
+ * negocio; "panel" sin negocio: el titular se registró en el panel web; "invitacion": aceptó
+ * una invitación de empleado; "aceptacion": cuenta existente que aceptó la versión vigente.
+ * Las consultas de "registrado por el negocio" filtran siempre por `id_negocio`.
  */
 export const create = async (
   { id_usuario, canal, id_negocio = null, id_usuario_registro = null, version_politica, ip_address = null },

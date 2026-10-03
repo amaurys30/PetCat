@@ -49,12 +49,13 @@ const enviarSinEsperar = (mail, contexto) => {
 export { versionPolitica };
 
 /**
- * El registro exige aceptar la política de datos y la guarda (canal app), deja
+ * El registro exige aceptar la política de datos y la guarda con el canal del
+ * registro ("app" o "panel", sin negocio: es el propio titular), deja
  * un token de verificación y envía el correo; si el envío falla, se pide otro
  * con resend-verification. Email existente: 409 que sugiere "Olvidé mi
  * contraseña" (la cuenta pudo crearla un negocio desde el panel).
  */
-export const register = async ({ nombre, apellido, email, password, telefono, tipo_usuario }, cliente = {}) => {
+export const register = async ({ nombre, apellido, email, password, telefono, tipo_usuario, canal }, cliente = {}) => {
   if (await usuarioRepo.findByEmail(email)) {
     throw ApiError.conflict(
       "Ya existe una cuenta con ese correo. Si no recuerdas la contraseña o un negocio te registró, usa \"Olvidé mi contraseña\" para activarla",
@@ -70,7 +71,7 @@ export const register = async ({ nombre, apellido, email, password, telefono, ti
       conn
     );
     await autorizacionRepo.create(
-      { id_usuario: id, canal: "app", id_usuario_registro: id, version_politica, ip_address: cliente.ip ?? null },
+      { id_usuario: id, canal, id_usuario_registro: id, version_politica, ip_address: cliente.ip ?? null },
       conn
     );
     await usuarioRepo.setToken(id, "verificacion", { token_hash, minutos: MINUTOS_VERIFICACION }, conn);
