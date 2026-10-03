@@ -6,6 +6,8 @@ import { expect, test } from "@playwright/test";
  * configuracion_pendiente). Sin clave de Google: la sede usa coordenadas manuales.
  */
 test("crea el negocio en tres pasos y retoma el asistente en otro navegador", async ({ browser, page }) => {
+  // Registro, dos navegadores y los tres pasos: con la suite en paralelo pasa de 30 s.
+  test.setTimeout(60_000);
   const email = `negocio.${Date.now()}@petcat.test`;
   const password = "Patitas123";
 
