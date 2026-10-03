@@ -36,12 +36,12 @@ export const findActivasByNegocio = async (id_negocio) => {
 };
 
 /**
- * Bloquea las sucursales activas del negocio hasta el fin de la transacción:
- * serializa los cambios de sucursal principal entre peticiones simultáneas.
+ * Sucursales activas del negocio, sin bloqueo. Se llama con la fila del negocio ya
+ * bloqueada (negocioRepo.lockById): ese bloqueo serializa los cambios de sucursales.
  */
-export const lockActivasByNegocio = async (id_negocio, conn) => {
+export const findActivasParaCambio = async (id_negocio, conn) => {
   const [rows] = await conn.query(
-    "SELECT id_sucursal, es_principal FROM sucursales WHERE id_negocio = ? AND activo = TRUE FOR UPDATE",
+    "SELECT id_sucursal, es_principal FROM sucursales WHERE id_negocio = ? AND activo = TRUE",
     [id_negocio]
   );
   return rows;
@@ -67,8 +67,10 @@ export const update = async (id_sucursal, data, conn) => {
   );
 };
 
-export const clearPrincipal = async (id_negocio, conn) => {
-  await (conn ?? db).query("UPDATE sucursales SET es_principal = FALSE WHERE id_negocio = ?", [id_negocio]);
+/** Desmarca las sucursales indicadas como principal, por clave primaria (no por id_negocio). */
+export const clearPrincipal = async (ids_sucursal, conn) => {
+  if (ids_sucursal.length === 0) return;
+  await (conn ?? db).query("UPDATE sucursales SET es_principal = FALSE WHERE id_sucursal IN (?)", [ids_sucursal]);
 };
 
 /** Borrado lógico: una sucursal inactiva nunca queda como principal. */

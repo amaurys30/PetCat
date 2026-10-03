@@ -30,6 +30,19 @@ export const update = async (id_negocio, data, conn) => {
   );
 };
 
+/**
+ * Bloquea la fila del negocio (FOR UPDATE por clave primaria). Serializa los cambios de
+ * sus filas hijas (sucursales) sin bloquear rangos de un índice secundario, que con
+ * filas inexistentes toman gap locks compartidos con otros negocios y llevan a deadlock.
+ * Devuelve undefined si no existe.
+ */
+export const lockById = async (id_negocio, conn) => {
+  const [rows] = await conn.query("SELECT id_negocio, activo FROM negocios WHERE id_negocio = ? FOR UPDATE", [
+    id_negocio,
+  ]);
+  return rows[0];
+};
+
 /** Bloquea la fila del negocio (FOR UPDATE por clave primaria) y devuelve su logo y banner. */
 export const lockImagenes = async (id_negocio, conn) => {
   const [rows] = await conn.query(
