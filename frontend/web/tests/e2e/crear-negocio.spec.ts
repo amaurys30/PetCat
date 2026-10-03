@@ -51,6 +51,8 @@ test("crea el negocio en tres pasos y retoma el asistente en otro navegador", as
 
   // Ya completo: en el selector no aparece como pendiente.
   await retomar.goto("/negocios");
-  await expect(retomar.getByRole("link", { name: /Patitas Norte/ })).not.toContainText("Configuración pendiente");
+  await expect(retomar.getByRole("link", { name: /Patitas Norte/ })).not.toContainText(
+    "Configuración pendiente",
+  );
   await otro.close();
 });

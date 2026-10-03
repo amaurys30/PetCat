@@ -42,7 +42,7 @@ Orden pensado para que cada fase deje datos listos para la siguiente: primero ac
 - [x] E0 Perfil del negocio (resumen)
 - [x] E1 Configuración del negocio: datos, logo, banner, confirmación automática
 - [x] E2 Sedes y horarios: CRUD de sedes, ubicación, horario partido
-- [ ] E6 Mi perfil: datos, foto, cambio de contraseña, notificaciones, política
+- [x] E6 Mi perfil: datos, foto, cambio de contraseña, notificaciones, política
 
 ## P2 — Equipo
 - [ ] D3 Equipo: miembros, estado de la invitación, reenviar, desactivar y reactivar, "Agregarme como profesional"
@@ -122,4 +122,6 @@ _(Lo que el panel necesite y la API no tenga. No se inventa: se anota aquí.)_
 - P1: el aviso de cambios sin guardar consulta el estado al momento de salir (no al pintar), para que se pueda navegar justo después de guardar. Una sola instancia por pantalla (React Router admite un bloqueador a la vez).
 - P1: E1 aplica la confirmación automática al instante (vuelve atrás si la API falla). El aviso de citas perdidas usa `reglas_confirmacion.citas_perdidas` de `/gestion`. "Sitio web" acepta "patitas.co" y lo envía con `https://` (la API exige URL). La vista "Así te ven en la app" sigue el nombre escrito, sin la distancia.
 - P1: en las pruebas, `request.formData()` de MSW no lee el multipart que arma jsdom; las subidas se verifican con el cuerpo crudo.
+- P1: E6 vive en `/n/:id/mi-perfil` (menú del avatar). Al cambiar nombre o foto, la pestaña avisa a las demás por BroadcastChannel (`perfil`) y recargan `/auth/me`. Las notificaciones se guardan al instante. El cambio de contraseña deja esta sesión (y sus pestañas) y cierra las de otros dispositivos.
+- Pruebas de punta a punta: la suite completa hace muchas peticiones a la API de demo; corrida varias veces seguidas puede agotar el límite general (300 cada 15 min por IP) y fallar con 429. Se espera a que se libere.
 - `/dev/estados` (solo en desarrollo) reúne los estados de S1, los estados de cita y los botones para revisarlos contra el Figma.

@@ -3,6 +3,7 @@ import { ConfiguracionLayout } from "@/features/configuracion/ConfiguracionLayou
 import { PerfilNegocioPage } from "@/features/configuracion/pages/PerfilNegocioPage";
 import { ResumenNegocioPage } from "@/features/configuracion/pages/ResumenNegocioPage";
 import { SedesPage } from "@/features/configuracion/pages/SedesPage";
+import { MiPerfilPage } from "@/features/perfil/pages/MiPerfilPage";
 import { LoginPage } from "@/features/auth/pages/LoginPage";
 import { PasswordNuevaPage } from "@/features/auth/pages/PasswordNuevaPage";
 import { RecuperarPasswordPage } from "@/features/auth/pages/RecuperarPasswordPage";
@@ -82,6 +83,11 @@ export const rutas: RouteObject[] = [
                   { path: "sedes", element: <SedesPage /> },
                   { path: "*", element: <Navigate to="resumen" replace /> },
                 ],
+              },
+              {
+                path: "mi-perfil",
+                element: <MiPerfilPage />,
+                handle: { titulo: "Mi perfil" } satisfies HandleRuta,
               },
               ...SECCIONES.filter((s) => s.ruta !== "configuracion").map((seccion): RouteObject => ({
                 path: `${seccion.ruta}/*`,

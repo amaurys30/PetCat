@@ -3,7 +3,7 @@ import { z } from "zod";
 const email = z.string().trim().min(1, "Escribe tu correo").email("Correo electrónico inválido");
 
 /** Mismas reglas que la API (passwordNueva en backend/src/modules/auth/auth.schemas.js). */
-const passwordNueva = z
+export const passwordNueva = z
   .string()
   .min(8, "Debe tener al menos 8 caracteres")
   .max(72, "Debe tener máximo 72 caracteres")
@@ -41,7 +41,7 @@ export const passwordNuevaSchema = z
   });
 export type PasswordNuevaValores = z.infer<typeof passwordNuevaSchema>;
 
-const nombre = z
+export const nombre = z
   .string()
   .trim()
   .min(2, "Debe tener al menos 2 caracteres")

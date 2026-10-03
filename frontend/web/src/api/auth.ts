@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from "./client";
+import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from "./client";
 import type { Body, DataGet, Me, Sesion, Usuario } from "./types";
 
 export type LoginBody = Body<"/auth/login", "post">;
@@ -40,3 +40,23 @@ export const resendVerification = () => apiPost<{ email: string }>("/auth/resend
 /** Sin sesión: la respuesta es la misma exista o no la cuenta. */
 export const requestVerification = (email: string) =>
   apiPost<null>("/auth/request-verification", { email }, { sinRenovar: true });
+
+export type ActualizarPerfilBody = Body<"/auth/me", "patch">;
+export type CambiarPasswordBody = Body<"/auth/change-password", "post">;
+
+/** Nombre, apellido, teléfono, idioma y notificaciones. El correo no se cambia aquí. */
+export const actualizarPerfil = (body: ActualizarPerfilBody) => apiPatch<unknown>("/auth/me", body);
+
+/** multipart con el archivo en `foto`. */
+export const subirFoto = (archivo: File, onProgreso?: (porcentaje: number) => void) => {
+  const datos = new FormData();
+  datos.append("foto", archivo);
+  return apiPut<unknown>("/auth/me/foto", datos, {
+    onUploadProgress: (e) => e.total && onProgreso?.(Math.round((e.loaded / e.total) * 100)),
+  });
+};
+
+export const eliminarFoto = () => apiDelete<unknown>("/auth/me/foto");
+
+/** Cierra las demás sesiones del usuario (esta sigue). 422 si la actual no es correcta. */
+export const cambiarPassword = (body: CambiarPasswordBody) => apiPost<null>("/auth/change-password", body);

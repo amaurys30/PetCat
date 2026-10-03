@@ -101,6 +101,14 @@ export const useAuth = create<AuthState>()((set, get) => ({
 // Eventos de otras pestañas y de la renovación de tokens.
 suscribirSesion((evento) => {
   const { estado } = useAuth.getState();
+  if (evento.tipo === "perfil-externo") {
+    if (estado === "autenticado")
+      void useAuth
+        .getState()
+        .recargarUsuario()
+        .catch(() => undefined);
+    return;
+  }
   if (evento.tipo === "cerrada") {
     if (estado === "autenticado") quedarAnonimo(evento.motivo === "expirada" ? "expirada" : null);
     return;
