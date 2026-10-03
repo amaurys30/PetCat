@@ -20,8 +20,8 @@ const router = express.Router();
  *         fecha_aplicacion: { type: string, format: date }
  *         fecha_proxima: { type: string, format: date }
  *         registrada_por: { type: string, enum: [dueno, negocio] }
- *         dias_vencida: { type: integer, description: Solo en vencidas }
- *         dias_restantes: { type: integer, description: Solo en próximas }
+ *         dias_vencida: { type: integer, x-opcional: true, description: Solo en vencidas }
+ *         dias_restantes: { type: integer, x-opcional: true, description: Solo en próximas }
  *     ResumenSalud:
  *       type: object
  *       properties:

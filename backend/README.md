@@ -261,6 +261,8 @@ npm run test:watch  # modo observación
 - Interfaz: `http://localhost:3000/api/v1/docs` ("Try it out" funciona contra el mismo servidor).
 - Especificación OpenAPI en JSON: `http://localhost:3000/api/v1/docs.json`.
 - Cada endpoint nuevo o modificado se documenta en el JSDoc `@swagger` de su `<modulo>.routes.js`, con request, respuestas y errores.
+- **Campos requeridos en las respuestas:** en las respuestas 2xx, todo campo documentado se marca como requerido al generar la especificación (`marcarRequeridos` en `src/docs/swagger.js`), porque la API lo envía siempre (con `null` si no tiene valor). Un campo que puede faltar se marca en su YAML con `x-opcional: true` y se dice cuándo viene (por ejemplo `notas_internas`, solo en el panel). Los request bodies conservan su propio `required`. Así los tipos generados desde `docs.json` (panel y app) no quedan con todo opcional.
+- **Contrato en los tests:** el cliente `api()` de los tests compara cada respuesta 2xx con su esquema de Swagger (`tests/helpers/contrato.js`) y falla si falta un campo requerido o si la respuesta no está documentada. Si un test falla con "Contrato: …", o la API dejó de enviar el campo o hay que marcarlo `x-opcional` en la documentación. Para revisar todo de una vez sin que fallen: `$env:CONTRATO_INFORME="contrato.tsv"; npm test`.
 - Para probar rutas protegidas: haz login en `POST /auth/login`, copia `data.access_token` y pégalo en **Authorize**.
 
 ---

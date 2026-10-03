@@ -88,7 +88,7 @@ export const findPublicoById = async (id_negocio) => {
 
 export const findSucursalesPublicas = async (id_negocio) => {
   const [rows] = await db.query(
-    `SELECT id_sucursal, nombre, descripcion, telefono, direccion, ciudad, latitud, longitud, es_principal
+    `SELECT id_sucursal, id_negocio, nombre, descripcion, telefono, direccion, ciudad, latitud, longitud, es_principal
      FROM sucursales
      WHERE id_negocio = ? AND activo = TRUE
      ORDER BY es_principal DESC, id_sucursal`,

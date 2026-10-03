@@ -57,6 +57,14 @@ const router = express.Router();
  *                 data: { $ref: '#/components/schemas/Dispositivo' }
  *       200:
  *         description: El token ya existía y quedó en esta sesión
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Dispositivo actualizado }
+ *                 data: { $ref: '#/components/schemas/Dispositivo' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       422: { $ref: '#/components/responses/ValidationError' }
  *   delete:
@@ -78,6 +86,14 @@ const router = express.Router();
  *     responses:
  *       200:
  *         description: Dispositivo eliminado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Dispositivo eliminado }
+ *                 data: { nullable: true, example: null }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       404:
  *         description: El usuario no tiene un dispositivo activo con ese token

@@ -105,7 +105,7 @@ Formato `{ "modulo": ["accion", ...] }`. Módulos: `citas, servicios, inventario
 **Estilo**
 - Mensajes al usuario, comentarios y Swagger en español. Nombres de funciones: verbo en inglés + entidad en español (`createEmpleado`, `findByNegocio`) — ya es el estilo del proyecto.
 - Sin emojis en el código nuevo. Comentarios solo donde aporten.
-- Cada endpoint nuevo o modificado queda documentado en Swagger (request, respuestas y errores).
+- Cada endpoint nuevo o modificado queda documentado en Swagger (request, respuestas y errores). En las respuestas, todo campo documentado es requerido salvo los marcados `x-opcional: true`; los tests verifican ese contrato (`tests/helpers/contrato.js`).
 
 ## Forma de trabajar
 
