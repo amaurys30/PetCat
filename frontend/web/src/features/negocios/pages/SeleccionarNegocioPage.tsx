@@ -28,26 +28,40 @@ export function SeleccionarNegocioPage() {
         }
       />
       <ul className="flex flex-col gap-3">
-        {negocios.map((n) => (
-          <li key={n.id_negocio}>
-            <Link
-              to={`/n/${n.id_negocio}`}
-              className="flex items-center gap-3 rounded-card border p-3.5 transition-colors hover:border-primary hover:bg-selected"
-            >
-              <Avatar nombre={n.nombre} fotoUrl={n.logo_miniatura_url} tamano="lg" />
-              <span className="min-w-0 flex-1">
-                <span className="block text-card font-semibold text-ink">{n.nombre}</span>
-                <span className="block text-body text-muted">
-                  {n.relacion === "propietario" ? "Propietario" : `Empleado · Rol: ${rolEnNegocio(n)}`}
+        {negocios.map((n) => {
+          // Al propietario con el negocio a medias, la tarjeta lo lleva a retomar el asistente.
+          const aMedias = n.relacion === "propietario" && n.configuracion_pendiente !== null;
+          return (
+            <li key={n.id_negocio}>
+              <Link
+                to={aMedias ? `/negocios/${n.id_negocio}/configurar` : `/n/${n.id_negocio}`}
+                className="flex items-center gap-3 rounded-card border p-3.5 transition-colors hover:border-primary hover:bg-selected"
+              >
+                <Avatar nombre={n.nombre} fotoUrl={n.logo_miniatura_url} tamano="lg" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-card font-semibold text-ink">{n.nombre}</span>
+                  <span className="block text-body text-muted">
+                    {n.relacion === "propietario" ? "Propietario" : `Empleado · Rol: ${rolEnNegocio(n)}`}
+                  </span>
                 </span>
-              </span>
-              <Badge tono={n.plan.en_prueba ? "info" : n.plan.nombre === "Gratuito" ? "neutral" : "primary"}>
-                {textoPlan(n.plan)}
-              </Badge>
-              <ArrowRight className="size-4 text-muted" aria-hidden />
-            </Link>
-          </li>
-        ))}
+                {aMedias ? (
+                  <Badge tono="warning">Configuración pendiente</Badge>
+                ) : (
+                  <Badge
+                    tono={n.plan.en_prueba ? "info" : n.plan.nombre === "Gratuito" ? "neutral" : "primary"}
+                  >
+                    {textoPlan(n.plan)}
+                  </Badge>
+                )}
+                {aMedias ? (
+                  <span className="text-body font-semibold text-primary">Continuar</span>
+                ) : (
+                  <ArrowRight className="size-4 text-muted" aria-hidden />
+                )}
+              </Link>
+            </li>
+          );
+        })}
       </ul>
       <Button asChild variant="secondary" className="mt-4 w-full">
         <Link to="/negocios/nuevo">

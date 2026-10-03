@@ -69,7 +69,9 @@ function ModoManual({ value, onChange, errores = {}, disabled, aviso }: Props & 
 
   // Si el valor cambió desde fuera (reinicio del formulario), se muestra ese; si no, lo escrito.
   const textoLatitud = Object.is(leerCoordenada(latitud), value.latitud) ? latitud : comoTexto(value.latitud);
-  const textoLongitud = Object.is(leerCoordenada(longitud), value.longitud) ? longitud : comoTexto(value.longitud);
+  const textoLongitud = Object.is(leerCoordenada(longitud), value.longitud)
+    ? longitud
+    : comoTexto(value.longitud);
 
   const hayPunto =
     value.latitud !== null &&

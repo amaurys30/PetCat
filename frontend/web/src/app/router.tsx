@@ -5,6 +5,8 @@ import { RecuperarPasswordPage } from "@/features/auth/pages/RecuperarPasswordPa
 import { RegistroPage } from "@/features/auth/pages/RegistroPage";
 import { VerificarEmailPage } from "@/features/auth/pages/VerificarEmailPage";
 import { AceptarInvitacionPage } from "@/features/invitaciones/pages/AceptarInvitacionPage";
+import { AsistenteNegocioPage } from "@/features/negocios/pages/AsistenteNegocioPage";
+import { CrearNegocioPage } from "@/features/negocios/pages/CrearNegocioPage";
 import { SeleccionarNegocioPage } from "@/features/negocios/pages/SeleccionarNegocioPage";
 import { Inicio, RequireAuth, SoloAnonimo } from "./guards";
 import { AuthLayout } from "./layouts/AuthLayout";
@@ -12,7 +14,7 @@ import { PanelLayout, PrimeraSeccion } from "./layouts/PanelLayout";
 import { Raiz } from "./layouts/Raiz";
 import type { HandleRuta } from "./layouts/Topbar";
 import { SECCIONES } from "./menu";
-import { AccesoPendiente, ErrorDeRuta, PaginaNoEncontrada } from "./pages/PaginasGenerales";
+import { ErrorDeRuta, PaginaNoEncontrada } from "./pages/PaginasGenerales";
 import { SeccionPendiente } from "./pages/SeccionPendiente";
 
 const rutasDesarrollo: RouteObject[] = import.meta.env.DEV
@@ -56,7 +58,8 @@ export const rutas: RouteObject[] = [
             element: <AuthLayout />,
             children: [
               { path: "negocios", element: <SeleccionarNegocioPage /> },
-              { path: "negocios/nuevo", element: <AccesoPendiente titulo="Crear negocio" fase="P1" /> },
+              { path: "negocios/nuevo", element: <CrearNegocioPage /> },
+              { path: "negocios/:idNegocio/configurar", element: <AsistenteNegocioPage /> },
             ],
           },
           {

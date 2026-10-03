@@ -2,8 +2,10 @@
 export const queryKeys = {
   politica: () => ["politica-datos"] as const,
   invitacion: (token: string) => ["invitaciones", token] as const,
+  planes: () => ["planes"] as const,
   negocios: {
     mios: () => ["negocios", "mios"] as const,
+    gestion: (idNegocio: number) => ["negocios", idNegocio, "gestion"] as const,
     suscripcion: (idNegocio: number) => ["negocios", idNegocio, "suscripcion"] as const,
   },
 };

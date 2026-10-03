@@ -28,6 +28,8 @@ interface Props {
   /** Errores por rango con clave `${dia}-${indice}` (del cliente o del 422 de la API). */
   errores?: Record<string, string>;
   disabled?: boolean;
+  /** Tarjeta angosta (asistente A6): "+" sin texto y nombres de día más cortos. */
+  compacto?: boolean;
 }
 
 const LABORALES = [1, 2, 3, 4, 5];
@@ -38,7 +40,13 @@ const TODOS = [0, 1, 2, 3, 4, 5, 6];
  * "Cerrado" sin rangos, plantillas y copiar un día a otros. Es controlado: la página
  * decide cuándo guardar (un solo PUT con la semana completa).
  */
-export function EditorHorarioSemanal({ value, onChange, errores = {}, disabled = false }: Props) {
+export function EditorHorarioSemanal({
+  value,
+  onChange,
+  errores = {},
+  disabled = false,
+  compacto = false,
+}: Props) {
   // Sin reordenar al editar: la ficha abierta sigue siendo la misma (se ordena al cargar desde la API).
   const cambiarDia = (dia: number, rangos: Rango[]) =>
     onChange(value.map((r, d) => (d === dia ? rangos : r)));
@@ -79,7 +87,9 @@ export function EditorHorarioSemanal({ value, onChange, errores = {}, disabled =
           return (
             <li key={dia} className="border-b border-track py-2.5 last:border-b-0">
               <div className="flex items-center gap-3">
-                <span className="w-24 shrink-0 text-body font-semibold text-ink">{nombre}</span>
+                <span className={cn("shrink-0 text-body font-semibold text-ink", compacto ? "w-20" : "w-24")}>
+                  {nombre}
+                </span>
                 <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                   {rangos.length === 0 && (
                     <span className="rounded-full bg-track px-2 py-0.5 text-label text-muted">Cerrado</span>
@@ -113,7 +123,8 @@ export function EditorHorarioSemanal({ value, onChange, errores = {}, disabled =
                       aria-label={`Agregar rango al ${nombre.toLowerCase()}`}
                       className="inline-flex h-7 items-center gap-1 rounded-control px-1.5 text-label font-semibold text-primary hover:bg-primary-soft disabled:opacity-50"
                     >
-                      <Plus className="size-3.5" aria-hidden /> rango
+                      <Plus className="size-3.5" aria-hidden />
+                      {!compacto && " rango"}
                     </button>
                   )}
                 </div>
@@ -138,7 +149,9 @@ export function EditorHorarioSemanal({ value, onChange, errores = {}, disabled =
                 </DropdownMenu>
               </div>
               {erroresDia.length > 0 && (
-                <p className="mt-1 pl-27 text-label text-danger">{erroresDia.join(" · ")}</p>
+                <p className={cn("mt-1 text-label text-danger", compacto ? "pl-23" : "pl-27")}>
+                  {erroresDia.join(" · ")}
+                </p>
               )}
             </li>
           );

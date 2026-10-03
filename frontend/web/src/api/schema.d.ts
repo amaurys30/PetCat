@@ -8205,7 +8205,7 @@ export interface components {
              * @default desconocido
              * @enum {string}
              */
-            sexo: "macho" | "hembra" | "desconocido";
+            sexo?: "macho" | "hembra" | "desconocido";
             /** @example Labrador */
             raza?: string | null;
             color?: string | null;
@@ -8219,14 +8219,14 @@ export interface components {
             microchip?: string | null;
             numero_registro?: string | null;
             /** @default false */
-            esterilizado: boolean;
+            esterilizado?: boolean;
             /** @default false */
-            tiene_alergias: boolean;
+            tiene_alergias?: boolean;
             /**
              * @description Si es false, cada negocio ve solo el historial clínico que él creó. Las vacunas, las alergias y las condiciones médicas siguen visibles para los negocios con cita.
              * @default true
              */
-            compartir_historial: boolean;
+            compartir_historial?: boolean;
             alergias_detalle?: string | null;
             condiciones_medicas?: string | null;
             tipo_sangre?: string | null;
@@ -8308,7 +8308,7 @@ export interface components {
              * @description Las citas de la app (y las que reprograma el dueño) nacen confirmadas. Sin ella quedan pendientes y, si el negocio no las confirma a tiempo (`confirmar_antes_de` de la cita), se cancelan solas.
              * @default false
              */
-            confirmacion_automatica: boolean;
+            confirmacion_automatica?: boolean;
         };
         Negocio: {
             /** @example Clínica Veterinaria Patitas */
@@ -8782,33 +8782,33 @@ export interface components {
              * @default fijo
              * @enum {string}
              */
-            tipo_precio: "fijo" | "por_hora" | "por_dia" | "variable";
+            tipo_precio?: "fijo" | "por_hora" | "por_dia" | "variable";
             /** @default 30 */
-            duracion_minutos: number;
+            duracion_minutos?: number;
             /**
              * @description Tiempo que ocupa la agenda del empleado después de la cita (no cambia la hora de fin de la cita)
              * @default 0
              */
-            margen_minutos: number;
+            margen_minutos?: number;
             /**
              * @description `todos` no se combina con otras especies
              * @default [
              *       "todos"
              *     ]
              */
-            tipo_mascota: ("perro" | "gato" | "conejo" | "ave" | "reptil" | "roedor" | "todos")[];
+            tipo_mascota?: ("perro" | "gato" | "conejo" | "ave" | "reptil" | "roedor" | "todos")[];
             peso_min_kg?: number | null;
             peso_max_kg?: number | null;
             /** @default true */
-            requiere_cita: boolean;
+            requiere_cita?: boolean;
             /** @description Por sucursal y día; null = sin límite */
             max_citas_dia?: number | null;
             /** @description null = todos los días */
             dias_disponible?: ("lunes" | "martes" | "miercoles" | "jueves" | "viernes" | "sabado" | "domingo")[] | null;
             /** @default true */
-            visible_app: boolean;
+            visible_app?: boolean;
             /** @default false */
-            en_oferta: boolean;
+            en_oferta?: boolean;
             precio_oferta?: number | null;
             /** Format: date */
             fecha_inicio_oferta?: string | null;

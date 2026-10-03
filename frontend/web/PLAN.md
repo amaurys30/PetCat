@@ -38,7 +38,7 @@ Orden pensado para que cada fase deje datos listos para la siguiente: primero ac
 - [x] A7 Crear cuenta · A8 Verificación de correo (y reenviar enlace)
 - [x] A4 Aceptar invitación (cuenta nueva y existente; auto-login)
 - [x] Componente de ubicación de sede: Google Maps con pin arrastrable y Places Autocomplete; sin clave, latitud y longitud manuales.
-- [ ] A6 / A6b / A6c Crear negocio: datos, sede principal con mapa, horarios con plantillas
+- [x] A6 / A6b / A6c Crear negocio: datos, sede principal con mapa, horarios con plantillas
 - [ ] E0 Perfil del negocio (resumen)
 - [ ] E1 Configuración del negocio: datos, logo, banner, confirmación automática
 - [ ] E2 Sedes y horarios: CRUD de sedes, ubicación, horario partido
@@ -116,4 +116,5 @@ _(Lo que el panel necesite y la API no tenga. No se inventa: se anota aquí.)_
 - P1: A8 funciona con o sin sesión y llama a la API una sola vez. Con el enlace vencido: con sesión, reenvía (`resend-verification`); sin sesión, pide el correo (`request-verification`, respuesta neutra).
 - P1: A4 con otra sesión abierta avisa antes y, al aceptar, cierra la sesión anterior y entra con la invitada (`reemplazar` en el store). El orden importa: primero se acepta (si falla, la sesión anterior sigue), luego se cierra la anterior (las otras pestañas quedan sin sesión) y por último se entra (las otras pestañas toman la nueva).
 - Pruebas de punta a punta de A4: Salud Animal 24h (Pro en prueba, sin límite de empleados) crea e invita empleados con correos únicos, y el enlace se lee del log de `backend-demo`. Cada corrida deja empleados de prueba en `petcat_demo`; se limpian recargando la demo.
+- P1: el último paso de A6 dice "Terminar" y no "Crear negocio" como el mockup: el negocio ya existe desde el paso 1. El aviso del plan Gratuito usa los límites de `GET /planes`. `api:types` genera con `--default-non-nullable false`: un campo con `default` en un cuerpo de petición no es obligatorio.
 - `/dev/estados` (solo en desarrollo) reúne los estados de S1, los estados de cita y los botones para revisarlos contra el Figma.
