@@ -108,6 +108,26 @@ describe("GET /negocios/mios", () => {
     expect(mio.rol.permisos_json).toEqual({ citas: ["ver", "editar"], vacunas: ["ver"] });
   });
 
+  it("configuracion_pendiente: sede, después horarios y null cuando una sede activa tiene horario", async () => {
+    const usuario = await crearUsuario();
+    const negocio = await crearNegocio(usuario);
+    const token = await tokenDe(usuario);
+    const pendiente = async () => (await api(token).get("/negocios/mios")).body.data[0].configuracion_pendiente;
+
+    expect(await pendiente()).toBe("sede");
+    // Una sede inactiva con horario no cuenta.
+    await crearHorarios(await crearSucursal(negocio, { activo: false }), [[1, "08:00", "12:00"]]);
+    expect(await pendiente()).toBe("sede");
+
+    const sede = await crearSucursal(negocio, { es_principal: true });
+    expect(await pendiente()).toBe("horarios");
+    await crearHorarios(sede, [[2, "08:00", "12:00"]]);
+    expect(await pendiente()).toBeNull();
+
+    const me = await api(token).get("/auth/me");
+    expect(me.body.data.negocios[0].configuracion_pendiente).toBeNull();
+  });
+
   it("lista vacía si no tiene negocios", async () => {
     const res = await api(await tokenDe(await crearUsuario())).get("/negocios/mios");
     expect(res.status).toBe(200);

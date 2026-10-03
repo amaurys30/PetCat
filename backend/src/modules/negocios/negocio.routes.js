@@ -120,6 +120,14 @@ const router = express.Router();
  *         logo_miniatura_url: { type: string, nullable: true }
  *         verificado: { type: boolean }
  *         activo: { type: boolean }
+ *         configuracion_pendiente:
+ *           type: string
+ *           nullable: true
+ *           enum: [sede, horarios, null]
+ *           description: >
+ *             Primer paso que le falta para recibir citas: `sede` si no tiene sucursales activas,
+ *             `horarios` si ninguna sucursal activa tiene horario, null si está completo. El panel
+ *             lo usa para retomar el asistente de creación.
  *         relacion: { type: string, enum: [propietario, empleado] }
  *         id_empleado: { type: integer, nullable: true, description: Solo si relacion es empleado }
  *         rol:

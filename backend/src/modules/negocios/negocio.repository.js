@@ -47,12 +47,21 @@ export const setImagen = async (id_negocio, columna, url, conn) => {
   await (conn ?? db).query(`UPDATE negocios SET ${columna} = ? WHERE id_negocio = ?`, [url, id_negocio]);
 };
 
+// Primer paso de configuración que le falta al negocio: una sede activa y, en alguna, horario.
+const SQL_CONFIGURACION_PENDIENTE = `CASE
+    WHEN NOT EXISTS (SELECT 1 FROM sucursales s WHERE s.id_negocio = n.id_negocio AND s.activo = TRUE) THEN 'sede'
+    WHEN NOT EXISTS (SELECT 1 FROM sucursales s
+                     JOIN horarios_negocio h ON h.id_sucursal = s.id_sucursal AND h.activo = TRUE
+                     WHERE s.id_negocio = n.id_negocio AND s.activo = TRUE) THEN 'horarios'
+  END`;
+
 /**
  * Negocios del panel del usuario: los propios (activos o no) y los activos donde
  * es empleado activo. Si es propietario y empleado del mismo, cuenta como propietario.
  */
 export const findMios = async (id_usuario) => {
-  const columnas = "n.id_negocio, n.nombre, n.tipo, n.ciudad, n.logo_url, n.verificado, n.activo";
+  const columnas = `n.id_negocio, n.nombre, n.tipo, n.ciudad, n.logo_url, n.verificado, n.activo,
+                    ${SQL_CONFIGURACION_PENDIENTE} AS configuracion_pendiente`;
   const [rows] = await db.query(
     `SELECT ${columnas}, 'propietario' AS relacion,
             NULL AS id_empleado, NULL AS id_rol, NULL AS rol_nombre, NULL AS permisos_json
