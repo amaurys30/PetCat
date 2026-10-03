@@ -104,3 +104,20 @@ export function useGuardarHorarios(idNegocio: number) {
     },
   });
 }
+
+/** Logo o banner del negocio. Los errores los muestra el subidor (422 de archivo, 429, 503). */
+export function useImagenNegocio(idNegocio: number, tipo: negociosApi.TipoImagen) {
+  const refrescar = useRefrescarNegocio(idNegocio);
+  const subir = useMutation({
+    meta,
+    mutationFn: ({ archivo, onProgreso }: { archivo: File; onProgreso: (p: number) => void }) =>
+      negociosApi.subirImagenNegocio(idNegocio, tipo, archivo, onProgreso),
+    onSuccess: refrescar,
+  });
+  const quitar = useMutation({
+    meta,
+    mutationFn: () => negociosApi.eliminarImagenNegocio(idNegocio, tipo),
+    onSuccess: refrescar,
+  });
+  return { subir, quitar };
+}

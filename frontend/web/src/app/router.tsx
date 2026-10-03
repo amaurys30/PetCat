@@ -1,5 +1,7 @@
 import { createBrowserRouter, Navigate, type RouteObject } from "react-router";
 import { ConfiguracionLayout } from "@/features/configuracion/ConfiguracionLayout";
+import { PerfilNegocioPage } from "@/features/configuracion/pages/PerfilNegocioPage";
+import { ResumenNegocioPage } from "@/features/configuracion/pages/ResumenNegocioPage";
 import { SedesPage } from "@/features/configuracion/pages/SedesPage";
 import { LoginPage } from "@/features/auth/pages/LoginPage";
 import { PasswordNuevaPage } from "@/features/auth/pages/PasswordNuevaPage";
@@ -75,18 +77,8 @@ export const rutas: RouteObject[] = [
                 handle: { titulo: "Configuración" } satisfies HandleRuta,
                 children: [
                   { index: true, element: <Navigate to="resumen" replace /> },
-                  {
-                    path: "resumen",
-                    element: (
-                      <SeccionPendiente seccion={SECCIONES.find((s) => s.ruta === "configuracion")!} />
-                    ),
-                  },
-                  {
-                    path: "perfil",
-                    element: (
-                      <SeccionPendiente seccion={SECCIONES.find((s) => s.ruta === "configuracion")!} />
-                    ),
-                  },
+                  { path: "resumen", element: <ResumenNegocioPage /> },
+                  { path: "perfil", element: <PerfilNegocioPage /> },
                   { path: "sedes", element: <SedesPage /> },
                   { path: "*", element: <Navigate to="resumen" replace /> },
                 ],

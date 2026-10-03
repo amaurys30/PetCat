@@ -39,8 +39,8 @@ Orden pensado para que cada fase deje datos listos para la siguiente: primero ac
 - [x] A4 Aceptar invitación (cuenta nueva y existente; auto-login)
 - [x] Componente de ubicación de sede: Google Maps con pin arrastrable y Places Autocomplete; sin clave, latitud y longitud manuales.
 - [x] A6 / A6b / A6c Crear negocio: datos, sede principal con mapa, horarios con plantillas
-- [ ] E0 Perfil del negocio (resumen)
-- [ ] E1 Configuración del negocio: datos, logo, banner, confirmación automática
+- [x] E0 Perfil del negocio (resumen)
+- [x] E1 Configuración del negocio: datos, logo, banner, confirmación automática
 - [x] E2 Sedes y horarios: CRUD de sedes, ubicación, horario partido
 - [ ] E6 Mi perfil: datos, foto, cambio de contraseña, notificaciones, política
 
@@ -120,4 +120,6 @@ _(Lo que el panel necesite y la API no tenga. No se inventa: se anota aquí.)_
 - P1: Configuración tiene las pestañas Resumen, Perfil del negocio y Sedes y horarios; carga una vez `/gestion` para las tres. "Reglas de agenda" no se crea: su único dato es la confirmación automática, que está en E1.
 - P1: el diálogo de citas afectadas vive en Raiz (store de UI) y lo abre el hook al guardar: si la semana queda sin horario, el propietario vuelve al asistente y la pantalla que guardó ya no existe. Se puede copiar la lista porque la API no la vuelve a dar.
 - P1: el aviso de cambios sin guardar consulta el estado al momento de salir (no al pintar), para que se pueda navegar justo después de guardar. Una sola instancia por pantalla (React Router admite un bloqueador a la vez).
+- P1: E1 aplica la confirmación automática al instante (vuelve atrás si la API falla). El aviso de citas perdidas usa `reglas_confirmacion.citas_perdidas` de `/gestion`. "Sitio web" acepta "patitas.co" y lo envía con `https://` (la API exige URL). La vista "Así te ven en la app" sigue el nombre escrito, sin la distancia.
+- P1: en las pruebas, `request.formData()` de MSW no lee el multipart que arma jsdom; las subidas se verifican con el cuerpo crudo.
 - `/dev/estados` (solo en desarrollo) reúne los estados de S1, los estados de cita y los botones para revisarlos contra el Figma.

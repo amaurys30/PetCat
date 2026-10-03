@@ -8,4 +8,7 @@ export const queryKeys = {
     gestion: (idNegocio: number) => ["negocios", idNegocio, "gestion"] as const,
     suscripcion: (idNegocio: number) => ["negocios", idNegocio, "suscripcion"] as const,
   },
+  empleados: {
+    lista: (idNegocio: number, params: object) => ["empleados", idNegocio, params] as const,
+  },
 };

@@ -3,17 +3,17 @@ import { camposCoordenadas, coordenadasJuntas } from "@/lib/ubicacion";
 import { TIPOS_NEGOCIO, type TipoNegocio } from "./textos";
 
 // Mismas reglas que la API (backend/src/shared/utils/schemas.js); vacío = sin dato.
-const telefono = z
+export const telefono = z
   .string()
   .trim()
   .refine((v) => v === "" || /^\+?[\d\s-]{7,20}$/.test(v), "Teléfono inválido");
-const opcional = (max: number) => z.string().trim().max(max, `Máximo ${max} caracteres`);
-const email = z
+export const opcional = (max: number) => z.string().trim().max(max, `Máximo ${max} caracteres`);
+export const email = z
   .string()
   .trim()
   .refine((v) => v === "" || z.email().safeParse(v).success, "Correo electrónico inválido");
 
-const tipo = z.enum(Object.keys(TIPOS_NEGOCIO) as [TipoNegocio, ...TipoNegocio[]], {
+export const tipo = z.enum(Object.keys(TIPOS_NEGOCIO) as [TipoNegocio, ...TipoNegocio[]], {
   error: "Elige el tipo de negocio",
 });
 
