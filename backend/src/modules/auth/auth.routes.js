@@ -286,16 +286,7 @@ router.post("/refresh-token", validate({ body: refreshTokenBody }), controller.r
  *                           description: >
  *                             No tiene una autorización de datos vigente para la versión actual de la política:
  *                             la app o el panel deben pedirla y enviarla a POST /auth/politica-datos/aceptar.
- *                         politica:
- *                           type: object
- *                           description: Versión vigente de la política de datos y enlace a su texto completo.
- *                           properties:
- *                             version: { type: string, example: "1.0" }
- *                             url:
- *                               type: string
- *                               nullable: true
- *                               description: null si PetCat todavía no publicó el enlace (configuracion_global.politica_datos_url).
- *                               example: https://petcat.co/politica-de-datos
+ *                         politica: { $ref: '#/components/schemas/PoliticaDatos' }
  *                         negocios: { type: array, items: { $ref: '#/components/schemas/NegocioMio' } }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *   patch:

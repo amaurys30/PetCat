@@ -30,6 +30,7 @@ import dispositivoRoutes from "./modules/dispositivos/dispositivo.routes.js";
 import notificacionRoutes from "./modules/notificaciones/notificacion.routes.js";
 import resenaRoutes from "./modules/resenas/resena.routes.js";
 import dashboardRoutes from "./modules/dashboard/dashboard.routes.js";
+import autorizacionRoutes from "./modules/autorizaciones/autorizacion.routes.js";
 
 import { generalLimiter, strictLimiter } from "./shared/middlewares/rateLimit.js";
 import { notFound } from "./shared/middlewares/notFound.js";
@@ -104,6 +105,7 @@ v1.use(dispositivoRoutes);
 v1.use(notificacionRoutes);
 v1.use(resenaRoutes);
 v1.use(dashboardRoutes);
+v1.use(autorizacionRoutes);
 
 app.use("/api/v1", v1);
 

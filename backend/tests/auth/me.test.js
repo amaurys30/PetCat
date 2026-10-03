@@ -61,9 +61,22 @@ describe("GET /auth/me", () => {
     try {
       const res = await api(await tokenDe(usuario)).get("/auth/me");
       expect(res.body.data.politica).toEqual({ version: "1.0", url: "https://petcat.co/politica" });
+
+      // Lo mismo sin sesión, para el registro y las invitaciones.
+      const publica = await api().get("/politica-datos");
+      expect(publica.status).toBe(200);
+      expect(publica.body.data).toEqual({ version: "1.0", url: "https://petcat.co/politica" });
     } finally {
       await pool.query("UPDATE configuracion_global SET valor = '' WHERE clave = 'politica_datos_url'");
     }
+  });
+});
+
+describe("GET /politica-datos", () => {
+  it("es público: versión vigente y url null si no hay enlace", async () => {
+    const res = await api().get("/politica-datos");
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ version: "1.0", url: null });
   });
 });
 

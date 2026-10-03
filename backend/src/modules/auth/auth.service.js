@@ -3,6 +3,7 @@ import * as usuarioRepo from "../usuarios/usuario.repository.js";
 import * as sessionRepo from "../sessions/session.repository.js";
 import * as autorizacionRepo from "../autorizaciones/autorizacion.repository.js";
 import * as configuracionRepo from "../configuracion/configuracion.repository.js";
+import { getPoliticaVigente, versionPolitica } from "../autorizaciones/autorizacion.service.js";
 import { createSessionForUser } from "../sessions/session.service.js";
 import { getMisNegocios } from "../negocios/negocio.service.js";
 import { correoBienvenida, correoRecuperacion, correoVerificacion } from "./auth.mail.js";
@@ -45,8 +46,7 @@ const enviarSinEsperar = (mail, contexto) => {
   });
 };
 
-/** Versión vigente de la política de datos que acepta el titular. */
-export const versionPolitica = () => configuracionRepo.getValor("terminos_version", "1.0");
+export { versionPolitica };
 
 /**
  * El registro exige aceptar la política de datos y la guarda (canal app), deja
@@ -157,19 +157,16 @@ const perfilPropio = (usuario) => ({
  * `politica`: versión vigente y enlace al texto completo, para mostrarlos al pedir la aceptación.
  */
 export const getMe = async (id_usuario) => {
-  const [version, url] = await Promise.all([
-    versionPolitica(),
-    configuracionRepo.getValor("politica_datos_url", ""),
-  ]);
+  const politica = await getPoliticaVigente();
   const [usuario, negocios, vigente] = await Promise.all([
     usuarioRepo.findById(id_usuario),
     getMisNegocios(id_usuario),
-    autorizacionRepo.findVigente(id_usuario, version),
+    autorizacionRepo.findVigente(id_usuario, politica.version),
   ]);
   return {
     ...perfilPropio(usuario),
     requiere_aceptar_politica: !vigente,
-    politica: { version, url: url || null },
+    politica,
     negocios,
   };
 };
