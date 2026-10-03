@@ -8,5 +8,5 @@ export const getHorarios = async (req, res) => {
 
 export const replaceHorarios = async (req, res) => {
   const data = await service.replaceHorarios(req.params.id_sucursal, req.body.horarios);
-  return ok(res, data, mensajeConAfectadas("Horarios actualizados", data.citas_afectadas));
+  return ok(res, data, mensajeConAfectadas("Horarios actualizados", data.citas_afectadas, "del horario de la sede"));
 };
