@@ -2,9 +2,9 @@ import { defineConfig, devices } from "@playwright/test";
 
 /**
  * Flujos de punta a punta contra la API real con la base de demo:
- *   cd backend; npm run db:demo; npm run dev:demo
+ *   docker compose --profile panel up -d backend-demo     (API de demo en 127.0.0.1:3001)
  *   cd frontend/web; npm run test:e2e
- * Si la API de demo corre en otro puerto, antes: $env:VITE_API_PROXY="http://localhost:3001"
+ * Si la API de demo está en otra dirección: $env:VITE_API_PROXY_TARGET="http://localhost:3000"
  */
 export default defineConfig({
   testDir: "./tests/e2e",

@@ -2,24 +2,24 @@ import type { components, paths } from "./schema";
 
 /**
  * Tipos de la API derivados de schema.d.ts (generado con `npm run api:types`).
- * Swagger no marca los campos como `required`, así que el generador los deja todos
- * opcionales. `Completo` los vuelve obligatorios (también en los objetos anidados)
- * para las entidades que la API siempre envía completas (ver "Pendientes de API" en PLAN.md).
- * Los `null` se conservan.
+ * En las respuestas, Swagger marca como requerido todo campo que la API envía siempre;
+ * los que pueden faltar quedan opcionales (`x-opcional` en el backend).
  */
-export type Completo<T> = T extends (infer U)[]
-  ? Completo<U>[]
-  : T extends object
-    ? { [K in keyof T]-?: Completo<Exclude<T[K], undefined>> }
-    : T;
-
 type Schemas = components["schemas"];
 
 /** Cuerpo JSON de una operación. */
 export type Body<P extends keyof paths, M extends "post" | "put" | "patch"> =
   NonNullable<paths[P][M]> extends { requestBody?: { content: { "application/json": infer B } } } ? B : never;
 
-export type Meta = Completo<Schemas["PaginationMeta"]>;
+/** `data` de la respuesta 200 de un GET. */
+export type DataGet<P extends keyof paths> =
+  NonNullable<paths[P]["get"]> extends {
+    responses: { 200: { content: { "application/json": { data: infer D } } } };
+  }
+    ? D
+    : never;
+
+export type Meta = Schemas["PaginationMeta"];
 
 /** Envoltorio de todas las respuestas: { success, message, data, meta? } */
 export interface Respuesta<T> {
@@ -37,22 +37,10 @@ export interface Pagina<T> {
 export type Permisos = Schemas["Permisos"];
 export type Modulo = keyof Permisos & string;
 
-export type Usuario = Completo<Schemas["Usuario"]>;
-
-export interface Sesion {
-  access_token: string;
-  refresh_token: string;
-  usuario: Usuario;
-}
-
-export type NegocioMio = Completo<Schemas["NegocioMio"]>;
+export type Usuario = Schemas["Usuario"];
+export type Sesion = Schemas["Sesion"];
+export type NegocioMio = Schemas["NegocioMio"];
 export type RolMio = NonNullable<NegocioMio["rol"]>;
-
-export type Me = Completo<Schemas["PerfilPropio"]> & {
-  requiere_aceptar_politica: boolean;
-  politica: { version: string; url: string | null };
-  negocios: NegocioMio[];
-};
-
-export type UsoLimite = Completo<Schemas["UsoLimite"]>;
-export type Suscripcion = Completo<Schemas["Suscripcion"]>;
+export type Me = DataGet<"/auth/me">;
+export type UsoLimite = Schemas["UsoLimite"];
+export type Suscripcion = Schemas["Suscripcion"];

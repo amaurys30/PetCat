@@ -65,10 +65,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Cuenta creada. Te enviamos un correo para confirmar tu email */
-                            message?: string;
-                            data?: components["schemas"]["Usuario"];
+                            message: string;
+                            data: components["schemas"]["Usuario"];
                         };
                     };
                 };
@@ -146,10 +146,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Sesión iniciada */
-                            message?: string;
-                            data?: components["schemas"]["Sesion"];
+                            message: string;
+                            data: components["schemas"]["Sesion"];
                         };
                     };
                 };
@@ -223,11 +223,11 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Sesión cerrada */
-                            message?: string;
+                            message: string;
                             /** @example null */
-                            data?: unknown;
+                            data: unknown;
                         };
                     };
                 };
@@ -285,10 +285,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Sesión renovada */
-                            message?: string;
-                            data?: components["schemas"]["Sesion"];
+                            message: string;
+                            data: components["schemas"]["Sesion"];
                         };
                     };
                 };
@@ -353,23 +353,23 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: components["schemas"]["PerfilPropio"] & {
+                            message: string;
+                            data: components["schemas"]["PerfilPropio"] & {
                                 /** @description No tiene una autorización de datos vigente para la versión actual de la política: la app o el panel deben pedirla y enviarla a POST /auth/politica-datos/aceptar. */
-                                requiere_aceptar_politica?: boolean;
+                                requiere_aceptar_politica: boolean;
                                 /** @description Versión vigente de la política de datos y enlace a su texto completo. */
-                                politica?: {
+                                politica: {
                                     /** @example 1.0 */
-                                    version?: string;
+                                    version: string;
                                     /**
                                      * @description null si PetCat todavía no publicó el enlace (configuracion_global.politica_datos_url).
                                      * @example https://petcat.co/politica-de-datos
                                      */
-                                    url?: string | null;
+                                    url: string | null;
                                 };
-                                negocios?: components["schemas"]["NegocioMio"][];
+                                negocios: components["schemas"]["NegocioMio"][];
                             };
                         };
                     };
@@ -422,10 +422,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Perfil actualizado */
-                            message?: string;
-                            data?: components["schemas"]["PerfilPropio"];
+                            message: string;
+                            data: components["schemas"]["PerfilPropio"];
                         };
                     };
                 };
@@ -472,17 +472,17 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Política de datos aceptada */
-                            message?: string;
-                            data?: {
-                                id_autorizacion?: number;
+                            message: string;
+                            data: {
+                                id_autorizacion: number;
                                 /** @enum {string} */
-                                canal?: "app" | "panel" | "invitacion" | "aceptacion";
+                                canal: "app" | "panel" | "invitacion" | "aceptacion";
                                 /** @example 1.0 */
-                                version_politica?: string;
+                                version_politica: string;
                                 /** @example 2026-09-27 10:00:00 */
-                                fecha_autorizacion?: string;
+                                fecha_autorizacion: string;
                             };
                         };
                     };
@@ -526,10 +526,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Foto de perfil actualizada */
-                            message?: string;
-                            data?: components["schemas"]["PerfilPropio"];
+                            message: string;
+                            data: components["schemas"]["PerfilPropio"];
                         };
                     };
                 };
@@ -558,10 +558,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Foto de perfil eliminada */
-                            message?: string;
-                            data?: components["schemas"]["PerfilPropio"];
+                            message: string;
+                            data: components["schemas"]["PerfilPropio"];
                         };
                     };
                 };
@@ -626,11 +626,11 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Contraseña actualizada. Se cerraron las demás sesiones */
-                            message?: string;
+                            message: string;
                             /** @example null */
-                            data?: unknown;
+                            data: unknown;
                         };
                     };
                 };
@@ -707,11 +707,11 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Si el correo está registrado */
-                            message?: string;
+                            message: string;
                             /** @example null */
-                            data?: unknown;
+                            data: unknown;
                         };
                     };
                 };
@@ -764,11 +764,11 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Contraseña restablecida. Ya puedes iniciar sesión */
-                            message?: string;
+                            message: string;
                             /** @example null */
-                            data?: unknown;
+                            data: unknown;
                         };
                     };
                 };
@@ -836,11 +836,11 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Correo verificado */
-                            message?: string;
+                            message: string;
                             /** @example null */
-                            data?: unknown;
+                            data: unknown;
                         };
                     };
                 };
@@ -901,12 +901,12 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Te enviamos un nuevo enlace de verificación */
-                            message?: string;
-                            data?: {
+                            message: string;
+                            data: {
                                 /** Format: email */
-                                email?: string;
+                                email: string;
                             };
                         };
                     };
@@ -995,11 +995,11 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: components["schemas"]["NegocioBusqueda"][];
-                            meta?: components["schemas"]["PaginationMeta"];
+                            message: string;
+                            data: components["schemas"]["NegocioBusqueda"][];
+                            meta: components["schemas"]["PaginationMeta"];
                         };
                     };
                 };
@@ -1032,10 +1032,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Negocio creado */
-                            message?: string;
-                            data?: components["schemas"]["Negocio"];
+                            message: string;
+                            data: components["schemas"]["Negocio"];
                         };
                     };
                 };
@@ -1093,14 +1093,14 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: (components["schemas"]["ServicioPublico"] & {
-                                distancia_km?: number | null;
-                                sucursal_cercana?: components["schemas"]["SucursalCercana"];
+                            message: string;
+                            data: (components["schemas"]["ServicioPublico"] & {
+                                distancia_km: number | null;
+                                sucursal_cercana: components["schemas"]["SucursalCercana"];
                             })[];
-                            meta?: components["schemas"]["PaginationMeta"];
+                            meta: components["schemas"]["PaginationMeta"];
                         };
                     };
                 };
@@ -1151,10 +1151,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: components["schemas"]["HorariosLibres"];
+                            message: string;
+                            data: components["schemas"]["HorariosLibres"];
                         };
                     };
                 };
@@ -1220,13 +1220,13 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /**
                              * @example Cita solicitada: el negocio debe confirmarla
                              * @enum {string}
                              */
-                            message?: "Cita solicitada: el negocio debe confirmarla" | "Cita confirmada";
-                            data?: components["schemas"]["Cita"];
+                            message: "Cita solicitada: el negocio debe confirmarla" | "Cita confirmada";
+                            data: components["schemas"]["Cita"];
                         };
                     };
                 };
@@ -1287,11 +1287,11 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: components["schemas"]["Cita"][];
-                            meta?: components["schemas"]["PaginationMeta"];
+                            message: string;
+                            data: components["schemas"]["Cita"][];
+                            meta: components["schemas"]["PaginationMeta"];
                         };
                     };
                 };
@@ -1337,10 +1337,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: components["schemas"]["CitaPanelDetalle"] | components["schemas"]["Cita"];
+                            message: string;
+                            data: components["schemas"]["CitaPanelDetalle"] | components["schemas"]["Cita"];
                         };
                     };
                 };
@@ -1529,10 +1529,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Cita reprogramada */
-                            message?: string;
-                            data?: components["schemas"]["Cita"];
+                            message: string;
+                            data: components["schemas"]["Cita"];
                         };
                     };
                 };
@@ -1579,19 +1579,19 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: {
-                                fecha_cambio?: string;
+                            message: string;
+                            data: {
+                                fecha_cambio: string;
                                 /** @enum {string} */
-                                campo?: "estado" | "empleado" | "notas_internas" | "prioridad" | "precio_final";
+                                campo: "estado" | "empleado" | "notas_internas" | "prioridad" | "precio_final";
                                 /** @description En empleado */
-                                valor_anterior?: string | null;
-                                valor_nuevo?: string | null;
-                                motivo?: string | null;
+                                valor_anterior: string | null;
+                                valor_nuevo: string | null;
+                                motivo: string | null;
                                 /** @enum {string} */
-                                realizado_por?: "dueno" | "negocio" | "sistema";
+                                realizado_por: "dueno" | "negocio" | "sistema";
                                 /** @description Solo en el panel */
                                 usuario?: Record<string, never> | null;
                                 /** @description Solo en el panel */
@@ -1651,10 +1651,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: components["schemas"]["HorariosLibres"];
+                            message: string;
+                            data: components["schemas"]["HorariosLibres"];
                         };
                     };
                 };
@@ -1723,16 +1723,16 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: components["schemas"]["CitaPanel"][];
-                            meta?: {
-                                total?: number;
+                            message: string;
+                            data: components["schemas"]["CitaPanel"][];
+                            meta: {
+                                total: number;
                                 /** Format: date */
-                                desde?: string;
+                                desde: string;
                                 /** Format: date */
-                                hasta?: string;
+                                hasta: string;
                             };
                         };
                     };
@@ -1785,10 +1785,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Cita agendada y confirmada */
-                            message?: string;
-                            data?: components["schemas"]["Cita"];
+                            message: string;
+                            data: components["schemas"]["Cita"];
                         };
                     };
                 };
@@ -1839,15 +1839,15 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: (components["schemas"]["ClienteContacto"] & {
-                                mascotas?: {
-                                    id_mascota?: number;
-                                    nombre?: string;
-                                    especie?: string;
-                                    raza?: string | null;
+                            message: string;
+                            data: (components["schemas"]["ClienteContacto"] & {
+                                mascotas: {
+                                    id_mascota: number;
+                                    nombre: string;
+                                    especie: string;
+                                    raza: string | null;
                                 }[];
                             })[];
                         };
@@ -1903,11 +1903,11 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: components["schemas"]["ClienteFila"][];
-                            meta?: components["schemas"]["PaginationMeta"];
+                            message: string;
+                            data: components["schemas"]["ClienteFila"][];
+                            meta: components["schemas"]["PaginationMeta"];
                         };
                     };
                 };
@@ -1960,12 +1960,12 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Cliente registrado. Le enviamos un correo para que cree su contraseña */
-                            message?: string;
-                            data?: {
-                                cliente?: components["schemas"]["ClienteContacto"];
-                                mascota?: components["schemas"]["Mascota"];
+                            message: string;
+                            data: {
+                                cliente: components["schemas"]["ClienteContacto"];
+                                mascota: components["schemas"]["Mascota"];
                             };
                         };
                     };
@@ -2022,10 +2022,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: components["schemas"]["ClienteDetalle"];
+                            message: string;
+                            data: components["schemas"]["ClienteDetalle"];
                         };
                     };
                 };
@@ -2079,11 +2079,11 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: components["schemas"]["CitaPanel"][];
-                            meta?: components["schemas"]["PaginationMeta"];
+                            message: string;
+                            data: components["schemas"]["CitaPanel"][];
+                            meta: components["schemas"]["PaginationMeta"];
                         };
                     };
                 };
@@ -2135,11 +2135,11 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: components["schemas"]["NotaCliente"][];
-                            meta?: components["schemas"]["PaginationMeta"];
+                            message: string;
+                            data: components["schemas"]["NotaCliente"][];
+                            meta: components["schemas"]["PaginationMeta"];
                         };
                     };
                 };
@@ -2178,10 +2178,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Nota guardada */
-                            message?: string;
-                            data?: components["schemas"]["NotaCliente"];
+                            message: string;
+                            data: components["schemas"]["NotaCliente"];
                         };
                     };
                 };
@@ -2230,11 +2230,11 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Nota eliminada */
-                            message?: string;
+                            message: string;
                             /** @example null */
-                            data?: unknown;
+                            data: unknown;
                         };
                     };
                 };
@@ -2272,10 +2272,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Nota actualizada */
-                            message?: string;
-                            data?: components["schemas"]["NotaCliente"];
+                            message: string;
+                            data: components["schemas"]["NotaCliente"];
                         };
                     };
                 };
@@ -2388,10 +2388,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: components["schemas"]["Dashboard"];
+                            message: string;
+                            data: components["schemas"]["Dashboard"];
                         };
                     };
                 };
@@ -2464,13 +2464,13 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: {
-                                horario_semanal?: components["schemas"]["HorarioSemanal"][];
-                                sigue_horario_sucursal?: boolean;
-                                excepciones?: components["schemas"]["Excepcion"][];
+                            message: string;
+                            data: {
+                                horario_semanal: components["schemas"]["HorarioSemanal"][];
+                                sigue_horario_sucursal: boolean;
+                                excepciones: components["schemas"]["Excepcion"][];
                             };
                         };
                     };
@@ -2509,12 +2509,12 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Bloqueo registrado. 2 citas quedan fuera de la disponibilidad del empleado */
-                            message?: string;
-                            data?: {
-                                disponibilidad?: components["schemas"]["Excepcion"];
-                                citas_afectadas?: components["schemas"]["CitasAfectadas"];
+                            message: string;
+                            data: {
+                                disponibilidad: components["schemas"]["Excepcion"];
+                                citas_afectadas: components["schemas"]["CitasAfectadas"];
                             };
                         };
                     };
@@ -2586,12 +2586,12 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Horario semanal actualizado */
-                            message?: string;
-                            data?: {
-                                horario_semanal?: components["schemas"]["HorarioSemanal"][];
-                                citas_afectadas?: components["schemas"]["CitasAfectadas"];
+                            message: string;
+                            data: {
+                                horario_semanal: components["schemas"]["HorarioSemanal"][];
+                                citas_afectadas: components["schemas"]["CitasAfectadas"];
                             };
                         };
                     };
@@ -2643,22 +2643,22 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: {
+                            message: string;
+                            data: {
                                 /** Format: date */
-                                fecha?: string;
-                                dia_semana?: number;
-                                sigue_horario_sucursal?: boolean;
-                                sucursales?: {
-                                    id_sucursal?: number;
-                                    nombre?: string;
-                                    rangos?: {
+                                fecha: string;
+                                dia_semana: number;
+                                sigue_horario_sucursal: boolean;
+                                sucursales: {
+                                    id_sucursal: number;
+                                    nombre: string;
+                                    rangos: {
                                         /** @example 08:00 */
-                                        hora_inicio?: string;
+                                        hora_inicio: string;
                                         /** @example 12:00 */
-                                        hora_fin?: string;
+                                        hora_fin: string;
                                     }[];
                                 }[];
                             };
@@ -2714,11 +2714,11 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Disponibilidad eliminada */
-                            message?: string;
-                            data?: {
-                                citas_afectadas?: components["schemas"]["CitasAfectadas"];
+                            message: string;
+                            data: {
+                                citas_afectadas: components["schemas"]["CitasAfectadas"];
                             };
                         };
                     };
@@ -2776,12 +2776,12 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Disponibilidad actualizada */
-                            message?: string;
-                            data?: {
-                                disponibilidad?: components["schemas"]["Excepcion"];
-                                citas_afectadas?: components["schemas"]["CitasAfectadas"];
+                            message: string;
+                            data: {
+                                disponibilidad: components["schemas"]["Excepcion"];
+                                citas_afectadas: components["schemas"]["CitasAfectadas"];
                             };
                         };
                     };
@@ -2841,7 +2841,15 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            /** @example Dispositivo actualizado */
+                            message: string;
+                            data: components["schemas"]["Dispositivo"];
+                        };
+                    };
                 };
                 /** @description Dispositivo registrado */
                 201: {
@@ -2851,10 +2859,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Dispositivo registrado */
-                            message?: string;
-                            data?: components["schemas"]["Dispositivo"];
+                            message: string;
+                            data: components["schemas"]["Dispositivo"];
                         };
                     };
                 };
@@ -2886,7 +2894,16 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            /** @example Dispositivo eliminado */
+                            message: string;
+                            /** @example null */
+                            data: unknown;
+                        };
+                    };
                 };
                 401: components["responses"]["Unauthorized"];
                 /** @description El usuario no tiene un dispositivo activo con ese token */
@@ -2943,11 +2960,11 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: components["schemas"]["Empleado"][];
-                            meta?: components["schemas"]["PaginationMeta"];
+                            message: string;
+                            data: components["schemas"]["Empleado"][];
+                            meta: components["schemas"]["PaginationMeta"];
                         };
                     };
                 };
@@ -2985,10 +3002,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Empleado creado */
-                            message?: string;
-                            data?: components["schemas"]["Empleado"];
+                            message: string;
+                            data: components["schemas"]["Empleado"];
                         };
                     };
                 };
@@ -3054,10 +3071,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Tu cuenta quedó vinculada al empleado que ya existía con tu email */
-                            message?: string;
-                            data?: components["schemas"]["Empleado"];
+                            message: string;
+                            data: components["schemas"]["Empleado"];
                         };
                     };
                 };
@@ -3069,10 +3086,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Te registraste como empleado del negocio */
-                            message?: string;
-                            data?: components["schemas"]["Empleado"];
+                            message: string;
+                            data: components["schemas"]["Empleado"];
                         };
                     };
                 };
@@ -3127,10 +3144,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: components["schemas"]["Empleado"];
+                            message: string;
+                            data: components["schemas"]["Empleado"];
                         };
                     };
                 };
@@ -3164,12 +3181,12 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Empleado desactivado. 2 citas quedan fuera de la disponibilidad del empleado */
-                            message?: string;
-                            data?: {
-                                empleado?: components["schemas"]["Empleado"];
-                                citas_afectadas?: components["schemas"]["CitasAfectadas"];
+                            message: string;
+                            data: {
+                                empleado: components["schemas"]["Empleado"];
+                                citas_afectadas: components["schemas"]["CitasAfectadas"];
                             };
                         };
                     };
@@ -3217,10 +3234,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Empleado actualizado */
-                            message?: string;
-                            data?: components["schemas"]["Empleado"];
+                            message: string;
+                            data: components["schemas"]["Empleado"];
                         };
                     };
                 };
@@ -3269,10 +3286,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Empleado reactivado */
-                            message?: string;
-                            data?: components["schemas"]["Empleado"];
+                            message: string;
+                            data: components["schemas"]["Empleado"];
                         };
                     };
                 };
@@ -3323,10 +3340,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Foto del empleado actualizada */
-                            message?: string;
-                            data?: components["schemas"]["Empleado"];
+                            message: string;
+                            data: components["schemas"]["Empleado"];
                         };
                     };
                 };
@@ -3362,10 +3379,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Foto del empleado eliminada */
-                            message?: string;
-                            data?: components["schemas"]["Empleado"];
+                            message: string;
+                            data: components["schemas"]["Empleado"];
                         };
                     };
                 };
@@ -3408,21 +3425,21 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: {
+                            message: string;
+                            data: {
                                 /** @example ok */
-                                status?: string;
+                                status: string;
                                 /** @example ok */
-                                db?: string;
+                                db: string;
                                 /**
                                  * @description Segundos desde que arrancó
                                  * @example 120
                                  */
-                                uptime?: number;
+                                uptime: number;
                                 /** Format: date-time */
-                                time?: string;
+                                time: string;
                             };
                         };
                     };
@@ -3597,10 +3614,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Registro de historial creado */
-                            message?: string;
-                            data?: components["schemas"]["RegistroHistorial"];
+                            message: string;
+                            data: components["schemas"]["RegistroHistorial"];
                         };
                     };
                 };
@@ -3656,10 +3673,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Registro actualizado */
-                            message?: string;
-                            data?: components["schemas"]["RegistroHistorial"];
+                            message: string;
+                            data: components["schemas"]["RegistroHistorial"];
                         };
                     };
                 };
@@ -3703,10 +3720,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Archivos agregados */
-                            message?: string;
-                            data?: components["schemas"]["RegistroHistorial"];
+                            message: string;
+                            data: components["schemas"]["RegistroHistorial"];
                         };
                     };
                 };
@@ -3758,10 +3775,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Archivo eliminado */
-                            message?: string;
-                            data?: components["schemas"]["RegistroHistorial"];
+                            message: string;
+                            data: components["schemas"]["RegistroHistorial"];
                         };
                     };
                 };
@@ -3806,10 +3823,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: components["schemas"]["Horario"][];
+                            message: string;
+                            data: components["schemas"]["Horario"][];
                         };
                     };
                 };
@@ -3873,12 +3890,12 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Horarios actualizados */
-                            message?: string;
-                            data?: {
-                                horarios?: components["schemas"]["Horario"][];
-                                citas_afectadas?: components["schemas"]["CitasAfectadas"];
+                            message: string;
+                            data: {
+                                horarios: components["schemas"]["Horario"][];
+                                citas_afectadas: components["schemas"]["CitasAfectadas"];
                             };
                         };
                     };
@@ -3945,10 +3962,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Invitación enviada */
-                            message?: string;
-                            data?: components["schemas"]["InvitacionEnviada"];
+                            message: string;
+                            data: components["schemas"]["InvitacionEnviada"];
                         };
                     };
                 };
@@ -3998,10 +4015,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Invitación reenviada */
-                            message?: string;
-                            data?: components["schemas"]["InvitacionEnviada"];
+                            message: string;
+                            data: components["schemas"]["InvitacionEnviada"];
                         };
                     };
                 };
@@ -4049,33 +4066,33 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: {
-                                negocio?: {
-                                    id_negocio?: number;
+                            message: string;
+                            data: {
+                                negocio: {
+                                    id_negocio: number;
                                     /** @example Clínica Veterinaria Patitas */
-                                    nombre?: string;
-                                    logo_url?: string | null;
+                                    nombre: string;
+                                    logo_url: string | null;
                                 };
-                                rol?: {
+                                rol: {
                                     /** @example Recepcionista */
-                                    nombre?: string;
+                                    nombre: string;
                                 };
-                                empleado?: {
+                                empleado: {
                                     /** @example Ana */
-                                    nombre?: string;
+                                    nombre: string;
                                     /** @example Rodríguez */
-                                    apellido?: string;
+                                    apellido: string;
                                 };
                                 /** @example recepcionista@petcat.test */
-                                email?: string;
+                                email: string;
                                 /** @example 2026-09-28 10:00:00 */
-                                expiracion?: string;
-                                cuenta_existente?: boolean;
+                                expiracion: string;
+                                cuenta_existente: boolean;
                                 /** @description Sin cuenta, aceptar exige acepta_politica_datos true (mostrar la política y un check) */
-                                requiere_aceptar_politica?: boolean;
+                                requiere_aceptar_politica: boolean;
                             };
                         };
                     };
@@ -4152,10 +4169,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Invitación aceptada */
-                            message?: string;
-                            data?: components["schemas"]["Sesion"];
+                            message: string;
+                            data: components["schemas"]["Sesion"];
                         };
                     };
                 };
@@ -4231,10 +4248,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: components["schemas"]["Mascota"][];
+                            message: string;
+                            data: components["schemas"]["Mascota"][];
                         };
                     };
                 };
@@ -4339,11 +4356,11 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Mascota eliminada */
-                            message?: string;
+                            message: string;
                             /** @example null */
-                            data?: unknown;
+                            data: unknown;
                         };
                     };
                 };
@@ -4450,10 +4467,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Foto de la mascota actualizada */
-                            message?: string;
-                            data?: components["schemas"]["Mascota"];
+                            message: string;
+                            data: components["schemas"]["Mascota"];
                         };
                     };
                 };
@@ -4489,10 +4506,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Foto de la mascota eliminada */
-                            message?: string;
-                            data?: components["schemas"]["Mascota"];
+                            message: string;
+                            data: components["schemas"]["Mascota"];
                         };
                     };
                 };
@@ -4535,10 +4552,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: components["schemas"]["NegocioMio"][];
+                            message: string;
+                            data: components["schemas"]["NegocioMio"][];
                         };
                     };
                 };
@@ -4583,10 +4600,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: components["schemas"]["NegocioPublico"];
+                            message: string;
+                            data: components["schemas"]["NegocioPublico"];
                         };
                     };
                 };
@@ -4626,10 +4643,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Negocio actualizado */
-                            message?: string;
-                            data?: components["schemas"]["Negocio"];
+                            message: string;
+                            data: components["schemas"]["Negocio"];
                         };
                     };
                 };
@@ -4672,10 +4689,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Logo actualizado */
-                            message?: string;
-                            data?: components["schemas"]["Negocio"];
+                            message: string;
+                            data: components["schemas"]["Negocio"];
                         };
                     };
                 };
@@ -4711,10 +4728,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Logo eliminado */
-                            message?: string;
-                            data?: components["schemas"]["Negocio"];
+                            message: string;
+                            data: components["schemas"]["Negocio"];
                         };
                     };
                 };
@@ -4760,10 +4777,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Banner actualizado */
-                            message?: string;
-                            data?: components["schemas"]["Negocio"];
+                            message: string;
+                            data: components["schemas"]["Negocio"];
                         };
                     };
                 };
@@ -4799,10 +4816,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Banner eliminado */
-                            message?: string;
-                            data?: components["schemas"]["Negocio"];
+                            message: string;
+                            data: components["schemas"]["Negocio"];
                         };
                     };
                 };
@@ -4850,13 +4867,13 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: components["schemas"]["Notificacion"][];
-                            meta?: components["schemas"]["PaginationMeta"] & {
+                            message: string;
+                            data: components["schemas"]["Notificacion"][];
+                            meta: components["schemas"]["PaginationMeta"] & {
                                 /** @example 3 */
-                                no_leidas?: number;
+                                no_leidas: number;
                             };
                         };
                     };
@@ -4898,12 +4915,12 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: {
+                            message: string;
+                            data: {
                                 /** @example 3 */
-                                total?: number;
+                                total: number;
                             };
                         };
                     };
@@ -4949,12 +4966,12 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Notificaciones leídas */
-                            message?: string;
-                            data?: {
+                            message: string;
+                            data: {
                                 /** @example 3 */
-                                actualizadas?: number;
+                                actualizadas: number;
                             };
                         };
                     };
@@ -5004,10 +5021,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Notificación leída */
-                            message?: string;
-                            data?: components["schemas"]["Notificacion"];
+                            message: string;
+                            data: components["schemas"]["Notificacion"];
                         };
                     };
                 };
@@ -5130,9 +5147,9 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
+                            message: string;
                             /**
                              * @example {
                              *       "citas": [
@@ -5147,7 +5164,7 @@ export interface paths {
                              *       ]
                              *     }
                              */
-                            data?: {
+                            data: {
                                 [key: string]: string[];
                             };
                         };
@@ -5200,10 +5217,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Reseña publicada */
-                            message?: string;
-                            data?: components["schemas"]["ResenaDelAutor"];
+                            message: string;
+                            data: components["schemas"]["ResenaDelAutor"];
                         };
                     };
                 };
@@ -5279,11 +5296,11 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: components["schemas"]["ResenaDelAutor"][];
-                            meta?: components["schemas"]["PaginationMeta"];
+                            message: string;
+                            data: components["schemas"]["ResenaDelAutor"][];
+                            meta: components["schemas"]["PaginationMeta"];
                         };
                     };
                 };
@@ -5334,10 +5351,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Reseña actualizada */
-                            message?: string;
-                            data?: components["schemas"]["ResenaDelAutor"];
+                            message: string;
+                            data: components["schemas"]["ResenaDelAutor"];
                         };
                     };
                 };
@@ -5387,11 +5404,11 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Reseña retirada */
-                            message?: string;
+                            message: string;
                             /** @example null */
-                            data?: unknown;
+                            data: unknown;
                         };
                     };
                 };
@@ -5448,16 +5465,16 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: components["schemas"]["ResenaPublica"][];
-                            meta?: components["schemas"]["PaginationMeta"] & {
-                                resumen?: {
+                            message: string;
+                            data: components["schemas"]["ResenaPublica"][];
+                            meta: components["schemas"]["PaginationMeta"] & {
+                                resumen: {
                                     /** @example 4.5 */
-                                    calificacion_promedio?: number;
+                                    calificacion_promedio: number;
                                     /** @example 12 */
-                                    total_resenas?: number;
+                                    total_resenas: number;
                                     /**
                                      * @example {
                                      *       "1": 0,
@@ -5467,7 +5484,7 @@ export interface paths {
                                      *       "5": 7
                                      *     }
                                      */
-                                    distribucion?: Record<string, never>;
+                                    distribucion: Record<string, never>;
                                 };
                             };
                         };
@@ -5523,11 +5540,11 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: components["schemas"]["ResenaPanel"][];
-                            meta?: components["schemas"]["PaginationMeta"];
+                            message: string;
+                            data: components["schemas"]["ResenaPanel"][];
+                            meta: components["schemas"]["PaginationMeta"];
                         };
                     };
                 };
@@ -5582,10 +5599,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Respuesta publicada */
-                            message?: string;
-                            data?: components["schemas"]["ResenaPanel"];
+                            message: string;
+                            data: components["schemas"]["ResenaPanel"];
                         };
                     };
                 };
@@ -5627,10 +5644,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Respuesta eliminada */
-                            message?: string;
-                            data?: components["schemas"]["ResenaPanel"];
+                            message: string;
+                            data: components["schemas"]["ResenaPanel"];
                         };
                     };
                 };
@@ -5693,10 +5710,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Reseña reportada: PetCat la revisará */
-                            message?: string;
-                            data?: components["schemas"]["ResenaPanel"];
+                            message: string;
+                            data: components["schemas"]["ResenaPanel"];
                         };
                     };
                 };
@@ -5751,11 +5768,11 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: (components["schemas"]["Rol"] & {
-                                empleados_activos?: number;
+                            message: string;
+                            data: (components["schemas"]["Rol"] & {
+                                empleados_activos: number;
                             })[];
                         };
                     };
@@ -5793,10 +5810,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Rol creado */
-                            message?: string;
-                            data?: components["schemas"]["Rol"];
+                            message: string;
+                            data: components["schemas"]["Rol"];
                         };
                     };
                 };
@@ -5854,11 +5871,11 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Rol eliminado */
-                            message?: string;
+                            message: string;
                             /** @example null */
-                            data?: unknown;
+                            data: unknown;
                         };
                     };
                 };
@@ -5905,10 +5922,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Rol actualizado */
-                            message?: string;
-                            data?: components["schemas"]["Rol"];
+                            message: string;
+                            data: components["schemas"]["Rol"];
                         };
                     };
                 };
@@ -6046,10 +6063,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: components["schemas"]["CategoriaServicio"][];
+                            message: string;
+                            data: components["schemas"]["CategoriaServicio"][];
                         };
                     };
                 };
@@ -6104,11 +6121,11 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: components["schemas"]["Servicio"][];
-                            meta?: components["schemas"]["PaginationMeta"];
+                            message: string;
+                            data: components["schemas"]["Servicio"][];
+                            meta: components["schemas"]["PaginationMeta"];
                         };
                     };
                 };
@@ -6200,14 +6217,14 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: components["schemas"]["ServicioPublico"] & {
-                                empleados?: (components["schemas"]["EmpleadoAsignado"] & {
-                                    especialidad?: string | null;
-                                    foto_url?: string | null;
-                                    foto_miniatura_url?: string | null;
+                            message: string;
+                            data: components["schemas"]["ServicioPublico"] & {
+                                empleados: (components["schemas"]["EmpleadoAsignado"] & {
+                                    especialidad: string | null;
+                                    foto_url: string | null;
+                                    foto_miniatura_url: string | null;
                                 })[];
                             };
                         };
@@ -6242,11 +6259,11 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Servicio eliminado */
-                            message?: string;
+                            message: string;
                             /** @example null */
-                            data?: unknown;
+                            data: unknown;
                         };
                     };
                 };
@@ -6396,10 +6413,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: components["schemas"]["Sucursal"][];
+                            message: string;
+                            data: components["schemas"]["Sucursal"][];
                         };
                     };
                 };
@@ -6435,10 +6452,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Sucursal creada */
-                            message?: string;
-                            data?: components["schemas"]["Sucursal"];
+                            message: string;
+                            data: components["schemas"]["Sucursal"];
                         };
                     };
                 };
@@ -6484,10 +6501,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: components["schemas"]["Sucursal"];
+                            message: string;
+                            data: components["schemas"]["Sucursal"];
                         };
                     };
                 };
@@ -6520,11 +6537,11 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Sucursal eliminada */
-                            message?: string;
+                            message: string;
                             /** @example null */
-                            data?: unknown;
+                            data: unknown;
                         };
                     };
                 };
@@ -6577,10 +6594,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Sucursal actualizada */
-                            message?: string;
-                            data?: components["schemas"]["Sucursal"];
+                            message: string;
+                            data: components["schemas"]["Sucursal"];
                         };
                     };
                 };
@@ -6629,10 +6646,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: components["schemas"]["Plan"][];
+                            message: string;
+                            data: components["schemas"]["Plan"][];
                         };
                     };
                 };
@@ -6676,10 +6693,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example OK */
-                            message?: string;
-                            data?: components["schemas"]["Suscripcion"];
+                            message: string;
+                            data: components["schemas"]["Suscripcion"];
                         };
                     };
                 };
@@ -6732,10 +6749,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Plan asignado */
-                            message?: string;
-                            data?: components["schemas"]["Suscripcion"];
+                            message: string;
+                            data: components["schemas"]["Suscripcion"];
                         };
                     };
                 };
@@ -6784,10 +6801,10 @@ export interface paths {
                     content: {
                         "application/json": {
                             /** @example true */
-                            success?: boolean;
+                            success: boolean;
                             /** @example Prueba del plan Pro activada */
-                            message?: string;
-                            data?: components["schemas"]["Suscripcion"];
+                            message: string;
+                            data: components["schemas"]["Suscripcion"];
                         };
                     };
                 };
@@ -7165,165 +7182,165 @@ export interface components {
             /** @example 184320 */
             bytes?: number;
             /** @example https://api.cloudinary.com/v1_1/<cloud>/image/download?... */
-            url?: string;
+            url: string;
             /**
              * Format: date-time
              * @example 2026-09-28T15:31:16.000Z
              */
             url_expira_en?: string;
             /** @example false */
-            externo?: boolean;
+            externo: boolean;
         };
         PaginationMeta: {
             /** @example 45 */
-            total?: number;
+            total: number;
             /** @example 1 */
-            page?: number;
+            page: number;
             /** @example 20 */
-            limit?: number;
+            limit: number;
             /** @example 3 */
-            totalPages?: number;
+            totalPages: number;
             /** @example true */
-            hasNext?: boolean;
+            hasNext: boolean;
         };
         Usuario: {
             /** @example 12 */
-            id_usuario?: number;
+            id_usuario: number;
             /** @example Sofía */
-            nombre?: string;
+            nombre: string;
             /** @example Gómez */
-            apellido?: string;
+            apellido: string;
             /**
              * Format: email
              * @example cliente@petcat.test
              */
-            email?: string;
+            email: string;
             /** @example 3003334455 */
-            telefono?: string | null;
+            telefono: string | null;
             /** @description Foto de perfil (800 px) */
-            foto_url?: string | null;
+            foto_url: string | null;
             /** @description Miniatura cuadrada de 200 px */
-            foto_miniatura_url?: string | null;
+            foto_miniatura_url: string | null;
             /** @enum {string} */
-            tipo_usuario?: "cliente" | "negocio" | "admin";
-            email_verificado?: boolean;
+            tipo_usuario: "cliente" | "negocio" | "admin";
+            email_verificado: boolean;
         };
         Sesion: {
             /** @description JWT para `Authorization Bearer`. Vigencia JWT_EXPIRES_IN (1 h por defecto). */
-            access_token?: string;
+            access_token: string;
             /** @description Vigencia REFRESH_EXPIRES_IN (30 días por defecto); la sesión vence con él. Se renueva con `POST /auth/refresh-token`, que devuelve uno nuevo: guardar siempre el último. */
-            refresh_token?: string;
-            usuario?: components["schemas"]["Usuario"];
+            refresh_token: string;
+            usuario: components["schemas"]["Usuario"];
         };
         PerfilPropio: components["schemas"]["Usuario"] & {
-            telefono_verificado?: boolean;
+            telefono_verificado: boolean;
             /** @enum {string} */
-            idioma?: "es" | "en";
+            idioma: "es" | "en";
             /** @example America/Bogota */
-            zona_horaria?: string;
-            notif_email?: boolean;
-            notif_push?: boolean;
-            notif_whatsapp?: boolean;
+            zona_horaria: string;
+            notif_email: boolean;
+            notif_push: boolean;
+            notif_whatsapp: boolean;
             /** @example 2026-09-26 08:30:00 */
-            ultimo_acceso?: string | null;
+            ultimo_acceso: string | null;
             /** @example 2026-09-01 10:00:00 */
-            fecha_registro?: string;
+            fecha_registro: string;
         };
         /** @description Sucursal más cercana a las coordenadas de la búsqueda (null sin coordenadas) */
         SucursalCercana: {
-            id_sucursal?: number;
-            nombre?: string;
-            direccion?: string;
+            id_sucursal: number;
+            nombre: string;
+            direccion: string;
         } | null;
         NegocioBusqueda: {
-            id_negocio?: number;
-            nombre?: string;
-            tipo?: string;
-            descripcion?: string | null;
-            ciudad?: string;
+            id_negocio: number;
+            nombre: string;
+            tipo: string;
+            descripcion: string | null;
+            ciudad: string;
             /** @description Logo (800 px) */
-            logo_url?: string | null;
+            logo_url: string | null;
             /** @description Miniatura cuadrada de 200 px */
-            logo_miniatura_url?: string | null;
+            logo_miniatura_url: string | null;
             /** @example 4.6 */
-            calificacion_promedio?: number;
-            total_resenas?: number;
-            verificado?: boolean;
-            destacado?: boolean;
+            calificacion_promedio: number;
+            total_resenas: number;
+            verificado: boolean;
+            destacado: boolean;
             /** @description A la sucursal más cercana (null sin coordenadas) */
-            distancia_km?: number | null;
-            sucursal_cercana?: components["schemas"]["SucursalCercana"];
+            distancia_km: number | null;
+            sucursal_cercana: components["schemas"]["SucursalCercana"];
         };
         /** @description Servicio en la app. */
         ServicioPublico: {
-            id_servicio?: number;
-            nombre?: string;
-            descripcion?: string | null;
+            id_servicio: number;
+            nombre: string;
+            descripcion: string | null;
             /** @description Preparación antes de la cita (ayuno */
-            indicaciones_previas?: string | null;
-            categoria?: {
-                id_categoria?: number;
-                nombre?: string;
-                icono?: string | null;
+            indicaciones_previas: string | null;
+            categoria: {
+                id_categoria: number;
+                nombre: string;
+                icono: string | null;
             };
-            negocio?: {
-                id_negocio?: number;
-                nombre?: string;
-                tipo?: string;
-                logo_url?: string | null;
-                logo_miniatura_url?: string | null;
-                calificacion_promedio?: number;
-                verificado?: boolean;
+            negocio: {
+                id_negocio: number;
+                nombre: string;
+                tipo: string;
+                logo_url: string | null;
+                logo_miniatura_url: string | null;
+                calificacion_promedio: number;
+                verificado: boolean;
             };
-            precio_base?: number;
-            precio_maximo?: number | null;
-            tipo_precio?: string;
+            precio_base: number;
+            precio_maximo: number | null;
+            tipo_precio: string;
             /** @description Precio de oferta si está vigente hoy; si no */
-            precio_actual?: number;
-            oferta_vigente?: boolean;
+            precio_actual: number;
+            oferta_vigente: boolean;
             /**
              * Format: date
              * @description Último día de la oferta vigente
              */
-            oferta_hasta?: string | null;
-            duracion_minutos?: number;
-            tipo_mascota?: string[];
-            peso_min_kg?: number | null;
-            peso_max_kg?: number | null;
+            oferta_hasta: string | null;
+            duracion_minutos: number;
+            tipo_mascota: string[];
+            peso_min_kg: number | null;
+            peso_max_kg: number | null;
             /** @description null = todos los días */
-            dias_disponible?: string[] | null;
-            requiere_cita?: boolean;
+            dias_disponible: string[] | null;
+            requiere_cita: boolean;
             /** @description Se puede reservar: no requiere cita, o la requiere y tiene empleados activos asignados. Los no reservables se muestran igual (la app deshabilita la reserva). */
-            reservable?: boolean;
+            reservable: boolean;
         };
         HorariosLibres: {
             /** Format: date */
-            fecha?: string;
-            servicio?: {
-                id_servicio?: number;
-                nombre?: string;
-                duracion_minutos?: number;
-                precio_actual?: number;
+            fecha: string;
+            servicio: {
+                id_servicio: number;
+                nombre: string;
+                duracion_minutos: number;
+                precio_actual: number;
             };
-            sucursal?: {
-                id_sucursal?: number;
-                nombre?: string;
+            sucursal: {
+                id_sucursal: number;
+                nombre: string;
             };
-            horarios?: {
+            horarios: {
                 /** @example 09:15 */
-                hora_inicio?: string;
+                hora_inicio: string;
                 /**
                  * @description Sin el margen del servicio
                  * @example 09:45
                  */
-                hora_fin?: string;
-                empleados?: components["schemas"]["EmpleadoAsignado"][];
+                hora_fin: string;
+                empleados: components["schemas"]["EmpleadoAsignado"][];
             }[];
             /**
              * @description Por qué no hay horarios (null si los hay)
              * @example El servicio no se ofrece los domingos
              */
-            motivo_sin_horarios?: string | null;
+            motivo_sin_horarios: string | null;
         };
         CitaReservaInput: {
             id_servicio: number;
@@ -7341,384 +7358,384 @@ export interface components {
             notas_cliente?: string;
         };
         Cita: {
-            id_cita?: number;
+            id_cita: number;
             /** Format: date */
-            fecha?: string;
+            fecha: string;
             /** @example 09:15 */
-            hora_inicio?: string;
+            hora_inicio: string;
             /** @example 09:45 */
-            hora_fin?: string;
+            hora_fin: string;
             /** @enum {string} */
-            estado?: "pendiente" | "confirmada" | "en_curso" | "completada" | "cancelada" | "no_asistio" | "reprogramada";
+            estado: "pendiente" | "confirmada" | "en_curso" | "completada" | "cancelada" | "no_asistio" | "reprogramada";
             /** @enum {string} */
-            origen?: "app_movil" | "panel_web" | "whatsapp" | "presencial" | "telefono";
+            origen: "app_movil" | "panel_web" | "whatsapp" | "presencial" | "telefono";
             /** @enum {string} */
-            prioridad?: "normal" | "alta" | "urgente";
+            prioridad: "normal" | "alta" | "urgente";
             /** @description Precio actual del servicio al reservar (con la oferta vigente) */
-            precio_estimado?: number;
-            precio_final?: number | null;
-            notas_cliente?: string | null;
+            precio_estimado: number;
+            precio_final: number | null;
+            notas_cliente: string | null;
             /** @description Solo en el panel */
             notas_internas?: string | null;
             /** @description Cita original si esta es una reprogramación */
-            id_cita_origen?: number | null;
+            id_cita_origen: number | null;
             /**
              * @description Solo en citas pendientes: hasta cuándo puede confirmarla el negocio. Si no la confirma, se cancela sola (cancelacion.por = sistema). Lo que ocurra primero entre 24 horas después de reservar y 60 minutos antes del inicio; si eso cae de madrugada, se corre a una hora después del fin del horario de silencio (08:00), sin pasar de 30 minutos antes del inicio.
              * @example 2026-10-04 15:00:00
              */
-            confirmar_antes_de?: string | null;
+            confirmar_antes_de: string | null;
             /**
              * @description Cuándo pasó a completada
              * @example 2026-09-20 15:42:10
              */
-            fecha_completada?: string | null;
+            fecha_completada: string | null;
             /** @description Reseña del dueño sobre esta cita (null si no hay o la retiró) */
-            id_resena?: number | null;
+            id_resena: number | null;
             /** @description Solo en la vista del dueño (GET /citas/mias y GET /citas/{id_cita}) y solo en citas completadas. Para mostrar "Reseñar" o "Editar reseña". */
             resena?: {
-                id_resena?: number | null;
+                id_resena: number | null;
                 /** @description El dueño retiró su reseña; no puede reseñar otra vez */
-                retirada?: boolean;
+                retirada: boolean;
                 /**
                  * @description fecha_completada + 30 días
                  * @example 2026-10-20 15:42:10
                  */
-                resenar_antes_de?: string | null;
+                resenar_antes_de: string | null;
                 /** @description Sin reseña */
-                puede_resenar?: boolean;
-                puede_editar?: boolean;
+                puede_resenar: boolean;
+                puede_editar: boolean;
             } | null;
             /** @description Solo en citas canceladas */
-            cancelacion?: {
+            cancelacion: {
                 /**
                  * @description sistema: el negocio no la confirmó a tiempo (nunca es tardía ni cuenta contra el cliente)
                  * @enum {string|null}
                  */
-                por?: "dueno" | "negocio" | "sistema" | null;
-                fecha?: string | null;
+                por: "dueno" | "negocio" | "sistema" | null;
+                fecha: string | null;
                 /** @description El dueño canceló a menos de 2 horas de la cita */
-                tardia?: boolean;
-                motivo?: string | null;
+                tardia: boolean;
+                motivo: string | null;
             } | null;
-            negocio?: {
-                id_negocio?: number;
-                nombre?: string;
-                logo_url?: string | null;
+            negocio: {
+                id_negocio: number;
+                nombre: string;
+                logo_url: string | null;
             };
             /** @description Dónde es la cita; con teléfono y coordenadas para "Cómo llegar" */
-            sucursal?: {
-                id_sucursal?: number;
-                nombre?: string;
-                direccion?: string;
-                telefono?: string | null;
-                latitud?: number | null;
-                longitud?: number | null;
+            sucursal: {
+                id_sucursal: number;
+                nombre: string;
+                direccion: string;
+                telefono: string | null;
+                latitud: number | null;
+                longitud: number | null;
             } | null;
-            servicio?: {
-                id_servicio?: number;
-                nombre?: string;
-                duracion_minutos?: number;
+            servicio: {
+                id_servicio: number;
+                nombre: string;
+                duracion_minutos: number;
             };
-            empleado?: {
-                id_empleado?: number;
-                nombre?: string;
-                apellido?: string;
+            empleado: {
+                id_empleado: number;
+                nombre: string;
+                apellido: string;
             } | null;
-            mascota?: {
-                id_mascota?: number;
-                nombre?: string;
-                especie?: string;
+            mascota: {
+                id_mascota: number;
+                nombre: string;
+                especie: string;
             };
-            cliente?: {
-                id_usuario?: number;
-                nombre?: string;
-                apellido?: string;
-                telefono?: string | null;
+            cliente: {
+                id_usuario: number;
+                nombre: string;
+                apellido: string;
+                telefono: string | null;
             };
-            fecha_creacion?: string;
+            fecha_creacion: string;
         };
         CitaPanel: components["schemas"]["Cita"] & {
             /** @description Cita futura pendiente o confirmada que ya no cabe en la disponibilidad de su empleado (bloqueo, vacaciones, cambio de horario): hay que reprogramarla o reasignarla. false en las demás. */
-            fuera_de_disponibilidad?: boolean;
+            fuera_de_disponibilidad: boolean;
         };
         /** @description Detalle de la cita para el panel (GET /citas/{id_cita} y respuestas de los cambios). */
         CitaPanelDetalle: components["schemas"]["CitaPanel"] & {
-            cliente?: {
+            cliente: {
                 /** @description Solo las citas del cliente con este negocio, nunca las de otros negocios */
-                historial_cumplimiento?: {
-                    completadas?: number;
-                    inasistencias?: number;
-                    cancelaciones_tardias?: number;
+                historial_cumplimiento: {
+                    completadas: number;
+                    inasistencias: number;
+                    cancelaciones_tardias: number;
                 };
             };
         };
         ClienteContacto: {
-            id_usuario?: number;
-            nombre?: string;
-            apellido?: string;
+            id_usuario: number;
+            nombre: string;
+            apellido: string;
             /** Format: email */
-            email?: string;
-            telefono?: string | null;
+            email: string;
+            telefono: string | null;
         };
         ClienteFila: components["schemas"]["ClienteContacto"] & {
             /** @description Con este negocio */
-            total_citas?: number;
+            total_citas: number;
             /**
              * Format: date
              * @description Última cita ya pasada (sin canceladas ni reprogramadas)
              */
-            ultima_cita?: string | null;
+            ultima_cita: string | null;
             /** Format: date */
-            proxima_cita?: string | null;
+            proxima_cita: string | null;
             /** @description Con este negocio */
-            inasistencias?: number;
+            inasistencias: number;
         };
         ClienteDetalle: {
-            cliente?: components["schemas"]["ClienteContacto"] & {
+            cliente: components["schemas"]["ClienteContacto"] & {
                 /**
                  * Format: date
                  * @description Primera cita o autorización registrada por el negocio
                  */
-                cliente_desde?: string;
-                registrado_por_el_negocio?: boolean;
+                cliente_desde: string;
+                registrado_por_el_negocio: boolean;
                 /** @description Alguna vez inició sesión */
-                usa_app?: boolean;
+                usa_app: boolean;
             };
             /** @description Solo las citas del cliente con este negocio */
-            historial_cumplimiento?: {
-                completadas?: number;
-                inasistencias?: number;
-                cancelaciones_tardias?: number;
+            historial_cumplimiento: {
+                completadas: number;
+                inasistencias: number;
+                cancelaciones_tardias: number;
             };
-            mascotas?: {
-                id_mascota?: number;
-                nombre?: string;
-                especie?: string;
-                raza?: string | null;
-                edad_meses?: number | null;
-                peso?: number | null;
-                tiene_alergias?: boolean;
-                alergias_detalle?: string | null;
-                condiciones_medicas?: string | null;
-                fallecido?: boolean;
-                citas_con_negocio?: number;
+            mascotas: {
+                id_mascota: number;
+                nombre: string;
+                especie: string;
+                raza: string | null;
+                edad_meses: number | null;
+                peso: number | null;
+                tiene_alergias: boolean;
+                alergias_detalle: string | null;
+                condiciones_medicas: string | null;
+                fallecido: boolean;
+                citas_con_negocio: number;
                 /** @description Tiene una cita válida con el negocio (se puede abrir su historial y vacunas) */
-                acceso_historial?: boolean;
+                acceso_historial: boolean;
             }[];
-            citas?: {
-                proximas?: components["schemas"]["CitaPanel"][];
+            citas: {
+                proximas: components["schemas"]["CitaPanel"][];
                 /** @description Las últimas 10 */
-                recientes?: components["schemas"]["CitaPanel"][];
+                recientes: components["schemas"]["CitaPanel"][];
             };
             /** @description Las 3 últimas notas del negocio sobre el cliente */
-            notas_recientes?: components["schemas"]["NotaCliente"][];
-            total_notas?: number;
+            notas_recientes: components["schemas"]["NotaCliente"][];
+            total_notas: number;
         };
         NotaCliente: {
-            id_nota?: number;
-            texto?: string;
+            id_nota: number;
+            texto: string;
             /** @description null si la cuenta del autor ya no existe ("Ex miembro del equipo") */
-            autor?: {
-                id_usuario?: number;
-                nombre?: string;
-                apellido?: string;
+            autor: {
+                id_usuario: number;
+                nombre: string;
+                apellido: string;
             } | null;
             /** @example 2026-09-29 10:15:00 */
-            fecha_creacion?: string;
-            fecha_edicion?: string | null;
+            fecha_creacion: string;
+            fecha_edicion: string | null;
             /** @description Quien consulta es el autor */
-            editable?: boolean;
+            editable: boolean;
             /** @description Quien consulta es el autor o el propietario */
-            eliminable?: boolean;
+            eliminable: boolean;
         };
         NotaInput: {
             /** @example Prefiere que lo llamen en la tarde */
             texto: string;
         };
         CitasPorEstado: {
-            pendiente?: number;
-            confirmada?: number;
-            en_curso?: number;
-            completada?: number;
-            cancelada?: number;
-            no_asistio?: number;
-            reprogramada?: number;
+            pendiente: number;
+            confirmada: number;
+            en_curso: number;
+            completada: number;
+            cancelada: number;
+            no_asistio: number;
+            reprogramada: number;
         };
         /** @description Sección avanzada en un plan sin estadísticas avanzadas. No trae datos; el panel la muestra como invitación a mejorar el plan. */
         SeccionBloqueada: {
             /** @example true */
-            bloqueado?: boolean;
+            bloqueado: boolean;
             /** @description El plan activo más barato con estadísticas avanzadas */
-            plan_requerido?: {
+            plan_requerido: {
                 /** @example 2 */
-                id_plan?: number;
+                id_plan: number;
                 /** @example Pro */
-                nombre?: string;
+                nombre: string;
                 /** @example 120000 */
-                precio_mensual?: number;
+                precio_mensual: number;
             } | null;
         };
         DesempenoFila: {
             /** @description Sin canceladas ni reprogramadas */
-            citas?: number;
-            completadas?: number;
-            ingresos?: number;
-            inasistencias?: number;
+            citas: number;
+            completadas: number;
+            ingresos: number;
+            inasistencias: number;
         };
         MetricasComparables: {
-            citas?: number;
-            completadas?: number;
-            ingresos?: number;
-            clientes_nuevos?: number;
-            tasa_inasistencia?: number | null;
+            citas: number;
+            completadas: number;
+            ingresos: number;
+            clientes_nuevos: number;
+            tasa_inasistencia: number | null;
         };
         Dashboard: {
-            periodo?: {
+            periodo: {
                 /** Format: date */
-                desde?: string;
+                desde: string;
                 /** Format: date */
-                hasta?: string;
-                dias?: number;
+                hasta: string;
+                dias: number;
             };
-            id_sucursal?: number | null;
-            plan?: {
-                id_plan?: number;
+            id_sucursal: number | null;
+            plan: {
+                id_plan: number;
                 /** @example Gratuito */
-                nombre?: string;
-                estadisticas_avanzadas?: boolean;
+                nombre: string;
+                estadisticas_avanzadas: boolean;
                 /** @enum {integer} */
-                rango_maximo_dias?: 92 | 366;
+                rango_maximo_dias: 92 | 366;
             };
             /** @description El negocio puede activar la prueba Pro: el panel ofrece "Probar Pro 14 días" en lugar de "Mejorar plan" */
-            prueba_disponible?: boolean;
+            prueba_disponible: boolean;
             /** @description Citas de hoy, sin importar el rango */
-            hoy?: {
+            hoy: {
                 /** Format: date */
-                fecha?: string;
+                fecha: string;
                 /** @description Sin reprogramadas */
-                total?: number;
-                por_estado?: components["schemas"]["CitasPorEstado"];
+                total: number;
+                por_estado: components["schemas"]["CitasPorEstado"];
                 /** @description Pendientes desde hoy que esperan confirmación */
-                por_confirmar?: number;
+                por_confirmar: number;
             };
-            citas?: {
+            citas: {
                 /** @description Sin reprogramadas (la cita nueva de una reprogramación ya cuenta) */
-                total?: number;
-                por_estado?: components["schemas"]["CitasPorEstado"];
+                total: number;
+                por_estado: components["schemas"]["CitasPorEstado"];
             };
-            tasa_inasistencia?: {
+            tasa_inasistencia: {
                 /**
                  * @description inasistencias / base × 100; null sin base
                  * @example 8.3
                  */
-                porcentaje?: number | null;
-                inasistencias?: number;
+                porcentaje: number | null;
+                inasistencias: number;
                 /** @description Completadas más inasistencias */
-                base?: number;
+                base: number;
             };
             /** @description Ingresos **registrados** por el negocio, no pagos verificados (hasta la Fase 3) */
-            ingresos?: {
+            ingresos: {
                 /** @example 1850000 */
-                total?: number;
-                citas_completadas?: number;
-                ticket_promedio?: number | null;
+                total: number;
+                citas_completadas: number;
+                ticket_promedio: number | null;
                 /** @example COP */
-                moneda?: string;
+                moneda: string;
                 /** @example citas_completadas */
-                origen?: string;
+                origen: string;
                 /** @example false */
-                verificado?: boolean;
-                nota?: string;
+                verificado: boolean;
+                nota: string;
             };
-            servicios_mas_pedidos?: {
-                id_servicio?: number;
-                nombre?: string;
-                completadas?: number;
-                ingresos?: number;
+            servicios_mas_pedidos: {
+                id_servicio: number;
+                nombre: string;
+                completadas: number;
+                ingresos: number;
             }[];
             /** @description Primera cita o registro desde el panel en el periodo (todo el negocio */
-            clientes_nuevos?: number;
-            calificacion?: {
-                promedio?: number;
-                total_resenas?: number;
-                resenas_periodo?: number;
-                promedio_periodo?: number | null;
+            clientes_nuevos: number;
+            calificacion: {
+                promedio: number;
+                total_resenas: number;
+                resenas_periodo: number;
+                promedio_periodo: number | null;
                 /** @description Reseñas visibles sin respuesta (todas */
-                sin_responder?: number;
+                sin_responder: number;
             };
             /** @description Canceladas por el sistema porque nadie las confirmó a tiempo. Nunca cuentan contra los clientes. */
-            citas_perdidas_por_no_confirmar?: {
-                total?: number;
+            citas_perdidas_por_no_confirmar: {
+                total: number;
                 /** @description Solo si hubo alguna y la confirmación automática está apagada */
-                sugerencia?: {
+                sugerencia: {
                     /** @example activar_confirmacion_automatica */
-                    codigo?: string;
-                    mensaje?: string;
+                    codigo: string;
+                    mensaje: string;
                 } | null;
             };
             /** @description Requieren estadísticas avanzadas (Pro, Enterprise o la prueba Pro). Sin ellas, cada sección es `SeccionBloqueada`. */
-            avanzadas?: {
-                tendencia?: components["schemas"]["SeccionBloqueada"] | {
+            avanzadas: {
+                tendencia: components["schemas"]["SeccionBloqueada"] | {
                     /**
                      * @description día hasta 31 días, semana (desde el lunes) hasta 92, mes en rangos mayores
                      * @enum {string}
                      */
-                    agrupacion?: "dia" | "semana" | "mes";
-                    puntos?: {
+                    agrupacion: "dia" | "semana" | "mes";
+                    puntos: {
                         /** Format: date */
-                        inicio?: string;
-                        citas?: number;
-                        completadas?: number;
-                        ingresos?: number;
+                        inicio: string;
+                        citas: number;
+                        completadas: number;
+                        ingresos: number;
                     }[];
                 };
-                comparacion?: components["schemas"]["SeccionBloqueada"] | {
-                    periodo_anterior?: {
+                comparacion: components["schemas"]["SeccionBloqueada"] | {
+                    periodo_anterior: {
                         /** Format: date */
-                        desde?: string;
+                        desde: string;
                         /** Format: date */
-                        hasta?: string;
+                        hasta: string;
                     };
-                    actual?: components["schemas"]["MetricasComparables"];
-                    anterior?: components["schemas"]["MetricasComparables"];
+                    actual: components["schemas"]["MetricasComparables"];
+                    anterior: components["schemas"]["MetricasComparables"];
                     /** @description Por métrica; null si el periodo anterior es 0 */
-                    variacion_pct?: Record<string, never>;
+                    variacion_pct: Record<string, never>;
                 };
-                por_empleado?: components["schemas"]["SeccionBloqueada"] | ({
+                por_empleado: components["schemas"]["SeccionBloqueada"] | ({
                     /** @description null = sin asignar */
-                    empleado?: {
-                        id_empleado?: number;
-                        nombre?: string;
-                        apellido?: string;
+                    empleado: {
+                        id_empleado: number;
+                        nombre: string;
+                        apellido: string;
                     } | null;
                 } & components["schemas"]["DesempenoFila"])[];
-                por_sucursal?: components["schemas"]["SeccionBloqueada"] | ({
-                    sucursal?: {
-                        id_sucursal?: number;
-                        nombre?: string;
+                por_sucursal: components["schemas"]["SeccionBloqueada"] | ({
+                    sucursal: {
+                        id_sucursal: number;
+                        nombre: string;
                     } | null;
                 } & components["schemas"]["DesempenoFila"])[];
-                horas_pico?: components["schemas"]["SeccionBloqueada"] | {
+                horas_pico: components["schemas"]["SeccionBloqueada"] | {
                     /** @description 0 = domingo */
-                    dia_semana?: number;
+                    dia_semana: number;
                     /** @example 9 */
-                    hora?: number;
-                    citas?: number;
+                    hora: number;
+                    citas: number;
                 }[];
-                recurrencia?: components["schemas"]["SeccionBloqueada"] | {
+                recurrencia: components["schemas"]["SeccionBloqueada"] | {
                     /** @description Con alguna cita completada en el periodo */
-                    clientes?: number;
+                    clientes: number;
                     /** @description Con dos o más */
-                    recurrentes?: number;
-                    porcentaje?: number | null;
+                    recurrentes: number;
+                    porcentaje: number | null;
                 };
-                cancelaciones?: components["schemas"]["SeccionBloqueada"] | {
-                    total?: number;
-                    por_dueno?: number;
-                    por_negocio?: number;
-                    por_sistema?: number;
+                cancelaciones: components["schemas"]["SeccionBloqueada"] | {
+                    total: number;
+                    por_dueno: number;
+                    por_negocio: number;
+                    por_sistema: number;
                     /** @description Del dueño a menos de 2 horas */
-                    tardias?: number;
+                    tardias: number;
                 };
             };
         };
@@ -7739,13 +7756,13 @@ export interface components {
             id_sucursal?: number | null;
         };
         HorarioSemanal: {
-            id_disponibilidad?: number;
-            dia_semana?: number;
+            id_disponibilidad: number;
+            dia_semana: number;
             /** @example 08:00 */
-            hora_inicio?: string;
+            hora_inicio: string;
             /** @example 12:00 */
-            hora_fin?: string;
-            id_sucursal?: number | null;
+            hora_fin: string;
+            id_sucursal: number | null;
         };
         /** @description Según `tipo` (un campo que el tipo no tiene da 422): `bloqueo`: fecha_especifica, fecha_fin opcional, hora_inicio/hora_fin opcionales y juntas (sin horas = días completos; con horas, ese rango cada día del período). `vacacion`: fecha_especifica y fecha_fin opcional (días completos). `evento_especial`: fecha_especifica, hora_inicio, hora_fin e id_sucursal (un solo día; suma ese rango a la disponibilidad sin recortarlo por el horario de la sucursal; no se cruza con otros eventos del empleado ese día). Período máximo de 366 días. Al crear, el último día debe ser hoy o posterior. */
         ExcepcionInput: {
@@ -7770,62 +7787,62 @@ export interface components {
             motivo?: string | null;
         };
         Excepcion: {
-            id_disponibilidad?: number;
-            id_empleado?: number;
+            id_disponibilidad: number;
+            id_empleado: number;
             /** @enum {string} */
-            tipo?: "bloqueo" | "vacacion" | "evento_especial";
+            tipo: "bloqueo" | "vacacion" | "evento_especial";
             /** Format: date */
-            fecha_especifica?: string;
+            fecha_especifica: string;
             /** Format: date */
-            fecha_fin?: string | null;
-            hora_inicio?: string | null;
-            hora_fin?: string | null;
-            id_sucursal?: number | null;
-            motivo?: string | null;
+            fecha_fin: string | null;
+            hora_inicio: string | null;
+            hora_fin: string | null;
+            id_sucursal: number | null;
+            motivo: string | null;
         };
         /** @description Cita futura pendiente o confirmada del empleado que ya no cabe en su disponibilidad */
         CitaAfectada: {
-            id_cita?: number;
+            id_cita: number;
             /** Format: date */
-            fecha?: string;
+            fecha: string;
             /** @example 09:00 */
-            hora_inicio?: string;
+            hora_inicio: string;
             /** @example 09:30 */
-            hora_fin?: string;
+            hora_fin: string;
             /** @enum {string} */
-            estado?: "pendiente" | "confirmada";
-            sucursal?: {
-                id_sucursal?: number;
-                nombre?: string;
+            estado: "pendiente" | "confirmada";
+            sucursal: {
+                id_sucursal: number;
+                nombre: string;
             } | null;
-            servicio?: {
-                id_servicio?: number;
-                nombre?: string;
+            servicio: {
+                id_servicio: number;
+                nombre: string;
             };
-            mascota?: {
-                id_mascota?: number;
-                nombre?: string;
+            mascota: {
+                id_mascota: number;
+                nombre: string;
             };
-            cliente?: {
-                id_usuario?: number;
-                nombre?: string;
-                apellido?: string;
-                telefono?: string | null;
+            cliente: {
+                id_usuario: number;
+                nombre: string;
+                apellido: string;
+                telefono: string | null;
             };
         };
         /** @description Siempre viene (vacía si no hay). Citas futuras pendientes o confirmadas del empleado que, tras el cambio, no caben en su disponibilidad: el panel debe reprogramarlas o reasignarlas. El cambio se guarda igual. */
         CitasAfectadas: components["schemas"]["CitaAfectada"][];
         Dispositivo: {
-            id_dispositivo?: number;
+            id_dispositivo: number;
             /** @example ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx] */
-            token_expo?: string;
+            token_expo: string;
             /** @enum {string} */
-            plataforma?: "ios" | "android";
+            plataforma: "ios" | "android";
             /** @example Galaxy A54 */
-            nombre?: string | null;
-            activo?: boolean;
+            nombre: string | null;
+            activo: boolean;
             /** @example 2026-09-28 10:00:00 */
-            fecha_registro?: string;
+            fecha_registro: string;
         };
         /** @description `id_usuario`, `id_negocio`, `activo`, `fecha_retiro` y `foto_url` no se aceptan (422): la cuenta se vincula con una invitación, el estado se cambia con desactivar/reactivar y la foto se sube con `PUT /empleados/{id_empleado}/foto`. Los campos opcionales se vacían con `null`. */
         EmpleadoInput: {
@@ -7859,42 +7876,57 @@ export interface components {
         };
         Empleado: {
             /** @example 5 */
-            id_empleado?: number;
-            id_negocio?: number;
+            id_empleado: number;
+            id_negocio: number;
             /** @description Cuenta vinculada (null si aún no aceptó la invitación) */
-            id_usuario?: number | null;
-            nombre?: string;
-            apellido?: string;
-            email?: string | null;
-            telefono?: string | null;
-            documento?: string | null;
-            especialidad?: string | null;
-            titulo_profesional?: string | null;
-            registro_profesional?: string | null;
+            id_usuario: number | null;
+            nombre: string;
+            apellido: string;
+            email: string | null;
+            telefono: string | null;
+            documento: string | null;
+            especialidad: string | null;
+            titulo_profesional: string | null;
+            registro_profesional: string | null;
             /** @description Foto (800 px) */
-            foto_url?: string | null;
+            foto_url: string | null;
             /** @description Miniatura cuadrada de 200 px */
-            foto_miniatura_url?: string | null;
-            notas?: string | null;
-            activo?: boolean;
+            foto_miniatura_url: string | null;
+            notas: string | null;
+            activo: boolean;
             /** @example 2026-09-01 */
-            fecha_vinculacion?: string;
-            fecha_retiro?: string | null;
-            fecha_creacion?: string;
-            fecha_actualizacion?: string;
-            tiene_cuenta?: boolean;
+            fecha_vinculacion: string;
+            fecha_retiro: string | null;
+            fecha_creacion: string;
+            fecha_actualizacion: string;
+            tiene_cuenta: boolean;
             /** @description Tiene una invitación sin usar y vigente */
-            invitacion_pendiente?: boolean;
-            rol?: {
-                id_rol?: number;
+            invitacion_pendiente: boolean;
+            rol: {
+                id_rol: number;
                 /** @example Veterinario */
-                nombre?: string;
-                permisos_json?: components["schemas"]["Permisos"];
+                nombre: string;
+                /**
+                 * @description `{ modulo: [acciones] }`. Solo módulos y acciones del catálogo (GET /permisos).
+                 * @example {
+                 *       "citas": [
+                 *         "ver",
+                 *         "crear",
+                 *         "editar"
+                 *       ],
+                 *       "clientes": [
+                 *         "ver"
+                 *       ]
+                 *     }
+                 */
+                permisos_json?: {
+                    [key: string]: string[];
+                };
             };
             /** @description Solo en el detalle (y en las respuestas de crear y editar): servicios activos que atiende. Se asignan desde el servicio (`empleados` en POST/PATCH de servicios). */
             servicios?: {
-                id_servicio?: number;
-                nombre?: string;
+                id_servicio: number;
+                nombre: string;
             }[];
         };
         /** @description Campos opcionales con `null` se vacían. `proximo_control` no puede ser anterior a `fecha`. Los archivos no van aquí (`archivos` da 422): se suben con `POST /historial/{id_historial}/archivos`. */
@@ -7924,74 +7956,74 @@ export interface components {
             id_empleado?: number | null;
         };
         RegistroHistorial: {
-            id_historial?: number;
-            id_mascota?: number;
-            id_cita?: number | null;
+            id_historial: number;
+            id_mascota: number;
+            id_cita: number | null;
             /** Format: date */
-            fecha?: string;
-            tipo?: string;
-            motivo_consulta?: string | null;
-            diagnostico?: string | null;
-            tratamiento?: string | null;
-            medicamentos_prescritos?: string | null;
-            indicaciones?: string | null;
+            fecha: string;
+            tipo: string;
+            motivo_consulta: string | null;
+            diagnostico: string | null;
+            tratamiento: string | null;
+            medicamentos_prescritos: string | null;
+            indicaciones: string | null;
             /** Format: date */
-            proximo_control?: string | null;
-            peso_registro?: number | null;
-            temperatura?: number | null;
-            frecuencia_cardiaca?: number | null;
-            frecuencia_respiratoria?: number | null;
+            proximo_control: string | null;
+            peso_registro: number | null;
+            temperatura: number | null;
+            frecuencia_cardiaca: number | null;
+            frecuencia_respiratoria: number | null;
             /** @description Imágenes y PDF privados, con URL firmada que vence (hasta 10 por registro) */
-            archivos?: components["schemas"]["ArchivoPrivado"][];
-            negocio?: {
-                id_negocio?: number;
-                nombre?: string;
+            archivos: components["schemas"]["ArchivoPrivado"][];
+            negocio: {
+                id_negocio: number;
+                nombre: string;
             } | null;
-            empleado?: {
-                id_empleado?: number;
-                nombre?: string;
-                apellido?: string;
+            empleado: {
+                id_empleado: number;
+                nombre: string;
+                apellido: string;
             } | null;
             /** @description Solo en el panel; lo creó el negocio que consulta */
             es_propio?: boolean;
             /** @description Solo en los registros del negocio que consulta */
             notas_internas?: string | null;
-            fecha_creacion?: string;
+            fecha_creacion: string;
         };
         HistorialPagina: {
             /** @example true */
-            success?: boolean;
+            success: boolean;
             /** @example OK */
-            message?: string;
-            data?: components["schemas"]["RegistroHistorial"][];
-            meta?: components["schemas"]["PaginationMeta"];
+            message: string;
+            data: components["schemas"]["RegistroHistorial"][];
+            meta: components["schemas"]["PaginationMeta"];
         };
         Horario: {
             /** @example 7 */
-            id_horario?: number;
+            id_horario: number;
             /** @description 0 = domingo ... 6 = sábado */
-            dia_semana?: number;
+            dia_semana: number;
             /** @example 08:00 */
-            hora_apertura?: string;
+            hora_apertura: string;
             /** @example 12:00 */
-            hora_cierre?: string;
+            hora_cierre: string;
         };
         /** @description El token nunca aparece en la respuesta; solo viaja en el enlace del correo. */
         InvitacionEnviada: {
             /** @example 14 */
-            id_invitacion?: number;
+            id_invitacion: number;
             /** @example recepcionista@petcat.test */
-            email?: string;
+            email: string;
             /**
              * @description 72 horas después del envío
              * @example 2026-09-28 10:00:00
              */
-            expiracion?: string;
+            expiracion: string;
             /**
              * @description Correos que aún se pueden enviar a ese email en 24 horas
              * @example 3
              */
-            envios_restantes_24h?: number;
+            envios_restantes_24h: number;
         };
         /** @description Campos opcionales con `null` se vacían. La foto se sube aparte (Fase 2). */
         MascotaInput: {
@@ -8031,45 +8063,45 @@ export interface components {
         };
         Mascota: {
             /** @example 7 */
-            id_mascota?: number;
+            id_mascota: number;
             /** @description Dueño */
-            id_usuario?: number;
-            nombre?: string;
-            especie?: string;
-            raza?: string | null;
-            color?: string | null;
+            id_usuario: number;
+            nombre: string;
+            especie: string;
+            raza: string | null;
+            color: string | null;
             /** Format: date */
-            fecha_nacimiento?: string | null;
+            fecha_nacimiento: string | null;
             /** @description Calculada con la fecha de nacimiento */
-            edad_meses?: number | null;
+            edad_meses: number | null;
             /** @enum {string} */
-            sexo?: "macho" | "hembra" | "desconocido";
-            peso?: number | null;
-            microchip?: string | null;
-            numero_registro?: string | null;
-            esterilizado?: boolean;
-            tiene_alergias?: boolean;
-            compartir_historial?: boolean;
-            alergias_detalle?: string | null;
-            condiciones_medicas?: string | null;
-            tipo_sangre?: string | null;
+            sexo: "macho" | "hembra" | "desconocido";
+            peso: number | null;
+            microchip: string | null;
+            numero_registro: string | null;
+            esterilizado: boolean;
+            tiene_alergias: boolean;
+            compartir_historial: boolean;
+            alergias_detalle: string | null;
+            condiciones_medicas: string | null;
+            tipo_sangre: string | null;
             /** @description Foto (800 px); se sube con PUT /mascotas/{id_mascota}/foto */
-            foto_url?: string | null;
+            foto_url: string | null;
             /** @description Miniatura cuadrada de 200 px */
-            foto_miniatura_url?: string | null;
-            fallecido?: boolean;
+            foto_miniatura_url: string | null;
+            fallecido: boolean;
             /** Format: date */
-            fecha_fallecimiento?: string | null;
+            fecha_fallecimiento: string | null;
             /** @example 2026-09-26 10:00:00 */
-            fecha_registro?: string;
+            fecha_registro: string;
             /** @example 2026-09-26 10:00:00 */
-            fecha_actualizacion?: string;
+            fecha_actualizacion: string;
         };
         MascotaRespuesta: {
             /** @example true */
-            success?: boolean;
-            message?: string;
-            data?: components["schemas"]["Mascota"];
+            success: boolean;
+            message: string;
+            data: components["schemas"]["Mascota"];
         };
         /** @description Campos opcionales con `null` se vacían. `latitud` y `longitud` van juntas. `ciudad`, `departamento` y `pais` toman por defecto Sincelejo, Sucre y Colombia. `logo_url` y `banner_url` no se aceptan (422): se suben con `PUT /negocios/{id_negocio}/logo` y `/banner`. */
         NegocioInput: {
@@ -8108,131 +8140,181 @@ export interface components {
              */
             confirmacion_automatica: boolean;
         };
-        Negocio: components["schemas"]["NegocioInput"] & {
+        Negocio: {
+            /** @example Clínica Veterinaria Patitas */
+            nombre: string;
+            /** @enum {string} */
+            tipo: "veterinaria" | "tienda_mascotas" | "peluqueria_canina" | "guarderia" | "entrenador" | "clinica" | "multiservicio";
+            descripcion: string | null;
+            /** @example 6052801010 */
+            telefono: string | null;
+            /** @example 3001112233 */
+            whatsapp: string | null;
+            /** Format: email */
+            email: string | null;
+            /** Format: uri */
+            sitio_web: string | null;
+            /** @example 900123456-7 */
+            nit: string | null;
+            razon_social: string | null;
+            /** @example Calle 23 # 18-45, Centro */
+            direccion: string | null;
+            /** @example Sincelejo */
+            ciudad: string;
+            /** @example Sucre */
+            departamento: string;
+            /** @example Colombia */
+            pais: string;
+            codigo_postal: string | null;
+            /** @example 9.30472 */
+            latitud: number | null;
+            /** @example -75.39778 */
+            longitud: number | null;
+            /**
+             * @description Las citas de la app (y las que reprograma el dueño) nacen confirmadas. Sin ella quedan pendientes y, si el negocio no las confirma a tiempo (`confirmar_antes_de` de la cita), se cancelan solas.
+             * @default false
+             */
+            confirmacion_automatica: boolean;
+        } & {
             /** @description Logo (800 px); se sube con PUT /negocios/{id_negocio}/logo */
-            logo_url?: string | null;
+            logo_url: string | null;
             /** @description Miniatura cuadrada de 200 px */
-            logo_miniatura_url?: string | null;
+            logo_miniatura_url: string | null;
             /** @description Banner (hasta 1600 px); se sube con PUT /negocios/{id_negocio}/banner */
-            banner_url?: string | null;
+            banner_url: string | null;
             /** @example 1 */
-            id_negocio?: number;
+            id_negocio: number;
             /** @example 2 */
-            id_usuario_propietario?: number;
+            id_usuario_propietario: number;
             /** @example 4.5 */
-            calificacion_promedio?: number;
-            total_resenas?: number;
-            total_citas?: number;
-            verificado?: boolean;
-            destacado?: boolean;
-            activo?: boolean;
+            calificacion_promedio: number;
+            total_resenas: number;
+            total_citas: number;
+            verificado: boolean;
+            destacado: boolean;
+            activo: boolean;
             /** @example 2026-09-25 10:00:00 */
-            fecha_registro?: string;
-            fecha_actualizacion?: string;
+            fecha_registro: string;
+            fecha_actualizacion: string;
         };
         NegocioMio: {
-            id_negocio?: number;
-            nombre?: string;
-            tipo?: string;
-            ciudad?: string;
-            logo_url?: string | null;
-            logo_miniatura_url?: string | null;
-            verificado?: boolean;
-            activo?: boolean;
+            id_negocio: number;
+            nombre: string;
+            tipo: string;
+            ciudad: string;
+            logo_url: string | null;
+            logo_miniatura_url: string | null;
+            verificado: boolean;
+            activo: boolean;
             /** @enum {string} */
-            relacion?: "propietario" | "empleado";
+            relacion: "propietario" | "empleado";
             /** @description Solo si relacion es empleado */
-            id_empleado?: number | null;
+            id_empleado: number | null;
             /** @description Rol del empleado en ese negocio (null para el propietario, que tiene todos los permisos). Trae sus permisos para que el panel muestre u oculte secciones; la API decide igual en cada ruta. */
-            rol?: {
-                id_rol?: number;
+            rol: {
+                id_rol: number;
                 /** @example Veterinario */
-                nombre?: string;
-                permisos_json?: components["schemas"]["Permisos"];
+                nombre: string;
+                /**
+                 * @description `{ modulo: [acciones] }`. Solo módulos y acciones del catálogo (GET /permisos).
+                 * @example {
+                 *       "citas": [
+                 *         "ver",
+                 *         "crear",
+                 *         "editar"
+                 *       ],
+                 *       "clientes": [
+                 *         "ver"
+                 *       ]
+                 *     }
+                 */
+                permisos_json: {
+                    [key: string]: string[];
+                };
             } | null;
             /** @description Plan efectivo (el Gratuito si la prueba o el plan pago vencieron) */
-            plan?: {
-                id_plan?: number;
+            plan: {
+                id_plan: number;
                 /** @example Pro */
-                nombre?: string;
-                en_prueba?: boolean;
+                nombre: string;
+                en_prueba: boolean;
             };
         };
         HorarioRango: {
             /** @description 0 = domingo ... 6 = sábado */
-            dia_semana?: number;
+            dia_semana: number;
             /** @example 08:00 */
-            hora_apertura?: string;
+            hora_apertura: string;
             /** @example 12:00 */
-            hora_cierre?: string;
+            hora_cierre: string;
         };
         NegocioPublico: {
-            id_negocio?: number;
-            nombre?: string;
-            tipo?: string;
-            descripcion?: string | null;
-            telefono?: string | null;
-            whatsapp?: string | null;
-            email?: string | null;
-            sitio_web?: string | null;
-            direccion?: string | null;
-            ciudad?: string;
-            departamento?: string;
-            latitud?: number | null;
-            longitud?: number | null;
-            logo_url?: string | null;
-            logo_miniatura_url?: string | null;
-            banner_url?: string | null;
-            calificacion_promedio?: number;
-            total_resenas?: number;
-            verificado?: boolean;
+            id_negocio: number;
+            nombre: string;
+            tipo: string;
+            descripcion: string | null;
+            telefono: string | null;
+            whatsapp: string | null;
+            email: string | null;
+            sitio_web: string | null;
+            direccion: string | null;
+            ciudad: string;
+            departamento: string;
+            latitud: number | null;
+            longitud: number | null;
+            logo_url: string | null;
+            logo_miniatura_url: string | null;
+            banner_url: string | null;
+            calificacion_promedio: number;
+            total_resenas: number;
+            verificado: boolean;
             /** @description La reserva queda confirmada al instante (la app puede mostrarlo) */
-            confirmacion_automatica?: boolean;
+            confirmacion_automatica: boolean;
             /** @description Solo activas, la principal primero */
-            sucursales?: (components["schemas"]["Sucursal"] & {
-                horarios?: components["schemas"]["HorarioRango"][];
+            sucursales: (components["schemas"]["Sucursal"] & {
+                horarios: components["schemas"]["HorarioRango"][];
             })[];
             /** @description Solo activos y visibles en la app */
-            servicios?: {
-                id_servicio?: number;
-                nombre?: string;
-                descripcion?: string | null;
-                precio_base?: number;
-                precio_maximo?: number | null;
+            servicios: {
+                id_servicio: number;
+                nombre: string;
+                descripcion: string | null;
+                precio_base: number;
+                precio_maximo: number | null;
                 /** @enum {string} */
-                tipo_precio?: "fijo" | "por_hora" | "por_dia" | "variable";
-                duracion_minutos?: number;
+                tipo_precio: "fijo" | "por_hora" | "por_dia" | "variable";
+                duracion_minutos: number;
                 /**
                  * @example [
                  *       "perro",
                  *       "gato"
                  *     ]
                  */
-                tipo_mascota?: string[];
-                en_oferta?: boolean;
-                precio_oferta?: number | null;
+                tipo_mascota: string[];
+                en_oferta: boolean;
+                precio_oferta: number | null;
                 /** @description Precio de oferta si está vigente hoy; si no */
-                precio_actual?: number;
-                oferta_vigente?: boolean;
+                precio_actual: number;
+                oferta_vigente: boolean;
                 /** @description No requiere cita */
-                reservable?: boolean;
-                id_categoria?: number;
-                categoria?: string;
+                reservable: boolean;
+                id_categoria: number;
+                categoria: string;
             }[];
             /** @description Las 5 reseñas visibles más recientes (todas en GET /negocios/{id_negocio}/resenas) */
-            resenas_recientes?: components["schemas"]["ResenaPublica"][];
+            resenas_recientes: components["schemas"]["ResenaPublica"][];
         };
         /** @description También llega en tiempo real por Socket.IO (evento `notificacion`, misma forma). Ver README, "Notificaciones en tiempo real". */
         Notificacion: {
             /** @example 120 */
-            id_notificacion?: number;
-            id_negocio?: number | null;
+            id_notificacion: number;
+            id_negocio: number | null;
             /** @enum {string} */
-            tipo?: "cita_nueva" | "cita_agendada" | "cita_confirmada" | "cita_cancelada" | "cita_reprogramada" | "cita_dia_anterior" | "cita_recordatorio" | "cita_por_confirmar" | "cita_no_confirmada" | "vacuna_proxima" | "vacuna_vence_hoy" | "vacuna_vencida" | "plan_limite_alcanzado" | "plan_limite_80" | "plan_prueba_por_vencer" | "plan_vencido";
+            tipo: "cita_nueva" | "cita_agendada" | "cita_confirmada" | "cita_cancelada" | "cita_reprogramada" | "cita_dia_anterior" | "cita_recordatorio" | "cita_por_confirmar" | "cita_no_confirmada" | "vacuna_proxima" | "vacuna_vence_hoy" | "vacuna_vencida" | "plan_limite_alcanzado" | "plan_limite_80" | "plan_prueba_por_vencer" | "plan_vencido";
             /** @example Cita cancelada */
-            titulo?: string;
+            titulo: string;
             /** @description El detalle (solo se ve con la sesión iniciada) */
-            mensaje?: string;
+            mensaje: string;
             /**
              * @description Ids para abrir la pantalla correspondiente (deep link)
              * @example {
@@ -8240,11 +8322,11 @@ export interface components {
              *       "id_cita": 77
              *     }
              */
-            datos?: Record<string, never>;
-            leida?: boolean;
-            leida_en?: string | null;
+            datos: Record<string, never>;
+            leida: boolean;
+            leida_en: string | null;
             /** @example 2026-09-28 10:15:00 */
-            fecha_creacion?: string;
+            fecha_creacion: string;
         };
         ResenaInput: {
             calificacion: number;
@@ -8259,27 +8341,27 @@ export interface components {
             };
         };
         ResenaBase: {
-            id_resena?: number;
-            calificacion?: number;
-            aspectos?: {
-                atencion?: number | null;
-                precio?: number | null;
-                instalaciones?: number | null;
-                puntualidad?: number | null;
+            id_resena: number;
+            calificacion: number;
+            aspectos: {
+                atencion: number | null;
+                precio: number | null;
+                instalaciones: number | null;
+                puntualidad: number | null;
             };
-            titulo?: string | null;
-            comentario?: string | null;
+            titulo: string | null;
+            comentario: string | null;
             /** @example 2026-09-20 18:40:00 */
-            fecha_creacion?: string;
+            fecha_creacion: string;
             /** @description Última edición del autor */
-            fecha_edicion?: string | null;
+            fecha_edicion: string | null;
             /** @description El autor la cambió después de la última respuesta del negocio (la app puede indicarlo junto a la respuesta) */
-            editada_despues_de_respuesta?: boolean;
-            respuesta?: {
-                texto?: string;
+            editada_despues_de_respuesta: boolean;
+            respuesta: {
+                texto: string;
                 /** @description De la última versión */
-                fecha?: string;
-                editada?: boolean;
+                fecha: string;
+                editada: boolean;
             } | null;
         };
         ResenaPublica: components["schemas"]["ResenaBase"] & {
@@ -8287,56 +8369,56 @@ export interface components {
              * @description Nombre e inicial del apellido; sin datos de contacto
              * @example Sofía G.
              */
-            autor?: string;
+            autor: string;
             /**
              * @description Mes y año de la cita reseñada
              * @example 2026-09
              */
-            visita_verificada?: string | null;
+            visita_verificada: string | null;
         };
         ResenaDelAutor: components["schemas"]["ResenaBase"] & {
-            id_cita?: number;
-            negocio?: {
-                id_negocio?: number;
-                nombre?: string;
-                logo_url?: string | null;
+            id_cita: number;
+            negocio: {
+                id_negocio: number;
+                nombre: string;
+                logo_url: string | null;
             };
-            servicio?: {
-                id_servicio?: number;
-                nombre?: string;
+            servicio: {
+                id_servicio: number;
+                nombre: string;
             } | null;
             /** @description false si la ocultó la moderación de PetCat */
-            visible?: boolean;
+            visible: boolean;
             /** @example 2026-10-20 18:30:00 */
-            editar_antes_de?: string | null;
-            puede_editar?: boolean;
+            editar_antes_de: string | null;
+            puede_editar: boolean;
         };
         ResenaPanel: components["schemas"]["ResenaBase"] & {
-            cliente?: {
-                id_usuario?: number;
-                nombre?: string;
-                apellido?: string;
+            cliente: {
+                id_usuario: number;
+                nombre: string;
+                apellido: string;
             };
-            cita?: {
-                id_cita?: number;
+            cita: {
+                id_cita: number;
                 /** Format: date */
-                fecha?: string;
-                servicio?: {
-                    id_servicio?: number;
-                    nombre?: string;
+                fecha: string;
+                servicio: {
+                    id_servicio: number;
+                    nombre: string;
                 } | null;
             } | null;
             /** @description false si la ocultó la moderación de PetCat */
-            visible?: boolean;
-            reporte?: {
+            visible: boolean;
+            reporte: {
                 /** @enum {string} */
-                motivo?: "lenguaje_ofensivo" | "datos_personales" | "no_relacionada" | "spam" | "otro";
-                detalle?: string | null;
-                fecha?: string;
-                reportada_por?: {
-                    id_usuario?: number;
-                    nombre?: string;
-                    apellido?: string;
+                motivo: "lenguaje_ofensivo" | "datos_personales" | "no_relacionada" | "spam" | "otro";
+                detalle: string | null;
+                fecha: string;
+                reportada_por: {
+                    id_usuario: number;
+                    nombre: string;
+                    apellido: string;
                 } | null;
             } | null;
             /** @description Solo para el super admin (moderación). El cliente fue registrado desde el panel de este negocio. */
@@ -8360,15 +8442,30 @@ export interface components {
         };
         Rol: {
             /** @example 8 */
-            id_rol?: number;
+            id_rol: number;
             /** @description null en los roles del sistema */
-            id_negocio?: number | null;
+            id_negocio: number | null;
             /** @example Auxiliar de peluquería */
-            nombre?: string;
-            descripcion?: string | null;
-            permisos_json?: components["schemas"]["Permisos"];
-            es_sistema?: boolean;
-            fecha_creacion?: string;
+            nombre: string;
+            descripcion: string | null;
+            /**
+             * @description `{ modulo: [acciones] }`. Solo módulos y acciones del catálogo (GET /permisos).
+             * @example {
+             *       "citas": [
+             *         "ver",
+             *         "crear",
+             *         "editar"
+             *       ],
+             *       "clientes": [
+             *         "ver"
+             *       ]
+             *     }
+             */
+            permisos_json: {
+                [key: string]: string[];
+            };
+            es_sistema: boolean;
+            fecha_creacion: string;
         };
         RolInput: {
             /** @description Único en el negocio y distinto de los roles del sistema (sin distinguir mayúsculas) */
@@ -8377,14 +8474,14 @@ export interface components {
             permisos_json?: components["schemas"]["Permisos"];
         };
         VacunaAlerta: {
-            id_vacuna?: number;
-            nombre_vacuna?: string;
+            id_vacuna: number;
+            nombre_vacuna: string;
             /** Format: date */
-            fecha_aplicacion?: string;
+            fecha_aplicacion: string;
             /** Format: date */
-            fecha_proxima?: string;
+            fecha_proxima: string;
             /** @enum {string} */
-            registrada_por?: "dueno" | "negocio";
+            registrada_por: "dueno" | "negocio";
             /** @description Solo en vencidas */
             dias_vencida?: number;
             /** @description Solo en próximas */
@@ -8392,69 +8489,69 @@ export interface components {
         };
         ResumenSalud: {
             /** @description Datos básicos; alergias y condiciones médicas siempre visibles */
-            mascota?: {
-                id_mascota?: number;
-                nombre?: string;
-                especie?: string;
-                edad_meses?: number | null;
-                peso?: number | null;
-                tiene_alergias?: boolean;
-                alergias_detalle?: string | null;
-                condiciones_medicas?: string | null;
-                fallecido?: boolean;
+            mascota: {
+                id_mascota: number;
+                nombre: string;
+                especie: string;
+                edad_meses: number | null;
+                peso: number | null;
+                tiene_alergias: boolean;
+                alergias_detalle: string | null;
+                condiciones_medicas: string | null;
+                fallecido: boolean;
             };
             /** @description Dosis vigentes con fecha_proxima anterior a hoy, de la más vencida a la menos */
-            vacunas_vencidas?: components["schemas"]["VacunaAlerta"][];
+            vacunas_vencidas: components["schemas"]["VacunaAlerta"][];
             /** @description Dosis vigentes con fecha_proxima entre hoy y hoy + 30 días (dias_aviso_vacuna) */
-            vacunas_proximas?: components["schemas"]["VacunaAlerta"][];
+            vacunas_proximas: components["schemas"]["VacunaAlerta"][];
             /** @description Registro de historial más reciente (fuente historial) o, si no hay, la última cita completada (fuente cita) */
-            ultimo_control?: {
+            ultimo_control: {
                 /** @enum {string} */
-                fuente?: "historial" | "cita";
+                fuente: "historial" | "cita";
                 /** Format: date */
-                fecha?: string;
+                fecha: string;
             } | null;
             /** @description El proximo_control más cercano (hoy o después) que indicó un veterinario */
-            proximo_control?: {
+            proximo_control: {
                 /** Format: date */
-                fecha?: string;
+                fecha: string;
             } | null;
             /** @description La cita pendiente o confirmada más cercana que no terminó (para un negocio, solo las suyas) */
-            proxima_cita?: Record<string, never> | null;
-            evolucion_peso?: {
-                peso_actual?: number | null;
+            proxima_cita: Record<string, never> | null;
+            evolucion_peso: {
+                peso_actual: number | null;
                 /** @description Pesos del historial de los últimos 24 meses (máximo 24), del más antiguo al más reciente */
-                puntos?: {
+                puntos: {
                     /** Format: date */
-                    fecha?: string;
-                    peso?: number;
+                    fecha: string;
+                    peso: number;
                 }[];
                 /** @description Entre los dos últimos puntos */
-                variacion_kg?: number | null;
-                variacion_pct?: number | null;
+                variacion_kg: number | null;
+                variacion_pct: number | null;
                 /**
                  * @description estable si cambia menos del 5 %
                  * @enum {string|null}
                  */
-                tendencia?: "sube" | "baja" | "estable" | null;
+                tendencia: "sube" | "baja" | "estable" | null;
             };
         };
         ResumenSaludRespuesta: {
             /** @example true */
-            success?: boolean;
+            success: boolean;
             /** @example OK */
-            message?: string;
-            data?: components["schemas"]["ResumenSalud"];
+            message: string;
+            data: components["schemas"]["ResumenSalud"];
         };
         CategoriaServicio: {
             /** @example 1 */
-            id_categoria?: number;
+            id_categoria: number;
             /** @example Consulta y diagnóstico */
-            nombre?: string;
-            descripcion?: string | null;
+            nombre: string;
+            descripcion: string | null;
             /** @example stethoscope */
-            icono?: string | null;
-            orden_display?: number;
+            icono: string | null;
+            orden_display: number;
         };
         /** @description Campos opcionales con `null` se vacían. Reglas entre campos (422): `precio_maximo >= precio_base`, `peso_min_kg <= peso_max_kg`, con `en_oferta: true` se exige `precio_oferta < precio_base`, y `fecha_fin_oferta >= fecha_inicio_oferta`. Al editar se comprueban con los valores actuales. */
         ServicioInput: {
@@ -8513,58 +8610,58 @@ export interface components {
             empleados?: number[];
         };
         EmpleadoAsignado: {
-            id_empleado?: number;
-            nombre?: string;
-            apellido?: string;
+            id_empleado: number;
+            nombre: string;
+            apellido: string;
         };
         /** @description Servicio en el panel del negocio. */
         Servicio: {
             /** @example 5 */
-            id_servicio?: number;
-            id_negocio?: number;
-            categoria?: {
-                id_categoria?: number;
-                nombre?: string;
+            id_servicio: number;
+            id_negocio: number;
+            categoria: {
+                id_categoria: number;
+                nombre: string;
             };
-            nombre?: string;
-            descripcion?: string | null;
-            indicaciones_previas?: string | null;
-            precio_base?: number;
-            precio_maximo?: number | null;
-            tipo_precio?: string;
+            nombre: string;
+            descripcion: string | null;
+            indicaciones_previas: string | null;
+            precio_base: number;
+            precio_maximo: number | null;
+            tipo_precio: string;
             /** @description Precio de oferta si está vigente hoy; si no */
-            precio_actual?: number;
-            oferta_vigente?: boolean;
-            duracion_minutos?: number;
-            margen_minutos?: number;
-            tipo_mascota?: string[];
-            peso_min_kg?: number | null;
-            peso_max_kg?: number | null;
-            requiere_cita?: boolean;
-            max_citas_dia?: number | null;
-            dias_disponible?: string[] | null;
-            visible_app?: boolean;
-            en_oferta?: boolean;
-            precio_oferta?: number | null;
+            precio_actual: number;
+            oferta_vigente: boolean;
+            duracion_minutos: number;
+            margen_minutos: number;
+            tipo_mascota: string[];
+            peso_min_kg: number | null;
+            peso_max_kg: number | null;
+            requiere_cita: boolean;
+            max_citas_dia: number | null;
+            dias_disponible: string[] | null;
+            visible_app: boolean;
+            en_oferta: boolean;
+            precio_oferta: number | null;
             /** Format: date */
-            fecha_inicio_oferta?: string | null;
+            fecha_inicio_oferta: string | null;
             /** Format: date */
-            fecha_fin_oferta?: string | null;
-            etiquetas?: string[] | null;
-            activo?: boolean;
+            fecha_fin_oferta: string | null;
+            etiquetas: string[] | null;
+            activo: boolean;
             /** @description Solo empleados activos */
-            empleados?: components["schemas"]["EmpleadoAsignado"][];
+            empleados: components["schemas"]["EmpleadoAsignado"][];
             /** @description Ningún empleado activo asignado (no se puede reservar si requiere cita) */
-            sin_empleados?: boolean;
-            reservable?: boolean;
-            fecha_creacion?: string;
-            fecha_actualizacion?: string;
+            sin_empleados: boolean;
+            reservable: boolean;
+            fecha_creacion: string;
+            fecha_actualizacion: string;
         };
         ServicioRespuesta: {
             /** @example true */
-            success?: boolean;
-            message?: string;
-            data?: components["schemas"]["Servicio"];
+            success: boolean;
+            message: string;
+            data: components["schemas"]["Servicio"];
         };
         /** @description Campos opcionales con `null` se vacían. `latitud` y `longitud` van juntas. */
         SucursalInput: {
@@ -8587,106 +8684,106 @@ export interface components {
         };
         Sucursal: {
             /** @example 3 */
-            id_sucursal?: number;
+            id_sucursal: number;
             /** @example 1 */
-            id_negocio?: number;
-            nombre?: string;
-            descripcion?: string | null;
-            telefono?: string | null;
-            direccion?: string;
-            ciudad?: string;
-            latitud?: number | null;
-            longitud?: number | null;
-            es_principal?: boolean;
+            id_negocio: number;
+            nombre: string;
+            descripcion: string | null;
+            telefono: string | null;
+            direccion: string;
+            ciudad: string;
+            latitud: number | null;
+            longitud: number | null;
+            es_principal: boolean;
         };
         Plan: {
             /** @example 2 */
-            id_plan?: number;
+            id_plan: number;
             /** @example Pro */
-            nombre?: string;
-            descripcion?: string | null;
+            nombre: string;
+            descripcion: string | null;
             /** @example 120000 */
-            precio_mensual?: number;
+            precio_mensual: number;
             /** @example 1080000 */
-            precio_anual?: number;
+            precio_anual: number;
             /** @description -1 = ilimitado */
-            limites?: {
+            limites: {
                 /** @example 3 */
-                sucursales?: number;
+                sucursales: number;
                 /** @example -1 */
-                empleados?: number;
+                empleados: number;
                 /** @example -1 */
-                citas_mes?: number;
+                citas_mes: number;
                 /** @example -1 */
-                productos?: number;
+                productos: number;
             };
-            caracteristicas?: {
-                estadisticas_avanzadas?: boolean;
-                soporte_prioritario?: boolean;
-                integracion_whatsapp?: boolean;
-                exportar_informes?: boolean;
-                ia_recomendaciones?: boolean;
-                api_personalizada?: boolean;
-                dominio_personalizado?: boolean;
-                gestor_dedicado?: boolean;
-                sla_garantizado?: boolean;
-                capacitacion_incluida?: boolean;
+            caracteristicas: {
+                estadisticas_avanzadas: boolean;
+                soporte_prioritario: boolean;
+                integracion_whatsapp: boolean;
+                exportar_informes: boolean;
+                ia_recomendaciones: boolean;
+                api_personalizada: boolean;
+                dominio_personalizado: boolean;
+                gestor_dedicado: boolean;
+                sla_garantizado: boolean;
+                capacitacion_incluida: boolean;
             };
         };
         UsoLimite: {
             /** @example 1 */
-            usadas?: number;
+            usadas: number;
             /**
              * @description -1 = ilimitado
              * @example 1
              */
-            maximo?: number;
+            maximo: number;
         };
         Suscripcion: {
             /** @description Plan efectivo: el de la suscripción vigente, o el Gratuito si venció (la prueba o el plan pago) o si no hay ninguna. Sus límites son los que se aplican. */
-            plan?: components["schemas"]["Plan"];
+            plan: components["schemas"]["Plan"];
             /** @description Suscripción vigente (la más reciente activa o en prueba) */
-            suscripcion?: {
-                id_suscripcion?: number;
+            suscripcion: {
+                id_suscripcion: number;
                 /** @description Plan contratado (puede diferir del efectivo si venció) */
-                plan?: {
-                    id_plan?: number;
+                plan: {
+                    id_plan: number;
                     /** @example Pro */
-                    nombre?: string;
+                    nombre: string;
                 };
                 /** @enum {string} */
-                estado?: "activa" | "en_prueba" | "vencida";
+                estado: "activa" | "en_prueba" | "vencida";
                 /** @enum {string} */
-                tipo_facturacion?: "mensual" | "anual";
+                tipo_facturacion: "mensual" | "anual";
                 /** @example 2026-09-28 */
-                fecha_inicio?: string;
+                fecha_inicio: string;
                 /**
                  * @description 9999-12-31 = sin vencimiento
                  * @example 2026-10-12
                  */
-                fecha_fin?: string;
+                fecha_fin: string;
                 /** @example 2026-10-12 */
-                fecha_prueba_fin?: string | null;
+                fecha_prueba_fin: string | null;
                 /**
                  * @description Solo en prueba vigente
                  * @example 14
                  */
-                dias_prueba_restantes?: number | null;
-                auto_renovar?: boolean;
-                monto_pagado?: number;
+                dias_prueba_restantes: number | null;
+                auto_renovar: boolean;
+                monto_pagado: number;
             } | null;
             /** @description Está en el plan Gratuito y nunca usó la prueba Pro */
-            prueba_disponible?: boolean;
-            uso?: {
-                sucursales?: components["schemas"]["UsoLimite"];
+            prueba_disponible: boolean;
+            uso: {
+                sucursales: components["schemas"]["UsoLimite"];
                 /** @description Activos, sin contar al propietario registrado como empleado */
-                empleados?: components["schemas"]["UsoLimite"];
+                empleados: components["schemas"]["UsoLimite"];
                 /** @description Citas con fecha en el mes actual, excepto canceladas y reprogramadas */
-                citas_mes?: components["schemas"]["UsoLimite"] & {
+                citas_mes: components["schemas"]["UsoLimite"] & {
                     /** @example 2026-09 */
-                    mes?: string;
+                    mes: string;
                 };
-                productos?: components["schemas"]["UsoLimite"];
+                productos: components["schemas"]["UsoLimite"];
             };
         };
         /** @description Campos opcionales con `null` se vacían. `fecha_proxima` debe ser posterior a `fecha_aplicacion`. El comprobante no va aquí: se sube con `PUT /vacunas/{id_vacuna}/comprobante` (`comprobante_url` da 422). */
@@ -8713,58 +8810,58 @@ export interface components {
             notas?: string | null;
         };
         Vacuna: {
-            id_vacuna?: number;
-            id_mascota?: number;
-            nombre_vacuna?: string;
-            enfermedad_objetivo?: string | null;
-            laboratorio?: string | null;
-            lote?: string | null;
-            dosis?: string | null;
-            via_administracion?: string | null;
-            sitio_aplicacion?: string | null;
+            id_vacuna: number;
+            id_mascota: number;
+            nombre_vacuna: string;
+            enfermedad_objetivo: string | null;
+            laboratorio: string | null;
+            lote: string | null;
+            dosis: string | null;
+            via_administracion: string | null;
+            sitio_aplicacion: string | null;
             /** Format: date */
-            fecha_aplicacion?: string;
+            fecha_aplicacion: string;
             /** Format: date */
-            fecha_proxima?: string | null;
+            fecha_proxima: string | null;
             /**
              * @description Calculado sobre todas las vacunas de la mascota: las dosis anteriores de la misma vacuna son no_aplica; la vigente es vencido (fecha_proxima pasada), proximo (dentro de 30 días) o al_dia.
              * @enum {string}
              */
-            estado?: "al_dia" | "proximo" | "vencido" | "no_aplica";
+            estado: "al_dia" | "proximo" | "vencido" | "no_aplica";
             /**
              * @description El dueño (externa) o un profesional
              * @enum {string}
              */
-            registrada_por?: "dueno" | "negocio";
-            tiene_comprobante?: boolean;
+            registrada_por: "dueno" | "negocio";
+            tiene_comprobante: boolean;
             /** @description Foto o PDF del carnet, con URL firmada que vence (null si no tiene) */
-            comprobante?: components["schemas"]["ArchivoPrivado"] | null;
-            notas?: string | null;
-            negocio?: {
-                id_negocio?: number;
-                nombre?: string;
+            comprobante: components["schemas"]["ArchivoPrivado"] | null;
+            notas: string | null;
+            negocio: {
+                id_negocio: number;
+                nombre: string;
             } | null;
-            empleado?: {
-                id_empleado?: number;
-                nombre?: string;
-                apellido?: string;
+            empleado: {
+                id_empleado: number;
+                nombre: string;
+                apellido: string;
             } | null;
-            id_historial_medico?: number | null;
-            fecha_creacion?: string;
+            id_historial_medico: number | null;
+            fecha_creacion: string;
         };
         VacunaRespuesta: {
             /** @example true */
-            success?: boolean;
+            success: boolean;
             /** @example Vacuna registrada */
-            message?: string;
-            data?: components["schemas"]["Vacuna"];
+            message: string;
+            data: components["schemas"]["Vacuna"];
         };
         VacunasLista: {
             /** @example true */
-            success?: boolean;
+            success: boolean;
             /** @example OK */
-            message?: string;
-            data?: components["schemas"]["Vacuna"][];
+            message: string;
+            data: components["schemas"]["Vacuna"][];
         };
     };
     responses: {
@@ -8942,9 +9039,9 @@ export interface components {
             content: {
                 "application/json": {
                     /** @example true */
-                    success?: boolean;
-                    message?: string;
-                    data?: components["schemas"]["CitaPanelDetalle"] | components["schemas"]["Cita"];
+                    success: boolean;
+                    message: string;
+                    data: components["schemas"]["CitaPanelDetalle"] | components["schemas"]["Cita"];
                 };
             };
         };

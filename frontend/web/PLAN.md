@@ -88,7 +88,7 @@ Orden pensado para que cada fase deje datos listos para la siguiente: primero ac
 _(Lo que el panel necesite y la API no tenga. No se inventa: se anota aquí.)_
 
 - **A3 Crear / restablecer contraseña:** el diseño dice "Clínica Veterinaria Patitas te registró" y "Guardar y entrar", pero no hay forma de saber qué negocio registró al cliente a partir del token, y `POST /auth/reset-password` no inicia sesión. Mientras tanto: texto genérico y, al guardar, ir al login con un aviso de éxito. Propuesta: `GET /auth/reset-password/:token` que devuelva el negocio (solo en el enlace de bienvenida), o que el restablecimiento devuelva la sesión.
-- **Swagger sin `required`:** ningún esquema marca sus campos obligatorios, así que openapi-typescript los genera todos opcionales. El panel usa `Completo<T>` (`src/api/types.ts`) para las respuestas que la API siempre envía completas. Conviene agregar `required` en los esquemas de Swagger para que los tipos lo digan solos.
+- Resuelto: Swagger marca como requeridos los campos de las respuestas (convención `x-opcional` y verificación en los tests del backend); `schema.d.ts` ya no deja todo opcional.
 - Resueltos antes de P0: permisos del rol en `/negocios/mios` y `/auth/me` (`rol.permisos_json`); `politica { version, url }` en `/auth/me`; `vet.salud@petcat.test` con dos negocios en el seed. La sección "Qué cambió" de A9 no tiene datos en la API y no se muestra.
 
 ## Decisiones
@@ -100,7 +100,8 @@ _(Lo que el panel necesite y la API no tenga. No se inventa: se anota aquí.)_
 - Sesión entre pestañas (P0): la pestaña que renueva el token avisa a las demás por BroadcastChannel con los tokens nuevos; `navigator.locks` deja renovar a una pestaña a la vez, y la que esperaba usa los tokens que llegaron en lugar de volver a renovar. También se avisan el inicio y el cierre de sesión. "Recordarme" guarda el refresh token en `localStorage`; sin él va en `sessionStorage` y una pestaña nueva se lo pide a las abiertas (al cerrar todas, la sesión termina).
 - TypeScript 5.9 (no 6 ni 7): openapi-typescript y typescript-eslint todavía no los soportan.
 - Playwright usa el Chrome instalado en el equipo (`channel: "chrome"`), sin descargar navegadores; `E2E_CHANNEL=chromium` usa el de Playwright. Las pruebas de punta a punta no corren en CI porque necesitan la API con la base de demo.
-- Radios: 8 controles, 16 tarjetas y 20 modales, como en este CLAUDE.md (la guía de estilo del Figma dice 12 en tarjetas).
+- Radios: 8 controles, 16 tarjetas y 20 modales (la guía del Figma ya está corregida a 16).
+- La API del panel en desarrollo es el servicio `backend-demo` de Docker (127.0.0.1:3001, `petcat_demo`), con recarga automática usando `docker-compose.dev.yml`. El proxy de Vite apunta a `VITE_API_PROXY_TARGET` (por defecto ese puerto). `petcat_backend` (3000, `petcat_db`) no se usa para el panel.
 - Las secciones del menú existen desde P0 como rutas con permiso y un aviso "en construcción"; cada fase reemplaza el aviso por la pantalla real.
 - En P0 la búsqueda y la campana del Topbar están deshabilitadas (llegan en P5 y P6). La tarjeta del plan usa `GET /negocios/:id/suscripcion` solo si el rol tiene `configuracion.ver`; si no, muestra solo el nombre del plan.
 - `/dev/estados` (solo en desarrollo) reúne los estados de S1, los estados de cita y los botones para revisarlos contra el Figma.

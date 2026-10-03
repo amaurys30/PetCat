@@ -6,8 +6,8 @@ import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-  // A dónde reenvía el proxy de desarrollo. Por defecto la API de backend/ (npm run dev o dev:demo).
-  const apiTarget = env.VITE_API_PROXY || "http://localhost:3000";
+  // A dónde reenvía el proxy de desarrollo: por defecto la API de demo en Docker (backend-demo, petcat_demo).
+  const apiTarget = env.VITE_API_PROXY_TARGET || "http://localhost:3001";
 
   return {
     plugins: [react(), tailwindcss()],
