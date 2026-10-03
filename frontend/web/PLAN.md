@@ -92,7 +92,7 @@ _(Lo que el panel necesite y la API no tenga. No se inventa: se anota aquí.)_
 - **Motivo del 401:** cuando el servidor cierra una sesión (cambio de contraseña en otro dispositivo), el 401 no dice por qué. Algo como `errors.motivo: "password_cambiada"` permitiría explicarlo en el login; mientras tanto el texto es genérico.
 - **`GET /invitaciones/mias`:** quien espera una invitación no la ve en `/bienvenida` sin abrir el correo.
 - **Instagram (E1):** el mockup muestra un usuario de Instagram como "Sitio web", pero `negocios` no tiene columnas de redes sociales y `sitio_web` exige una URL. El panel muestra "Sitio web" con URL. Propuesta: columna `instagram` (usuario sin `@`) o una tabla de redes.
-- Resuelto en P1: `GET /negocios/:id/gestion` (datos privados, negocio inactivo y reglas de confirmación con las citas perdidas en 30 días).
+- Resueltos en P1 (backend): `GET /negocios/:id/gestion` (datos privados, negocio inactivo y `reglas_confirmacion` con las citas perdidas en 30 días); `configuracion_pendiente` en `/negocios/mios` y `/auth/me`; `GET /politica-datos` público; `politica_aceptada` (versión, fecha y canal) en `/auth/me`; `POST /auth/request-verification` sin sesión; `canal: "panel"` en el registro; texto de `citas_afectadas` en horarios.
 - Resuelto: Swagger marca como requeridos los campos de las respuestas (convención `x-opcional` y verificación en los tests del backend); `schema.d.ts` ya no deja todo opcional.
 - Resueltos antes de P0: permisos del rol en `/negocios/mios` y `/auth/me` (`rol.permisos_json`); `politica { version, url }` en `/auth/me`; `vet.salud@petcat.test` con dos negocios en el seed. La sección "Qué cambió" de A9 no tiene datos en la API y no se muestra.
 
