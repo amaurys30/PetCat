@@ -179,12 +179,21 @@ export const setActivo = async (id_servicio, activo, conn) => {
  * empleados inactivos se conservan (vuelven a contar si se reactivan).
  */
 export const replaceEmpleadosActivos = async (id_servicio, ids, conn) => {
-  await conn.query(
-    `DELETE es FROM empleado_servicios es
+  // Se buscan sin bloquear y se borran por clave primaria (id_empleado, id_servicio): un
+  // DELETE por id_servicio sin filas toma un gap lock que comparten servicios con ids
+  // seguidos y termina en deadlock con el INSERT de otro.
+  const [sobran] = await conn.query(
+    `SELECT es.id_empleado
+     FROM empleado_servicios es
      JOIN empleados e ON e.id_empleado = es.id_empleado
      WHERE es.id_servicio = ? AND e.activo = TRUE ${ids.length ? "AND es.id_empleado NOT IN (?)" : ""}`,
     ids.length ? [id_servicio, ids] : [id_servicio]
   );
+  if (sobran.length > 0) {
+    await conn.query("DELETE FROM empleado_servicios WHERE (id_empleado, id_servicio) IN (?)", [
+      sobran.map((s) => [s.id_empleado, id_servicio]),
+    ]);
+  }
   if (ids.length) {
     await conn.query("INSERT IGNORE INTO empleado_servicios (id_empleado, id_servicio) VALUES ?", [
       ids.map((id_empleado) => [id_empleado, id_servicio]),

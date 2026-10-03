@@ -10,6 +10,12 @@ export const findById = async (id_sucursal, conn) => {
   return rows[0];
 };
 
+/** Bloquea la fila de la sucursal (FOR UPDATE por clave primaria) y la devuelve. */
+export const lockById = async (id_sucursal, conn) => {
+  const [rows] = await conn.query(`SELECT ${COLUMNAS} FROM sucursales WHERE id_sucursal = ? FOR UPDATE`, [id_sucursal]);
+  return rows[0];
+};
+
 /** Sucursal activa de un negocio activo (vista pública). */
 export const findPublicaById = async (id_sucursal) => {
   const [rows] = await db.query(
