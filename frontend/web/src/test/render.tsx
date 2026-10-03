@@ -39,6 +39,7 @@ export const negocioDemo = (cambios: Partial<NegocioMio> = {}): NegocioMio => ({
   id_empleado: null,
   rol: null,
   plan: { id_plan: 1, nombre: "Gratuito", en_prueba: false },
+  configuracion_pendiente: null,
   ...cambios,
 });
 
@@ -62,6 +63,7 @@ export const usuarioDemo = (cambios: Partial<Me> = {}): Me => ({
   fecha_registro: "2026-09-01 10:00:00",
   requiere_aceptar_politica: false,
   politica: { version: "1.0", url: null },
+  politica_aceptada: { version: "1.0", fecha: "2026-09-01 10:00:00", canal: "panel_web" },
   negocios: [negocioDemo()],
   ...cambios,
 });
