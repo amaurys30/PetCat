@@ -65,6 +65,11 @@ export const verifyEmail = async (req, res) => {
   return ok(res, null, "Correo verificado");
 };
 
+export const requestVerification = async (req, res) => {
+  await service.requestVerification(req.body);
+  return ok(res, null, "Si el correo está registrado y sin verificar, te enviamos un nuevo enlace de verificación");
+};
+
 export const resendVerification = async (req, res) => {
   const data = await service.resendVerification(req.user.id_usuario);
   return ok(res, data, "Te enviamos un nuevo enlace de verificación");

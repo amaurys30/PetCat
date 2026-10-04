@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft } from "lucide-react";
 import { useForm } from "react-hook-form";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { AuthCard, AuthTitulo } from "@/app/layouts/AuthLayout";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -9,14 +9,18 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { aplicarErroresApi } from "@/lib/forms";
 import { useRecuperarPassword } from "../hooks/useAuthMutations";
-import { recuperarSchema, type RecuperarValores } from "../schemas";
+import { emailSchema, type EmailValores } from "../schemas";
 
-/** A2 · Recuperar contraseña. La respuesta es la misma exista o no el correo. */
+/**
+ * A2 · Recuperar contraseña. La respuesta es la misma exista o no el correo.
+ * `?email=` lo precarga (desde el 409 de A7 o "¿La olvidaste?" de A4).
+ */
 export function RecuperarPasswordPage() {
+  const [params] = useSearchParams();
   const recuperar = useRecuperarPassword();
-  const form = useForm<RecuperarValores>({
-    resolver: zodResolver(recuperarSchema),
-    defaultValues: { email: "" },
+  const form = useForm<EmailValores>({
+    resolver: zodResolver(emailSchema),
+    defaultValues: { email: params.get("email") ?? "" },
   });
 
   const onSubmit = form.handleSubmit(({ email }) => {

@@ -27,3 +27,8 @@ export function PasswordInput({ className, ...props }: Omit<ComponentProps<"inpu
     </div>
   );
 }
+
+/** Lista desplegable nativa con el estilo de los campos (selectores cortos, como horas). */
+export function NativeSelect({ className, ...props }: ComponentProps<"select">) {
+  return <select className={cn(inputClases, "pr-8", className)} {...props} />;
+}

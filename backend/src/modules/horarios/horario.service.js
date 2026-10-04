@@ -47,7 +47,8 @@ export const getHorarios = async (id_sucursal) => {
 export const replaceHorarios = async (id_sucursal, horarios) => {
   validarRangos(horarios);
   return withTransaction(async (conn) => {
-    const sucursal = await sucursalRepo.findById(id_sucursal, conn);
+    // Primero el bloqueo de la sede (por clave primaria) y después las lecturas.
+    const sucursal = await sucursalRepo.lockById(id_sucursal, conn);
     if (!sucursal?.activo) throw ApiError.notFound("Sucursal no encontrada");
     await horarioRepo.replaceBySucursal(id_sucursal, horarios, conn);
     return {

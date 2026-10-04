@@ -27,6 +27,8 @@ export const registerBody = z.strictObject({
     .enum(["cliente", "negocio"], { error: "Debe ser 'cliente' o 'negocio'" })
     .default("cliente"),
   acepta_politica_datos: aceptaPolitica,
+  // Desde dónde se registra; queda en la autorización de datos.
+  canal: z.enum(["app", "panel_web"], { error: "Debe ser 'app' o 'panel_web'" }).default("app"),
 });
 
 export const loginBody = z.strictObject({
@@ -70,6 +72,8 @@ export const changePasswordBody = z.strictObject({
 });
 
 export const forgotPasswordBody = z.strictObject({ email });
+
+export const requestVerificationBody = z.strictObject({ email });
 
 // Tokens de los enlaces de correo: 64 caracteres hexadecimales.
 const tokenCorreo = z.string().regex(/^[0-9a-f]{64}$/, "Token inválido");

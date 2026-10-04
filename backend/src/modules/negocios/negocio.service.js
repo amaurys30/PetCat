@@ -8,6 +8,9 @@ import { ApiError } from "../../shared/errors/ApiError.js";
 import { conMiniaturas } from "../../shared/utils/storage.js";
 import { quitarImagen, reemplazarImagen } from "../archivos/archivo.service.js";
 import { getRecientesPublicas } from "../resenas/resena.service.js";
+import { configConfirmacion } from "../citas/cita.confirmacion.js";
+import { citasPerdidas } from "../dashboard/dashboard.service.js";
+import { aDatetimeSQL } from "../../shared/utils/fechas.js";
 
 const formatNegocio = (negocio) =>
   conMiniaturas(
@@ -53,6 +56,14 @@ export const getMisNegocios = async (id_usuario) => {
   }));
 };
 
+const sucursalesConHorarios = (sucursales, horarios) =>
+  sucursales.map((sucursal) => ({
+    ...castFields(sucursal, { bools: ["es_principal"], numbers: ["latitud", "longitud"] }),
+    horarios: horarios
+      .filter((h) => h.id_sucursal === sucursal.id_sucursal)
+      .map(({ dia_semana, hora_apertura, hora_cierre }) => ({ dia_semana, hora_apertura, hora_cierre })),
+  }));
+
 /**
  * Perfil público para la app: 404 si el negocio no existe o está inactivo. Solo
  * muestra sucursales activas (con sus horarios), servicios activos y visibles en
@@ -71,14 +82,42 @@ export const getPerfilPublico = async (id_negocio) => {
 
   return {
     ...formatNegocio(negocio),
-    sucursales: sucursales.map((sucursal) => ({
-      ...castFields(sucursal, { bools: ["es_principal"], numbers: ["latitud", "longitud"] }),
-      horarios: horarios
-        .filter((h) => h.id_sucursal === sucursal.id_sucursal)
-        .map(({ dia_semana, hora_apertura, hora_cierre }) => ({ dia_semana, hora_apertura, hora_cierre })),
-    })),
+    sucursales: sucursalesConHorarios(sucursales, horarios),
     servicios: servicios.map(formatServicio),
     resenas_recientes: resenas,
+  };
+};
+
+// Ventana del aviso de citas perdidas por no confirmar (E1 del panel).
+export const DIAS_CITAS_PERDIDAS = 30;
+
+/**
+ * Vista del panel (authorize ya comprobó configuracion.ver): todas las columnas del negocio,
+ * aunque esté inactivo, sus sucursales activas con horarios y las reglas de confirmación.
+ */
+export const getGestion = async (negocio) => {
+  const { id_negocio } = negocio;
+  const desde = new Date(Date.now() - DIAS_CITAS_PERDIDAS * 86_400_000);
+  const [sucursales, horarios, config, perdidas] = await Promise.all([
+    negocioRepo.findSucursalesPublicas(id_negocio),
+    negocioRepo.findHorariosPublicos(id_negocio),
+    configConfirmacion(),
+    negocioRepo.countCanceladasPorSistema(id_negocio, aDatetimeSQL(desde)),
+  ]);
+  const formateado = formatNegocio(negocio);
+
+  return {
+    ...formateado,
+    sucursales: sucursalesConHorarios(sucursales, horarios),
+    reglas_confirmacion: {
+      confirmacion_automatica: formateado.confirmacion_automatica,
+      plazo_confirmacion_h: config.plazoH,
+      confirmacion_antes_inicio_min: config.antesInicioMin,
+      citas_perdidas: {
+        dias: DIAS_CITAS_PERDIDAS,
+        ...citasPerdidas(perdidas, formateado.confirmacion_automatica),
+      },
+    },
   };
 };
 

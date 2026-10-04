@@ -25,12 +25,15 @@ const TIEMPO_RESPUESTA_PESTANAS_MS = 250;
 type Mensaje =
   | { tipo: "tokens"; access: string; refresh: string; recordar: boolean }
   | { tipo: "cierre" }
+  | { tipo: "perfil" }
   | { tipo: "pedir" }
   | { tipo: "respuesta"; access: string; refresh: string; recordar: boolean };
 
 export type EventoSesion =
   /** Otra pestaña inició sesión o renovó los tokens. */
   | { tipo: "tokens-externos" }
+  /** Otra pestaña cambió el perfil (nombre, foto): hay que recargarlo. */
+  | { tipo: "perfil-externo" }
   /** La sesión terminó: cierre en otra pestaña o renovación imposible (vencida o revocada). */
   | { tipo: "cerrada"; motivo: "otra-pestana" | "expirada" };
 
@@ -70,6 +73,9 @@ if (canal) {
       case "tokens":
         aplicarTokens(mensaje.access, mensaje.refresh, mensaje.recordar);
         emitir({ tipo: "tokens-externos" });
+        break;
+      case "perfil":
+        emitir({ tipo: "perfil-externo" });
         break;
       case "cierre":
         borrarLocal();
@@ -111,6 +117,11 @@ export function hayRefresh() {
 export function iniciarSesionLocal(access: string, refresh: string, recordar: boolean) {
   aplicarTokens(access, refresh, recordar);
   publicar({ tipo: "tokens", access, refresh, recordar });
+}
+
+/** Avisa a las demás pestañas que el perfil cambió (nombre, foto). */
+export function avisarPerfilCambiado() {
+  publicar({ tipo: "perfil" });
 }
 
 /** Borra la sesión de esta pestaña y de las demás. */

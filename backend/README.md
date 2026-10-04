@@ -73,7 +73,7 @@ La primera vez que se crea el volumen de MySQL, compose carga automáticamente e
 | `backend` | `petcat_backend` | `http://localhost:3000` | `petcat_db` | La API de siempre (desarrollo del backend, app móvil) |
 | `backend-demo` | `petcat_backend_demo` | `http://127.0.0.1:3001` | `petcat_demo` | El panel web (`frontend/web`) y sus pruebas, con datos conocidos |
 
-`backend-demo` usa la misma imagen y el mismo `backend/.env`; solo cambia la base y el puerto. Está en el **perfil `panel`**: un `docker compose up -d` normal no lo arranca. La primera vez crea `petcat_demo` con el esquema y el seed.
+`backend-demo` usa la misma imagen y el mismo `backend/.env`; solo cambia la base, el puerto y los límites de solicitudes (`RATE_LIMIT_MAX` y `AUTH_RATE_LIMIT_MAX` mucho más altos, para que las pruebas de punta a punta no reciban 429). Está en el **perfil `panel`**: un `docker compose up -d` normal no lo arranca. La primera vez crea `petcat_demo` con el esquema y el seed.
 
 Cada servicio puede correr en dos modos:
 
@@ -169,7 +169,8 @@ Hay tres archivos, ninguno se sube al repositorio (solo sus plantillas `.example
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | En producción | puerto `587` | Sin `SMTP_HOST`, en desarrollo los correos se muestran en la consola |
 | `SMTP_TIMEOUT_MS` | | `10000` | Tiempo máximo del SMTP; si se supera, el envío responde 503 |
 | `MAIL_FROM` | | `PetCat <no-reply@petcat.co>` | Remitente de los correos |
-| `AUTH_RATE_LIMIT_MAX` | | 10 en producción, 100 en desarrollo | Máximo cada 15 min por IP en login, forgot-password, reset-password, verify-email, resend-verification e invitaciones |
+| `RATE_LIMIT_MAX` | | 300 | Máximo cada 15 min por IP en toda la API (límite general). La API de demo (`backend-demo`) usa uno mucho más alto |
+| `AUTH_RATE_LIMIT_MAX` | | 10 en producción, 100 en desarrollo | Máximo cada 15 min por IP en login, forgot-password, reset-password, verify-email, resend-verification, request-verification e invitaciones |
 | `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | En producción | | Credenciales de Cloudinary (las tres juntas). En desarrollo, sin ellas la API funciona pero las subidas de archivos responden 503. Los tests no las usan |
 | `CLOUDINARY_FOLDER` | | `petcat-dev` | Carpeta raíz en Cloudinary, una por entorno (`petcat-prod` en producción) |
 | `ARCHIVOS_URL_VIGENCIA_MIN` | | `15` | Minutos de vigencia de las URLs firmadas de archivos privados |
@@ -381,13 +382,15 @@ Todas las respuestas son JSON con esta forma:
 6. `GET /auth/me` devuelve el perfil, las preferencias y los negocios a los que puede entrar; `PATCH /auth/me` edita nombre, apellido, teléfono, idioma, zona horaria y notificaciones.
 7. Si `GET /auth/me` trae `requiere_aceptar_politica: true` (cuenta sin autorización de datos para la versión vigente de la política), mostrar la política y enviar `POST /auth/politica-datos/aceptar` con `{ "acepta_politica_datos": true }`. `politica { version, url }` trae la versión vigente y el enlace al texto completo (`url` es null mientras PetCat no lo configure en `configuracion_global.politica_datos_url`).
 
-Registro: `POST /auth/register` con `nombre`, `apellido`, `email`, `password` (8 a 72 caracteres, con letra y número), `acepta_politica_datos: true` (obligatorio: autorización de tratamiento de datos, Ley 1581 de 2012; la app debe mostrar la política y un check sin marcar) y opcionales `telefono` y `tipo_usuario` (`cliente` o `negocio`). No inicia sesión. Si el email ya existe (también cuando un negocio registró a esa persona desde el panel), el 409 sugiere usar "Olvidé mi contraseña". Envía un correo de verificación; el email sin verificar no impide iniciar sesión ni reservar.
+Registro: `POST /auth/register` con `nombre`, `apellido`, `email`, `password` (8 a 72 caracteres, con letra y número), `acepta_politica_datos: true` (obligatorio: autorización de tratamiento de datos, Ley 1581 de 2012; la app debe mostrar la política y un check sin marcar) y opcionales `telefono`, `tipo_usuario` (`cliente` o `negocio`) y `canal` (`app` por defecto; el panel web envía `panel_web`). No inicia sesión. Si el email ya existe (también cuando un negocio registró a esa persona desde el panel), el 409 sugiere usar "Olvidé mi contraseña". Envía un correo de verificación; el email sin verificar no impide iniciar sesión ni reservar.
+
+Canales de la autorización de datos (`autorizaciones_datos.canal`): `app` (registro en la app), `panel_web` (registro propio en el panel web), `panel` (un negocio registró al cliente; lleva `id_negocio`), `invitacion` (cuenta creada al aceptar una invitación de empleado) y `aceptacion` (cuenta existente que aceptó la versión vigente). `/auth/me` trae la última en `politica_aceptada`.
 
 Pantallas del frontend que abren los enlaces de los correos (el token va en la ruta):
 
 | Enlace | Qué hace la pantalla |
 |---|---|
-| `${FRONTEND_URL}/verificar-email/<token>` | Llama a `GET /auth/verify-email/:token` y muestra el resultado (400 = enlace vencido o ya usado). Reenviar el correo: `POST /auth/resend-verification` con la sesión iniciada. |
+| `${FRONTEND_URL}/verificar-email/<token>` | Llama a `GET /auth/verify-email/:token` y muestra el resultado (400 = enlace vencido o ya usado). Reenviar el correo: `POST /auth/resend-verification` con la sesión iniciada, o `POST /auth/request-verification` con el email y sin sesión (respuesta neutra). |
 | `${FRONTEND_URL}/restablecer-password/<token>` | Pide la contraseña nueva y envía `POST /auth/reset-password` con `{ "token", "password" }`. Luego, login. El enlace se pide con `POST /auth/forgot-password` (vigente 1 hora). |
 | `${FRONTEND_URL}/crear-password/<token>` | Igual que la anterior, con otro texto ("Crea tu contraseña"): llega en el correo de bienvenida a un cliente que registró un negocio (vigente 7 días). Usa el mismo `POST /auth/reset-password`. |
 
@@ -404,8 +407,8 @@ Detalle de cada uno en Swagger.
 
 | Módulo | Endpoints |
 |---|---|
-| Auth | `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, `POST /auth/refresh-token`, `GET` y `PATCH /auth/me`, `POST /auth/politica-datos/aceptar`, `POST /auth/change-password`, `POST /auth/forgot-password`, `POST /auth/reset-password`, `GET /auth/verify-email/:token`, `POST /auth/resend-verification` |
-| Negocios | `POST /negocios`, `GET /negocios/mios`, `GET /negocios/:id_negocio` (público), `PATCH /negocios/:id_negocio` |
+| Auth | `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, `POST /auth/refresh-token`, `GET` y `PATCH /auth/me`, `POST /auth/politica-datos/aceptar`, `POST /auth/change-password`, `POST /auth/forgot-password`, `POST /auth/reset-password`, `GET /auth/verify-email/:token`, `POST /auth/resend-verification`, `POST /auth/request-verification` (sin sesión), `GET /politica-datos` (público) |
+| Negocios | `POST /negocios`, `GET /negocios/mios`, `GET /negocios/:id_negocio` (público), `GET /negocios/:id_negocio/gestion` (panel), `PATCH /negocios/:id_negocio` |
 | Sucursales | `GET` (público) y `POST /negocios/:id_negocio/sucursales`, `GET` (público), `PATCH` y `DELETE /sucursales/:id_sucursal` |
 | Horarios | `GET` (público) y `PUT /sucursales/:id_sucursal/horarios` |
 | Roles y permisos | `GET /permisos`, `GET` y `POST /negocios/:id_negocio/roles`, `PATCH` y `DELETE /roles/:id_rol` |
@@ -699,5 +702,5 @@ Invitación pendiente de la recepcionista (`recepcionista@petcat.test`, sin cuen
 
 - El navegador solo puede llamar a la API desde los orígenes de `CORS_ORIGINS` (por defecto `http://localhost:5173`, el de Vite). Si el panel corre en otro puerto, agrégalo en `backend/.env`.
 - La app móvil no envía cabecera `Origin`, así que CORS no la afecta.
-- Límite general: 300 solicitudes cada 15 minutos por IP. Login, forgot-password, reset-password, verify-email, resend-verification e invitaciones tienen un límite más estricto (`AUTH_RATE_LIMIT_MAX`). Al superarlo: 429.
+- Límite general: 300 solicitudes cada 15 minutos por IP (`RATE_LIMIT_MAX`). Login, forgot-password, reset-password, verify-email, resend-verification, request-verification e invitaciones tienen un límite más estricto (`AUTH_RATE_LIMIT_MAX`). Al superarlo: 429.
 - En desarrollo sin SMTP, los correos (por ejemplo, las invitaciones) se imprimen en la consola del backend (`docker compose logs -f backend` si corre en Docker).

@@ -43,6 +43,7 @@ describe("GET /auth/me", () => {
       fecha_registro: expect.stringMatching(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/),
       requiere_aceptar_politica: true,
       politica: { version: "1.0", url: null },
+      politica_aceptada: null,
     });
     expect(negocios).toHaveLength(2);
     expect(negocios.find((n) => n.id_negocio === propio.id_negocio)).toMatchObject({ relacion: "propietario", rol: null });
@@ -61,9 +62,22 @@ describe("GET /auth/me", () => {
     try {
       const res = await api(await tokenDe(usuario)).get("/auth/me");
       expect(res.body.data.politica).toEqual({ version: "1.0", url: "https://petcat.co/politica" });
+
+      // Lo mismo sin sesión, para el registro y las invitaciones.
+      const publica = await api().get("/politica-datos");
+      expect(publica.status).toBe(200);
+      expect(publica.body.data).toEqual({ version: "1.0", url: "https://petcat.co/politica" });
     } finally {
       await pool.query("UPDATE configuracion_global SET valor = '' WHERE clave = 'politica_datos_url'");
     }
+  });
+});
+
+describe("GET /politica-datos", () => {
+  it("es público: versión vigente y url null si no hay enlace", async () => {
+    const res = await api().get("/politica-datos");
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ version: "1.0", url: null });
   });
 });
 
@@ -161,7 +175,9 @@ describe("política de datos de cuentas existentes", () => {
     expect(await autorizaciones(usuario.id_usuario)).toEqual([
       { canal: "aceptacion", id_usuario_registro: usuario.id_usuario, version_politica: "1.0", ip_address: expect.any(String) },
     ]);
-    expect((await api(token).get("/auth/me")).body.data.requiere_aceptar_politica).toBe(false);
+    const me = (await api(token).get("/auth/me")).body.data;
+    expect(me.requiere_aceptar_politica).toBe(false);
+    expect(me.politica_aceptada).toEqual({ version: "1.0", fecha: res.body.data.fecha_autorizacion, canal: "aceptacion" });
 
     const otraVez = await api(token).post("/auth/politica-datos/aceptar").send({ acepta_politica_datos: true });
     expect(otraVez.status).toBe(200);
@@ -176,7 +192,10 @@ describe("política de datos de cuentas existentes", () => {
        VALUES (?, 'app', '0.9', NULL), (?, 'app', '1.0', NOW())`,
       [usuario.id_usuario, usuario.id_usuario]
     );
-    expect((await api(await tokenDe(usuario)).get("/auth/me")).body.data.requiere_aceptar_politica).toBe(true);
+    const me = (await api(await tokenDe(usuario)).get("/auth/me")).body.data;
+    expect(me.requiere_aceptar_politica).toBe(true);
+    // politica_aceptada muestra la última no revocada, aunque sea de otra versión.
+    expect(me.politica_aceptada).toMatchObject({ version: "0.9", canal: "app" });
   });
 
   it("acepta_politica_datos debe ser true -> 422; sin token -> 401", async () => {

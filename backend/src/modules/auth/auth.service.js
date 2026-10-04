@@ -3,6 +3,7 @@ import * as usuarioRepo from "../usuarios/usuario.repository.js";
 import * as sessionRepo from "../sessions/session.repository.js";
 import * as autorizacionRepo from "../autorizaciones/autorizacion.repository.js";
 import * as configuracionRepo from "../configuracion/configuracion.repository.js";
+import { getPoliticaVigente, versionPolitica } from "../autorizaciones/autorizacion.service.js";
 import { createSessionForUser } from "../sessions/session.service.js";
 import { getMisNegocios } from "../negocios/negocio.service.js";
 import { correoBienvenida, correoRecuperacion, correoVerificacion } from "./auth.mail.js";
@@ -45,16 +46,16 @@ const enviarSinEsperar = (mail, contexto) => {
   });
 };
 
-/** Versión vigente de la política de datos que acepta el titular. */
-export const versionPolitica = () => configuracionRepo.getValor("terminos_version", "1.0");
+export { versionPolitica };
 
 /**
- * El registro exige aceptar la política de datos y la guarda (canal app), deja
+ * El registro exige aceptar la política de datos y la guarda con el canal del
+ * registro ("app" o "panel_web"), deja
  * un token de verificación y envía el correo; si el envío falla, se pide otro
  * con resend-verification. Email existente: 409 que sugiere "Olvidé mi
  * contraseña" (la cuenta pudo crearla un negocio desde el panel).
  */
-export const register = async ({ nombre, apellido, email, password, telefono, tipo_usuario }, cliente = {}) => {
+export const register = async ({ nombre, apellido, email, password, telefono, tipo_usuario, canal }, cliente = {}) => {
   if (await usuarioRepo.findByEmail(email)) {
     throw ApiError.conflict(
       "Ya existe una cuenta con ese correo. Si no recuerdas la contraseña o un negocio te registró, usa \"Olvidé mi contraseña\" para activarla",
@@ -70,7 +71,7 @@ export const register = async ({ nombre, apellido, email, password, telefono, ti
       conn
     );
     await autorizacionRepo.create(
-      { id_usuario: id, canal: "app", id_usuario_registro: id, version_politica, ip_address: cliente.ip ?? null },
+      { id_usuario: id, canal, id_usuario_registro: id, version_politica, ip_address: cliente.ip ?? null },
       conn
     );
     await usuarioRepo.setToken(id, "verificacion", { token_hash, minutos: MINUTOS_VERIFICACION }, conn);
@@ -155,21 +156,23 @@ const perfilPropio = (usuario) => ({
  * Perfil y negocios a los que el usuario puede entrar (mismo formato que GET /negocios/mios).
  * `requiere_aceptar_politica`: no tiene una autorización vigente para la versión actual de la política.
  * `politica`: versión vigente y enlace al texto completo, para mostrarlos al pedir la aceptación.
+ * `politica_aceptada`: la última autorización no revocada (puede ser de una versión anterior).
  */
 export const getMe = async (id_usuario) => {
-  const [version, url] = await Promise.all([
-    versionPolitica(),
-    configuracionRepo.getValor("politica_datos_url", ""),
-  ]);
-  const [usuario, negocios, vigente] = await Promise.all([
+  const politica = await getPoliticaVigente();
+  const [usuario, negocios, vigente, ultima] = await Promise.all([
     usuarioRepo.findById(id_usuario),
     getMisNegocios(id_usuario),
-    autorizacionRepo.findVigente(id_usuario, version),
+    autorizacionRepo.findVigente(id_usuario, politica.version),
+    autorizacionRepo.findUltima(id_usuario),
   ]);
   return {
     ...perfilPropio(usuario),
     requiere_aceptar_politica: !vigente,
-    politica: { version, url: url || null },
+    politica,
+    politica_aceptada: ultima
+      ? { version: ultima.version_politica, fecha: ultima.fecha_autorizacion, canal: ultima.canal }
+      : null,
     negocios,
   };
 };
@@ -326,6 +329,29 @@ export const verifyEmail = async (token) => {
     if (!usuario) throw ApiError.badRequest("El enlace de verificación no es válido o ya venció");
     await usuarioRepo.markEmailVerificado(usuario.id_usuario, conn);
   });
+};
+
+/**
+ * Sin sesión (el enlace venció o se abrió en otro dispositivo): envía un enlace de
+ * verificación nuevo si la cuenta existe, está activa y no está verificada. Responde
+ * igual en todos los casos (no delata cuentas) y el correo se envía sin esperar.
+ * Máximo uno por minuto por cuenta; cada enlace nuevo invalida el anterior.
+ */
+export const requestVerification = async ({ email }) => {
+  const usuario = await usuarioRepo.findByEmail(email);
+  if (!usuario?.activo || usuario.email_verificado) return;
+
+  const { token, token_hash } = nuevoToken();
+  const guardado = await usuarioRepo.setToken(usuario.id_usuario, "verificacion", {
+    token_hash,
+    minutos: MINUTOS_VERIFICACION,
+  });
+  if (!guardado) return;
+
+  enviarSinEsperar(
+    correoVerificacion({ token, email: usuario.email, nombre: usuario.nombre, minutos: MINUTOS_VERIFICACION }),
+    "verificación"
+  );
 };
 
 /**

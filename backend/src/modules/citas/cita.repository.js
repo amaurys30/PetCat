@@ -197,9 +197,20 @@ export const update = async (id_cita, campos, conn, { conFechaCancelacion = fals
   ]);
 };
 
-/** Los recordatorios pendientes de la cita ya no se envían (cancelada o reprogramada). */
+/**
+ * Los recordatorios pendientes de la cita ya no se envían (cancelada o reprogramada). Se
+ * actualizan por clave primaria: un UPDATE por id_cita sin filas toma un gap lock, y al
+ * reprogramar la misma transacción inserta los recordatorios de la cita nueva (deadlock).
+ */
 export const cancelarRecordatoriosPendientes = async (id_cita, conn) => {
-  await conn.query("UPDATE recordatorios SET estado = 'cancelado' WHERE id_cita = ? AND estado = 'pendiente'", [id_cita]);
+  const [pendientes] = await conn.query(
+    "SELECT id_recordatorio FROM recordatorios WHERE id_cita = ? AND estado = 'pendiente'",
+    [id_cita]
+  );
+  if (pendientes.length === 0) return;
+  await conn.query("UPDATE recordatorios SET estado = 'cancelado' WHERE id_recordatorio IN (?)", [
+    pendientes.map((r) => r.id_recordatorio),
+  ]);
 };
 
 /** Una cita completada suma al contador del negocio. */

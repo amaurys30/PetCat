@@ -82,8 +82,10 @@ const router = express.Router();
  *     responses:
  *       200:
  *         description: >
- *           Horario guardado: la semana completa y `citas_afectadas` (citas futuras pendientes o
- *           confirmadas de la sucursal que ya no caben; el cambio se guarda igual).
+ *           Horario guardado: la semana completa y `citas_afectadas`, las citas futuras pendientes o
+ *           confirmadas de esta sucursal (de cualquier profesional) que con el nuevo horario ya no caben:
+ *           en la disponibilidad de su profesional recortada por este horario o, si no tienen profesional,
+ *           en el horario. El cambio se guarda igual y la lista no se puede volver a consultar después.
  *         content:
  *           application/json:
  *             schema:

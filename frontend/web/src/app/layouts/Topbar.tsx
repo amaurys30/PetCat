@@ -78,8 +78,10 @@ function MenuUsuario() {
           <span className="block font-normal text-muted">{usuario.email}</span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem disabled>
-          <UserRound /> Mi perfil
+        <DropdownMenuItem asChild>
+          <Link to="mi-perfil">
+            <UserRound /> Mi perfil
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link to="/negocios">

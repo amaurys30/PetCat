@@ -49,11 +49,14 @@ const formatCitaAfectada = (c) => ({
   cliente: { id_usuario: c.id_usuario, nombre: c.cliente_nombre, apellido: c.cliente_apellido, telefono: c.cliente_telefono },
 });
 
-/** "Bloqueo registrado" + ". N citas quedan fuera de la disponibilidad del empleado" si hay afectadas. */
-export const mensajeConAfectadas = (mensaje, citas_afectadas) => {
+/**
+ * "Bloqueo registrado" + ". N citas quedan fuera de la disponibilidad del empleado" si hay
+ * afectadas. `fueraDe` cambia el final (el horario de una sede no es la disponibilidad de un empleado).
+ */
+export const mensajeConAfectadas = (mensaje, citas_afectadas, fueraDe = "de la disponibilidad del empleado") => {
   const n = citas_afectadas.length;
   if (n === 0) return mensaje;
-  return `${mensaje}. ${n} ${n === 1 ? "cita queda" : "citas quedan"} fuera de la disponibilidad del empleado`;
+  return `${mensaje}. ${n} ${n === 1 ? "cita queda" : "citas quedan"} fuera ${fueraDe}`;
 };
 
 // ---------- Validaciones ----------

@@ -79,9 +79,21 @@ export const findExcepciones = async (id_empleado, { desde, hasta, tipo, excluir
   return rows;
 };
 
-/** Reemplaza el `horario_normal` del empleado. Usar dentro de una transacción. */
+/**
+ * Reemplaza el `horario_normal` del empleado. Usar dentro de una transacción, con el
+ * empleado ya bloqueado. Borra por clave primaria: un DELETE por id_empleado sin filas toma
+ * un gap lock que comparten empleados con ids seguidos (deadlock).
+ */
 export const replaceHorarioSemanal = async (id_empleado, rangos, conn) => {
-  await conn.query("DELETE FROM disponibilidad_empleado WHERE id_empleado = ? AND tipo = 'horario_normal'", [id_empleado]);
+  const [actuales] = await conn.query(
+    "SELECT id_disponibilidad FROM disponibilidad_empleado WHERE id_empleado = ? AND tipo = 'horario_normal'",
+    [id_empleado]
+  );
+  if (actuales.length > 0) {
+    await conn.query("DELETE FROM disponibilidad_empleado WHERE id_disponibilidad IN (?)", [
+      actuales.map((d) => d.id_disponibilidad),
+    ]);
+  }
   if (rangos.length === 0) return;
   await conn.query(
     `INSERT INTO disponibilidad_empleado (id_empleado, tipo, dia_semana, hora_inicio, hora_fin, id_sucursal)

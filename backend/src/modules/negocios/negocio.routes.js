@@ -61,6 +61,54 @@ const router = express.Router();
  *             activo: { type: boolean }
  *             fecha_registro: { type: string, example: "2026-09-25 10:00:00" }
  *             fecha_actualizacion: { type: string }
+ *     NegocioGestion:
+ *       allOf:
+ *         - $ref: '#/components/schemas/Negocio'
+ *         - type: object
+ *           properties:
+ *             sucursales:
+ *               type: array
+ *               description: Solo activas, la principal primero (aunque el negocio esté inactivo)
+ *               items:
+ *                 allOf:
+ *                   - $ref: '#/components/schemas/Sucursal'
+ *                   - type: object
+ *                     properties:
+ *                       horarios: { type: array, items: { $ref: '#/components/schemas/HorarioRango' } }
+ *             reglas_confirmacion:
+ *               type: object
+ *               description: >
+ *                 Cómo se confirman las citas pendientes. Los plazos son de la plataforma
+ *                 (`configuracion_global`), iguales para todos los negocios.
+ *               properties:
+ *                 confirmacion_automatica: { type: boolean, description: Igual que el campo del negocio }
+ *                 plazo_confirmacion_h:
+ *                   type: integer
+ *                   example: 24
+ *                   description: >
+ *                     Horas que tiene el negocio para confirmar una cita pendiente desde que se creó. Al
+ *                     vencer, la cita se cancela sola (`cancelada_por = 'sistema'`).
+ *                 confirmacion_antes_inicio_min:
+ *                   type: integer
+ *                   example: 60
+ *                   description: >
+ *                     El plazo nunca pasa de estos minutos antes del inicio de la cita. El plazo exacto de
+ *                     cada cita está en su `confirmar_antes_de`.
+ *                 citas_perdidas:
+ *                   type: object
+ *                   description: >
+ *                     Citas que el sistema canceló porque nadie las confirmó, contadas por la fecha de
+ *                     cancelación en los últimos `dias` días.
+ *                   properties:
+ *                     dias: { type: integer, example: 30 }
+ *                     total: { type: integer, example: 4 }
+ *                     sugerencia:
+ *                       type: object
+ *                       nullable: true
+ *                       description: Solo si hubo alguna y la confirmación automática está apagada
+ *                       properties:
+ *                         codigo: { type: string, example: activar_confirmacion_automatica }
+ *                         mensaje: { type: string }
  *     NegocioMio:
  *       type: object
  *       properties:
@@ -72,6 +120,14 @@ const router = express.Router();
  *         logo_miniatura_url: { type: string, nullable: true }
  *         verificado: { type: boolean }
  *         activo: { type: boolean }
+ *         configuracion_pendiente:
+ *           type: string
+ *           nullable: true
+ *           enum: [sede, horarios, null]
+ *           description: >
+ *             Primer paso que le falta para recibir citas: `sede` si no tiene sucursales activas,
+ *             `horarios` si ninguna sucursal activa tiene horario, null si está completo. El panel
+ *             lo usa para retomar el asistente de creación.
  *         relacion: { type: string, enum: [propietario, empleado] }
  *         id_empleado: { type: integer, nullable: true, description: Solo si relacion es empleado }
  *         rol:
@@ -265,6 +321,43 @@ router.get("/negocios/mios", authMiddleware, controller.getMisNegocios);
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
 router.get("/negocios/:id_negocio", validate({ params: idNegocioParams }), controller.getPerfilPublico);
+
+/**
+ * @swagger
+ * /negocios/{id_negocio}/gestion:
+ *   get:
+ *     summary: Datos del negocio para el panel
+ *     description: >
+ *       Requiere `configuracion.ver` (el propietario siempre puede). A diferencia del perfil
+ *       público, trae todas las columnas del negocio (`nit`, `razon_social`, `codigo_postal`,
+ *       `pais`, `activo`...), funciona aunque el negocio esté inactivo e incluye las reglas de
+ *       confirmación de citas.
+ *     tags: [Negocios]
+ *     parameters:
+ *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
+ *     responses:
+ *       200:
+ *         description: Negocio con sus sucursales y reglas de confirmación
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: OK }
+ *                 data: { $ref: '#/components/schemas/NegocioGestion' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.get(
+  "/negocios/:id_negocio/gestion",
+  authMiddleware,
+  validate({ params: idNegocioParams }),
+  authorize("configuracion", "ver"),
+  controller.getGestion
+);
 
 router.patch(
   "/negocios/:id_negocio",

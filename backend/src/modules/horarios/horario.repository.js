@@ -13,9 +13,16 @@ export const findBySucursal = async (id_sucursal, conn) => {
   return rows;
 };
 
-/** Reemplaza todos los rangos de la sucursal. Usar dentro de una transacción. */
+/**
+ * Reemplaza todos los rangos de la sucursal. Usar dentro de una transacción, con la fila de
+ * la sucursal ya bloqueada. Borra por clave primaria: un DELETE por id_sucursal sobre una
+ * sede sin horarios toma un gap lock que comparten sedes con ids seguidos (deadlock).
+ */
 export const replaceBySucursal = async (id_sucursal, rangos, conn) => {
-  await conn.query("DELETE FROM horarios_negocio WHERE id_sucursal = ?", [id_sucursal]);
+  const [actuales] = await conn.query("SELECT id_horario FROM horarios_negocio WHERE id_sucursal = ?", [id_sucursal]);
+  if (actuales.length > 0) {
+    await conn.query("DELETE FROM horarios_negocio WHERE id_horario IN (?)", [actuales.map((h) => h.id_horario)]);
+  }
   if (rangos.length === 0) return;
   await conn.query(
     "INSERT INTO horarios_negocio (id_sucursal, dia_semana, hora_apertura, hora_cierre) VALUES ?",

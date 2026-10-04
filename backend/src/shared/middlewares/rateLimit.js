@@ -15,9 +15,9 @@ const createLimiter = (limit, message) =>
     handler: (req, res) => sendError(res, 429, message),
   });
 
-/** Límite general para toda la API: 300 solicitudes cada 15 min por IP. */
+/** Límite general para toda la API: RATE_LIMIT_MAX solicitudes cada 15 min por IP (300 por defecto). */
 export const generalLimiter = createLimiter(
-  300,
+  env.RATE_LIMIT_MAX,
   "Demasiadas solicitudes, intenta de nuevo en unos minutos"
 );
 

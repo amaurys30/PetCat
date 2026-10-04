@@ -30,6 +30,7 @@ import dispositivoRoutes from "./modules/dispositivos/dispositivo.routes.js";
 import notificacionRoutes from "./modules/notificaciones/notificacion.routes.js";
 import resenaRoutes from "./modules/resenas/resena.routes.js";
 import dashboardRoutes from "./modules/dashboard/dashboard.routes.js";
+import autorizacionRoutes from "./modules/autorizaciones/autorizacion.routes.js";
 
 import { generalLimiter, strictLimiter } from "./shared/middlewares/rateLimit.js";
 import { notFound } from "./shared/middlewares/notFound.js";
@@ -78,6 +79,7 @@ v1.use("/auth/forgot-password", strictLimiter());
 v1.use("/auth/reset-password", strictLimiter());
 v1.use("/auth/verify-email", strictLimiter());
 v1.use("/auth/resend-verification", strictLimiter());
+v1.use("/auth/request-verification", strictLimiter());
 v1.use("/invitaciones", strictLimiter());
 // Búsqueda exacta de clientes: sin límite estricto se podrían recorrer teléfonos.
 v1.use("/negocios/:id_negocio/clientes/buscar", strictLimiter());
@@ -104,6 +106,7 @@ v1.use(dispositivoRoutes);
 v1.use(notificacionRoutes);
 v1.use(resenaRoutes);
 v1.use(dashboardRoutes);
+v1.use(autorizacionRoutes);
 
 app.use("/api/v1", v1);
 
