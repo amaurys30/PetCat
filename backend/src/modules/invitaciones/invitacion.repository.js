@@ -55,6 +55,29 @@ export const countRecientesByEmail = async (id_negocio, email, horas, conn) => {
 };
 
 /**
+ * Estado de las invitaciones de varios empleados (listado del panel), por id_empleado:
+ * expiración de la vigente (o null), correos enviados a su email actual en el negocio en las
+ * últimas `horas` y desde cuándo se libera un cupo.
+ */
+export const findEstadoDeEmpleados = async (ids, horas) => {
+  if (ids.length === 0) return {};
+  const [rows] = await db.query(
+    `SELECT e.id_empleado,
+            (SELECT MAX(i.expiracion) FROM invitaciones_empleado i
+             WHERE i.id_empleado = e.id_empleado AND i.usado = FALSE AND i.expiracion > NOW()) AS expiracion,
+            COUNT(r.id_invitacion) AS enviadas,
+            DATE_FORMAT(MIN(r.fecha_creacion) + INTERVAL ? HOUR, '%Y-%m-%d %H:%i') AS libre_desde
+     FROM empleados e
+     LEFT JOIN invitaciones_empleado r
+       ON r.id_negocio = e.id_negocio AND r.email = e.email AND r.fecha_creacion > NOW() - INTERVAL ? HOUR
+     WHERE e.id_empleado IN (?)
+     GROUP BY e.id_empleado`,
+    [horas, horas, ids]
+  );
+  return Object.fromEntries(rows.map((row) => [row.id_empleado, row]));
+};
+
+/**
  * Invitación por el hash del token, con los datos del empleado, su rol y el
  * negocio. Con `forUpdate` bloquea la invitación y el empleado hasta el fin de
  * la transacción (aceptar).

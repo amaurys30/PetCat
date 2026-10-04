@@ -98,17 +98,66 @@ export const findEmpleadosActivosDeServicios = async (ids, { detalle = false } =
   return porServicio;
 };
 
-/** Servicios activos que atiende un empleado (detalle del empleado en el panel). */
-export const findActivosDeEmpleado = async (id_empleado) => {
+/** Servicios activos de cada empleado (listado del panel): { [id_empleado]: [{ id_servicio, nombre }] }. */
+export const findActivosDeEmpleados = async (ids) => {
+  if (ids.length === 0) return {};
   const [rows] = await db.query(
-    `SELECT s.id_servicio, s.nombre
+    `SELECT es.id_empleado, s.id_servicio, s.nombre
      FROM empleado_servicios es
      JOIN servicios s ON s.id_servicio = es.id_servicio
-     WHERE es.id_empleado = ? AND s.activo = TRUE
+     WHERE es.id_empleado IN (?) AND s.activo = TRUE
      ORDER BY s.nombre, s.id_servicio`,
+    [ids]
+  );
+  const porEmpleado = {};
+  for (const { id_empleado, ...servicio } of rows) (porEmpleado[id_empleado] ??= []).push(servicio);
+  return porEmpleado;
+};
+
+/**
+ * Reemplaza los servicios activos que atiende un empleado por `ids` (asignación desde el
+ * empleado). Las asignaciones a servicios eliminados se conservan, como en el servicio.
+ * Bloquea las filas de los servicios que cambian, en orden de id, igual que la edición
+ * de un servicio (que bloquea el servicio antes de tocar sus asignaciones): así las dos
+ * puertas se serializan sin perder cambios ni cruzarse en un deadlock.
+ * Devuelve los ids de `ids` que no son servicios activos del negocio (nada cambia si hay alguno).
+ */
+export const replaceServiciosActivosDeEmpleado = async (id_empleado, id_negocio, ids, conn) => {
+  const [actuales] = await conn.query(
+    `SELECT es.id_servicio
+     FROM empleado_servicios es
+     JOIN servicios s ON s.id_servicio = es.id_servicio
+     WHERE es.id_empleado = ? AND s.activo = TRUE`,
     [id_empleado]
   );
-  return rows;
+  const asignados = new Set(actuales.map((row) => row.id_servicio));
+  const pedidos = new Set(ids);
+  const sobran = [...asignados].filter((id) => !pedidos.has(id));
+  const nuevos = ids.filter((id) => !asignados.has(id));
+  const cambian = [...sobran, ...nuevos].sort((a, b) => a - b);
+  if (cambian.length === 0) return [];
+
+  const [bloqueados] = await conn.query(
+    "SELECT id_servicio, id_negocio, activo FROM servicios WHERE id_servicio IN (?) ORDER BY id_servicio FOR UPDATE",
+    [cambian]
+  );
+  const validos = new Set(
+    bloqueados.filter((s) => s.id_negocio === id_negocio && s.activo).map((s) => s.id_servicio)
+  );
+  const invalidos = nuevos.filter((id) => !validos.has(id));
+  if (invalidos.length > 0) return invalidos;
+
+  if (sobran.length > 0) {
+    await conn.query("DELETE FROM empleado_servicios WHERE (id_empleado, id_servicio) IN (?)", [
+      sobran.map((id_servicio) => [id_empleado, id_servicio]),
+    ]);
+  }
+  if (nuevos.length > 0) {
+    await conn.query("INSERT IGNORE INTO empleado_servicios (id_empleado, id_servicio) VALUES ?", [
+      nuevos.map((id_servicio) => [id_empleado, id_servicio]),
+    ]);
+  }
+  return [];
 };
 
 /** Servicio activo del negocio con ese nombre (sin distinguir mayúsculas), excepto `excluirId`. */
