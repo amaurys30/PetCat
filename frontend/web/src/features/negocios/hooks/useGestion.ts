@@ -99,7 +99,7 @@ export function useGuardarHorarios(idNegocio: number) {
       horarios: negociosApi.HorariosBody["horarios"];
     }) => negociosApi.guardarHorarios(idSucursal, { horarios }),
     onSuccess: ({ citas_afectadas }) => {
-      useUi.getState().mostrarCitasAfectadas(citas_afectadas);
+      useUi.getState().mostrarCitasAfectadas(citas_afectadas, "El horario se guardó");
       return refrescar();
     },
   });

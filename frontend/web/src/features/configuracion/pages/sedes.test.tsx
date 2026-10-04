@@ -144,7 +144,7 @@ describe("E2 · Sedes y horarios", () => {
     await user.click(screen.getByRole("button", { name: "Guardar horario" }));
 
     const dialogo = await screen.findByRole("dialog");
-    expect(dialogo).toHaveTextContent("El horario se guardó, pero 1 cita queda fuera del nuevo horario");
+    expect(dialogo).toHaveTextContent("El horario se guardó. 1 cita está fuera de la disponibilidad");
     expect(within(dialogo).getByRole("link", { name: "3005556677" })).toHaveAttribute(
       "href",
       "tel:3005556677",
