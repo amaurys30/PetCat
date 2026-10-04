@@ -13,6 +13,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { avisoErrorGoogleMaps, escucharErrorGoogleMaps } from "@/lib/erroresGoogleMaps";
 import { claveMaps, enlaceGoogleMaps, mapId, redondear, SINCELEJO, type Ubicacion } from "@/lib/ubicacion";
 import { cn } from "@/lib/utils";
 
@@ -36,19 +37,24 @@ const AYUDA = 'Con la ubicación, tu negocio aparece en "Cerca de mí" en la app
  */
 export function UbicacionSede(props: Props) {
   const clave = claveMaps();
-  const [fallo, setFallo] = useState(false);
+  // Aviso que se muestra al pasar a coordenadas manuales porque Google falló.
+  const [fallo, setFallo] = useState<string | null>(null);
 
-  if (!clave || fallo) {
-    return (
-      <ModoManual
-        {...props}
-        aviso={fallo ? "No pudimos cargar el mapa. Escribe las coordenadas a mano." : undefined}
-      />
-    );
-  }
+  // Facturación sin activar, clave inválida o dominio no permitido: Google solo lo dice en la consola.
+  useEffect(() => {
+    if (!clave) return;
+    return escucharErrorGoogleMaps((codigo) => setFallo(avisoErrorGoogleMaps(codigo)));
+  }, [clave]);
+
+  if (!clave || fallo) return <ModoManual {...props} aviso={fallo ?? undefined} />;
   return (
-    <APIProvider apiKey={clave} language="es" region="CO" onError={() => setFallo(true)}>
-      <ModoGoogle {...props} onFallo={() => setFallo(true)} />
+    <APIProvider
+      apiKey={clave}
+      language="es"
+      region="CO"
+      onError={() => setFallo(avisoErrorGoogleMaps("Error"))}
+    >
+      <ModoGoogle {...props} onFallo={() => setFallo(avisoErrorGoogleMaps("Error"))} />
     </APIProvider>
   );
 }
