@@ -129,7 +129,12 @@ const router = express.Router();
  *             `horarios` si ninguna sucursal activa tiene horario, null si está completo. El panel
  *             lo usa para retomar el asistente de creación.
  *         relacion: { type: string, enum: [propietario, empleado] }
- *         id_empleado: { type: integer, nullable: true, description: Solo si relacion es empleado }
+ *         id_empleado:
+ *           type: integer
+ *           nullable: true
+ *           description: >
+ *             Su registro como empleado del negocio. Del propietario, el que creó con
+ *             "Agregarme como profesional" (activo o no; null si no lo tiene).
  *         rol:
  *           type: object
  *           nullable: true

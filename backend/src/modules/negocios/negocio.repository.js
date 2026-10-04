@@ -70,14 +70,17 @@ const SQL_CONFIGURACION_PENDIENTE = `CASE
 
 /**
  * Negocios del panel del usuario: los propios (activos o no) y los activos donde
- * es empleado activo. Si es propietario y empleado del mismo, cuenta como propietario.
+ * es empleado activo. Si es propietario y empleado del mismo, cuenta como propietario,
+ * con el id de su registro como empleado (activo o no) si lo tiene.
  */
 export const findMios = async (id_usuario) => {
   const columnas = `n.id_negocio, n.nombre, n.tipo, n.ciudad, n.logo_url, n.verificado, n.activo,
                     ${SQL_CONFIGURACION_PENDIENTE} AS configuracion_pendiente`;
   const [rows] = await db.query(
     `SELECT ${columnas}, 'propietario' AS relacion,
-            NULL AS id_empleado, NULL AS id_rol, NULL AS rol_nombre, NULL AS permisos_json
+            (SELECT e.id_empleado FROM empleados e
+             WHERE e.id_negocio = n.id_negocio AND e.id_usuario = n.id_usuario_propietario) AS id_empleado,
+            NULL AS id_rol, NULL AS rol_nombre, NULL AS permisos_json
      FROM negocios n
      WHERE n.id_usuario_propietario = ?
      UNION ALL
