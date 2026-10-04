@@ -29,6 +29,9 @@ export default defineConfig(({ mode }) => {
       setupFiles: ["./src/test/setup.ts"],
       include: ["src/**/*.test.{ts,tsx}"],
       css: false,
+      // Las pruebas de pantalla pintan el router completo y hacen varios clics: con todos los
+      // archivos en paralelo, algunas pasaban de los 5 s por defecto en equipos cargados.
+      testTimeout: 15_000,
     },
   };
 });

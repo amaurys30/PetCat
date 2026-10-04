@@ -64,8 +64,9 @@ describe("D4 · Roles y permisos", () => {
   it("no deja eliminar un rol con miembros (dice cuántos) y muestra el 409 de la API", async () => {
     const sinMiembros = { ...rolesDemo[3]!, id_rol: 10, nombre: "Auxiliar", empleados_activos: 0 };
     servidor.use(
+      // Antes que base(): entre las respuestas de una misma llamada gana la primera.
       http.get(`${API}/negocios/1/roles`, () => ok([...rolesDemo, sinMiembros])),
-      http.get(`${API}/permisos`, () => ok(catalogoDemo)),
+      ...base(),
       http.delete(`${API}/roles/10`, () =>
         fallo(
           409,
