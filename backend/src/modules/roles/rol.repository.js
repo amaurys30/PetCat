@@ -15,15 +15,17 @@ export const findSistemaByNombre = async (nombre, conn) => {
 
 /**
  * Roles que puede usar un negocio: los del sistema y los propios, con cuántos
- * empleados activos del negocio tienen cada uno.
+ * empleados activos e inactivos del negocio tienen cada uno.
  */
 export const findByNegocio = async (id_negocio) => {
   const [rows] = await db.query(
     `SELECT r.id_rol, r.id_negocio, r.nombre, r.descripcion, r.permisos_json, r.es_sistema, r.fecha_creacion,
-            (SELECT COUNT(*) FROM empleados e
-             WHERE e.id_rol = r.id_rol AND e.id_negocio = ? AND e.activo = TRUE) AS empleados_activos
+            CAST(COALESCE(SUM(e.activo = TRUE), 0) AS UNSIGNED) AS empleados_activos,
+            CAST(COALESCE(SUM(e.activo = FALSE), 0) AS UNSIGNED) AS empleados_inactivos
      FROM roles r
+     LEFT JOIN empleados e ON e.id_rol = r.id_rol AND e.id_negocio = ?
      WHERE r.es_sistema = TRUE OR r.id_negocio = ?
+     GROUP BY r.id_rol
      ORDER BY r.es_sistema DESC, r.nombre`,
     [id_negocio, id_negocio]
   );
@@ -71,8 +73,13 @@ export const remove = async (id_rol) => {
   await db.query("DELETE FROM roles WHERE id_rol = ?", [id_rol]);
 };
 
-/** Empleados (activos o no) con el rol: la llave foránea impide borrarlo. */
+/** Empleados activos e inactivos con el rol: la llave foránea impide borrarlo con cualquiera. */
 export const countEmpleados = async (id_rol) => {
-  const [[row]] = await db.query("SELECT COUNT(*) AS total FROM empleados WHERE id_rol = ?", [id_rol]);
-  return row.total;
+  const [[row]] = await db.query(
+    `SELECT CAST(COALESCE(SUM(activo = TRUE), 0) AS UNSIGNED) AS activos,
+            CAST(COALESCE(SUM(activo = FALSE), 0) AS UNSIGNED) AS inactivos
+     FROM empleados WHERE id_rol = ?`,
+    [id_rol]
+  );
+  return { activos: Number(row.activos), inactivos: Number(row.inactivos) };
 };

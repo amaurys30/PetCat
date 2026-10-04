@@ -31,6 +31,8 @@ describe("GET /negocios/:id_negocio/roles", () => {
     const { negocio, token } = await negocioConToken();
     const propio = await crearRol(negocio, { citas: ["ver"] }, { nombre: "Auxiliar" });
     await crearEmpleado(negocio, { rol: propio.id_rol });
+    await crearEmpleado(negocio, { rol: propio.id_rol, activo: false });
+    await crearEmpleado(negocio, { rol: propio.id_rol, activo: false });
     await crearRol(await crearNegocio(), {}, { nombre: "De otro negocio" });
 
     const res = await api(token).get(`/negocios/${negocio.id_negocio}/roles`);
@@ -43,15 +45,27 @@ describe("GET /negocios/:id_negocio/roles", () => {
       es_sistema: false,
       permisos_json: { citas: ["ver"] },
       empleados_activos: 1,
+      empleados_inactivos: 2,
     });
+    expect(res.body.data[0]).toMatchObject({ empleados_activos: 0, empleados_inactivos: 0 });
   });
 
-  it("401 sin token, 403 sin roles.ver, 404 negocio inexistente", async () => {
+  it("401 sin token, 403 sin roles.ver ni empleados.crear/editar, 404 negocio inexistente", async () => {
     const { negocio, token } = await negocioConToken();
-    expect((await api().get(`/negocios/${negocio.id_negocio}/roles`)).status).toBe(401);
-    const { token: sinPermiso } = await empleadoCon(negocio, { citas: ["ver"] });
-    expect((await api(sinPermiso).get(`/negocios/${negocio.id_negocio}/roles`)).status).toBe(403);
+    const url = `/negocios/${negocio.id_negocio}/roles`;
+    expect((await api().get(url)).status).toBe(401);
+    const { token: sinPermiso } = await empleadoCon(negocio, { citas: ["ver"], empleados: ["ver", "eliminar"] });
+    expect((await api(sinPermiso).get(url)).status).toBe(403);
     expect((await api(token).get("/negocios/999999/roles")).status).toBe(404);
+  });
+
+  it("quien crea o edita empleados puede ver los roles para elegir uno", async () => {
+    const { negocio } = await negocioConToken();
+    const url = `/negocios/${negocio.id_negocio}/roles`;
+    for (const accion of ["crear", "editar"]) {
+      const { token } = await empleadoCon(negocio, { empleados: ["ver", accion] });
+      expect((await api(token).get(url)).status, accion).toBe(200);
+    }
   });
 });
 
@@ -197,13 +211,28 @@ describe("DELETE /roles/:id_rol", () => {
     expect(filas).toHaveLength(0);
   });
 
-  it("con empleados asignados (aunque estén inactivos) -> 409", async () => {
+  it("con empleados asignados (aunque estén inactivos) -> 409 que dice cuántos de cada uno", async () => {
     const { negocio, token } = await negocioConToken();
     const rol = await crearRol(negocio, {});
     await crearEmpleado(negocio, { rol: rol.id_rol, activo: false });
     const res = await api(token).delete(`/roles/${rol.id_rol}`);
     expect(res.status).toBe(409);
-    expect(res.body.message).toMatch(/1 empleado con este rol/);
+    expect(res.body.message).toBe(
+      "Hay 1 empleado inactivo con este rol: cámbiales el rol antes de eliminarlo, también a los inactivos"
+    );
+
+    await crearEmpleado(negocio, { rol: rol.id_rol });
+    await crearEmpleado(negocio, { rol: rol.id_rol, activo: false });
+    expect((await api(token).delete(`/roles/${rol.id_rol}`)).body.message).toBe(
+      "Hay 1 empleado activo y 2 empleados inactivos con este rol: cámbiales el rol antes de eliminarlo, también a los inactivos"
+    );
+
+    const soloActivos = await crearRol(negocio, {});
+    await crearEmpleado(negocio, { rol: soloActivos.id_rol });
+    await crearEmpleado(negocio, { rol: soloActivos.id_rol });
+    expect((await api(token).delete(`/roles/${soloActivos.id_rol}`)).body.message).toBe(
+      "Hay 2 empleados activos con este rol: asígnales otro antes de eliminarlo"
+    );
   });
 
   it("rol del sistema -> 403; escalada: empleado no borra un rol con más permisos", async () => {
