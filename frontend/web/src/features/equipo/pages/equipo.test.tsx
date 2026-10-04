@@ -53,7 +53,12 @@ const paula = empleadoDemo({
   invitacion_pendiente: true,
   invitacion: { expiracion: "2099-01-03 10:00:00", envios_restantes_24h: 3, libre_desde: null },
 });
-const andres = empleadoDemo({ id_empleado: 3, nombre: "Andrés", apellido: "Vega", email: "andres@petcat.test" });
+const andres = empleadoDemo({
+  id_empleado: 3,
+  nombre: "Andrés",
+  apellido: "Vega",
+  email: "andres@petcat.test",
+});
 const mariana = empleadoDemo({
   id_empleado: 4,
   nombre: "Mariana",
@@ -91,11 +96,15 @@ describe("D3 · Equipo", () => {
     await screen.findByText("Carlos Martínez");
     expect(within(fila("Laura Gómez")).getByText("Propietario")).toBeInTheDocument();
     expect(within(fila("Carlos Martínez")).getByText("Vinculada")).toBeInTheDocument();
-    expect(within(fila("Carlos Martínez")).getByText("Consulta general, Vacuna antirrábica")).toBeInTheDocument();
+    expect(
+      within(fila("Carlos Martínez")).getByText("Consulta general, Vacuna antirrábica"),
+    ).toBeInTheDocument();
     expect(within(fila("Paula Rojas")).getByText(/Invitación pendiente · vence en/)).toBeInTheDocument();
     expect(within(fila("Paula Rojas")).getByRole("button", { name: "Reenviar (3 de 4)" })).toBeEnabled();
     expect(within(fila("Andrés Vega")).getByText("Sin invitar")).toBeInTheDocument();
-    expect(within(fila("Andrés Vega")).getByRole("button", { name: "Enviar invitación" })).toBeInTheDocument();
+    expect(
+      within(fila("Andrés Vega")).getByRole("button", { name: "Enviar invitación" }),
+    ).toBeInTheDocument();
     expect(within(fila("Mariana Ríos")).getByText("Inactivo")).toBeInTheDocument();
     expect(within(fila("Mariana Ríos")).getByRole("button", { name: "Reactivar" })).toBeInTheDocument();
     expect(
@@ -119,7 +128,9 @@ describe("D3 · Equipo", () => {
     expect(await screen.findByText(/Para sumar más, prueba Pro 14 días/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Agregar miembro" }));
     const dialogo = await screen.findByRole("dialog");
-    expect(dialogo).toHaveTextContent("Tu plan Gratuito permite 3 empleados activos (el propietario no cuenta)");
+    expect(dialogo).toHaveTextContent(
+      "Tu plan Gratuito permite 3 empleados activos (el propietario no cuenta)",
+    );
     await user.keyboard("{Escape}");
     await user.click(within(fila("Mariana Ríos")).getByRole("button", { name: "Reactivar" }));
     expect(await screen.findByRole("dialog")).toHaveTextContent("Alcanzaste el límite de tu plan");
@@ -133,11 +144,22 @@ describe("D3 · Equipo", () => {
       ...base(),
       http.post(`${API}/negocios/1/empleados`, async ({ request }) => {
         creado = await request.json();
-        return ok(empleadoDemo({ id_empleado: 7, nombre: "Luis", apellido: "Suárez", email: "luis@petcat.test" }), 201);
+        return ok(
+          empleadoDemo({ id_empleado: 7, nombre: "Luis", apellido: "Suárez", email: "luis@petcat.test" }),
+          201,
+        );
       }),
       http.post(`${API}/empleados/7/invitacion`, () => {
         invitado = true;
-        return ok({ id_invitacion: 1, email: "luis@petcat.test", expiracion: "2099-01-01 10:00:00", envios_restantes_24h: 3 }, 201);
+        return ok(
+          {
+            id_invitacion: 1,
+            email: "luis@petcat.test",
+            expiracion: "2099-01-01 10:00:00",
+            envios_restantes_24h: 3,
+          },
+          201,
+        );
       }),
     );
     renderRuta("/n/1/equipo/miembros", { usuario: usuarioDemo() });
@@ -153,7 +175,9 @@ describe("D3 · Equipo", () => {
     await user.click(within(dialogo).getByRole("button", { name: "Consulta general" }));
     await user.click(within(dialogo).getByRole("button", { name: "Guardar y enviar invitación" }));
 
-    expect(await screen.findByText(/Luis Suárez quedó en el equipo\. Invitación enviada a luis@petcat\.test/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Luis Suárez quedó en el equipo\. Invitación enviada a luis@petcat\.test/),
+    ).toBeInTheDocument();
     expect(creado).toEqual({
       nombre: "Luis",
       apellido: "Suárez",
@@ -168,7 +192,9 @@ describe("D3 · Equipo", () => {
   it("si la invitación falla, el miembro queda creado y el aviso lo dice", async () => {
     servidor.use(
       ...base(),
-      http.post(`${API}/negocios/1/empleados`, () => ok(empleadoDemo({ id_empleado: 7, nombre: "Luis", apellido: "Suárez" }), 201)),
+      http.post(`${API}/negocios/1/empleados`, () =>
+        ok(empleadoDemo({ id_empleado: 7, nombre: "Luis", apellido: "Suárez" }), 201),
+      ),
       http.post(`${API}/empleados/7/invitacion`, () =>
         fallo(503, "No se pudo enviar el correo de invitación. Intenta de nuevo en unos minutos"),
       ),
@@ -182,7 +208,9 @@ describe("D3 · Equipo", () => {
     await user.type(within(dialogo).getByLabelText("Correo (para la invitación)"), "luis@petcat.test");
     await user.click(within(dialogo).getByRole("button", { name: "Guardar y enviar invitación" }));
     expect(
-      await screen.findByText(/Luis Suárez quedó en el equipo, pero la invitación no se envió \(No se pudo enviar el correo/),
+      await screen.findByText(
+        /Luis Suárez quedó en el equipo, pero la invitación no se envió \(No se pudo enviar el correo/,
+      ),
     ).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
@@ -214,19 +242,39 @@ describe("D3 · Equipo", () => {
     servidor.use(
       ...base(),
       http.post(`${API}/empleados/2/invitacion/reenviar`, () =>
-        ok({ id_invitacion: 9, email: "paula@petcat.test", expiracion: "2099-01-04 10:00:00", envios_restantes_24h: 2 }, 201),
+        ok(
+          {
+            id_invitacion: 9,
+            email: "paula@petcat.test",
+            expiracion: "2099-01-04 10:00:00",
+            envios_restantes_24h: 2,
+          },
+          201,
+        ),
       ),
     );
     renderRuta("/n/1/equipo/miembros", { usuario: usuarioDemo() });
     const user = userEvent.setup();
-    await user.click(await within(await screen.findByRole("row", { name: /Paula Rojas/ })).findByRole("button", { name: "Reenviar (3 de 4)" }));
-    expect(await screen.findByText(/Invitación reenviada a paula@petcat\.test\. Puedes enviarle 2 más en 24 horas\./)).toBeInTheDocument();
+    await user.click(
+      await within(await screen.findByRole("row", { name: /Paula Rojas/ })).findByRole("button", {
+        name: "Reenviar (3 de 4)",
+      }),
+    );
+    expect(
+      await screen.findByText(
+        /Invitación reenviada a paula@petcat\.test\. Puedes enviarle 2 más en 24 horas\./,
+      ),
+    ).toBeInTheDocument();
   });
 
   it("sin envíos disponibles el botón queda deshabilitado con la hora en que se libera", async () => {
     const agotada = empleadoDemo({
       ...paula,
-      invitacion: { expiracion: "2099-01-03 10:00:00", envios_restantes_24h: 0, libre_desde: "2099-01-01 09:30" },
+      invitacion: {
+        expiracion: "2099-01-03 10:00:00",
+        envios_restantes_24h: 0,
+        libre_desde: "2099-01-01 09:30",
+      },
     });
     servidor.use(...base({ empleados: [agotada] }));
     renderRuta("/n/1/equipo/miembros", { usuario: usuarioDemo() });
@@ -277,7 +325,11 @@ describe("D3 · Equipo", () => {
       http.post(`${API}/negocios/1/empleados/yo`, async ({ request }) => {
         cuerpo = await request.json();
         return HttpResponse.json(
-          { success: true, message: "Te registraste como empleado del negocio", data: { ...propietaria, id_empleado: 12 } },
+          {
+            success: true,
+            message: "Te registraste como empleado del negocio",
+            data: { ...propietaria, id_empleado: 12 },
+          },
           { status: 201 },
         );
       }),
@@ -342,7 +394,9 @@ describe("D3 · Equipo", () => {
     const admin = await within(dialogo).findByRole("radio", { name: /Administrador/ });
     expect(admin).toHaveAttribute("aria-disabled", "true");
     expect(admin).toHaveTextContent("Tu rol no tiene todos los permisos de este rol");
-    expect(within(dialogo).getByRole("radio", { name: /Recepcionista/ })).not.toHaveAttribute("aria-disabled");
+    expect(within(dialogo).getByRole("radio", { name: /Recepcionista/ })).not.toHaveAttribute(
+      "aria-disabled",
+    );
     expect(dialogo).toHaveTextContent("Solo puedes asignar roles con permisos que tu rol tenga.");
     // Sin servicios.ver no se muestran los servicios.
     expect(within(dialogo).queryByText("Servicios que atiende")).not.toBeInTheDocument();
@@ -351,7 +405,11 @@ describe("D3 · Equipo", () => {
   it("sin empleados.ver: sin permiso", async () => {
     const vet = usuarioDemo({
       negocios: [
-        negocioDemo({ relacion: "empleado", id_empleado: 1, rol: { id_rol: 2, nombre: "Veterinario", permisos_json: { citas: ["ver"] } } }),
+        negocioDemo({
+          relacion: "empleado",
+          id_empleado: 1,
+          rol: { id_rol: 2, nombre: "Veterinario", permisos_json: { citas: ["ver"] } },
+        }),
       ],
     });
     renderRuta("/n/1/equipo/miembros", { usuario: vet });

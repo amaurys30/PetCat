@@ -47,7 +47,11 @@ describe("reglasEscalada", () => {
   const coordinador = {
     relacion: "empleado" as const,
     id_empleado: 7,
-    rol: { id_rol: 9, nombre: "Coordinador", permisos_json: { empleados: ["ver", "crear", "editar"], citas: ["ver"] } },
+    rol: {
+      id_rol: 9,
+      nombre: "Coordinador",
+      permisos_json: { empleados: ["ver", "crear", "editar"], citas: ["ver"] },
+    },
   };
   const admin = { empleados: ["ver", "crear", "editar", "eliminar"], citas: ["ver"] };
 

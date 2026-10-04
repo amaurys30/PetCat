@@ -17,7 +17,8 @@ export const getCatalogoPermisos = () => apiGet<Permisos>("/permisos");
 export const crearRol = (idNegocio: number, body: CrearRolBody) =>
   apiPost<Rol>(`/negocios/${idNegocio}/roles`, body);
 
-export const actualizarRol = (idRol: number, body: ActualizarRolBody) => apiPatch<Rol>(`/roles/${idRol}`, body);
+export const actualizarRol = (idRol: number, body: ActualizarRolBody) =>
+  apiPatch<Rol>(`/roles/${idRol}`, body);
 
 /** 409 si algún empleado (activo o inactivo) tiene el rol. */
 export const eliminarRol = (idRol: number) => apiDelete<null>(`/roles/${idRol}`);

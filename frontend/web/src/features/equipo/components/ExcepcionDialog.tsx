@@ -3,12 +3,7 @@ import { differenceInCalendarDays } from "date-fns";
 import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
-import type {
-  ActualizarExcepcionBody,
-  Excepcion,
-  ExcepcionInput,
-  TipoExcepcion,
-} from "@/api/disponibilidad";
+import type { ActualizarExcepcionBody, Excepcion, ExcepcionInput, TipoExcepcion } from "@/api/disponibilidad";
 import { toApiError } from "@/api/errors";
 import type { CitaAfectada } from "@/api/negocios";
 import { Alert } from "@/components/ui/alert";
@@ -44,7 +39,8 @@ const crearSchema = (nueva: boolean) =>
       motivo: z.string().trim().max(200, "Máximo 200 caracteres"),
     })
     .superRefine((v, ctx) => {
-      const error = (path: string, message: string) => ctx.addIssue({ code: "custom", path: [path], message });
+      const error = (path: string, message: string) =>
+        ctx.addIssue({ code: "custom", path: [path], message });
       const conPeriodo = v.tipo !== "evento_especial";
       if (conPeriodo && v.hasta !== "" && fecha.test(v.desde)) {
         if (!fecha.test(v.hasta)) error("hasta", "Fecha inválida");
@@ -57,7 +53,8 @@ const crearSchema = (nueva: boolean) =>
         error(conPeriodo && v.hasta ? "hasta" : "desde", "El último día debe ser hoy o posterior");
       }
       const conHoras = v.tipo === "evento_especial" || (v.tipo === "bloqueo" && !v.todoElDia);
-      if (conHoras && v.hora_fin <= v.hora_inicio) error("hora_fin", "Debe ser posterior a la hora de inicio");
+      if (conHoras && v.hora_fin <= v.hora_inicio)
+        error("hora_fin", "Debe ser posterior a la hora de inicio");
       if (v.tipo === "evento_especial" && v.id_sucursal === "") error("id_sucursal", "Elige la sede");
     });
 
@@ -201,8 +198,8 @@ export function ExcepcionDialog({
               </Tabs>
             )}
             <DialogDescription>
-              Bloqueo: el profesional no atiende en ese rango. Vacaciones: días completos. Evento especial: suma
-              horas extra, incluso fuera del horario de la sede.
+              Bloqueo: el profesional no atiende en ese rango. Vacaciones: días completos. Evento especial:
+              suma horas extra, incluso fuera del horario de la sede.
             </DialogDescription>
 
             {tipo === "evento_especial" ? (
@@ -253,12 +250,15 @@ export function ExcepcionDialog({
             )}
 
             <Field label="Motivo" error={errors.motivo?.message}>
-              <Input placeholder={tipo === "evento_especial" ? "Jornada de vacunación" : "Cita médica personal"} {...form.register("motivo")} />
+              <Input
+                placeholder={tipo === "evento_especial" ? "Jornada de vacunación" : "Cita médica personal"}
+                {...form.register("motivo")}
+              />
             </Field>
 
             <Alert tono="advertencia">
-              Se guarda aunque tenga citas en esas fechas. Después verás las que están fuera de la disponibilidad
-              para reasignarlas o reprogramarlas.
+              Se guarda aunque tenga citas en esas fechas. Después verás las que están fuera de la
+              disponibilidad para reasignarlas o reprogramarlas.
             </Alert>
             {error && <Alert tono="error">{error}</Alert>}
 

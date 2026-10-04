@@ -67,7 +67,10 @@ describe("D4 · Roles y permisos", () => {
       http.get(`${API}/negocios/1/roles`, () => ok([...rolesDemo, sinMiembros])),
       http.get(`${API}/permisos`, () => ok(catalogoDemo)),
       http.delete(`${API}/roles/10`, () =>
-        fallo(409, "Hay 1 empleado inactivo con este rol: cámbiales el rol antes de eliminarlo, también a los inactivos"),
+        fallo(
+          409,
+          "Hay 1 empleado inactivo con este rol: cámbiales el rol antes de eliminarlo, también a los inactivos",
+        ),
       ),
     );
     const { router } = renderRuta("/n/1/equipo/roles?rol=9", { usuario: usuarioDemo() });
@@ -148,7 +151,11 @@ describe("D4 · Roles y permisos", () => {
   it("sin roles.ver no aparece la pestaña", async () => {
     const recepcion = usuarioDemo({
       negocios: [
-        negocioDemo({ relacion: "empleado", id_empleado: 3, rol: { id_rol: 3, nombre: "Recepcionista", permisos_json: { empleados: ["ver"] } } }),
+        negocioDemo({
+          relacion: "empleado",
+          id_empleado: 3,
+          rol: { id_rol: 3, nombre: "Recepcionista", permisos_json: { empleados: ["ver"] } },
+        }),
       ],
     });
     servidor.use(http.get(`${API}/negocios/1/empleados`, () => ok([])));

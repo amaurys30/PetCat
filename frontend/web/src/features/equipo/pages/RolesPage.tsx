@@ -23,7 +23,13 @@ import { useNegocioActivo, usePuede } from "@/features/negocios/hooks/useNegocio
 import { aplicarErroresApi } from "@/lib/forms";
 import { cn } from "@/lib/utils";
 import { AccionesEquipo } from "../EquipoLayout";
-import { useCatalogoPermisos, useEliminarRol, useEscalada, useGuardarRol, useRoles } from "../hooks/useEquipo";
+import {
+  useCatalogoPermisos,
+  useEliminarRol,
+  useEscalada,
+  useGuardarRol,
+  useRoles,
+} from "../hooks/useEquipo";
 import { rolSchema, type RolValores } from "../schemas";
 import { ACCIONES_EN_COLUMNAS, COLUMNAS_MATRIZ, nombreAccion, nombreModulo, textoMiembros } from "../textos";
 
@@ -51,7 +57,10 @@ export function RolesPage() {
     const error = (roles.error ?? catalogo.error)!;
     return (
       <Card>
-        <ErrorConsulta error={error} reintentar={() => void Promise.all([roles.refetch(), catalogo.refetch()])} />
+        <ErrorConsulta
+          error={error}
+          reintentar={() => void Promise.all([roles.refetch(), catalogo.refetch()])}
+        />
       </Card>
     );
   }
@@ -64,7 +73,9 @@ export function RolesPage() {
   }
 
   const nuevo = puede("roles", "crear") && params.get("rol") === "nuevo";
-  const rol = nuevo ? null : (roles.data.find((r) => String(r.id_rol) === params.get("rol")) ?? roles.data[0]!);
+  const rol = nuevo
+    ? null
+    : (roles.data.find((r) => String(r.id_rol) === params.get("rol")) ?? roles.data[0]!);
   const elegir = (valor: string) => setParams({ rol: valor });
 
   return (
@@ -130,7 +141,8 @@ const ordenar = (permisos: Permisos): Permisos =>
       .map(([m, acciones]) => [m, [...(acciones ?? [])].sort()])
       .sort(([a], [b]) => String(a).localeCompare(String(b))),
   );
-const mismosPermisos = (a: Permisos, b: Permisos) => JSON.stringify(ordenar(a)) === JSON.stringify(ordenar(b));
+const mismosPermisos = (a: Permisos, b: Permisos) =>
+  JSON.stringify(ordenar(a)) === JSON.stringify(ordenar(b));
 
 function EditorRol({
   rol,
@@ -230,7 +242,9 @@ function EditorRol({
           <h2 className="text-card font-semibold text-ink">
             {rol ? `Permisos del rol "${rol.nombre}"` : "Nuevo rol"}
           </h2>
-          {rol && <Badge tono="neutral">{textoMiembros(rol.empleados_activos, rol.empleados_inactivos)}</Badge>}
+          {rol && (
+            <Badge tono="neutral">{textoMiembros(rol.empleados_activos, rol.empleados_inactivos)}</Badge>
+          )}
         </div>
 
         {editable && (
@@ -304,7 +318,10 @@ function EditorRol({
                       ) : (
                         <span className="flex flex-wrap gap-x-3 gap-y-1">
                           {otras.map((accion) => (
-                            <label key={accion} className="inline-flex items-center gap-1.5 text-label text-muted">
+                            <label
+                              key={accion}
+                              className="inline-flex items-center gap-1.5 text-label text-muted"
+                            >
                               {nombreAccion(accion)}
                               {casilla(accion)}
                             </label>

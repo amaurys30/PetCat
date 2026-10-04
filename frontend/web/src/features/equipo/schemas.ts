@@ -3,9 +3,7 @@ import { email, opcional, telefono } from "@/features/negocios/schemas";
 
 // Mismas reglas que la API (empleado.schemas.js); vacío = sin dato.
 const nombre = z.string().trim().min(2, "Debe tener al menos 2 caracteres").max(80, "Máximo 80 caracteres");
-const fecha = z
-  .string()
-  .refine((v) => v === "" || /^\d{4}-\d{2}-\d{2}$/.test(v), "Fecha inválida");
+const fecha = z.string().refine((v) => v === "" || /^\d{4}-\d{2}-\d{2}$/.test(v), "Fecha inválida");
 
 /** D3b · Agregar / editar miembro. */
 export const miembroSchema = z.object({

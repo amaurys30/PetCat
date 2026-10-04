@@ -52,7 +52,9 @@ export function EditorHorarioProfesional({
   const copiar = (desde: number, dias: readonly number[]) =>
     onChange(value.map((r, d) => (dias.includes(d) ? value[desde]!.map((x) => ({ ...x })) : r)));
   const nombreSede = (id: number | null) =>
-    id === null ? "Cualquier sede" : nombreCorto(sedes.find((s) => s.id_sucursal === id)?.nombre ?? `Sede ${id}`);
+    id === null
+      ? "Cualquier sede"
+      : nombreCorto(sedes.find((s) => s.id_sucursal === id)?.nombre ?? `Sede ${id}`);
 
   return (
     <ul className="flex flex-col">
@@ -67,7 +69,9 @@ export function EditorHorarioProfesional({
               <span className="w-24 shrink-0 text-body font-semibold text-ink">{nombre}</span>
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                 {rangos.length === 0 && (
-                  <span className="text-label text-muted">{sigueSede ? referencia?.[dia] : "No trabaja"}</span>
+                  <span className="text-label text-muted">
+                    {sigueSede ? referencia?.[dia] : "No trabaja"}
+                  </span>
                 )}
                 {rangos.map((rango, i) => (
                   <FichaRango
@@ -78,8 +82,18 @@ export function EditorHorarioProfesional({
                     etiquetaSede={variasSedes ? nombreSede(rango.id_sucursal) : null}
                     error={errores[`${dia}-${i}`]}
                     disabled={disabled}
-                    onChange={(nuevo) => cambiarDia(dia, rangos.map((r, j) => (j === i ? nuevo : r)))}
-                    onQuitar={() => cambiarDia(dia, rangos.filter((_, j) => j !== i))}
+                    onChange={(nuevo) =>
+                      cambiarDia(
+                        dia,
+                        rangos.map((r, j) => (j === i ? nuevo : r)),
+                      )
+                    }
+                    onQuitar={() =>
+                      cambiarDia(
+                        dia,
+                        rangos.filter((_, j) => j !== i),
+                      )
+                    }
                   />
                 ))}
                 {siguiente && (
@@ -105,17 +119,27 @@ export function EditorHorarioProfesional({
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild disabled={disabled}>
-                  <Button variant="ghost" size="icon" aria-label={`Copiar el horario del ${nombre.toLowerCase()}`}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Copiar el horario del ${nombre.toLowerCase()}`}
+                  >
                     <Copy className="size-4 text-muted" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onSelect={() => copiar(dia, LABORALES)}>Copiar a lunes–viernes</DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => copiar(dia, TODOS)}>Copiar a todos los días</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => copiar(dia, LABORALES)}>
+                    Copiar a lunes–viernes
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => copiar(dia, TODOS)}>
+                    Copiar a todos los días
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-            {erroresDia.length > 0 && <p className="mt-1 pl-27 text-label text-danger">{erroresDia.join(" · ")}</p>}
+            {erroresDia.length > 0 && (
+              <p className="mt-1 pl-27 text-label text-danger">{erroresDia.join(" · ")}</p>
+            )}
           </li>
         );
       })}

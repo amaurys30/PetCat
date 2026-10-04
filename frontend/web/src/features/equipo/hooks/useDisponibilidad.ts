@@ -63,8 +63,7 @@ export function useGuardarHorarioSemanal(idEmpleado: number) {
 }
 
 export type GuardarExcepcion =
-  | { nueva: api.ExcepcionInput }
-  | { idDisponibilidad: number; cambios: api.ActualizarExcepcionBody };
+  { nueva: api.ExcepcionInput } | { idDisponibilidad: number; cambios: api.ActualizarExcepcionBody };
 
 export function useGuardarExcepcion(idEmpleado: number) {
   const refrescar = useRefrescar(idEmpleado);

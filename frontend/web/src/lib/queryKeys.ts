@@ -22,6 +22,7 @@ export const queryKeys = {
   },
   disponibilidad: {
     todo: (idEmpleado: number) => ["disponibilidad", idEmpleado] as const,
-    efectiva: (idEmpleado: number, fecha: string) => ["disponibilidad", idEmpleado, "efectiva", fecha] as const,
+    efectiva: (idEmpleado: number, fecha: string) =>
+      ["disponibilidad", idEmpleado, "efectiva", fecha] as const,
   },
 };

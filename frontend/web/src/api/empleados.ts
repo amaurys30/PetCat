@@ -52,7 +52,8 @@ export const subirFotoEmpleado = (idEmpleado: number, archivo: File, onProgreso?
   });
 };
 
-export const quitarFotoEmpleado = (idEmpleado: number) => apiDelete<Empleado>(`/empleados/${idEmpleado}/foto`);
+export const quitarFotoEmpleado = (idEmpleado: number) =>
+  apiDelete<Empleado>(`/empleados/${idEmpleado}/foto`);
 
 /** 409 si ya tiene una vigente (usar reenviar) o si se agotaron los 4 correos en 24 h; 503 si el correo falla. */
 export const enviarInvitacion = (idEmpleado: number) =>

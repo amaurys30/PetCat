@@ -51,7 +51,13 @@ const rol = (cambios: Partial<RolNegocio> & Pick<RolNegocio, "id_rol" | "nombre"
 
 /** Roles de Patitas: los tres del sistema y uno propio (Coordinador). */
 export const rolesDemo: RolNegocio[] = [
-  rol({ id_rol: 1, nombre: "Administrador", descripcion: "Acceso total al panel del negocio.", permisos_json: TODO, empleados_activos: 1 }),
+  rol({
+    id_rol: 1,
+    nombre: "Administrador",
+    descripcion: "Acceso total al panel del negocio.",
+    permisos_json: TODO,
+    empleados_activos: 1,
+  }),
   rol({
     id_rol: 3,
     nombre: "Recepcionista",

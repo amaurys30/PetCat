@@ -23,7 +23,9 @@ const citaAfectada = (id: number, mascota: string) => ({
 });
 
 const base = (disponibilidad: Partial<Disponibilidad> = {}) => [
-  http.get(`${API}/empleados/1`, () => ok(empleadoDemo({ rol: { id_rol: 2, nombre: "Veterinario", permisos_json: {} } }))),
+  http.get(`${API}/empleados/1`, () =>
+    ok(empleadoDemo({ rol: { id_rol: 2, nombre: "Veterinario", permisos_json: {} } })),
+  ),
   http.get(`${API}/empleados/1/disponibilidad`, () =>
     ok({ horario_semanal: [], sigue_horario_sucursal: true, excepciones: [], ...disponibilidad }),
   ),
@@ -53,24 +55,33 @@ describe("D5 · Disponibilidad del profesional", () => {
       ...base(),
       http.put(`${API}/empleados/1/horario-semanal`, async ({ request }) => {
         enviado = await request.json();
-        return ok({ horario_semanal: [], citas_afectadas: [citaAfectada(40, "Rocky"), citaAfectada(41, "Kira")] });
+        return ok({
+          horario_semanal: [],
+          citas_afectadas: [citaAfectada(40, "Rocky"), citaAfectada(41, "Kira")],
+        });
       }),
     );
     renderRuta("/n/1/equipo/1/disponibilidad", { usuario: usuarioDemo() });
     const user = userEvent.setup();
     expect(await screen.findByRole("heading", { name: "Carlos Martínez" })).toBeInTheDocument();
-    expect(screen.getByText(/Sin horario propio: el profesional sigue el horario de la sede\./)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Sin horario propio: el profesional sigue el horario de la sede\./),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Guardar semana" })).toBeDisabled();
 
     await user.click(screen.getByRole("button", { name: "Partir del horario de Sede Centro" }));
     // Con varias sedes, cada rango dice de cuál es.
-    expect(screen.getByRole("button", { name: "Editar rango 14:00–18:00 en Centro del lunes" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Editar rango 14:00–18:00 en Centro del lunes" }),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Quitar rango 14:00–18:00 del lunes" }));
     await user.click(screen.getByRole("button", { name: "Guardar semana" }));
 
     const aviso = await screen.findByText("2 citas están fuera de la disponibilidad", { selector: "p" });
     expect(aviso.closest("[role=status]")).toHaveTextContent("Rocky");
-    expect(enviado).toEqual({ horarios: [{ dia_semana: 1, hora_inicio: "08:00", hora_fin: "12:00", id_sucursal: 3 }] });
+    expect(enviado).toEqual({
+      horarios: [{ dia_semana: 1, hora_inicio: "08:00", hora_fin: "12:00", id_sucursal: 3 }],
+    });
 
     await user.click(screen.getByRole("button", { name: "Ver detalle y copiar" }));
     expect(await screen.findByRole("dialog")).toHaveTextContent(
@@ -89,7 +100,9 @@ describe("D5 · Disponibilidad del profesional", () => {
     );
     renderRuta("/n/1/equipo/1/disponibilidad", { usuario: usuarioDemo() });
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: "Editar rango 08:00–12:00 en Centro del martes" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Editar rango 08:00–12:00 en Centro del martes" }),
+    );
     const desde = await screen.findByLabelText("Desde");
     await user.selectOptions(desde, "10:00");
     await user.click(screen.getByRole("button", { name: "Listo" }));
@@ -140,7 +153,9 @@ describe("D5 · Disponibilidad del profesional", () => {
     await user.type(within(dialogo).getByLabelText("Motivo"), "Cita médica personal");
     await user.click(within(dialogo).getByRole("button", { name: "Guardar bloqueo" }));
 
-    expect(await screen.findByText("1 cita está fuera de la disponibilidad", { selector: "p" })).toBeInTheDocument();
+    expect(
+      await screen.findByText("1 cita está fuera de la disponibilidad", { selector: "p" }),
+    ).toBeInTheDocument();
     expect(enviado).toEqual({
       tipo: "bloqueo",
       fecha_especifica: hoyISO(),
@@ -199,7 +214,11 @@ describe("D5 · Disponibilidad del profesional", () => {
       nombre: "Carlos",
       apellido: "Martínez",
       negocios: [
-        negocioDemo({ relacion: "empleado", id_empleado: 1, rol: { id_rol: 2, nombre: "Veterinario", permisos_json: {} } }),
+        negocioDemo({
+          relacion: "empleado",
+          id_empleado: 1,
+          rol: { id_rol: 2, nombre: "Veterinario", permisos_json: {} },
+        }),
       ],
     });
     servidor.use(
@@ -208,7 +227,9 @@ describe("D5 · Disponibilidad del profesional", () => {
     );
     renderRuta("/n/1/equipo/1/disponibilidad", { usuario: vet });
     expect(await screen.findByRole("heading", { name: "Carlos Martínez" })).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByRole("button", { name: "Guardar semana" })).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Guardar semana" })).not.toBeInTheDocument(),
+    );
     expect(screen.queryByRole("button", { name: "+ Bloqueo" })).not.toBeInTheDocument();
   });
 });

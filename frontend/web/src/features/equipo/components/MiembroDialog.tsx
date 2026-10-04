@@ -178,9 +178,15 @@ export function MiembroDialog({ empleado, onCerrar }: { empleado: Empleado | nul
     onCerrar();
     const nombre = `${creado.nombre} ${creado.apellido}`;
     if (pendientes.length > 0) {
-      aviso.advertencia(`${nombre} quedó en el equipo, pero ${pendientes.join(" y ")}. Reinténtalo desde la lista.`);
+      aviso.advertencia(
+        `${nombre} quedó en el equipo, pero ${pendientes.join(" y ")}. Reinténtalo desde la lista.`,
+      );
     } else {
-      aviso.exito(invitado ? `${nombre} quedó en el equipo. Invitación enviada a ${creado.email}.` : `${nombre} quedó en el equipo.`);
+      aviso.exito(
+        invitado
+          ? `${nombre} quedó en el equipo. Invitación enviada a ${creado.email}.`
+          : `${nombre} quedó en el equipo.`,
+      );
     }
   };
 
@@ -396,10 +402,15 @@ function SelectorRol({
       )}
       <div className="mt-1.5 flex items-center justify-between gap-3">
         <p className={cn("text-label", error ? "text-danger" : "text-muted")}>
-          {error ?? bloqueo ?? (escalada.esEmpleado ? "Solo puedes asignar roles con permisos que tu rol tenga." : "")}
+          {error ??
+            bloqueo ??
+            (escalada.esEmpleado ? "Solo puedes asignar roles con permisos que tu rol tenga." : "")}
         </p>
         {puedeCrearRol && (
-          <Link to="../roles?rol=nuevo" className="shrink-0 text-label font-semibold text-primary hover:underline">
+          <Link
+            to="../roles?rol=nuevo"
+            className="shrink-0 text-label font-semibold text-primary hover:underline"
+          >
             + Crear rol propio
           </Link>
         )}
@@ -514,14 +525,17 @@ function FotoPendiente({
           setError(null);
           if (!elegido) return;
           if (!TIPOS_FOTO.includes(elegido.type)) return setError("Usa una imagen JPG, PNG o WebP.");
-          if (elegido.size > MAX_FOTO_MB * 1024 * 1024) return setError(`La imagen pesa más de ${MAX_FOTO_MB} MB.`);
+          if (elegido.size > MAX_FOTO_MB * 1024 * 1024)
+            return setError(`La imagen pesa más de ${MAX_FOTO_MB} MB.`);
           onElegir(elegido);
         }}
       />
       <Avatar nombre={nombre} fotoUrl={previa} tamano="lg" tono="suave" />
       <div className="flex-1">
         <p className="text-body font-semibold text-ink">Foto (opcional)</p>
-        <p className="text-label text-muted">Se sube después de crear al miembro; también puede subirla él mismo.</p>
+        <p className="text-label text-muted">
+          Se sube después de crear al miembro; también puede subirla él mismo.
+        </p>
         {error && (
           <p role="alert" className="mt-1 text-label text-danger">
             {error}

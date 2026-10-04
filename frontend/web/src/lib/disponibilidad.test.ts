@@ -44,8 +44,12 @@ describe("horario semanal del profesional", () => {
   });
 
   it("compara semanas sin importar el orden y teniendo en cuenta la sede", () => {
-    const a = semanaProfesionalDesdeApi([{ dia_semana: 1, hora_inicio: "08:00", hora_fin: "12:00", id_sucursal: 1 }]);
-    const b = semanaProfesionalDesdeApi([{ dia_semana: 1, hora_inicio: "08:00", hora_fin: "12:00", id_sucursal: 2 }]);
+    const a = semanaProfesionalDesdeApi([
+      { dia_semana: 1, hora_inicio: "08:00", hora_fin: "12:00", id_sucursal: 1 },
+    ]);
+    const b = semanaProfesionalDesdeApi([
+      { dia_semana: 1, hora_inicio: "08:00", hora_fin: "12:00", id_sucursal: 2 },
+    ]);
     expect(semanasProfesionalIguales(a, a)).toBe(true);
     expect(semanasProfesionalIguales(a, b)).toBe(false);
   });

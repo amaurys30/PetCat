@@ -61,7 +61,10 @@ function ahoraBogota(ahora: Date): Date {
 
 /** Tiempo hasta un "YYYY-MM-DD HH:MM[:SS]" de Bogotá: "2 días", "5 horas", "1 minuto". */
 export function tiempoHasta(valor: string, ahora: Date = new Date()): string {
-  return formatDistanceStrict(parseFechaHora(valor), ahoraBogota(ahora), { locale: es, roundingMethod: "floor" });
+  return formatDistanceStrict(parseFechaHora(valor), ahoraBogota(ahora), {
+    locale: es,
+    roundingMethod: "floor",
+  });
 }
 
 /** "jueves, 25 de septiembre de 2026" */

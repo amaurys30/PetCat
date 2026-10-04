@@ -30,7 +30,11 @@ export const semanaProfesionalVacia = (): SemanaProfesional => Array.from({ leng
 export function semanaProfesionalDesdeApi(rangos: readonly RangoApi[]): SemanaProfesional {
   const semana = semanaProfesionalVacia();
   for (const r of rangos) {
-    semana[r.dia_semana]!.push({ inicio: hhmm(r.hora_inicio), fin: hhmm(r.hora_fin), id_sucursal: r.id_sucursal ?? null });
+    semana[r.dia_semana]!.push({
+      inicio: hhmm(r.hora_inicio),
+      fin: hhmm(r.hora_fin),
+      id_sucursal: r.id_sucursal ?? null,
+    });
   }
   return semana.map(ordenar);
 }

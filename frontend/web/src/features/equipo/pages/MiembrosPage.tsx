@@ -153,7 +153,12 @@ export function MiembrosPage() {
           <span>
             Página {empleados.data.meta.page} de {empleados.data.meta.totalPages}
           </span>
-          <Button variant="secondary" size="sm" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)}>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={pagina <= 1}
+            onClick={() => setPagina((p) => p - 1)}
+          >
             Anterior
           </Button>
           <Button
@@ -204,7 +209,12 @@ function TablaMiembros({
       header: "Miembro",
       cell: ({ row: { original: e } }) => (
         <div className="flex items-center gap-3">
-          <Avatar nombre={`${e.nombre} ${e.apellido}`} fotoUrl={e.foto_miniatura_url} tono="suave" tamano="lg" />
+          <Avatar
+            nombre={`${e.nombre} ${e.apellido}`}
+            fotoUrl={e.foto_miniatura_url}
+            tono="suave"
+            tamano="lg"
+          />
           <div className="min-w-0">
             <p className="truncate font-semibold text-ink">
               {e.nombre} {e.apellido}
@@ -337,7 +347,9 @@ function AccionesMiembro({
             // El propietario registrado como empleado no ocupa cupo.
             enLimite && !e.es_propietario
               ? abrirLimitePlan(mensajeLimite)
-              : reactivar.mutate(e.id_empleado, { onSuccess: () => aviso.exito(`${nombre} está activo de nuevo`) })
+              : reactivar.mutate(e.id_empleado, {
+                  onSuccess: () => aviso.exito(`${nombre} está activo de nuevo`),
+                })
           }
         >
           Reactivar
@@ -367,7 +379,9 @@ function AccionesMiembro({
   const acciones: Accion[] = [];
   if (inv && puede("empleados", "crear")) {
     acciones.push({
-      texto: reenvio ? `Reenviar (${inv.envios_restantes_24h} de ${MAX_INVITACIONES_24H})` : "Enviar invitación",
+      texto: reenvio
+        ? `Reenviar (${inv.envios_restantes_24h} de ${MAX_INVITACIONES_24H})`
+        : "Enviar invitación",
       motivo:
         inv.envios_restantes_24h === 0
           ? `Ya se enviaron ${MAX_INVITACIONES_24H} correos en 24 horas.${

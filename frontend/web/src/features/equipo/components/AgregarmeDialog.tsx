@@ -69,7 +69,9 @@ export function AgregarmeDialog({ onCerrar }: { onCerrar: () => void }) {
                 Más tarde
               </Button>
               <Button asChild>
-                <Link to={`../${listo.empleado.id_empleado}/disponibilidad`}>Configurar mi disponibilidad</Link>
+                <Link to={`../${listo.empleado.id_empleado}/disponibilidad`}>
+                  Configurar mi disponibilidad
+                </Link>
               </Button>
             </div>
           </>
@@ -83,7 +85,11 @@ export function AgregarmeDialog({ onCerrar }: { onCerrar: () => void }) {
             <form onSubmit={onSubmit} noValidate className="mt-4">
               <fieldset disabled={isSubmitting} className="flex flex-col gap-4">
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Rol" error={errors.id_rol?.message} ayuda="Como propietario tienes acceso total igual.">
+                  <Field
+                    label="Rol"
+                    error={errors.id_rol?.message}
+                    ayuda="Como propietario tienes acceso total igual."
+                  >
                     <NativeSelect {...form.register("id_rol", { valueAsNumber: true })}>
                       {roles.data?.map((r) => (
                         <option key={r.id_rol} value={r.id_rol}>

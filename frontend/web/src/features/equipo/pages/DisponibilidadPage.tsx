@@ -252,7 +252,10 @@ function HorarioSemanal({
     guardar.mutate(horarios, {
       onSuccess: ({ citas_afectadas }) => {
         onSucio(false);
-        onGuardado(citas_afectadas, horarios.length === 0 ? "Ahora sigue el horario de la sede" : "Horario guardado");
+        onGuardado(
+          citas_afectadas,
+          horarios.length === 0 ? "Ahora sigue el horario de la sede" : "Horario guardado",
+        );
       },
       onError: (e) => {
         // horarios.N del 422 -> la ficha del día y rango que se envió en la posición N.
@@ -329,9 +332,10 @@ function horarioDeSedes(sedes: SedeHorario[]): string[] {
 
 /** "20 – 27 sep · días completos", "30 sep · 14:00–18:00", "dom 5 oct · 08:00–12:00 · Sede Norte". */
 function textoExcepcion(e: Excepcion, sedes: SedeHorario[]) {
-  const dias = e.fecha_fin && e.fecha_fin !== e.fecha_especifica
-    ? `${fechaCorta(e.fecha_especifica)} – ${fechaCorta(e.fecha_fin)}`
-    : fechaCorta(e.fecha_especifica);
+  const dias =
+    e.fecha_fin && e.fecha_fin !== e.fecha_especifica
+      ? `${fechaCorta(e.fecha_especifica)} – ${fechaCorta(e.fecha_fin)}`
+      : fechaCorta(e.fecha_especifica);
   const horas = e.hora_inicio && e.hora_fin ? `${hora(e.hora_inicio)}–${hora(e.hora_fin)}` : "días completos";
   const sede = e.id_sucursal ? sedes.find((s) => s.id_sucursal === e.id_sucursal)?.nombre : null;
   return [dias, horas, sede].filter(Boolean).join(" · ");
@@ -369,7 +373,9 @@ function Excepciones({
               <li key={e.id_disponibilidad} className="flex items-center gap-3 rounded-card border p-3">
                 <Icono className="size-4 shrink-0 text-muted" aria-hidden />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-body font-semibold text-ink">{e.motivo ?? NOMBRE_TIPO[e.tipo]}</p>
+                  <p className="truncate text-body font-semibold text-ink">
+                    {e.motivo ?? NOMBRE_TIPO[e.tipo]}
+                  </p>
                   <p className="truncate text-label text-muted">{textoExcepcion(e, sedes)}</p>
                 </div>
                 <Badge tono={TONO[e.tipo]}>{NOMBRE_TIPO[e.tipo]}</Badge>
@@ -450,7 +456,8 @@ function CitasFuera({ afectadas: { citas, guardado } }: { afectadas: Afectadas }
       <ul className="mt-2 flex flex-col gap-1 text-body">
         {citas.slice(0, 4).map((c) => (
           <li key={c.id_cita}>
-            {c.mascota.nombre} · {fechaCorta(c.fecha)}, {hora(c.hora_inicio)} · {c.cliente.nombre} {c.cliente.apellido}
+            {c.mascota.nombre} · {fechaCorta(c.fecha)}, {hora(c.hora_inicio)} · {c.cliente.nombre}{" "}
+            {c.cliente.apellido}
           </li>
         ))}
         {citas.length > 4 && <li>y {citas.length - 4} más</li>}
@@ -475,7 +482,10 @@ function DisponibilidadDelDia({ idEmpleado, excepciones }: { idEmpleado: number;
   const [fecha, setFecha] = useState(hoyISO());
   const efectiva = useDisponibilidadEfectiva(idEmpleado, fecha);
   const delDia = excepciones.filter(
-    (e) => e.tipo !== "evento_especial" && e.fecha_especifica <= fecha && (e.fecha_fin ?? e.fecha_especifica) >= fecha,
+    (e) =>
+      e.tipo !== "evento_especial" &&
+      e.fecha_especifica <= fecha &&
+      (e.fecha_fin ?? e.fecha_especifica) >= fecha,
   );
   const valida = /^\d{4}-\d{2}-\d{2}$/.test(fecha);
   return (
@@ -501,7 +511,9 @@ function DisponibilidadDelDia({ idEmpleado, excepciones }: { idEmpleado: number;
         <ul className="flex flex-col gap-2">
           {efectiva.data.sucursales.map((s) => (
             <li key={s.id_sucursal}>
-              {efectiva.data.sucursales.length > 1 && <p className="mb-1 text-label text-muted">{s.nombre}</p>}
+              {efectiva.data.sucursales.length > 1 && (
+                <p className="mb-1 text-label text-muted">{s.nombre}</p>
+              )}
               <div className="flex flex-wrap gap-2">
                 {s.rangos.length === 0 ? (
                   <span className="text-label text-muted">No atiende este día</span>
@@ -523,8 +535,13 @@ function DisponibilidadDelDia({ idEmpleado, excepciones }: { idEmpleado: number;
       {delDia.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
           {delDia.map((e) => (
-            <span key={e.id_disponibilidad} className="rounded-control bg-track px-2.5 py-1 text-label text-muted">
-              {e.hora_inicio && e.hora_fin ? `${hora(e.hora_inicio)}–${hora(e.hora_fin)} bloqueado` : `${NOMBRE_TIPO[e.tipo]}: todo el día`}
+            <span
+              key={e.id_disponibilidad}
+              className="rounded-control bg-track px-2.5 py-1 text-label text-muted"
+            >
+              {e.hora_inicio && e.hora_fin
+                ? `${hora(e.hora_inicio)}–${hora(e.hora_fin)} bloqueado`
+                : `${NOMBRE_TIPO[e.tipo]}: todo el día`}
               {e.motivo ? `: ${e.motivo.toLowerCase()}` : ""}
             </span>
           ))}

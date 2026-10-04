@@ -73,10 +73,7 @@ export function usePermisosPorRol() {
     escalada.esEmpleado &&
     (puede("roles", "ver") || puede("empleados", "crear") || puede("empleados", "editar"));
   const roles = useRoles(negocio.id_negocio, consultar);
-  return useMemo(
-    () => new Map((roles.data ?? []).map((r) => [r.id_rol, r.permisos_json])),
-    [roles.data],
-  );
+  return useMemo(() => new Map((roles.data ?? []).map((r) => [r.id_rol, r.permisos_json])), [roles.data]);
 }
 
 /**
@@ -104,7 +101,8 @@ export function useCrearEmpleado() {
   const negocio = useNegocioActivo();
   return useMutation({
     meta,
-    mutationFn: (body: empleadosApi.CrearEmpleadoBody) => empleadosApi.crearEmpleado(negocio.id_negocio, body),
+    mutationFn: (body: empleadosApi.CrearEmpleadoBody) =>
+      empleadosApi.crearEmpleado(negocio.id_negocio, body),
   });
 }
 

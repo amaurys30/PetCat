@@ -109,11 +109,13 @@ export const rutas: RouteObject[] = [
                 element: <MiPerfilPage />,
                 handle: { titulo: "Mi perfil" } satisfies HandleRuta,
               },
-              ...SECCIONES.filter((s) => !["configuracion", "equipo"].includes(s.ruta)).map((seccion): RouteObject => ({
-                path: `${seccion.ruta}/*`,
-                element: <SeccionPendiente seccion={seccion} />,
-                handle: { titulo: seccion.titulo } satisfies HandleRuta,
-              })),
+              ...SECCIONES.filter((s) => !["configuracion", "equipo"].includes(s.ruta)).map(
+                (seccion): RouteObject => ({
+                  path: `${seccion.ruta}/*`,
+                  element: <SeccionPendiente seccion={seccion} />,
+                  handle: { titulo: seccion.titulo } satisfies HandleRuta,
+                }),
+              ),
               { path: "*", element: <PaginaNoEncontrada /> },
             ],
           },
