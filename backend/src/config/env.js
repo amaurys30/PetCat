@@ -48,6 +48,11 @@ const schema = z
 
     SMTP_HOST: z.string().optional(),
     SMTP_PORT: z.coerce.number().int().positive().default(587),
+    // Cifrado: "tls" (TLS directo, puerto 465), "starttls" (exige STARTTLS, puerto 587) o
+    // "none" (sin cifrar, solo Mailpit u otro servidor local). Sin definir: 465 -> tls; con
+    // usuario -> starttls; si no -> none.
+    SMTP_SECURE: z.enum(["tls", "starttls", "none"], { error: "Debe ser tls, starttls o none" }).optional(),
+    // Usuario y contraseña van juntos; sin ellos, el SMTP no usa autenticación.
     SMTP_USER: z.string().optional(),
     SMTP_PASS: z.string().optional(),
     // Tiempo máximo (ms) para conectar, saludo y cada operación del SMTP. Un servidor que no
@@ -87,6 +92,13 @@ const schema = z
         code: "custom",
         path: ["SMTP_HOST"],
         message: "Obligatoria en producción (sin SMTP los correos solo se muestran en consola)",
+      });
+    }
+    if (Boolean(data.SMTP_USER) !== Boolean(data.SMTP_PASS)) {
+      ctx.addIssue({
+        code: "custom",
+        path: [data.SMTP_USER ? "SMTP_PASS" : "SMTP_USER"],
+        message: "SMTP_USER y SMTP_PASS van juntas (o ninguna, para un SMTP sin autenticación)",
       });
     }
     const cloudinary = ["CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"];

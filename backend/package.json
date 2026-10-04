@@ -15,7 +15,8 @@
     "test:watch": "vitest",
     "db:reset": "node scripts/db-reset.js",
     "db:migrate": "node scripts/db-migrate.js",
-    "db:demo": "node scripts/db-demo.js"
+    "db:demo": "node scripts/db-demo.js",
+    "mail:test": "node scripts/mail-test.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

@@ -1,7 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { pool } from "../../src/config/db.js";
 import { withTransaction } from "../../src/shared/utils/transaction.js";
-import { sendMail, outbox, clearOutbox, transportOptions } from "../../src/shared/utils/mailer.js";
+import { spawnSync } from "node:child_process";
+import {
+  sendMail,
+  outbox,
+  clearOutbox,
+  explicarErrorSmtp,
+  modoSeguro,
+  transportOptions,
+} from "../../src/shared/utils/mailer.js";
 import { env } from "../../src/config/env.js";
 
 describe("withTransaction (petcat_test)", () => {
@@ -53,6 +61,65 @@ describe("mailer en tests", () => {
     expect(result).toEqual({ delivered: false, mode: "test" });
     expect(outbox).toHaveLength(1);
     expect(outbox[0]).toMatchObject({ to: "ana@petcat.co", from: expect.stringContaining("PetCat") });
+  });
+});
+
+const smtp = (cambios = {}) => ({ SMTP_HOST: "smtp.ejemplo.com", SMTP_PORT: 587, SMTP_TIMEOUT_MS: 10000, ...cambios });
+
+describe("modos de cifrado y autenticación", () => {
+  it("deduce el cifrado: 465 -> tls; con usuario -> starttls; sin usuario -> none (Mailpit)", () => {
+    expect(modoSeguro(smtp({ SMTP_PORT: 465 }))).toBe("tls");
+    expect(modoSeguro(smtp({ SMTP_USER: "a@b.co" }))).toBe("starttls");
+    expect(modoSeguro(smtp({ SMTP_HOST: "mailpit", SMTP_PORT: 1025 }))).toBe("none");
+    expect(modoSeguro(smtp({ SMTP_PORT: 465, SMTP_SECURE: "starttls" }))).toBe("starttls");
+  });
+
+  it("tls: TLS directo con autenticación", () => {
+    expect(transportOptions(smtp({ SMTP_PORT: 465, SMTP_USER: "u", SMTP_PASS: "p" }))).toMatchObject({
+      port: 465,
+      secure: true,
+      requireTLS: false,
+      ignoreTLS: false,
+      auth: { user: "u", pass: "p" },
+    });
+  });
+
+  it("starttls: exige STARTTLS en el 587", () => {
+    expect(transportOptions(smtp({ SMTP_USER: "u", SMTP_PASS: "p" }))).toMatchObject({
+      secure: false,
+      requireTLS: true,
+      ignoreTLS: false,
+    });
+  });
+
+  it("none: sin cifrar ni autenticación (Mailpit)", () => {
+    const opciones = transportOptions(smtp({ SMTP_HOST: "mailpit", SMTP_PORT: 1025, SMTP_SECURE: "none" }));
+    expect(opciones).toMatchObject({ host: "mailpit", port: 1025, secure: false, requireTLS: false, ignoreTLS: true });
+    expect(opciones.auth).toBeUndefined();
+  });
+
+  it("SMTP_USER sin SMTP_PASS es una configuración inválida", () => {
+    const resultado = spawnSync(process.execPath, ["--input-type=module", "-e", 'await import("./src/config/env.js")'], {
+      env: { ...process.env, SMTP_USER: "solo@usuario.co", SMTP_PASS: "" },
+      encoding: "utf8",
+    });
+    expect(resultado.status).not.toBe(0);
+    expect(resultado.stderr).toContain("SMTP_USER y SMTP_PASS van juntas");
+  });
+});
+
+describe("errores SMTP explicados", () => {
+  const config = smtp({ SMTP_HOST: "smtp.gmail.com", SMTP_PORT: 587 });
+  const casos = [
+    [{ code: "EAUTH", message: "Invalid login: 535 5.7.8" }, /usuario o la contraseña.*contraseña de aplicación/],
+    [{ code: "ESOCKET", message: "getaddrinfo ENOTFOUND smtp.gmial.com" }, /No se encontró el servidor/],
+    [{ code: "ESOCKET", message: "connect ECONNREFUSED 127.0.0.1:1025" }, /Nadie respondió en smtp.gmail.com:587/],
+    [{ code: "ETIMEDOUT", message: "Connection timeout" }, /no respondió en 10000 ms/],
+    [{ code: "ESOCKET", message: "write EPROTO ...:wrong version number" }, /SMTP_SECURE=tls con 465/],
+    [{ code: "EENVELOPE", message: "Sender address rejected" }, /rechazó el remitente/],
+  ];
+  it.each(casos)("%o", (error, esperado) => {
+    expect(explicarErrorSmtp(error, config)).toMatch(esperado);
   });
 });
 
