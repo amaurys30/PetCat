@@ -11,6 +11,7 @@ import {
   iniciales,
   parseFecha,
   parseFechaHora,
+  tiempoHasta,
 } from "./format";
 
 describe("fechas", () => {
@@ -47,6 +48,14 @@ describe("fechas", () => {
     // 2026-09-26 03:00 UTC = 2026-09-25 22:00 en Bogotá (UTC-5)
     expect(hoyISO(new Date("2026-09-26T03:00:00Z"))).toBe("2026-09-25");
     expect(hoyISO(new Date("2026-09-26T05:00:00Z"))).toBe("2026-09-26");
+  });
+
+  it("tiempoHasta compara con la hora de Bogotá y redondea hacia abajo", () => {
+    // 2026-09-26 15:00 UTC = 10:00 en Bogotá
+    const ahora = new Date("2026-09-26T15:00:00Z");
+    expect(tiempoHasta("2026-09-28 22:00:00", ahora)).toBe("2 días");
+    expect(tiempoHasta("2026-09-26 15:30:00", ahora)).toBe("5 horas");
+    expect(tiempoHasta("2026-09-26 10:01:00", ahora)).toBe("1 minuto");
   });
 });
 

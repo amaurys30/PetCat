@@ -60,6 +60,15 @@ export async function apiPost<T>(url: string, body?: unknown, config?: AxiosRequ
   return data.data;
 }
 
+/** POST cuando la pantalla necesita el `message` o el código (201 creado / 200 vinculado). */
+export async function apiPostRespuesta<T>(
+  url: string,
+  body?: unknown,
+): Promise<{ data: T; message: string; status: number }> {
+  const respuesta = await http.post<Respuesta<T>>(url, body);
+  return { data: respuesta.data.data, message: respuesta.data.message, status: respuesta.status };
+}
+
 export async function apiPut<T>(url: string, body?: unknown, config?: AxiosRequestConfig): Promise<T> {
   const { data } = await http.put<Respuesta<T>>(url, body, config);
   return data.data;
