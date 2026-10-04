@@ -119,7 +119,9 @@ export const findActivosDeEmpleados = async (ids) => {
  * empleado). Las asignaciones a servicios eliminados se conservan, como en el servicio.
  * Bloquea las filas de los servicios que cambian, en orden de id, igual que la edición
  * de un servicio (que bloquea el servicio antes de tocar sus asignaciones): así las dos
- * puertas se serializan sin perder cambios ni cruzarse en un deadlock.
+ * puertas se serializan sin cruzarse en un deadlock. Debe ir antes de escribir en la fila
+ * del empleado (la reserva bloquea servicio y después empleado). Las asignaciones se leen
+ * sin bloqueo y se borran por clave primaria (regla de filas hijas de la Fase 1).
  * Devuelve los ids de `ids` que no son servicios activos del negocio (nada cambia si hay alguno).
  */
 export const replaceServiciosActivosDeEmpleado = async (id_empleado, id_negocio, ids, conn) => {

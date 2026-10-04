@@ -87,6 +87,23 @@ describe("filas hijas nuevas en paralelo (sin deadlock)", () => {
     );
   });
 
+  it("servicios de empleados sin servicios (desde el empleado, con otros datos)", async () => {
+    await enParalelo(
+      async () => {
+        const negocio = await crearNegocio();
+        return {
+          servicio: await crearServicio(negocio),
+          empleado: await crearEmpleado(negocio),
+          token: await tokenDe(negocio.propietario),
+        };
+      },
+      ({ servicio, empleado, token }) =>
+        api(token)
+          .patch(`/empleados/${empleado.id_empleado}`)
+          .send({ especialidad: "Cirugía", servicios: [servicio.id_servicio] }),
+    );
+  });
+
   it("primera invitación de empleados nuevos", async () => {
     await enParalelo(
       async () => {

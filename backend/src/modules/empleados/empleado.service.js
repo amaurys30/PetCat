@@ -229,6 +229,10 @@ export const updateEmpleado = async (id_empleado, data, acceso) => {
       verificarRolAsignable(await findRolAsignable(data.id_rol, empleado.id_negocio), acceso);
     }
 
+    // Servicios antes que la fila del empleado: la reserva bloquea servicio y luego empleado,
+    // y el orden inverso podría cruzarse con ella en un deadlock.
+    if (data.servicios !== undefined) await asignarServicios(id_empleado, empleado.id_negocio, data.servicios, conn);
+
     const cambiaEmail = data.email !== undefined && !mismoEmail(data.email, empleado.email);
     if (cambiaEmail) {
       await verificarEmailLibre(empleado.id_negocio, data.email, id_empleado, conn);
@@ -236,7 +240,6 @@ export const updateEmpleado = async (id_empleado, data, acceso) => {
     }
 
     await empleadoRepo.update(id_empleado, data, conn);
-    if (data.servicios !== undefined) await asignarServicios(id_empleado, empleado.id_negocio, data.servicios, conn);
   });
   return getEmpleado(id_empleado);
 };
