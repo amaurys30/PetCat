@@ -82,6 +82,10 @@ services:
       DB_USER: root
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       DB_NAME: petcat_demo
+      # Límites mucho más altos solo en la demo: las pruebas de punta a punta del panel hacen
+      # muchas solicitudes seguidas desde la misma IP. petcat_backend conserva los normales.
+      RATE_LIMIT_MAX: "100000"
+      AUTH_RATE_LIMIT_MAX: "10000"
     # Esquema y seed para crear o recargar petcat_demo desde el contenedor.
     volumes:
       - ./database:/database:ro

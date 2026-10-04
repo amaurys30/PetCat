@@ -123,3 +123,47 @@ describe("POST /auth/resend-verification", () => {
     expect((await api().post("/auth/resend-verification")).status).toBe(401);
   });
 });
+
+describe("POST /auth/request-verification (sin sesión)", () => {
+  const MENSAJE = "Si el correo está registrado y sin verificar, te enviamos un nuevo enlace de verificación";
+  const pedir = (email) => api().post("/auth/request-verification").send({ email });
+
+  it("envía un enlace nuevo que verifica el correo e invalida el anterior; máximo uno por minuto", async () => {
+    const usuario = await registrar();
+    await envejecerEnlace(usuario.id_usuario);
+    clearOutbox();
+
+    const res = await pedir(usuario.email.toUpperCase());
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ message: MENSAJE, data: null });
+    expect(outbox).toHaveLength(1);
+    const nuevo = tokenDelCorreo(outbox[0]);
+    expect(nuevo).not.toBe(usuario.token);
+
+    // Antes de un minuto responde igual, pero no envía otro.
+    expect((await pedir(usuario.email)).body.message).toBe(MENSAJE);
+    expect(outbox).toHaveLength(1);
+
+    expect((await api().get(`/auth/verify-email/${usuario.token}`)).status).toBe(400);
+    expect((await api().get(`/auth/verify-email/${nuevo}`)).status).toBe(200);
+    expect(Boolean((await usuarioDe(usuario.id_usuario)).email_verificado)).toBe(true);
+  });
+
+  it("respuesta neutra sin enviar nada: email inexistente, ya verificado o cuenta desactivada", async () => {
+    const verificado = await crearUsuario({ email_verificado: true });
+    const inactivo = await crearUsuario({ activo: false });
+
+    for (const email of [`nadie_${unique()}@petcat.test`, verificado.email, inactivo.email]) {
+      const res = await pedir(email);
+      expect(res.status).toBe(200);
+      expect(res.body.message).toBe(MENSAJE);
+    }
+    expect(outbox).toEqual([]);
+  });
+
+  it("email inválido o campos extra -> 422", async () => {
+    expect((await pedir("no-es-email")).status).toBe(422);
+    const extra = await api().post("/auth/request-verification").send({ email: "a@petcat.test", id_usuario: 1 });
+    expect(extra.status).toBe(422);
+  });
+});

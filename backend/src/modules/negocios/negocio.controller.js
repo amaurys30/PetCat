@@ -15,6 +15,10 @@ export const getPerfilPublico = async (req, res) => {
   return ok(res, await service.getPerfilPublico(req.params.id_negocio));
 };
 
+export const getGestion = async (req, res) => {
+  return ok(res, await service.getGestion(req.negocio));
+};
+
 const MENSAJES_IMAGEN = {
   logo: { subida: "Logo actualizado", eliminada: "Logo eliminado" },
   banner: { subida: "Banner actualizado", eliminada: "Banner eliminado" },

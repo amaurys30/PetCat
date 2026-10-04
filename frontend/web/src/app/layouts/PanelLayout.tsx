@@ -3,7 +3,8 @@ import { Link, Navigate, Outlet } from "react-router";
 import { SECCIONES } from "@/app/menu";
 import { NoEncontrado, SinPermiso } from "@/components/common/EstadoPantalla";
 import { Button } from "@/components/ui/button";
-import { useNegocioDeRuta, usePuede } from "@/features/negocios/hooks/useNegocio";
+import { Alert } from "@/components/ui/alert";
+import { useNegocioActivo, useNegocioDeRuta, usePuede } from "@/features/negocios/hooks/useNegocio";
 import { useNegocioStore } from "@/stores/negocio";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
@@ -36,16 +37,43 @@ export function PanelLayout() {
     );
   }
 
+  // Al propietario con el negocio a medio configurar se le retoma el asistente (A6).
+  if (negocio.relacion === "propietario" && negocio.configuracion_pendiente) {
+    return <Navigate to={`/negocios/${negocio.id_negocio}/configurar`} replace />;
+  }
+
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar />
         <main className="flex-1 overflow-y-auto p-6">
+          <AvisoConfiguracionPendiente />
           <Outlet />
         </main>
       </div>
     </div>
+  );
+}
+
+const TEXTO_PENDIENTE = {
+  sede: "Este negocio todavía no tiene sedes: no aparece en la app ni recibe reservas.",
+  horarios: "Ninguna sede tiene horario de atención: el negocio no recibe reservas.",
+};
+
+/** A un empleado que puede editar la configuración, le avisa que el negocio está a medias. */
+function AvisoConfiguracionPendiente() {
+  const negocio = useNegocioActivo();
+  const puede = usePuede();
+  const pendiente = negocio.configuracion_pendiente;
+  if (!pendiente || !puede("configuracion", "editar")) return null;
+  return (
+    <Alert tono="advertencia" className="mb-5">
+      {TEXTO_PENDIENTE[pendiente]}{" "}
+      <Link to="configuracion/sedes" className="font-semibold underline">
+        Ir a Sedes y horarios
+      </Link>
+    </Alert>
   );
 }
 

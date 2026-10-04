@@ -1,7 +1,12 @@
 import { iniciales } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const TAMANOS = { sm: "size-7 text-[10px]", md: "size-8 text-label", lg: "size-10 text-body" } as const;
+const TAMANOS = {
+  sm: "size-7 text-[10px]",
+  md: "size-8 text-label",
+  lg: "size-10 text-body",
+  xl: "size-16 text-[22px]",
+} as const;
 
 /** Foto (miniatura) o iniciales sobre el color primario. */
 export function Avatar({

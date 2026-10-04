@@ -78,12 +78,20 @@ export const findByTokenHash = async (token_hash, { conn, forUpdate = false } = 
   return rows[0];
 };
 
-/** Invalida las invitaciones pendientes del empleado. Acepta conn para usarse en transacciones. */
+/**
+ * Invalida las invitaciones pendientes del empleado. Acepta conn para usarse en transacciones
+ * (con el empleado ya bloqueado). Actualiza por clave primaria, no por id_empleado: la misma
+ * transacción inserta después la invitación nueva (regla de bloqueos de la Fase 1).
+ */
 export const invalidatePrevious = async (id_empleado, conn) => {
-  await (conn ?? db).query(
-    "UPDATE invitaciones_empleado SET expiracion = NOW() WHERE id_empleado = ? AND usado = FALSE AND expiracion > NOW()",
+  const [vigentes] = await (conn ?? db).query(
+    "SELECT id_invitacion FROM invitaciones_empleado WHERE id_empleado = ? AND usado = FALSE AND expiracion > NOW()",
     [id_empleado]
   );
+  if (vigentes.length === 0) return;
+  await (conn ?? db).query("UPDATE invitaciones_empleado SET expiracion = NOW() WHERE id_invitacion IN (?)", [
+    vigentes.map((i) => i.id_invitacion),
+  ]);
 };
 
 export const markAsUsed = async (id_invitacion, conn) => {

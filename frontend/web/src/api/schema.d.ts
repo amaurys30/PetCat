@@ -53,6 +53,12 @@ export interface paths {
                          * @enum {string}
                          */
                         tipo_usuario?: "cliente" | "negocio";
+                        /**
+                         * @description Desde dónde se registra el titular (el panel web envía `panel_web`). Es el canal de su autorización de datos. `panel` no se acepta: es el de un cliente que registró un negocio.
+                         * @default app
+                         * @enum {string}
+                         */
+                        canal?: "app" | "panel_web";
                     };
                 };
             };
@@ -359,16 +365,19 @@ export interface paths {
                             data: components["schemas"]["PerfilPropio"] & {
                                 /** @description No tiene una autorización de datos vigente para la versión actual de la política: la app o el panel deben pedirla y enviarla a POST /auth/politica-datos/aceptar. */
                                 requiere_aceptar_politica: boolean;
-                                /** @description Versión vigente de la política de datos y enlace a su texto completo. */
-                                politica: {
+                                politica: components["schemas"]["PoliticaDatos"];
+                                /** @description Última autorización de datos no revocada del usuario. Puede ser de una versión anterior a la vigente (entonces `requiere_aceptar_politica` es true). null si nunca aceptó. */
+                                politica_aceptada: {
                                     /** @example 1.0 */
                                     version: string;
+                                    /** @example 2026-09-27 10:00:00 */
+                                    fecha: string;
                                     /**
-                                     * @description null si PetCat todavía no publicó el enlace (configuracion_global.politica_datos_url).
-                                     * @example https://petcat.co/politica-de-datos
+                                     * @description Dónde se aceptó. `panel_web`: se registró en el panel web; `panel`: lo registró un negocio.
+                                     * @enum {string}
                                      */
-                                    url: string | null;
-                                };
+                                    canal: "app" | "panel" | "panel_web" | "invitacion" | "aceptacion";
+                                } | null;
                                 negocios: components["schemas"]["NegocioMio"][];
                             };
                         };
@@ -478,7 +487,7 @@ export interface paths {
                             data: {
                                 id_autorizacion: number;
                                 /** @enum {string} */
-                                canal: "app" | "panel" | "invitacion" | "aceptacion";
+                                canal: "app" | "panel" | "panel_web" | "invitacion" | "aceptacion";
                                 /** @example 1.0 */
                                 version_politica: string;
                                 /** @example 2026-09-27 10:00:00 */
@@ -947,6 +956,106 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/request-verification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pedir un enlace de verificación sin sesión
+         * @description Para cuando el enlace venció o se abrió en otro dispositivo sin sesión. Responde igual exista o no el email, y aunque ya esté verificado. Si la cuenta existe, está activa y no está verificada, envía `${FRONTEND_URL}/verificar-email/<token>` (vigente 24 horas; cada enlace nuevo invalida el anterior; máximo uno por minuto). Con sesión, usar `POST /auth/resend-verification`, que sí informa si ya está verificado o si el correo no se pudo enviar.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: email */
+                        email: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Solicitud recibida */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            /** @example Si el correo está registrado y sin verificar */
+                            message: string;
+                            /** @example null */
+                            data: unknown;
+                        };
+                    };
+                };
+                422: components["responses"]["ValidationError"];
+                429: components["responses"]["TooManyRequests"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/politica-datos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Política de datos vigente
+         * @description Público (sin token). Para enlazar la política en el registro y al aceptar una invitación, antes de que haya sesión. Con sesión, `GET /auth/me` trae lo mismo en `politica`.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Política vigente */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            /** @example OK */
+                            message: string;
+                            data: components["schemas"]["PoliticaDatos"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3882,7 +3991,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Horario guardado: la semana completa y `citas_afectadas` (citas futuras pendientes o confirmadas de la sucursal que ya no caben; el cambio se guarda igual). */
+                /** @description Horario guardado: la semana completa y `citas_afectadas`, las citas futuras pendientes o confirmadas de esta sucursal (de cualquier profesional) que con el nuevo horario ya no caben: en la disponibilidad de su profesional recortada por este horario o, si no tienen profesional, en el horario. El cambio se guarda igual y la lista no se puede volver a consultar después. */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -4656,6 +4765,57 @@ export interface paths {
                 422: components["responses"]["ValidationError"];
             };
         };
+        trace?: never;
+    };
+    "/negocios/{id_negocio}/gestion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Datos del negocio para el panel
+         * @description Requiere `configuracion.ver` (el propietario siempre puede). A diferencia del perfil público, trae todas las columnas del negocio (`nit`, `razon_social`, `codigo_postal`, `pais`, `activo`...), funciona aunque el negocio esté inactivo e incluye las reglas de confirmación de citas.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id_negocio: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Negocio con sus sucursales y reglas de confirmación */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            /** @example OK */
+                            message: string;
+                            data: components["schemas"]["NegocioGestion"];
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["ValidationError"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/negocios/{id_negocio}/logo": {
@@ -7246,6 +7406,16 @@ export interface components {
             /** @example 2026-09-01 10:00:00 */
             fecha_registro: string;
         };
+        /** @description Versión vigente de la política de tratamiento de datos y enlace a su texto completo. */
+        PoliticaDatos: {
+            /** @example 1.0 */
+            version: string;
+            /**
+             * @description null si PetCat todavía no publicó el enlace (configuracion_global.politica_datos_url).
+             * @example https://petcat.co/politica-de-datos
+             */
+            url: string | null;
+        };
         /** @description Sucursal más cercana a las coordenadas de la búsqueda (null sin coordenadas) */
         SucursalCercana: {
             id_sucursal: number;
@@ -7800,7 +7970,7 @@ export interface components {
             id_sucursal: number | null;
             motivo: string | null;
         };
-        /** @description Cita futura pendiente o confirmada del empleado que ya no cabe en su disponibilidad */
+        /** @description Cita futura pendiente o confirmada que ya no cabe tras el cambio (en la disponibilidad del empleado o en el horario de la sucursal, según el endpoint) */
         CitaAfectada: {
             id_cita: number;
             /** Format: date */
@@ -7830,7 +8000,7 @@ export interface components {
                 telefono: string | null;
             };
         };
-        /** @description Siempre viene (vacía si no hay). Citas futuras pendientes o confirmadas del empleado que, tras el cambio, no caben en su disponibilidad: el panel debe reprogramarlas o reasignarlas. El cambio se guarda igual. */
+        /** @description Siempre viene (vacía si no hay). Citas futuras pendientes o confirmadas que, tras el cambio, ya no caben: en la disponibilidad del empleado (endpoints de disponibilidad) o en el horario de la sucursal (`PUT /sucursales/{id_sucursal}/horarios`). El panel debe reprogramarlas o reasignarlas. El cambio se guarda igual, y la lista solo viene en esta respuesta. */
         CitasAfectadas: components["schemas"]["CitaAfectada"][];
         Dispositivo: {
             id_dispositivo: number;
@@ -8035,7 +8205,7 @@ export interface components {
              * @default desconocido
              * @enum {string}
              */
-            sexo: "macho" | "hembra" | "desconocido";
+            sexo?: "macho" | "hembra" | "desconocido";
             /** @example Labrador */
             raza?: string | null;
             color?: string | null;
@@ -8049,14 +8219,14 @@ export interface components {
             microchip?: string | null;
             numero_registro?: string | null;
             /** @default false */
-            esterilizado: boolean;
+            esterilizado?: boolean;
             /** @default false */
-            tiene_alergias: boolean;
+            tiene_alergias?: boolean;
             /**
              * @description Si es false, cada negocio ve solo el historial clínico que él creó. Las vacunas, las alergias y las condiciones médicas siguen visibles para los negocios con cita.
              * @default true
              */
-            compartir_historial: boolean;
+            compartir_historial?: boolean;
             alergias_detalle?: string | null;
             condiciones_medicas?: string | null;
             tipo_sangre?: string | null;
@@ -8138,7 +8308,7 @@ export interface components {
              * @description Las citas de la app (y las que reprograma el dueño) nacen confirmadas. Sin ella quedan pendientes y, si el negocio no las confirma a tiempo (`confirmar_antes_de` de la cita), se cancelan solas.
              * @default false
              */
-            confirmacion_automatica: boolean;
+            confirmacion_automatica?: boolean;
         };
         Negocio: {
             /** @example Clínica Veterinaria Patitas */
@@ -8197,6 +8367,40 @@ export interface components {
             fecha_registro: string;
             fecha_actualizacion: string;
         };
+        NegocioGestion: components["schemas"]["Negocio"] & {
+            /** @description Solo activas, la principal primero (aunque el negocio esté inactivo) */
+            sucursales: (components["schemas"]["Sucursal"] & {
+                horarios: components["schemas"]["HorarioRango"][];
+            })[];
+            /** @description Cómo se confirman las citas pendientes. Los plazos son de la plataforma (`configuracion_global`), iguales para todos los negocios. */
+            reglas_confirmacion: {
+                /** @description Igual que el campo del negocio */
+                confirmacion_automatica: boolean;
+                /**
+                 * @description Horas que tiene el negocio para confirmar una cita pendiente desde que se creó. Al vencer, la cita se cancela sola (`cancelada_por = 'sistema'`).
+                 * @example 24
+                 */
+                plazo_confirmacion_h: number;
+                /**
+                 * @description El plazo nunca pasa de estos minutos antes del inicio de la cita. El plazo exacto de cada cita está en su `confirmar_antes_de`.
+                 * @example 60
+                 */
+                confirmacion_antes_inicio_min: number;
+                /** @description Citas que el sistema canceló porque nadie las confirmó, contadas por la fecha de cancelación en los últimos `dias` días. */
+                citas_perdidas: {
+                    /** @example 30 */
+                    dias: number;
+                    /** @example 4 */
+                    total: number;
+                    /** @description Solo si hubo alguna y la confirmación automática está apagada */
+                    sugerencia: {
+                        /** @example activar_confirmacion_automatica */
+                        codigo: string;
+                        mensaje: string;
+                    } | null;
+                };
+            };
+        };
         NegocioMio: {
             id_negocio: number;
             nombre: string;
@@ -8206,6 +8410,11 @@ export interface components {
             logo_miniatura_url: string | null;
             verificado: boolean;
             activo: boolean;
+            /**
+             * @description Primer paso que le falta para recibir citas: `sede` si no tiene sucursales activas, `horarios` si ninguna sucursal activa tiene horario, null si está completo. El panel lo usa para retomar el asistente de creación.
+             * @enum {string|null}
+             */
+            configuracion_pendiente: "sede" | "horarios" | null;
             /** @enum {string} */
             relacion: "propietario" | "empleado";
             /** @description Solo si relacion es empleado */
@@ -8573,33 +8782,33 @@ export interface components {
              * @default fijo
              * @enum {string}
              */
-            tipo_precio: "fijo" | "por_hora" | "por_dia" | "variable";
+            tipo_precio?: "fijo" | "por_hora" | "por_dia" | "variable";
             /** @default 30 */
-            duracion_minutos: number;
+            duracion_minutos?: number;
             /**
              * @description Tiempo que ocupa la agenda del empleado después de la cita (no cambia la hora de fin de la cita)
              * @default 0
              */
-            margen_minutos: number;
+            margen_minutos?: number;
             /**
              * @description `todos` no se combina con otras especies
              * @default [
              *       "todos"
              *     ]
              */
-            tipo_mascota: ("perro" | "gato" | "conejo" | "ave" | "reptil" | "roedor" | "todos")[];
+            tipo_mascota?: ("perro" | "gato" | "conejo" | "ave" | "reptil" | "roedor" | "todos")[];
             peso_min_kg?: number | null;
             peso_max_kg?: number | null;
             /** @default true */
-            requiere_cita: boolean;
+            requiere_cita?: boolean;
             /** @description Por sucursal y día; null = sin límite */
             max_citas_dia?: number | null;
             /** @description null = todos los días */
             dias_disponible?: ("lunes" | "martes" | "miercoles" | "jueves" | "viernes" | "sabado" | "domingo")[] | null;
             /** @default true */
-            visible_app: boolean;
+            visible_app?: boolean;
             /** @default false */
-            en_oferta: boolean;
+            en_oferta?: boolean;
             precio_oferta?: number | null;
             /** Format: date */
             fecha_inicio_oferta?: string | null;

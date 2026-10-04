@@ -1,6 +1,5 @@
 import { Construction } from "lucide-react";
 import { Link, isRouteErrorResponse, useRouteError } from "react-router";
-import { AuthCard } from "@/app/layouts/AuthLayout";
 import { EstadoPantalla, NoEncontrado } from "@/components/common/EstadoPantalla";
 import { Button } from "@/components/ui/button";
 
@@ -15,25 +14,6 @@ export function PaginaNoEncontrada() {
         }
       />
     </div>
-  );
-}
-
-/** Pantalla de acceso que llega en una fase siguiente (A6 Crear negocio, A7 Crear cuenta). */
-export function AccesoPendiente({ titulo, fase }: { titulo: string; fase: string }) {
-  return (
-    <AuthCard>
-      <EstadoPantalla
-        icono={Construction}
-        tono="primary"
-        titulo={`${titulo}: en construcción`}
-        descripcion={`Esta pantalla llega en la fase ${fase} del panel.`}
-        acciones={
-          <Button asChild variant="secondary">
-            <Link to="/">Volver</Link>
-          </Button>
-        }
-      />
-    </AuthCard>
   );
 }
 

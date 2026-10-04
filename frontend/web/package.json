@@ -16,7 +16,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "api:types": "openapi-typescript http://localhost:3001/api/v1/docs.json -o src/api/schema.d.ts"
+    "api:types": "openapi-typescript http://localhost:3001/api/v1/docs.json -o src/api/schema.d.ts --default-non-nullable false"
   },
   "dependencies": {
     "@date-fns/tz": "^1.5.0",
@@ -24,6 +24,7 @@
     "@hookform/resolvers": "^5.9.1",
     "@tanstack/react-query": "^5.104.1",
     "@tanstack/react-table": "^8.21.3",
+    "@vis.gl/react-google-maps": "^1.10.1",
     "axios": "^1.20.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

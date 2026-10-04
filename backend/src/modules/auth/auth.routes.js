@@ -7,6 +7,7 @@ import {
   updateMeBody,
   changePasswordBody,
   forgotPasswordBody,
+  requestVerificationBody,
   resetPasswordBody,
   verifyEmailParams,
   aceptarPoliticaBody,
@@ -86,6 +87,13 @@ const router = express.Router();
  *                 example: Petcat123!
  *               telefono: { type: string, example: "3003334455" }
  *               tipo_usuario: { type: string, enum: [cliente, negocio], default: cliente }
+ *               canal:
+ *                 type: string
+ *                 enum: [app, panel_web]
+ *                 default: app
+ *                 description: >
+ *                   Desde dónde se registra el titular (el panel web envía `panel_web`). Es el canal de su
+ *                   autorización de datos. `panel` no se acepta: es el de un cliente que registró un negocio.
  *     responses:
  *       201:
  *         description: Cuenta creada
@@ -286,16 +294,21 @@ router.post("/refresh-token", validate({ body: refreshTokenBody }), controller.r
  *                           description: >
  *                             No tiene una autorización de datos vigente para la versión actual de la política:
  *                             la app o el panel deben pedirla y enviarla a POST /auth/politica-datos/aceptar.
- *                         politica:
+ *                         politica: { $ref: '#/components/schemas/PoliticaDatos' }
+ *                         politica_aceptada:
  *                           type: object
- *                           description: Versión vigente de la política de datos y enlace a su texto completo.
+ *                           nullable: true
+ *                           description: >
+ *                             Última autorización de datos no revocada del usuario. Puede ser de una versión
+ *                             anterior a la vigente (entonces `requiere_aceptar_politica` es true). null si nunca aceptó.
  *                           properties:
  *                             version: { type: string, example: "1.0" }
- *                             url:
+ *                             fecha: { type: string, example: "2026-09-27 10:00:00" }
+ *                             canal:
  *                               type: string
- *                               nullable: true
- *                               description: null si PetCat todavía no publicó el enlace (configuracion_global.politica_datos_url).
- *                               example: https://petcat.co/politica-de-datos
+ *                               enum: [app, panel, panel_web, invitacion, aceptacion]
+ *                               description: >
+ *                                 Dónde se aceptó. `panel_web`: se registró en el panel web; `panel`: lo registró un negocio.
  *                         negocios: { type: array, items: { $ref: '#/components/schemas/NegocioMio' } }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *   patch:
@@ -369,7 +382,7 @@ router.post("/refresh-token", validate({ body: refreshTokenBody }), controller.r
  *                   type: object
  *                   properties:
  *                     id_autorizacion: { type: integer }
- *                     canal: { type: string, enum: [app, panel, invitacion, aceptacion] }
+ *                     canal: { type: string, enum: [app, panel, panel_web, invitacion, aceptacion] }
  *                     version_politica: { type: string, example: "1.0" }
  *                     fecha_autorizacion: { type: string, example: "2026-09-27 10:00:00" }
  *       401: { $ref: '#/components/responses/Unauthorized' }
@@ -657,5 +670,44 @@ router.get("/verify-email/:token", validate({ params: verifyEmailParams }), cont
  *             schema: { $ref: '#/components/schemas/ErrorResponse' }
  */
 router.post("/resend-verification", authMiddleware, controller.resendVerification);
+
+/**
+ * @swagger
+ * /auth/request-verification:
+ *   post:
+ *     summary: Pedir un enlace de verificación sin sesión
+ *     description: >
+ *       Para cuando el enlace venció o se abrió en otro dispositivo sin sesión. Responde igual exista
+ *       o no el email, y aunque ya esté verificado. Si la cuenta existe, está activa y no está
+ *       verificada, envía `${FRONTEND_URL}/verificar-email/<token>` (vigente 24 horas; cada enlace
+ *       nuevo invalida el anterior; máximo uno por minuto). Con sesión, usar `POST /auth/resend-verification`,
+ *       que sí informa si ya está verificado o si el correo no se pudo enviar.
+ *     tags: [Auth]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             additionalProperties: false
+ *             required: [email]
+ *             properties:
+ *               email: { type: string, format: email }
+ *     responses:
+ *       200:
+ *         description: Solicitud recibida
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Si el correo está registrado y sin verificar, te enviamos un nuevo enlace de verificación }
+ *                 data: { nullable: true, example: null }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ *       429: { $ref: '#/components/responses/TooManyRequests' }
+ */
+router.post("/request-verification", validate({ body: requestVerificationBody }), controller.requestVerification);
 
 export default router;

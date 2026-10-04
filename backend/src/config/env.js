@@ -60,6 +60,9 @@ const schema = z
     SMTP_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
     MAIL_FROM: z.string().default("PetCat <no-reply@petcat.co>"),
 
+    // Máximo de solicitudes cada 15 min por IP en toda la API (límite general).
+    RATE_LIMIT_MAX: z.coerce.number().int().positive().default(300),
+
     // Máximo de solicitudes cada 15 min por IP en login, recuperación y verificación de cuenta e invitaciones.
     // Por defecto: 10 en producción, 100 en desarrollo y tests.
     AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().optional(),

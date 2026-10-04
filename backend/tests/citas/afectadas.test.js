@@ -60,7 +60,7 @@ describe("PUT /sucursales/:id_sucursal/horarios con citas_afectadas", () => {
       .send({ horarios: SEMANA.filter((h) => h.dia_semana !== 1) });
 
     expect(res.status).toBe(200);
-    expect(res.body.message).toBe("Horarios actualizados. 1 cita queda fuera de la disponibilidad del empleado");
+    expect(res.body.message).toBe("Horarios actualizados. 1 cita queda fuera del horario de la sede");
     expect(res.body.data.horarios).toHaveLength(5);
     expect(res.body.data.citas_afectadas.map((c) => c.id_cita)).toEqual([afectada.id_cita]);
   });

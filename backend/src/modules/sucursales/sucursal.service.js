@@ -10,6 +10,9 @@ export const formatSucursal = (sucursal) =>
 
 const NO_ENCONTRADA = "Sucursal no encontrada";
 
+/** Ids de las sucursales marcadas como principal (para desmarcarlas por clave primaria). */
+const principales = (activas) => activas.filter((s) => s.es_principal).map((s) => s.id_sucursal);
+
 export const getSucursalesPublicas = async (id_negocio) => {
   const negocio = await negocioRepo.findById(id_negocio);
   if (!negocio || !negocio.activo) throw ApiError.notFound("Negocio no encontrado");
@@ -30,26 +33,30 @@ export const getSucursalPublica = async (id_sucursal) => {
  */
 export const createSucursal = async (id_negocio, data) => {
   const id_sucursal = await withTransaction(async (conn) => {
+    await negocioRepo.lockById(id_negocio, conn);
     await bloquearYVerificarLimite(id_negocio, "sucursales", conn);
-    const activas = await sucursalRepo.lockActivasByNegocio(id_negocio, conn);
+    const activas = await sucursalRepo.findActivasParaCambio(id_negocio, conn);
     const es_principal = activas.length === 0 || data.es_principal === true;
-    if (es_principal) await sucursalRepo.clearPrincipal(id_negocio, conn);
+    if (es_principal) await sucursalRepo.clearPrincipal(principales(activas), conn);
     return sucursalRepo.create(id_negocio, { ...data, es_principal }, conn);
   });
   return formatSucursal(await sucursalRepo.findById(id_sucursal));
 };
 
 /**
- * Sucursal activa leída con las sucursales activas del negocio bloqueadas (FOR UPDATE),
- * más el total de activas. 404 si no existe o está inactiva.
+ * Sucursal activa con la fila de su negocio bloqueada (por clave primaria), más las
+ * sucursales activas. El negocio se busca fuera de la transacción: en REPEATABLE READ la
+ * primera lectura fija la foto, y debe hacerse después de obtener el bloqueo.
+ * 404 si no existe o está inactiva.
  */
 const findActivaBloqueada = async (id_sucursal, conn) => {
+  const base = await sucursalRepo.findById(id_sucursal);
+  if (!base?.activo) throw ApiError.notFound(NO_ENCONTRADA);
+  await negocioRepo.lockById(base.id_negocio, conn);
   const sucursal = await sucursalRepo.findById(id_sucursal, conn);
   if (!sucursal?.activo) throw ApiError.notFound(NO_ENCONTRADA);
-  const activas = await sucursalRepo.lockActivasByNegocio(sucursal.id_negocio, conn);
-  const bloqueada = activas.find((s) => s.id_sucursal === sucursal.id_sucursal);
-  if (!bloqueada) throw ApiError.notFound(NO_ENCONTRADA);
-  return { ...sucursal, es_principal: bloqueada.es_principal, totalActivas: activas.length };
+  const activas = await sucursalRepo.findActivasParaCambio(sucursal.id_negocio, conn);
+  return { ...sucursal, activas, totalActivas: activas.length };
 };
 
 /**
@@ -66,7 +73,7 @@ export const updateSucursal = async (id_sucursal, data) => {
       );
     }
     if (data.es_principal === true && !sucursal.es_principal) {
-      await sucursalRepo.clearPrincipal(sucursal.id_negocio, conn);
+      await sucursalRepo.clearPrincipal(principales(sucursal.activas), conn);
     }
     await sucursalRepo.update(id_sucursal, data, conn);
   });

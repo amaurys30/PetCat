@@ -30,6 +30,19 @@ export const update = async (id_negocio, data, conn) => {
   );
 };
 
+/**
+ * Bloquea la fila del negocio (FOR UPDATE por clave primaria). Serializa los cambios de
+ * sus filas hijas (sucursales) sin bloquear rangos de un índice secundario, que con
+ * filas inexistentes toman gap locks compartidos con otros negocios y llevan a deadlock.
+ * Devuelve undefined si no existe.
+ */
+export const lockById = async (id_negocio, conn) => {
+  const [rows] = await conn.query("SELECT id_negocio, activo FROM negocios WHERE id_negocio = ? FOR UPDATE", [
+    id_negocio,
+  ]);
+  return rows[0];
+};
+
 /** Bloquea la fila del negocio (FOR UPDATE por clave primaria) y devuelve su logo y banner. */
 export const lockImagenes = async (id_negocio, conn) => {
   const [rows] = await conn.query(
@@ -47,12 +60,21 @@ export const setImagen = async (id_negocio, columna, url, conn) => {
   await (conn ?? db).query(`UPDATE negocios SET ${columna} = ? WHERE id_negocio = ?`, [url, id_negocio]);
 };
 
+// Primer paso de configuración que le falta al negocio: una sede activa y, en alguna, horario.
+const SQL_CONFIGURACION_PENDIENTE = `CASE
+    WHEN NOT EXISTS (SELECT 1 FROM sucursales s WHERE s.id_negocio = n.id_negocio AND s.activo = TRUE) THEN 'sede'
+    WHEN NOT EXISTS (SELECT 1 FROM sucursales s
+                     JOIN horarios_negocio h ON h.id_sucursal = s.id_sucursal AND h.activo = TRUE
+                     WHERE s.id_negocio = n.id_negocio AND s.activo = TRUE) THEN 'horarios'
+  END`;
+
 /**
  * Negocios del panel del usuario: los propios (activos o no) y los activos donde
  * es empleado activo. Si es propietario y empleado del mismo, cuenta como propietario.
  */
 export const findMios = async (id_usuario) => {
-  const columnas = "n.id_negocio, n.nombre, n.tipo, n.ciudad, n.logo_url, n.verificado, n.activo";
+  const columnas = `n.id_negocio, n.nombre, n.tipo, n.ciudad, n.logo_url, n.verificado, n.activo,
+                    ${SQL_CONFIGURACION_PENDIENTE} AS configuracion_pendiente`;
   const [rows] = await db.query(
     `SELECT ${columnas}, 'propietario' AS relacion,
             NULL AS id_empleado, NULL AS id_rol, NULL AS rol_nombre, NULL AS permisos_json
@@ -70,6 +92,16 @@ export const findMios = async (id_usuario) => {
     [id_usuario, id_usuario, id_usuario]
   );
   return rows;
+};
+
+/** Citas del negocio que el sistema canceló (nadie las confirmó) desde `desde` (DATETIME). */
+export const countCanceladasPorSistema = async (id_negocio, desde) => {
+  const [[row]] = await db.query(
+    `SELECT COUNT(*) AS total FROM citas
+     WHERE id_negocio = ? AND estado = 'cancelada' AND cancelada_por = 'sistema' AND fecha_cancelacion >= ?`,
+    [id_negocio, desde]
+  );
+  return Number(row.total);
 };
 
 // ---------- Perfil público (app) ----------
@@ -97,6 +129,7 @@ export const findSucursalesPublicas = async (id_negocio) => {
   return rows;
 };
 
+/** Horarios activos de las sucursales activas del negocio (sin mirar si el negocio está activo). */
 export const findHorariosPublicos = async (id_negocio) => {
   const [rows] = await db.query(
     `SELECT h.id_sucursal, h.dia_semana,

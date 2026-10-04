@@ -1330,8 +1330,9 @@ CREATE TABLE configuracion_global (
 CREATE TABLE autorizaciones_datos (
     id_autorizacion     BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     id_usuario          INT UNSIGNED    NOT NULL COMMENT 'Titular de los datos',
-    -- app, panel, invitacion y aceptacion (migración 008).
-    canal               ENUM('app','panel','invitacion','aceptacion') NOT NULL,
+    -- app, panel, invitacion y aceptacion (migración 008); panel_web (migración 020).
+    -- panel: un negocio registró al titular (con id_negocio); panel_web: el titular se registró en el panel web.
+    canal               ENUM('app','panel','panel_web','invitacion','aceptacion') NOT NULL,
     id_negocio          INT UNSIGNED    NULL COMMENT 'Negocio que registró al cliente (canal panel)',
     id_usuario_registro INT UNSIGNED    NULL COMMENT 'Quién registró la autorización (el titular en la app; propietario o empleado en el panel)',
     version_politica    VARCHAR(20)     NOT NULL COMMENT 'configuracion_global.terminos_version vigente',
@@ -1822,7 +1823,8 @@ INSERT INTO schema_migrations (nombre) VALUES
 ('016_soporte_contacto.sql'),
 ('017_confirmacion_automatica.sql'),
 ('018_resenas.sql'),
-('019_notas_cliente.sql');
+('019_notas_cliente.sql'),
+('020_autorizaciones_panel_web.sql');
 
 
 SET FOREIGN_KEY_CHECKS = 1;
