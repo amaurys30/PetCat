@@ -8,12 +8,13 @@ interface UiState {
   abrirLimitePlan: (mensaje: string) => void;
   cerrarLimitePlan: () => void;
   /**
-   * Citas que quedaron fuera de un horario recién guardado. Es global porque el guardado
-   * puede llevar a otra pantalla (una semana sin horario retoma el asistente) y la API no
-   * vuelve a dar la lista.
+   * Citas fuera de la disponibilidad tras un cambio ya guardado (horario de una sede,
+   * desactivar a un miembro, su disponibilidad). Es global porque el guardado puede llevar a
+   * otra pantalla (una semana sin horario retoma el asistente) y la API no vuelve a dar la
+   * lista. `guardado` abre el título: "El horario se guardó".
    */
-  citasAfectadas: CitaAfectada[] | null;
-  mostrarCitasAfectadas: (citas: CitaAfectada[]) => void;
+  citasAfectadas: { citas: CitaAfectada[]; guardado: string } | null;
+  mostrarCitasAfectadas: (citas: CitaAfectada[], guardado: string) => void;
   cerrarCitasAfectadas: () => void;
 }
 
@@ -22,6 +23,7 @@ export const useUi = create<UiState>()((set) => ({
   abrirLimitePlan: (mensaje) => set({ limitePlan: mensaje }),
   cerrarLimitePlan: () => set({ limitePlan: null }),
   citasAfectadas: null,
-  mostrarCitasAfectadas: (citas) => set({ citasAfectadas: citas.length > 0 ? citas : null }),
+  mostrarCitasAfectadas: (citas, guardado) =>
+    set({ citasAfectadas: citas.length > 0 ? { citas, guardado } : null }),
   cerrarCitasAfectadas: () => set({ citasAfectadas: null }),
 }));

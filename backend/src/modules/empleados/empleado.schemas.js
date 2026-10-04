@@ -28,12 +28,18 @@ const campos = {
   fecha_vinculacion: z.iso.date({ error: "Fecha inválida: usa YYYY-MM-DD" }),
 };
 
+// Servicios que atiende: reemplaza el conjunto de servicios activos asignados (no es columna).
+const servicios = z
+  .array(z.number().int().positive())
+  .max(200)
+  .transform((lista) => [...new Set(lista)]);
+
 export const createEmpleadoBody = z
-  .strictObject(campos)
+  .strictObject({ ...campos, servicios })
   .partial()
   .required({ id_rol: true, nombre: true, apellido: true });
 
-export const updateEmpleadoBody = conAlMenosUnCampo(z.strictObject(campos).partial());
+export const updateEmpleadoBody = conAlMenosUnCampo(z.strictObject({ ...campos, servicios }).partial());
 
 // El propietario como empleado: nombre, apellido y email salen de su cuenta.
 export const empleadoPropioBody = z

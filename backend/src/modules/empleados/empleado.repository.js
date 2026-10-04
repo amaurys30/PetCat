@@ -11,9 +11,11 @@ const SELECT_EMPLEADO = `
          r.id_rol, r.nombre AS rol_nombre, r.permisos_json,
          EXISTS (SELECT 1 FROM invitaciones_empleado i
                  WHERE i.id_empleado = e.id_empleado AND i.usado = FALSE AND i.expiracion > NOW())
-           AS invitacion_pendiente
+           AS invitacion_pendiente,
+         (e.id_usuario IS NOT NULL AND e.id_usuario = n.id_usuario_propietario) AS es_propietario
   FROM empleados e
-  JOIN roles r ON r.id_rol = e.id_rol`;
+  JOIN roles r ON r.id_rol = e.id_rol
+  JOIN negocios n ON n.id_negocio = e.id_negocio`;
 
 /** Con `forUpdate` (dentro de una transacción) bloquea la fila del empleado. */
 export const findById = async (id_empleado, conn, { forUpdate = false } = {}) => {

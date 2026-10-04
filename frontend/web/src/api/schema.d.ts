@@ -3086,7 +3086,7 @@ export interface paths {
         put?: never;
         /**
          * Crear un empleado
-         * @description Requiere `empleados.crear`. El rol debe ser del sistema o del negocio (422 si no). Un empleado que crea a otro no puede asignarle un rol con permisos que el suyo no tiene (403). El empleado queda sin cuenta hasta que acepte una invitación. 403 con `errors.plan` si el negocio ya tiene todos los empleados activos que permite su plan (no cuenta al propietario registrado como empleado).
+         * @description Requiere `empleados.crear`. El rol debe ser del sistema o del negocio (422 si no). Un empleado que crea a otro no puede asignarle un rol con permisos que el suyo no tiene (403). El empleado queda sin cuenta hasta que acepte una invitación. 403 con `errors.plan` si el negocio ya tiene todos los empleados activos que permite su plan (no cuenta al propietario registrado como empleado). Con `servicios`, el empleado y sus servicios se crean en una transacción (exige también `servicios.editar`).
          */
         post: {
             parameters: {
@@ -3318,7 +3318,7 @@ export interface paths {
         head?: never;
         /**
          * Actualizar un empleado
-         * @description Requiere `empleados.editar`. Al menos un campo. Cambiar el email invalida sus invitaciones pendientes. Un empleado no puede cambiar su propio rol, ni asignar un rol con permisos que el suyo no tiene, ni editar a un empleado con permisos que él no tiene (403). El propietario y el admin de plataforma no tienen esas restricciones.
+         * @description Requiere `empleados.editar`. Al menos un campo. Cambiar el email invalida sus invitaciones pendientes. Un empleado no puede cambiar su propio rol, ni asignar un rol con permisos que el suyo no tiene, ni editar a un empleado con permisos que él no tiene (403). El propietario y el admin de plataforma no tienen esas restricciones. `servicios` reemplaza los servicios activos que atiende (exige también `servicios.editar`; 409 si el empleado está inactivo).
          */
         patch: {
             parameters: {
@@ -5907,7 +5907,7 @@ export interface paths {
         };
         /**
          * Roles disponibles en el negocio
-         * @description Requiere `roles.ver`. Los del sistema primero y luego los propios, con cuántos empleados activos del negocio tienen cada uno.
+         * @description Requiere `roles.ver`, `empleados.crear` o `empleados.editar` (quien crea o edita empleados necesita elegir el rol). Los del sistema primero y luego los propios, con cuántos empleados activos e inactivos del negocio tienen cada uno.
          */
         get: {
             parameters: {
@@ -5933,6 +5933,8 @@ export interface paths {
                             message: string;
                             data: (components["schemas"]["Rol"] & {
                                 empleados_activos: number;
+                                /** @description También impiden eliminar el rol */
+                                empleados_inactivos: number;
                             })[];
                         };
                     };
@@ -6010,7 +6012,7 @@ export interface paths {
         post?: never;
         /**
          * Eliminar un rol propio
-         * @description Requiere `roles.eliminar`. Los roles del sistema no se eliminan (403); tampoco un rol con empleados asignados (409). Mismas reglas de escalada que al editar.
+         * @description Requiere `roles.eliminar`. Los roles del sistema no se eliminan (403); tampoco un rol con empleados asignados, activos o inactivos (409: el mensaje dice cuántos de cada uno y, si hay inactivos, que también hay que cambiarles el rol). Mismas reglas de escalada que al editar.
          */
         delete: {
             parameters: {
@@ -6042,12 +6044,18 @@ export interface paths {
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                /** @description Hay empleados con este rol */
+                /** @description Hay empleados con este rol (activos o inactivos) */
                 409: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
+                        /**
+                         * @example {
+                         *       "success": false,
+                         *       "message": "Hay 1 empleado activo y 2 empleados inactivos con este rol: cámbiales el rol antes de eliminarlo, también a los inactivos"
+                         *     }
+                         */
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
@@ -8043,6 +8051,14 @@ export interface components {
              * @example 2026-09-01
              */
             fecha_vinculacion?: string;
+            /**
+             * @description Servicios que atiende: reemplaza el conjunto de servicios activos asignados (`[]` los quita todos; las asignaciones a servicios eliminados se conservan). Deben ser servicios activos del negocio (422). Exige además `servicios.editar` (403), igual que asignar empleados desde el servicio. Al editar, 409 si el empleado está inactivo.
+             * @example [
+             *       1,
+             *       3
+             *     ]
+             */
+            servicios?: number[];
         };
         Empleado: {
             /** @example 5 */
@@ -8069,9 +8085,29 @@ export interface components {
             fecha_retiro: string | null;
             fecha_creacion: string;
             fecha_actualizacion: string;
+            /** @description Es el propietario del negocio registrado como empleado (no cuenta para el límite del plan) */
+            es_propietario: boolean;
             tiene_cuenta: boolean;
             /** @description Tiene una invitación sin usar y vigente */
             invitacion_pendiente: boolean;
+            /** @description Estado de la invitación. null si no se le puede invitar: ya tiene cuenta, no tiene email o está inactivo. */
+            invitacion: {
+                /**
+                 * @description Vencimiento de la invitación vigente (null si no tiene)
+                 * @example 2026-09-28 10:00:00
+                 */
+                expiracion: string | null;
+                /**
+                 * @description Correos que aún se pueden enviar a su email en 24 horas (máximo 4)
+                 * @example 3
+                 */
+                envios_restantes_24h: number;
+                /**
+                 * @description Solo si no quedan envíos
+                 * @example 2026-09-26 10:00
+                 */
+                libre_desde: string | null;
+            } | null;
             rol: {
                 id_rol: number;
                 /** @example Veterinario */
@@ -8093,8 +8129,8 @@ export interface components {
                     [key: string]: string[];
                 };
             };
-            /** @description Solo en el detalle (y en las respuestas de crear y editar): servicios activos que atiende. Se asignan desde el servicio (`empleados` en POST/PATCH de servicios). */
-            servicios?: {
+            /** @description Servicios activos que atiende. Se asignan desde el empleado (`servicios` en POST/PATCH) o desde el servicio (`empleados` en POST/PATCH de servicios). */
+            servicios: {
                 id_servicio: number;
                 nombre: string;
             }[];
@@ -8417,7 +8453,7 @@ export interface components {
             configuracion_pendiente: "sede" | "horarios" | null;
             /** @enum {string} */
             relacion: "propietario" | "empleado";
-            /** @description Solo si relacion es empleado */
+            /** @description Su registro como empleado del negocio. Del propietario, el que creó con "Agregarme como profesional" (activo o no; null si no lo tiene). */
             id_empleado: number | null;
             /** @description Rol del empleado en ese negocio (null para el propietario, que tiene todos los permisos). Trae sus permisos para que el panel muestre u oculte secciones; la API decide igual en cada ruta. */
             rol: {
@@ -9284,7 +9320,7 @@ export interface components {
                 "application/json": components["schemas"]["ErrorResponse"];
             };
         };
-        /** @description Email en uso en el negocio. Si lo tiene un empleado inactivo, el mensaje lo indica con su id para reactivarlo. */
+        /** @description Email en uso en el negocio. Si lo tiene un empleado inactivo, el mensaje lo indica con su id para reactivarlo. Al editar, también si se envían `servicios` a un empleado inactivo. */
         EmpleadoConflict: {
             headers: {
                 [name: string]: unknown;

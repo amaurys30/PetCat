@@ -1,4 +1,4 @@
-import { format } from "date-fns";
+import { format, formatDistanceStrict } from "date-fns";
 import { es } from "date-fns/locale";
 
 /**
@@ -51,6 +51,20 @@ const partesBogota = (ahora: Date) =>
 export function hoyISO(ahora: Date = new Date()): string {
   const p = partesBogota(ahora);
   return `${p.year}-${p.month}-${p.day}`;
+}
+
+/** Ahora en Bogotá como Date local con los mismos números (para comparar con parseFechaHora). */
+function ahoraBogota(ahora: Date): Date {
+  const p = partesBogota(ahora);
+  return new Date(Number(p.year), Number(p.month) - 1, Number(p.day), Number(p.hour), Number(p.minute));
+}
+
+/** Tiempo hasta un "YYYY-MM-DD HH:MM[:SS]" de Bogotá: "2 días", "5 horas", "1 minuto". */
+export function tiempoHasta(valor: string, ahora: Date = new Date()): string {
+  return formatDistanceStrict(parseFechaHora(valor), ahoraBogota(ahora), {
+    locale: es,
+    roundingMethod: "floor",
+  });
 }
 
 /** "jueves, 25 de septiembre de 2026" */

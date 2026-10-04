@@ -3,6 +3,10 @@ import { ConfiguracionLayout } from "@/features/configuracion/ConfiguracionLayou
 import { PerfilNegocioPage } from "@/features/configuracion/pages/PerfilNegocioPage";
 import { ResumenNegocioPage } from "@/features/configuracion/pages/ResumenNegocioPage";
 import { SedesPage } from "@/features/configuracion/pages/SedesPage";
+import { EquipoLayout } from "@/features/equipo/EquipoLayout";
+import { DisponibilidadPage } from "@/features/equipo/pages/DisponibilidadPage";
+import { MiembrosPage } from "@/features/equipo/pages/MiembrosPage";
+import { RolesPage } from "@/features/equipo/pages/RolesPage";
 import { MiPerfilPage } from "@/features/perfil/pages/MiPerfilPage";
 import { LoginPage } from "@/features/auth/pages/LoginPage";
 import { PasswordNuevaPage } from "@/features/auth/pages/PasswordNuevaPage";
@@ -85,15 +89,38 @@ export const rutas: RouteObject[] = [
                 ],
               },
               {
+                path: "equipo",
+                handle: { titulo: "Equipo" } satisfies HandleRuta,
+                children: [
+                  {
+                    element: <EquipoLayout />,
+                    children: [
+                      { index: true, element: <Navigate to="miembros" replace /> },
+                      { path: "miembros", element: <MiembrosPage /> },
+                      { path: "roles", element: <RolesPage /> },
+                    ],
+                  },
+                  {
+                    path: ":idEmpleado/disponibilidad",
+                    element: <DisponibilidadPage />,
+                    // El profesional sin Equipo en el menú llega desde Mi perfil.
+                    handle: { titulo: "Disponibilidad" } satisfies HandleRuta,
+                  },
+                  { path: "*", element: <Navigate to="miembros" replace /> },
+                ],
+              },
+              {
                 path: "mi-perfil",
                 element: <MiPerfilPage />,
                 handle: { titulo: "Mi perfil" } satisfies HandleRuta,
               },
-              ...SECCIONES.filter((s) => s.ruta !== "configuracion").map((seccion): RouteObject => ({
-                path: `${seccion.ruta}/*`,
-                element: <SeccionPendiente seccion={seccion} />,
-                handle: { titulo: seccion.titulo } satisfies HandleRuta,
-              })),
+              ...SECCIONES.filter((s) => !["configuracion", "equipo"].includes(s.ruta)).map(
+                (seccion): RouteObject => ({
+                  path: `${seccion.ruta}/*`,
+                  element: <SeccionPendiente seccion={seccion} />,
+                  handle: { titulo: seccion.titulo } satisfies HandleRuta,
+                }),
+              ),
               { path: "*", element: <PaginaNoEncontrada /> },
             ],
           },

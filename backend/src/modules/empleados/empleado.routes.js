@@ -40,6 +40,16 @@ const router = express.Router();
  *         registro_profesional: { type: string, maxLength: 60, nullable: true }
  *         notas: { type: string, maxLength: 2000, nullable: true }
  *         fecha_vinculacion: { type: string, format: date, example: "2026-09-01", description: Por defecto, hoy }
+ *         servicios:
+ *           type: array
+ *           maxItems: 200
+ *           items: { type: integer }
+ *           example: [1, 3]
+ *           description: >
+ *             Servicios que atiende: reemplaza el conjunto de servicios activos asignados (`[]` los quita
+ *             todos; las asignaciones a servicios eliminados se conservan). Deben ser servicios activos del
+ *             negocio (422). Exige además `servicios.editar` (403), igual que asignar empleados desde el
+ *             servicio. Al editar, 409 si el empleado está inactivo.
  *     Empleado:
  *       type: object
  *       properties:
@@ -62,8 +72,19 @@ const router = express.Router();
  *         fecha_retiro: { type: string, nullable: true }
  *         fecha_creacion: { type: string }
  *         fecha_actualizacion: { type: string }
+ *         es_propietario: { type: boolean, description: Es el propietario del negocio registrado como empleado (no cuenta para el límite del plan) }
  *         tiene_cuenta: { type: boolean }
  *         invitacion_pendiente: { type: boolean, description: Tiene una invitación sin usar y vigente }
+ *         invitacion:
+ *           type: object
+ *           nullable: true
+ *           description: >
+ *             Estado de la invitación. null si no se le puede invitar: ya tiene cuenta, no tiene email o
+ *             está inactivo.
+ *           properties:
+ *             expiracion: { type: string, nullable: true, example: "2026-09-28 10:00:00", description: Vencimiento de la invitación vigente (null si no tiene) }
+ *             envios_restantes_24h: { type: integer, example: 3, description: Correos que aún se pueden enviar a su email en 24 horas (máximo 4) }
+ *             libre_desde: { type: string, nullable: true, example: "2026-09-26 10:00", description: Solo si no quedan envíos, desde cuándo se puede volver a enviar }
  *         rol:
  *           type: object
  *           properties:
@@ -71,11 +92,10 @@ const router = express.Router();
  *             nombre: { type: string, example: Veterinario }
  *             permisos_json: { $ref: '#/components/schemas/Permisos', x-opcional: true, description: Solo en el detalle }
  *         servicios:
- *           x-opcional: true
  *           type: array
  *           description: >
- *             Solo en el detalle (y en las respuestas de crear y editar): servicios activos que atiende.
- *             Se asignan desde el servicio (`empleados` en POST/PATCH de servicios).
+ *             Servicios activos que atiende. Se asignan desde el empleado (`servicios` en POST/PATCH) o
+ *             desde el servicio (`empleados` en POST/PATCH de servicios).
  *           items:
  *             type: object
  *             properties:
@@ -85,7 +105,7 @@ const router = express.Router();
  *     EmpleadoConflict:
  *       description: >
  *         Email en uso en el negocio. Si lo tiene un empleado inactivo, el mensaje lo indica con su
- *         id para reactivarlo.
+ *         id para reactivarlo. Al editar, también si se envían `servicios` a un empleado inactivo.
  *       content:
  *         application/json:
  *           schema: { $ref: '#/components/schemas/ErrorResponse' }
@@ -131,7 +151,8 @@ const router = express.Router();
  *       empleado que crea a otro no puede asignarle un rol con permisos que el suyo no tiene (403).
  *       El empleado queda sin cuenta hasta que acepte una invitación. 403 con `errors.plan` si el
  *       negocio ya tiene todos los empleados activos que permite su plan (no cuenta al propietario
- *       registrado como empleado).
+ *       registrado como empleado). Con `servicios`, el empleado y sus servicios se crean en una
+ *       transacción (exige también `servicios.editar`).
  *     tags: [Empleados]
  *     parameters:
  *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
@@ -275,7 +296,8 @@ router.post(
  *       Requiere `empleados.editar`. Al menos un campo. Cambiar el email invalida sus invitaciones
  *       pendientes. Un empleado no puede cambiar su propio rol, ni asignar un rol con permisos que
  *       el suyo no tiene, ni editar a un empleado con permisos que él no tiene (403). El propietario
- *       y el admin de plataforma no tienen esas restricciones.
+ *       y el admin de plataforma no tienen esas restricciones. `servicios` reemplaza los servicios
+ *       activos que atiende (exige también `servicios.editar`; 409 si el empleado está inactivo).
  *     tags: [Empleados]
  *     parameters:
  *       - { in: path, name: id_empleado, required: true, schema: { type: integer } }

@@ -20,6 +20,8 @@ const escenario = async () => {
 describe("POST /negocios/:id_negocio/empleados/yo", () => {
   it("crea el empleado vinculado con los datos de su cuenta y rol Administrador por defecto", async () => {
     const { negocio, propietario, token, url } = await escenario();
+    const antes = await api(token).get("/negocios/mios");
+    expect(antes.body.data.find((n) => n.id_negocio === negocio.id_negocio).id_empleado).toBeNull();
     const res = await api(token).post(url).send({ especialidad: "Cirugía", registro_profesional: "MVZ-999" });
 
     expect(res.status).toBe(201);
@@ -38,7 +40,17 @@ describe("POST /negocios/:id_negocio/empleados/yo", () => {
     const lista = await api(token).get(`/negocios/${negocio.id_negocio}/empleados`);
     expect(lista.body.data.map((e) => e.id_usuario)).toContain(propietario.id_usuario);
     const mios = await api(token).get("/negocios/mios");
-    expect(mios.body.data.find((n) => n.id_negocio === negocio.id_negocio).relacion).toBe("propietario");
+    expect(mios.body.data.find((n) => n.id_negocio === negocio.id_negocio)).toMatchObject({
+      relacion: "propietario",
+      id_empleado: res.body.data.id_empleado,
+      rol: null,
+    });
+    expect(lista.body.data.find((e) => e.id_usuario === propietario.id_usuario).es_propietario).toBe(true);
+
+    // Inactivo, /mios lo sigue indicando (el panel ofrece reactivarlo).
+    await api(token).delete(`/empleados/${res.body.data.id_empleado}`);
+    const despues = await api(token).get("/negocios/mios");
+    expect(despues.body.data.find((n) => n.id_negocio === negocio.id_negocio).id_empleado).toBe(res.body.data.id_empleado);
   });
 
   it("acepta otro rol del sistema o del negocio; rol ajeno -> 422", async () => {

@@ -3,12 +3,12 @@ import * as rolRepo from "../roles/rol.repository.js";
 import * as invitacionRepo from "../invitaciones/invitacion.repository.js";
 import * as usuarioRepo from "../usuarios/usuario.repository.js";
 import * as servicioRepo from "../servicios/servicio.repository.js";
-import * as negocioRepo from "../negocios/negocio.repository.js";
 import { bloquearYVerificarLimite } from "../suscripciones/suscripcion.service.js";
 import { citasFuturasDeEmpleado } from "../disponibilidad/disponibilidad.service.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
 import { buildMeta } from "../../shared/utils/pagination.js";
-import { permisosIncluidos } from "../../shared/utils/permissions.js";
+import { hasPermission, permisosIncluidos } from "../../shared/utils/permissions.js";
+import { MAX_CORREOS, VENTANA_HORAS } from "../invitaciones/invitacion.service.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
 import { conMiniaturas } from "../../shared/utils/storage.js";
 import { quitarImagen, reemplazarImagen } from "../archivos/archivo.service.js";
@@ -16,17 +16,42 @@ import { quitarImagen, reemplazarImagen } from "../archivos/archivo.service.js";
 const NO_ENCONTRADO = "Empleado no encontrado";
 
 /**
- * Formato de salida. En el detalle el rol incluye sus permisos; en el listado, no.
+ * Estado de la invitación para el panel. null si no se le puede invitar (tiene cuenta,
+ * no tiene email o está inactivo). `libre_desde` solo cuando ya no quedan envíos.
  */
-const formatEmpleado = (row, { conPermisos = false } = {}) => {
-  const { id_rol, rol_nombre, permisos_json, activo, invitacion_pendiente, ...empleado } = row;
+const formatInvitacion = (row, estado) => {
+  if (row.id_usuario !== null || !row.email || !row.activo) return null;
+  const restantes = Math.max(0, MAX_CORREOS - Number(estado?.enviadas ?? 0));
   return {
-    ...conMiniaturas(empleado),
-    activo: Boolean(activo),
-    tiene_cuenta: empleado.id_usuario !== null,
-    invitacion_pendiente: Boolean(invitacion_pendiente),
-    rol: { id_rol, nombre: rol_nombre, ...(conPermisos && { permisos_json }) },
+    expiracion: estado?.expiracion ?? null,
+    envios_restantes_24h: restantes,
+    libre_desde: restantes === 0 ? estado.libre_desde : null,
   };
+};
+
+/**
+ * Formato de salida con los servicios activos que atiende y el estado de la invitación.
+ * En el detalle el rol incluye sus permisos; en el listado, no.
+ */
+const formatEmpleados = async (rows, { conPermisos = false } = {}) => {
+  const ids = rows.map((row) => row.id_empleado);
+  const [servicios, invitaciones] = await Promise.all([
+    servicioRepo.findActivosDeEmpleados(ids),
+    invitacionRepo.findEstadoDeEmpleados(ids, VENTANA_HORAS),
+  ]);
+  return rows.map((row) => {
+    const { id_rol, rol_nombre, permisos_json, activo, invitacion_pendiente, es_propietario, ...empleado } = row;
+    return {
+      ...conMiniaturas(empleado),
+      activo: Boolean(activo),
+      es_propietario: Boolean(es_propietario),
+      tiene_cuenta: empleado.id_usuario !== null,
+      invitacion_pendiente: Boolean(invitacion_pendiente),
+      invitacion: formatInvitacion(row, invitaciones[row.id_empleado]),
+      rol: { id_rol, nombre: rol_nombre, ...(conPermisos && { permisos_json }) },
+      servicios: servicios[row.id_empleado] ?? [],
+    };
+  });
 };
 
 const mismoEmail = (a, b) => (a ?? "").toLowerCase() === (b ?? "").toLowerCase();
@@ -84,23 +109,46 @@ export const getEmpleados = async (id_negocio, { page, limit, activo, q }) => {
     limit,
     offset: (page - 1) * limit,
   });
-  return { rows: rows.map((row) => formatEmpleado(row)), meta: buildMeta(total, page, limit) };
+  return { rows: await formatEmpleados(rows), meta: buildMeta(total, page, limit) };
 };
 
 /** Detalle: el rol con sus permisos y los servicios activos que atiende. */
 export const getEmpleado = async (id_empleado) => {
   const empleado = await empleadoRepo.findById(id_empleado);
   if (!empleado) throw ApiError.notFound(NO_ENCONTRADO);
-  const servicios = await servicioRepo.findActivosDeEmpleado(id_empleado);
-  return { ...formatEmpleado(empleado, { conPermisos: true }), servicios };
+  return (await formatEmpleados([empleado], { conPermisos: true }))[0];
+};
+
+/**
+ * Asignar servicios desde el empleado cambia si esos servicios se pueden reservar:
+ * exige `servicios.editar`, igual que asignar empleados desde el servicio.
+ */
+const verificarPuedeAsignarServicios = (data, acceso) => {
+  if (data.servicios === undefined || !esEmpleado(acceso)) return;
+  if (!hasPermission(acceso.permisos, "servicios", "editar")) {
+    throw ApiError.forbidden("Para asignar servicios necesitas el permiso de editar servicios");
+  }
+};
+
+/** Reemplaza los servicios activos del empleado; 422 si alguno no es un servicio activo del negocio. */
+const asignarServicios = async (id_empleado, id_negocio, servicios, conn) => {
+  const invalidos = await servicioRepo.replaceServiciosActivosDeEmpleado(id_empleado, id_negocio, servicios, conn);
+  if (invalidos.length > 0) {
+    throw ApiError.unprocessable("Datos inválidos", {
+      servicios: `No son servicios activos del negocio: ${invalidos.join(", ")}`,
+    });
+  }
 };
 
 export const createEmpleado = async (id_negocio, data, acceso) => {
   verificarRolAsignable(await findRolAsignable(data.id_rol, id_negocio), acceso);
+  verificarPuedeAsignarServicios(data, acceso);
   const id_empleado = await withTransaction(async (conn) => {
     await bloquearYVerificarLimite(id_negocio, "empleados", conn);
     await verificarEmailLibre(id_negocio, data.email, 0, conn);
-    return empleadoRepo.create(id_negocio, data, conn);
+    const id = await empleadoRepo.create(id_negocio, data, conn);
+    if (data.servicios?.length) await asignarServicios(id, id_negocio, data.servicios, conn);
+    return id;
   });
   return getEmpleado(id_empleado);
 };
@@ -167,15 +215,23 @@ export const registrarPropietario = async (negocio, id_usuario, data) => {
  * Un empleado puede editar sus propios datos, pero no su rol.
  */
 export const updateEmpleado = async (id_empleado, data, acceso) => {
+  verificarPuedeAsignarServicios(data, acceso);
   await withTransaction(async (conn) => {
     const empleado = await empleadoRepo.findById(id_empleado, conn);
     if (!empleado) throw ApiError.notFound(NO_ENCONTRADO);
     verificarEmpleadoModificable(empleado, acceso);
+    if (data.servicios !== undefined && !empleado.activo) {
+      throw ApiError.conflict("El empleado está inactivo: reactívalo antes de asignarle servicios");
+    }
 
     if (data.id_rol !== undefined && data.id_rol !== empleado.id_rol) {
       if (esElMismo(empleado, acceso)) throw ApiError.forbidden("No puedes cambiar tu propio rol");
       verificarRolAsignable(await findRolAsignable(data.id_rol, empleado.id_negocio), acceso);
     }
+
+    // Servicios antes que la fila del empleado: la reserva bloquea servicio y luego empleado,
+    // y el orden inverso podría cruzarse con ella en un deadlock.
+    if (data.servicios !== undefined) await asignarServicios(id_empleado, empleado.id_negocio, data.servicios, conn);
 
     const cambiaEmail = data.email !== undefined && !mismoEmail(data.email, empleado.email);
     if (cambiaEmail) {
@@ -219,10 +275,8 @@ export const reactivarEmpleado = async (id_empleado, acceso) => {
   if (empleado.activo) throw ApiError.conflict("El empleado ya está activo");
   verificarEmpleadoModificable(empleado, acceso);
 
-  const negocio = await negocioRepo.findById(empleado.id_negocio);
-  const esPropietario = empleado.id_usuario !== null && empleado.id_usuario === negocio.id_usuario_propietario;
   await withTransaction(async (conn) => {
-    if (!esPropietario) await bloquearYVerificarLimite(empleado.id_negocio, "empleados", conn);
+    if (!empleado.es_propietario) await bloquearYVerificarLimite(empleado.id_negocio, "empleados", conn);
     await empleadoRepo.reactivar(id_empleado, conn);
   });
   return getEmpleado(id_empleado);

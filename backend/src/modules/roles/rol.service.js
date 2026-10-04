@@ -3,7 +3,10 @@ import { permisosIncluidos } from "../../shared/utils/permissions.js";
 import { castFields } from "../../shared/utils/format.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
 
-const formatRol = (rol) => castFields(rol, { bools: ["es_sistema"] });
+const formatRol = (rol) =>
+  castFields(rol, { bools: ["es_sistema"], numbers: ["empleados_activos", "empleados_inactivos"] });
+
+const empleadosTexto = (n, adjetivo) => `${n} ${n === 1 ? `empleado ${adjetivo}` : `empleados ${adjetivo}s`}`;
 
 const verificarNombre = async (nombre, id_negocio, id_rol) => {
   if (await rolRepo.existsNombre(nombre, id_negocio, id_rol)) {
@@ -63,10 +66,15 @@ export const deleteRol = async (id_rol, acceso) => {
   const rol = await rolRepo.findById(id_rol);
   verificarRolModificable(rol, acceso);
 
-  const empleados = await rolRepo.countEmpleados(id_rol);
-  if (empleados > 0) {
+  // Los inactivos también lo impiden: conservan el rol por si se reactivan.
+  const { activos, inactivos } = await rolRepo.countEmpleados(id_rol);
+  if (activos + inactivos > 0) {
+    const partes = [activos && empleadosTexto(activos, "activo"), inactivos && empleadosTexto(inactivos, "inactivo")];
+    const quienes = partes.filter(Boolean).join(" y ");
     throw ApiError.conflict(
-      `Hay ${empleados} ${empleados === 1 ? "empleado" : "empleados"} con este rol: asígnales otro antes de eliminarlo`
+      inactivos > 0
+        ? `Hay ${quienes} con este rol: cámbiales el rol antes de eliminarlo, también a los inactivos`
+        : `Hay ${quienes} con este rol: asígnales otro antes de eliminarlo`
     );
   }
   await rolRepo.remove(id_rol);

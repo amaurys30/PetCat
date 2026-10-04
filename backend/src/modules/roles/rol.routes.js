@@ -3,7 +3,7 @@ import * as controller from "./rol.controller.js";
 import { createRolBody, idRolParams, updateRolBody } from "./rol.schemas.js";
 import { idNegocioParams } from "../negocios/negocio.schemas.js";
 import { authMiddleware } from "../../shared/middlewares/auth.middleware.js";
-import { authorize } from "../../shared/middlewares/authorize.middleware.js";
+import { authorize, authorizeAny } from "../../shared/middlewares/authorize.middleware.js";
 import { validate } from "../../shared/middlewares/validate.js";
 
 const router = express.Router();
@@ -45,7 +45,10 @@ const router = express.Router();
  * /negocios/{id_negocio}/roles:
  *   get:
  *     summary: Roles disponibles en el negocio
- *     description: Requiere `roles.ver`. Los del sistema primero y luego los propios, con cuántos empleados activos del negocio tienen cada uno.
+ *     description: >
+ *       Requiere `roles.ver`, `empleados.crear` o `empleados.editar` (quien crea o edita empleados
+ *       necesita elegir el rol). Los del sistema primero y luego los propios, con cuántos empleados
+ *       activos e inactivos del negocio tienen cada uno.
  *     tags: [Roles]
  *     parameters:
  *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
@@ -67,6 +70,7 @@ const router = express.Router();
  *                       - type: object
  *                         properties:
  *                           empleados_activos: { type: integer }
+ *                           empleados_inactivos: { type: integer, description: También impiden eliminar el rol }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       403: { $ref: '#/components/responses/Forbidden' }
  *       404: { $ref: '#/components/responses/NotFound' }
@@ -111,7 +115,11 @@ router.get(
   "/negocios/:id_negocio/roles",
   authMiddleware,
   validate({ params: idNegocioParams }),
-  authorize("roles", "ver"),
+  authorizeAny([
+    ["roles", "ver"],
+    ["empleados", "crear"],
+    ["empleados", "editar"],
+  ]),
   controller.getRoles
 );
 
@@ -164,7 +172,8 @@ router.post(
  *     summary: Eliminar un rol propio
  *     description: >
  *       Requiere `roles.eliminar`. Los roles del sistema no se eliminan (403); tampoco un rol con
- *       empleados asignados (409). Mismas reglas de escalada que al editar.
+ *       empleados asignados, activos o inactivos (409: el mensaje dice cuántos de cada uno y, si hay
+ *       inactivos, que también hay que cambiarles el rol). Mismas reglas de escalada que al editar.
  *     tags: [Roles]
  *     parameters:
  *       - { in: path, name: id_rol, required: true, schema: { type: integer } }
@@ -183,10 +192,11 @@ router.post(
  *       403: { $ref: '#/components/responses/Forbidden' }
  *       404: { $ref: '#/components/responses/NotFound' }
  *       409:
- *         description: Hay empleados con este rol
+ *         description: Hay empleados con este rol (activos o inactivos)
  *         content:
  *           application/json:
  *             schema: { $ref: '#/components/schemas/ErrorResponse' }
+ *             example: { success: false, message: "Hay 1 empleado activo y 2 empleados inactivos con este rol: cámbiales el rol antes de eliminarlo, también a los inactivos" }
  */
 router.patch(
   "/roles/:id_rol",

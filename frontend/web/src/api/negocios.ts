@@ -6,6 +6,7 @@ type Schemas = components["schemas"];
 
 export type Negocio = Schemas["Negocio"];
 export type NegocioGestion = Schemas["NegocioGestion"];
+export type NegocioPublico = Schemas["NegocioPublico"];
 export type SucursalGestion = NegocioGestion["sucursales"][number];
 export type Sucursal = Schemas["Sucursal"];
 export type Horario = Schemas["Horario"];
@@ -20,6 +21,9 @@ export type ActualizarSucursalBody = Body<"/sucursales/{id_sucursal}", "patch">;
 export type HorariosBody = Body<"/sucursales/{id_sucursal}/horarios", "put">;
 
 export const getMisNegocios = () => apiGet<NegocioMio[]>("/negocios/mios");
+
+/** Pública: sedes activas con su horario (la principal primero). 404 si el negocio está inactivo. */
+export const getPerfilPublico = (idNegocio: number) => apiGet<NegocioPublico>(`/negocios/${idNegocio}`);
 
 /** Requiere configuracion.ver. */
 export const getSuscripcion = (idNegocio: number) =>

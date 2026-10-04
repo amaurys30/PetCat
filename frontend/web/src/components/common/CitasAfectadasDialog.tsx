@@ -4,6 +4,7 @@ import { aviso } from "@/components/ui/toaster";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip } from "@/components/ui/tooltip";
+import { textoCitasFuera } from "@/lib/citas";
 import { fechaCorta, hora } from "@/lib/format";
 import { useUi } from "@/stores/ui";
 
@@ -19,13 +20,16 @@ const textoCitasAfectadas = (citas: readonly CitaAfectada[]) =>
     .join("\n");
 
 /**
- * El cambio ya se guardó, pero estas citas futuras quedaron fuera del horario. Muestra lo
- * necesario para llamar a cada cliente. La lista solo viene en la respuesta del guardado,
- * así que se ofrece copiarla. Se abre con `useUi().mostrarCitasAfectadas` y vive en Raiz.
+ * El cambio ya se guardó y estas citas futuras están fuera de la disponibilidad. La API
+ * devuelve todas las que no caben, también las que ya estaban fuera antes del cambio, para
+ * que ninguna se olvide. Muestra lo necesario para llamar a cada cliente. La lista solo viene
+ * en la respuesta del guardado, así que se ofrece copiarla. Se abre con
+ * `useUi().mostrarCitasAfectadas` y vive en Raiz.
  */
 export function CitasAfectadasDialog() {
-  const citas = useUi((s) => s.citasAfectadas);
+  const afectadas = useUi((s) => s.citasAfectadas);
   const onCerrar = useUi((s) => s.cerrarCitasAfectadas);
+  const citas = afectadas?.citas;
   const n = citas?.length ?? 0;
   const copiar = async () => {
     try {
@@ -43,11 +47,12 @@ export function CitasAfectadasDialog() {
           <CalendarX2 className="size-6" aria-hidden />
         </span>
         <DialogTitle>
-          El horario se guardó, pero {n === 1 ? "1 cita queda" : `${n} citas quedan`} fuera del nuevo horario
+          {afectadas?.guardado}. {textoCitasFuera(n)}
         </DialogTitle>
         <DialogDescription className="mt-2">
-          Avísale a cada cliente para reprogramarla o cancelarla. Esta lista no se vuelve a mostrar: cópiala
-          si la necesitas después.
+          Incluye las que ya estaban fuera antes de este cambio, para que ninguna se olvide. Avísale a cada
+          cliente para reasignarla, reprogramarla o cancelarla. Esta lista no se vuelve a mostrar: cópiala si
+          la necesitas después.
         </DialogDescription>
         <div className="mt-4 max-h-80 overflow-y-auto rounded-control border">
           <table className="w-full text-left text-body">
