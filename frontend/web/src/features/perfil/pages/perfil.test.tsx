@@ -110,3 +110,27 @@ describe("E6 · Mi perfil", () => {
     expect(screen.getByRole("button", { name: "Reenviar enlace" })).toBeInTheDocument();
   });
 });
+
+describe("E6 · Mi disponibilidad", () => {
+  it("con registro de empleado en el negocio activo, lleva a su disponibilidad", async () => {
+    // Negocio 4: veterinario sin empleados.ver (sin Equipo en el menú).
+    const veterinario = {
+      ...usuario,
+      negocios: usuario.negocios.map((n) => (n.id_negocio === 4 ? { ...n, id_empleado: 9 } : n)),
+    };
+    renderRuta("/n/4/mi-perfil", { usuario: veterinario });
+    expect(await screen.findByRole("heading", { name: "Mi disponibilidad" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ver mi disponibilidad" })).toHaveAttribute(
+      "href",
+      "/n/4/equipo/9/disponibilidad",
+    );
+    expect(screen.queryByRole("link", { name: "Equipo" })).not.toBeInTheDocument();
+  });
+
+  it("sin registro de empleado en el negocio activo no aparece", async () => {
+    servidor.use(suscripcion);
+    renderRuta("/n/1/mi-perfil", { usuario });
+    expect(await screen.findByRole("heading", { name: "Mis negocios" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Mi disponibilidad" })).not.toBeInTheDocument();
+  });
+});

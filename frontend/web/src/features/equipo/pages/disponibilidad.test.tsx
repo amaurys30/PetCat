@@ -231,5 +231,12 @@ describe("D5 · Disponibilidad del profesional", () => {
       expect(screen.queryByRole("button", { name: "Guardar semana" })).not.toBeInTheDocument(),
     );
     expect(screen.queryByRole("button", { name: "+ Bloqueo" })).not.toBeInTheDocument();
+    // Sin Equipo en el menú: la ruta de navegación vuelve a Mi perfil.
+    expect(screen.getByRole("link", { name: "Mi perfil" })).toHaveAttribute("href", "/n/1/mi-perfil");
+    expect(screen.getByText(/\/ Mi disponibilidad/)).toBeInTheDocument();
+    // Solo consulta: sin agregar, copiar ni quitar rangos.
+    expect(screen.queryByRole("button", { name: /Agregar rango/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Copiar el horario/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Disponibilidad" })).toBeInTheDocument();
   });
 });

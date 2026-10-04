@@ -158,13 +158,21 @@ function Contenido({
           <h2 className="text-title font-bold text-ink">{nombre}</h2>
           <p className="text-body text-muted">
             {puede("empleados", "ver") ? (
-              <Link to="../miembros" className="hover:underline">
-                Equipo
-              </Link>
+              <>
+                <Link to="../miembros" className="hover:underline">
+                  Equipo
+                </Link>{" "}
+                / {nombre} / Disponibilidad
+              </>
             ) : (
-              "Equipo"
-            )}{" "}
-            / {nombre} / Disponibilidad
+              // Sin Equipo en el menú: llegó desde Mi perfil.
+              <>
+                <Link to="../../mi-perfil" className="hover:underline">
+                  Mi perfil
+                </Link>{" "}
+                / Mi disponibilidad
+              </>
+            )}
           </p>
         </div>
       </div>
@@ -298,6 +306,7 @@ function HorarioSemanal({
         errores={errores}
         disabled={!puedeEditar || guardar.isPending}
         referencia={horarioDeSedes(sedes)}
+        soloLectura={!puedeEditar}
       />
       {mensaje && (
         <Alert tono="error" className="mt-3">

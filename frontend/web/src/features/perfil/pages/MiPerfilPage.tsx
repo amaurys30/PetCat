@@ -1,7 +1,8 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowRight, CheckCircle2, LogOut } from "lucide-react";
+import { ArrowRight, CalendarClock, CheckCircle2, LogOut } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
+import { Link } from "react-router";
 import type { Me } from "@/api/types";
 import { Avatar } from "@/components/common/Avatar";
 import { AvisoCambiosSinGuardar } from "@/components/common/AvisoCambiosSinGuardar";
@@ -15,6 +16,7 @@ import { Input, NativeSelect, PasswordInput } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { aviso } from "@/components/ui/toaster";
 import { ReenviarVerificacion } from "@/features/auth/components/ReenviarVerificacion";
+import { useNegocioActivo } from "@/features/negocios/hooks/useNegocio";
 import { rolEnNegocio, textoPlan } from "@/features/negocios/textos";
 import { aplicarErroresApi, soloCambios } from "@/lib/forms";
 import { fechaCorta } from "@/lib/format";
@@ -38,6 +40,7 @@ export function MiPerfilPage() {
         <Seguridad />
       </div>
       <div className="flex flex-col gap-5">
+        <MiDisponibilidad />
         <Notificaciones usuario={usuario} />
         <MisNegocios usuario={usuario} />
         <Privacidad usuario={usuario} />
@@ -235,6 +238,29 @@ function Notificaciones({ usuario }: { usuario: Me }) {
           <p className="text-label text-muted">Citas nuevas y avisos del plan cuando no tienes la app.</p>
         </div>
       </div>
+    </Card>
+  );
+}
+
+/**
+ * Acceso a la disponibilidad propia en el negocio activo, para quien tiene registro de
+ * empleado en él: un profesional sin empleados.ver no tiene Equipo en el menú. La API le deja
+ * ver la suya siempre; editarla sigue exigiendo configuracion.editar.
+ */
+function MiDisponibilidad() {
+  const negocio = useNegocioActivo();
+  if (negocio.id_empleado === null) return null;
+  return (
+    <Card className="p-5">
+      <h2 className="text-card font-semibold text-ink">Mi disponibilidad</h2>
+      <p className="mt-1 mb-3 text-body text-muted">
+        Tu horario semanal, bloqueos y vacaciones en {negocio.nombre}, y en qué horas atiendes cada día.
+      </p>
+      <Button asChild variant="secondary">
+        <Link to={`../equipo/${negocio.id_empleado}/disponibilidad`}>
+          <CalendarClock /> Ver mi disponibilidad
+        </Link>
+      </Button>
     </Card>
   );
 }

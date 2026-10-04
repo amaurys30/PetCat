@@ -100,7 +100,12 @@ export const rutas: RouteObject[] = [
                       { path: "roles", element: <RolesPage /> },
                     ],
                   },
-                  { path: ":idEmpleado/disponibilidad", element: <DisponibilidadPage /> },
+                  {
+                    path: ":idEmpleado/disponibilidad",
+                    element: <DisponibilidadPage />,
+                    // El profesional sin Equipo en el menú llega desde Mi perfil.
+                    handle: { titulo: "Disponibilidad" } satisfies HandleRuta,
+                  },
                   { path: "*", element: <Navigate to="miembros" replace /> },
                 ],
               },

@@ -25,6 +25,8 @@ interface Props {
    * sigue la sede: cada día muestra esto en lugar de "No trabaja".
    */
   referencia?: string[];
+  /** Sin permiso de edición: sin "+ rango", copiar ni quitar (solo se consulta). */
+  soloLectura?: boolean;
 }
 
 const LABORALES = [1, 2, 3, 4, 5];
@@ -44,6 +46,7 @@ export function EditorHorarioProfesional({
   errores = {},
   disabled = false,
   referencia,
+  soloLectura = false,
 }: Props) {
   const variasSedes = sedes.length > 1;
   const sigueSede = Boolean(referencia) && value.every((rangos) => rangos.length === 0);
@@ -73,30 +76,43 @@ export function EditorHorarioProfesional({
                     {sigueSede ? referencia?.[dia] : "No trabaja"}
                   </span>
                 )}
-                {rangos.map((rango, i) => (
-                  <FichaRango
-                    key={i}
-                    dia={nombre}
-                    rango={rango}
-                    sedes={sedes}
-                    etiquetaSede={variasSedes ? nombreSede(rango.id_sucursal) : null}
-                    error={errores[`${dia}-${i}`]}
-                    disabled={disabled}
-                    onChange={(nuevo) =>
-                      cambiarDia(
-                        dia,
-                        rangos.map((r, j) => (j === i ? nuevo : r)),
-                      )
-                    }
-                    onQuitar={() =>
-                      cambiarDia(
-                        dia,
-                        rangos.filter((_, j) => j !== i),
-                      )
-                    }
-                  />
-                ))}
-                {siguiente && (
+                {soloLectura &&
+                  rangos.map((rango, i) => (
+                    <span
+                      key={i}
+                      className="inline-flex h-7 items-center gap-1.5 rounded-control bg-primary-soft px-2.5 text-label font-semibold text-primary-dark tabular-nums"
+                    >
+                      {rango.inicio}–{rango.fin}
+                      {variasSedes && (
+                        <span className="font-normal opacity-75">{nombreSede(rango.id_sucursal)}</span>
+                      )}
+                    </span>
+                  ))}
+                {!soloLectura &&
+                  rangos.map((rango, i) => (
+                    <FichaRango
+                      key={i}
+                      dia={nombre}
+                      rango={rango}
+                      sedes={sedes}
+                      etiquetaSede={variasSedes ? nombreSede(rango.id_sucursal) : null}
+                      error={errores[`${dia}-${i}`]}
+                      disabled={disabled}
+                      onChange={(nuevo) =>
+                        cambiarDia(
+                          dia,
+                          rangos.map((r, j) => (j === i ? nuevo : r)),
+                        )
+                      }
+                      onQuitar={() =>
+                        cambiarDia(
+                          dia,
+                          rangos.filter((_, j) => j !== i),
+                        )
+                      }
+                    />
+                  ))}
+                {siguiente && !soloLectura && (
                   <button
                     type="button"
                     disabled={disabled}
@@ -117,25 +133,27 @@ export function EditorHorarioProfesional({
                   </button>
                 )}
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild disabled={disabled}>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Copiar el horario del ${nombre.toLowerCase()}`}
-                  >
-                    <Copy className="size-4 text-muted" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onSelect={() => copiar(dia, LABORALES)}>
-                    Copiar a lunes–viernes
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => copiar(dia, TODOS)}>
-                    Copiar a todos los días
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {!soloLectura && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild disabled={disabled}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Copiar el horario del ${nombre.toLowerCase()}`}
+                    >
+                      <Copy className="size-4 text-muted" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={() => copiar(dia, LABORALES)}>
+                      Copiar a lunes–viernes
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => copiar(dia, TODOS)}>
+                      Copiar a todos los días
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
             {erroresDia.length > 0 && (
               <p className="mt-1 pl-27 text-label text-danger">{erroresDia.join(" · ")}</p>
