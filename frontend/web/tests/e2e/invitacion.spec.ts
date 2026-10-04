@@ -1,14 +1,12 @@
-import { execSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { leerDeCorreo } from "./mailpit";
 
 /**
  * A4 contra la API de demo. Salud Animal 24h (Pro en prueba, sin límite de empleados)
- * crea un empleado y lo invita; el enlace se lee del correo que la API de demo escribe
- * en su log (sin SMTP). Cada corrida usa correos nuevos.
+ * crea un empleado y lo invita; el enlace se lee del correo en Mailpit, adonde envía la
+ * API de demo. Cada corrida usa correos nuevos.
  */
 const PASSWORD = "Petcat123!";
-const RAIZ = fileURLToPath(new URL("../../../../", import.meta.url));
 
 const api = async <T>(
   request: APIRequestContext,
@@ -23,17 +21,6 @@ const api = async <T>(
   });
   expect(res.ok(), `${metodo.toUpperCase()} ${url}: ${res.status()} ${await res.text()}`).toBe(true);
   return ((await res.json()) as { data: T }).data;
-};
-
-const tokenDeInvitacion = (email: string): string => {
-  const logs = execSync("docker compose logs --since 2m --no-log-prefix backend-demo", {
-    cwd: RAIZ,
-    encoding: "utf8",
-  });
-  const bloques = logs.split("---- Correo").filter((b) => b.includes(`Para:   ${email}`));
-  const token = /\/invitacion\/([0-9a-f]{64})/.exec(bloques.at(-1) ?? "")?.[1];
-  if (!token) throw new Error(`No encontré la invitación de ${email} en el log de backend-demo`);
-  return token;
 };
 
 /** El negocio invita a `email` y devuelve el token del enlace. */
@@ -62,8 +49,7 @@ async function invitar(request: APIRequestContext, email: string, nombre: string
     },
   );
   await api(request, "post", `/empleados/${empleado.id_empleado}/invitacion`, access_token);
-  await expect.poll(() => tokenDeInvitacion(email).length, { timeout: 5000 }).toBe(64);
-  return tokenDeInvitacion(email);
+  return leerDeCorreo(request, email, /\/invitacion\/([0-9a-f]{64})/);
 }
 
 async function entrar(page: Page, email: string) {

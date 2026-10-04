@@ -32,8 +32,14 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+      # Solo se usa en modo "mailpit", pero así arranca con el backend.
+      mailpit:
+        condition: service_started
+    # El segundo archivo elige el correo (MAIL_MODO en el .env de la raíz): "mailpit" (por
+    # defecto) reemplaza el SMTP de backend/.env por Mailpit; "smtp" usa el de backend/.env.
     env_file:
       - ./backend/.env
+      - ./docker/correo/${MAIL_MODO:-mailpit}.env
     # Dentro de la red de Docker la base está en mysql:3306, no en localhost:3307.
     environment:
       DB_HOST: mysql
@@ -63,8 +69,13 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+      # Solo se usa en modo "mailpit", pero así arranca con el backend.
+      mailpit:
+        condition: service_started
+    # Correo: igual que backend, con su propio interruptor (MAIL_MODO_DEMO).
     env_file:
       - ./backend/.env
+      - ./docker/correo/${MAIL_MODO_DEMO:-mailpit}.env
     environment:
       DB_HOST: mysql
       DB_PORT: "3306"
@@ -85,6 +96,20 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
+
+  # Correo de desarrollo: recibe todo lo que envían los backends en modo "mailpit" y lo
+  # muestra en http://127.0.0.1:8025 (nada sale a internet). El SMTP queda en 127.0.0.1:1025
+  # para la API corrida en el host (npm run dev con SMTP_HOST=localhost y SMTP_PORT=1025).
+  mailpit:
+    image: axllent/mailpit:v1.27
+    container_name: petcat_mailpit
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:1025:1025"
+    environment:
+      MP_MAX_MESSAGES: 2000
+      TZ: America/Bogota
 
 volumes:
   mysql_data:

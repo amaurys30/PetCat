@@ -100,11 +100,9 @@ Invoke-RestMethod http://localhost:3001/api/v1/health
 # Recargar petcat_demo con el esquema y el seed (borra lo que hayas creado en la demo)
 docker compose exec backend-demo node scripts/db-demo.js
 
-# Ver los correos de desarrollo: sin SMTP_HOST, cada correo (enlaces de recuperación,
-# invitaciones, verificación) se imprime en el log del contenedor que lo envió
-docker compose logs -f backend-demo
-docker compose logs -f backend
-docker compose logs --since 10m backend-demo | Select-String -Pattern "http://localhost:5173"
+# Ver los correos de desarrollo (recuperación, invitaciones, verificación...): llegan a
+# Mailpit, http://127.0.0.1:8025 (ver "Correo" en la sección 2)
+docker compose exec backend-demo npm run mail:test -- --to prueba@ejemplo.com
 
 # Detener solo la API del panel
 docker compose stop backend-demo
@@ -149,7 +147,7 @@ Hay tres archivos, ninguno se sube al repositorio (solo sus plantillas `.example
 
 | Archivo | Lo usa | Contenido |
 |---|---|---|
-| `.env` (raíz) | `docker compose` | `MYSQL_ROOT_PASSWORD`, `MYSQL_DATABASE` |
+| `.env` (raíz) | `docker compose` | `MYSQL_ROOT_PASSWORD`, `MYSQL_DATABASE`, `MAIL_MODO` y `MAIL_MODO_DEMO` (correo de cada backend, ver "Correo") |
 | `backend/.env` | `npm run dev`, `npm start`, scripts `db:*` y el contenedor backend | Variables de la tabla de abajo |
 | `backend/.env.test` | Vitest (`npm test`) | Las mismas, apuntando a la base `petcat_test` |
 
@@ -166,7 +164,8 @@ Hay tres archivos, ninguno se sube al repositorio (solo sus plantillas `.example
 | `APP_URL` | | `http://localhost:3000` | URL pública de la API |
 | `FRONTEND_URL` | | `http://localhost:5173` | Panel web; base de los enlaces de los correos |
 | `CORS_ORIGINS` | | `http://localhost:5173` | Orígenes permitidos, separados por coma |
-| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | En producción | puerto `587` | Sin `SMTP_HOST`, en desarrollo los correos se muestran en la consola |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | `SMTP_HOST` en producción | puerto `587` | Sin `SMTP_HOST`, en desarrollo los correos se muestran en la consola. Usuario y contraseña van juntos (o ninguno: sin autenticación). En Docker, el modo `mailpit` los reemplaza (ver "Correo") |
+| `SMTP_SECURE` | | según puerto y usuario | `tls` (465), `starttls` (587) o `none` (Mailpit). Sin definir: 465 → `tls`; con usuario → `starttls`; sin usuario → `none` |
 | `SMTP_TIMEOUT_MS` | | `10000` | Tiempo máximo del SMTP; si se supera, el envío responde 503 |
 | `MAIL_FROM` | | `PetCat <no-reply@petcat.co>` | Remitente de los correos |
 | `RATE_LIMIT_MAX` | | 300 | Máximo cada 15 min por IP en toda la API (límite general). La API de demo (`backend-demo`) usa uno mucho más alto |
@@ -177,6 +176,74 @@ Hay tres archivos, ninguno se sube al repositorio (solo sus plantillas `.example
 | `EXPO_ACCESS_TOKEN` | | | Solo si el proyecto de Expo tiene activada la seguridad de push; sin ella las push se envían igual |
 
 Cada variable nueva se agrega también a `backend/.env.example`.
+
+### Correo
+
+Los correos (verificación, recuperación de contraseña, invitaciones, bienvenida y avisos) salen por SMTP con Nodemailer. Lo que cambia entre desarrollo y un correo real son **solo variables de entorno**.
+
+**Qué decide a dónde va el correo**
+
+| Dónde corre la API | Qué manda | Por defecto |
+|---|---|---|
+| Docker (`backend`, `backend-demo`) | `MAIL_MODO` y `MAIL_MODO_DEMO` en el `.env` de la raíz | `mailpit`: todo llega a Mailpit, nada sale a internet |
+| Host (`npm run dev`) | El SMTP de `backend/.env` | Sin `SMTP_HOST`, el correo se imprime en la consola |
+| Tests | Nada: se guardan en memoria | — |
+
+Cómo funciona en Docker: cada backend carga `backend/.env` y después `docker/correo/<modo>.env`. El modo `mailpit` reemplaza las variables SMTP por las de Mailpit (y deja vacíos usuario y contraseña); el modo `smtp` no define nada, así que manda el SMTP de `backend/.env`. Por eso Compose nunca pisa tu configuración real sin querer, y cada backend elige por separado: se puede tener la demo en Mailpit y `backend` con correo real al mismo tiempo. Valores válidos: `mailpit` y `smtp`. Otro valor hace fallar `docker compose up` con `env file docker/correo/<valor>.env not found`.
+
+**Ver los correos en Mailpit**
+
+Mailpit arranca con `docker compose up` (lo levantan los dos backends). Bandeja: **http://127.0.0.1:8025**. Ahí aparecen todos los correos de los backends en modo `mailpit`, con su versión HTML y sus enlaces, que abren el panel (`FRONTEND_URL`). Para usar Mailpit desde `npm run dev` en el host: `SMTP_HOST=localhost`, `SMTP_PORT=1025` y `SMTP_SECURE=none` en `backend/.env`.
+
+**Probar la configuración**
+
+```powershell
+docker compose exec backend npm run mail:test -- --to tu_correo@ejemplo.com
+docker compose exec backend-demo npm run mail:test -- --to tu_correo@ejemplo.com
+cd backend; npm run mail:test -- --to tu_correo@ejemplo.com   # API en el host
+```
+
+Muestra la configuración (sin la contraseña), conecta, autentica y envía. Si falla, explica la causa: usuario o contraseña rechazados, servidor que no existe, puerto equivocado, tiempo de espera (`SMTP_TIMEOUT_MS`) o cifrado que no coincide con el puerto.
+
+**Variables SMTP** (en `backend/.env`; ver la tabla de arriba)
+
+- `SMTP_SECURE`: `tls` (TLS directo, puerto **465**), `starttls` (conecta y exige STARTTLS, puerto **587**) o `none` (sin cifrar, solo Mailpit u otro servidor local). Sin definir: 465 → `tls`; con usuario → `starttls`; sin usuario → `none`.
+- `SMTP_USER` y `SMTP_PASS` van juntas. Sin ellas, el SMTP no usa autenticación.
+- `SMTP_TIMEOUT_MS` (10 s): tiempo máximo para conectar, para el saludo y para cada operación.
+- Las contraseñas SMTP solo van en `backend/.env`, que no se sube al repositorio.
+
+**Paso a paso: Gmail con contraseña de aplicación** (para probar con correos reales)
+
+1. En la cuenta de Google, activa la **verificación en dos pasos** (Cuenta de Google → Seguridad). Sin ella, Google no deja crear contraseñas de aplicación.
+2. Crea una **contraseña de aplicación** en https://myaccount.google.com/apppasswords (por ejemplo, con el nombre "PetCat dev"). Google la muestra una sola vez: 16 letras.
+3. En `backend/.env`:
+   ```
+   SMTP_HOST=smtp.gmail.com
+   SMTP_PORT=587
+   SMTP_SECURE=starttls
+   SMTP_USER=tu_cuenta@gmail.com
+   SMTP_PASS=la_contraseña_de_aplicacion_sin_espacios
+   MAIL_FROM="PetCat <tu_cuenta@gmail.com>"
+   ```
+   Gmail solo envía como la cuenta autenticada: `MAIL_FROM` debe usar esa dirección.
+4. En el `.env` de la raíz, pon en `smtp` el backend que quieras con correo real (por ejemplo `MAIL_MODO=smtp` y `MAIL_MODO_DEMO=mailpit`).
+5. **Recrea el contenedor**: nodemon recarga el código, pero no vuelve a leer los `.env`.
+   ```powershell
+   docker compose up -d --force-recreate backend
+   ```
+   (con el modo desarrollo: `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --force-recreate backend`).
+6. Prueba: `docker compose exec backend npm run mail:test -- --to tu_correo@ejemplo.com`.
+
+Gmail limita los envíos diarios y no sirve para producción: úsalo solo para probar.
+
+**Advertencia: los correos del seed no existen.** Los usuarios de prueba usan `@petcat.test` (`propietario@petcat.test`, `cliente@petcat.test`...), un dominio reservado que no recibe correo. Con SMTP real, cualquier envío a ellos rebota, y muchos rebotes dañan la reputación de la cuenta que envía. Con correo real, prueba con cuentas creadas con tu propio correo, o deja ese backend en Mailpit.
+
+**En producción**
+
+- Un proveedor de correo transaccional (Amazon SES, Brevo, Postmark, Mailgun, SendGrid...), no una cuenta personal: dan cuotas altas, métricas de rebotes y reputación separada.
+- Un dominio propio verificado en el proveedor, con **SPF** (registro TXT que autoriza al proveedor a enviar por el dominio) y **DKIM** (firma de los correos con la clave que da el proveedor). Conviene también **DMARC**. Sin esto, los correos de verificación y recuperación caen en spam o los rechazan.
+- `MAIL_FROM` con ese dominio (por ejemplo `PetCat <no-reply@petcat.co>`), `SMTP_SECURE=tls` o `starttls` según el puerto del proveedor, y credenciales SMTP del proveedor en las variables de entorno del servidor (nunca en el repositorio).
+- `FRONTEND_URL` con la URL pública del panel: es la base de todos los enlaces de los correos.
 
 ---
 
@@ -703,4 +770,4 @@ Invitación pendiente de la recepcionista (`recepcionista@petcat.test`, sin cuen
 - El navegador solo puede llamar a la API desde los orígenes de `CORS_ORIGINS` (por defecto `http://localhost:5173`, el de Vite). Si el panel corre en otro puerto, agrégalo en `backend/.env`.
 - La app móvil no envía cabecera `Origin`, así que CORS no la afecta.
 - Límite general: 300 solicitudes cada 15 minutos por IP (`RATE_LIMIT_MAX`). Login, forgot-password, reset-password, verify-email, resend-verification, request-verification e invitaciones tienen un límite más estricto (`AUTH_RATE_LIMIT_MAX`). Al superarlo: 429.
-- En desarrollo sin SMTP, los correos (por ejemplo, las invitaciones) se imprimen en la consola del backend (`docker compose logs -f backend` si corre en Docker).
+- En desarrollo, los correos (por ejemplo, las invitaciones) llegan a Mailpit: http://127.0.0.1:8025 (ver "Correo" en la sección 2). Con la API en el host y sin `SMTP_HOST`, se imprimen en su consola.

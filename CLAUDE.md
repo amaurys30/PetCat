@@ -138,7 +138,8 @@ npm run dev:demo                  # API contra petcat_demo
 # Docker (Amaurys trabaja así; detalle en backend/README.md, "Dos backends en Docker")
 docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile panel up -d --build   # 3000 (petcat_db) y 3001 (petcat_demo) con recarga
 docker compose exec backend-demo node scripts/db-demo.js   # recarga petcat_demo
-docker compose logs -f backend-demo                         # correos de desarrollo de la demo
+# Correos de desarrollo de los dos backends: Mailpit, http://127.0.0.1:8025 (MAIL_MODO / MAIL_MODO_DEMO en el .env de la raíz)
+docker compose exec backend npm run mail:test -- --to correo@ejemplo.com   # prueba la configuración de correo
 # Swagger: http://localhost:3000/api/v1/docs
 ```
 

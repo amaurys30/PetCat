@@ -1,8 +1,9 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { __reiniciarErroresGoogleMaps } from "@/lib/erroresGoogleMaps";
 import { PLANTILLAS, semanaVacia, type Semana } from "@/lib/horarios";
 import type { Ubicacion } from "@/lib/ubicacion";
 import { EditorHorarioSemanal } from "./EditorHorarioSemanal";
@@ -58,6 +59,7 @@ vi.mock("@vis.gl/react-google-maps", () => ({
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  __reiniciarErroresGoogleMaps();
   estadoApi.valor = "LOADED";
 });
 
@@ -201,5 +203,23 @@ describe("UbicacionSede con Google Maps", () => {
     render(<UbicacionControlada inicial={sinPunto} />);
     expect(screen.getByText(/No pudimos cargar el mapa/)).toBeInTheDocument();
     expect(screen.getByLabelText("Latitud")).toBeInTheDocument();
+  });
+
+  it("sin facturación en Google Cloud (solo lo dice la consola): coordenadas manuales con el motivo", async () => {
+    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "clave-sin-facturacion");
+    render(<UbicacionControlada inicial={sinPunto} />);
+    expect(screen.getByRole("combobox")).toBeInTheDocument();
+
+    act(() =>
+      console.error(
+        "Google Maps JavaScript API error: BillingNotEnabledMapError\nhttps://developers.google.com/maps/documentation/javascript/error-messages#billing-not-enabled-map-error",
+      ),
+    );
+    expect(await screen.findByText(/falta activar la facturación de Google Cloud/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Latitud")).toBeInTheDocument();
+
+    // La API se carga una vez por página: otra ubicación que se monte después ya sabe del error.
+    render(<UbicacionControlada inicial={sinPunto} />);
+    expect(screen.getAllByText(/falta activar la facturación de Google Cloud/)).toHaveLength(2);
   });
 });
