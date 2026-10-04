@@ -5,6 +5,7 @@ import { ResumenNegocioPage } from "@/features/configuracion/pages/ResumenNegoci
 import { SedesPage } from "@/features/configuracion/pages/SedesPage";
 import { EquipoLayout } from "@/features/equipo/EquipoLayout";
 import { MiembrosPage } from "@/features/equipo/pages/MiembrosPage";
+import { RolesPage } from "@/features/equipo/pages/RolesPage";
 import { MiPerfilPage } from "@/features/perfil/pages/MiPerfilPage";
 import { LoginPage } from "@/features/auth/pages/LoginPage";
 import { PasswordNuevaPage } from "@/features/auth/pages/PasswordNuevaPage";
@@ -95,6 +96,7 @@ export const rutas: RouteObject[] = [
                     children: [
                       { index: true, element: <Navigate to="miembros" replace /> },
                       { path: "miembros", element: <MiembrosPage /> },
+                      { path: "roles", element: <RolesPage /> },
                     ],
                   },
                   { path: "*", element: <Navigate to="miembros" replace /> },
