@@ -4,6 +4,7 @@ import { PerfilNegocioPage } from "@/features/configuracion/pages/PerfilNegocioP
 import { ResumenNegocioPage } from "@/features/configuracion/pages/ResumenNegocioPage";
 import { SedesPage } from "@/features/configuracion/pages/SedesPage";
 import { EquipoLayout } from "@/features/equipo/EquipoLayout";
+import { DisponibilidadPage } from "@/features/equipo/pages/DisponibilidadPage";
 import { MiembrosPage } from "@/features/equipo/pages/MiembrosPage";
 import { RolesPage } from "@/features/equipo/pages/RolesPage";
 import { MiPerfilPage } from "@/features/perfil/pages/MiPerfilPage";
@@ -99,6 +100,7 @@ export const rutas: RouteObject[] = [
                       { path: "roles", element: <RolesPage /> },
                     ],
                   },
+                  { path: ":idEmpleado/disponibilidad", element: <DisponibilidadPage /> },
                   { path: "*", element: <Navigate to="miembros" replace /> },
                 ],
               },
