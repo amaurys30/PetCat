@@ -294,7 +294,8 @@ router.post("/citas", authMiddleware, validate({ body: createCitaBody }), contro
  *                   example: Capacitación
  *                   description: >
  *                     Texto de la vacación o del bloqueo. Puede ser personal: solo se envía a quien tiene
- *                     `configuracion.ver` (y al propietario y al admin); a los demás, null.
+ *                     `configuracion.ver` (y al propietario y al admin) y al propio empleado de la cita
+ *                     (es su información); a los demás, null.
  *     CitaPanelDetalle:
  *       description: Detalle de la cita para el panel (GET /citas/{id_cita} y respuestas de los cambios).
  *       allOf:

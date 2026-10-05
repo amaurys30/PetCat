@@ -404,9 +404,12 @@ const horaActual = () => {
  * Marca `fuera_de_disponibilidad` en citas del panel: las que aplican y no caben en
  * la disponibilidad de su empleado (1.4), con `motivo_fuera` (tipo y texto de la
  * excepción). Carga los datos de todos los empleados en lote. El texto del motivo puede
- * ser personal ("cita médica"): solo va con `verMotivo` (configuracion.ver); sin él, null.
+ * ser personal ("cita médica"): va con `acceso` que tenga configuracion.ver, o si la cita
+ * es del propio empleado que consulta (es su información); si no, null.
  */
-const conDisponibilidad = async (rows, id_negocio, desde, hasta, { verMotivo = false } = {}) => {
+const conDisponibilidad = async (rows, id_negocio, desde, hasta, acceso = null) => {
+  const verTodos = accesoPermite(acceso, "configuracion", "ver");
+  const verMotivo = (row) => verTodos || (acceso?.id_empleado !== undefined && row.id_empleado === acceso.id_empleado);
   if (rows.length === 0) return [];
   const hoy = hoyISO();
   const ahora = horaActual();
@@ -423,7 +426,7 @@ const conDisponibilidad = async (rows, id_negocio, desde, hasta, { verMotivo = f
     const cabe = citaCabe(row, { horariosPorSucursal, horarioSemanal: semanales[row.id_empleado] ?? [], excepciones: excepcionesDe });
     if (cabe) continue;
     const { tipo, motivo } = motivoFuera(row, excepcionesDe);
-    motivos.set(row.id_cita, { tipo, motivo: verMotivo ? motivo : null });
+    motivos.set(row.id_cita, { tipo, motivo: verMotivo(row) ? motivo : null });
   }
   return rows.map((row) => ({
     ...formatCita(row, { conNotasInternas: true }),
@@ -473,9 +476,7 @@ const verificarFiltros = async (id_negocio, filtros) => {
 export const getAgenda = async (negocio, acceso, id_usuario, { solo_mias, fuera_de_disponibilidad, estado, ...filtros }) => {
   await prepararFiltros(negocio, id_usuario, solo_mias, filtros);
   const rows = await citaRepo.findAgenda({ id_negocio: negocio.id_negocio, estados: estado, ...filtros });
-  let citas = await conDisponibilidad(rows, negocio.id_negocio, filtros.desde, filtros.hasta, {
-    verMotivo: accesoPermite(acceso, "configuracion", "ver"),
-  });
+  let citas = await conDisponibilidad(rows, negocio.id_negocio, filtros.desde, filtros.hasta, acceso);
   if (fuera_de_disponibilidad !== undefined) citas = citas.filter((c) => c.fuera_de_disponibilidad === fuera_de_disponibilidad);
   return { rows: citas, meta: { total: citas.length, desde: filtros.desde, hasta: filtros.hasta } };
 };
@@ -515,9 +516,7 @@ export const getAtencion = async (negocio, acceso, id_usuario, { solo_mias, ...f
     estados: ["pendiente", "confirmada"],
     ...filtros,
   });
-  const citas = await conDisponibilidad(rows, negocio.id_negocio, hoy, rows.at(-1)?.fecha ?? hoy, {
-    verMotivo: accesoPermite(acceso, "configuracion", "ver"),
-  });
+  const citas = await conDisponibilidad(rows, negocio.id_negocio, hoy, rows.at(-1)?.fecha ?? hoy, acceso);
   return {
     por_confirmar: citas
       .filter((c) => c.estado === "pendiente")
@@ -535,7 +534,7 @@ export const getCita = async (id_cita, acceso) => {
   const row = await citaRepo.findDetalle(id_cita);
   if (acceso.relacion === "dueno") return (await formatCitasDueno([row], row.id_usuario))[0];
   const [[cita], historial_cumplimiento] = await Promise.all([
-    conDisponibilidad([row], row.id_negocio, row.fecha, row.fecha, { verMotivo: accesoPermite(acceso, "configuracion", "ver") }),
+    conDisponibilidad([row], row.id_negocio, row.fecha, row.fecha, acceso),
     citaRepo.resumenCumplimiento(row.id_usuario, row.id_negocio),
   ]);
   return { ...cita, cliente: { ...cita.cliente, historial_cumplimiento } };

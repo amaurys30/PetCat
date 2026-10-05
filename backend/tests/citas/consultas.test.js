@@ -312,14 +312,15 @@ describe("motivo_fuera", () => {
     });
   });
 
-  it("el texto del motivo solo va a quien tiene configuracion.ver; el tipo, a todos los de citas.ver", async () => {
+  it("el texto del motivo va con configuracion.ver o al propio empleado; el tipo, a todos los de citas.ver", async () => {
     const ctx = await contexto();
     const c = await cita(ctx);
     await excepcion(ctx.ana, { tipo: "bloqueo", fecha: LUNES, motivo: "Cita médica personal" });
     const conConfiguracion = await tokenConPermisos(ctx, { citas: ["ver"], configuracion: ["ver"] });
     const soloCitas = await tokenConPermisos(ctx, { citas: ["ver"] });
 
-    for (const token of [ctx.tokenPropietario, conConfiguracion]) {
+    // Ana (Veterinario, sin configuracion.ver) ve el motivo de su propia cita.
+    for (const token of [ctx.tokenPropietario, conConfiguracion, ctx.tokenAna]) {
       expect(motivos(await agenda(ctx, token))[c.id_cita]).toEqual({ tipo: "bloqueo", motivo: "Cita médica personal" });
       expect((await api(token).get(`/citas/${c.id_cita}`)).body.data.motivo_fuera.motivo).toBe("Cita médica personal");
     }
