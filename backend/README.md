@@ -282,7 +282,7 @@ Marca como aplicadas todas las migraciones que hay en `database/migrations` sin 
 
 | Negocio | Tipo y plan | Qué sirve para ver |
 |---|---|---|
-| Clínica Veterinaria Patitas (Centro) | veterinaria, Gratuito | Horario partido; "Vacuna antirrábica" con oferta vigente; "Baño y corte" sin empleados (no reservable); bloqueo de Carlos una tarde; recepcionista con invitación pendiente. |
+| Clínica Veterinaria Patitas (Centro) | veterinaria, Gratuito | Horario partido; "Vacuna antirrábica" con oferta vigente; "Baño y corte" sin empleados (no reservable); bloqueo de Carlos una tarde; recepcionista con invitación pendiente. **Semana de agenda** (panel P4): de 3 días antes a 5 días después de hoy, con Carlos y Paula (veterinaria sin cuenta; 3 de 3 empleados) atendiendo a veces a la misma hora, dos reservas de la app **por confirmar** con plazo y una cita **fuera de disponibilidad** por un bloqueo personal de Paula ("Cita médica personal", texto que solo ve quien tiene `configuracion.ver`). |
 | Peluquería Canina Huellitas (Venecia) | peluquería, Gratuito | Rol propio "Estilista"; servicios con margen de 15 min; "Baño y corte premium" en oferta; "Spa felino" solo sábados; empleada sin cuenta. Calificación 3 (la reseña se editó después de la respuesta). |
 | Guardería Patas Felices (Boston) | guardería, Gratuito | Lunes a viernes; servicios por día con cupo diario (`max_citas_dia` 8); "Adiestramiento básico" sin entrenador. Sin verificar. |
 | Centro Veterinario Salud Animal 24h | clínica, **Pro en prueba**, destacado | Sede Norte (todos los días 7-21) y Sede Sur (horario partido); veterinaria con horario semanal por sede, vacaciones en unos 20 días y jornada especial el próximo domingo (también es recepcionista de Huellitas); urgencias con precio variable; "Desparasitación" con oferta **vencida**; "Hospitalización" sin cita. |
@@ -293,6 +293,7 @@ Marca como aplicadas todas las migraciones que hay en `database/migrations` sin 
 - **Camilo** (`camilo@petcat.test`): Rocky (alérgico al pollo, **no comparte su historial**: cada negocio ve solo lo que registró; atendido en Patitas, Huellitas, la guardería y urgencias de Salud Animal) y Mía (spa el sábado, consulta en 2 días). Una cita de Rocky cae en las vacaciones de la veterinaria: la agenda la marca `fuera_de_disponibilidad`.
 - **Valeria** (`valeria@petcat.test`, correo sin verificar): Copito (conejo; mixomatosis próxima en 5 días; una cita **reprogramada** con su nueva cita pendiente) y Nala (**fallecida**, con una cita antigua en la guardería).
 - **Jorge** (`jorge@petcat.test`): cliente **sin app** registrado desde el panel de Salud Animal; Toby tiene una cita **en curso hoy** y una inasistencia.
+- **Lorena** (`lorena@petcat.test`, usa la app) con Milo y Nina (alérgica a la penicilina), y **Pedro** (`pedro@petcat.test`, **sin app**, registrado desde el panel de Patitas) con Lucas: llenan la semana de agenda de Patitas sin cambiar los conteos de Sofía.
 
 Hay citas en los siete estados (`pendiente`, `confirmada`, `en_curso`, `completada`, `cancelada`, `no_asistio`, `reprogramada`), pasadas y futuras.
 
@@ -759,6 +760,8 @@ Con el seed cargado, todos usan la contraseña **`Petcat123!`**:
 | `valeria@petcat.test` | Dueña de Copito y de Nala (fallecida); correo sin verificar |
 | `jorge@petcat.test` | Cliente sin app registrado desde el panel de Salud Animal (dueño de Toby) |
 | `andrea@petcat.test`, `luis@petcat.test`, `marta@petcat.test` | Clientes sin app de la guardería (Bruno y Kira; Simón y Lola; Coco) |
+| `lorena@petcat.test` | Clienta de Patitas con la app (Milo y Nina) |
+| `pedro@petcat.test` | Cliente sin app registrado desde el panel de Patitas (Lucas) |
 
 El detalle de cada negocio y cliente está en la [sección 3](#seed-de-desarrollo).
 

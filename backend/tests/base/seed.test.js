@@ -123,11 +123,14 @@ describe("seed de desarrollo", () => {
        WHERE n.nombre = 'Clínica Veterinaria Patitas'
        ORDER BY s.nombre`
     );
-    expect(filas).toEqual([
-      { nombre: "Baño y corte", email: null },
-      { nombre: "Consulta general", email: "veterinario@petcat.test" },
-      { nombre: "Vacuna antirrábica", email: "veterinario@petcat.test" },
-    ]);
+    // Otros profesionales pueden atender la consulta y la vacuna (la agenda del seed tiene dos).
+    expect(filas.filter((f) => f.nombre === "Baño y corte")).toEqual([{ nombre: "Baño y corte", email: null }]);
+    expect(filas).toEqual(
+      expect.arrayContaining([
+        { nombre: "Consulta general", email: "veterinario@petcat.test" },
+        { nombre: "Vacuna antirrábica", email: "veterinario@petcat.test" },
+      ])
+    );
   });
 });
 
@@ -239,6 +242,26 @@ describe("seed de desarrollo: datos realistas", () => {
     const agenda = await api(tokenSalud).get(`/negocios/${salud}/citas?desde=${hoyISO()}&hasta=${sumarDias(hoyISO(), 30)}&limit=100`);
     expect(agenda.status).toBe(200);
     expect(agenda.body.data.filter((c) => c.fuera_de_disponibilidad)).toHaveLength(1);
+  });
+
+  it("agenda de Patitas: dos profesionales, pendientes con plazo y una cita fuera por un bloqueo personal", async () => {
+    const patitas = await idNegocio(NEGOCIOS[0]);
+    const token = await login("propietario@petcat.test");
+    const profesionales = (await api(token).get(`/negocios/${patitas}/profesionales`)).body.data;
+    expect(profesionales.filter((p) => p.servicios.length > 0).map((p) => p.nombre)).toEqual(
+      expect.arrayContaining(["Carlos", "Paula"])
+    );
+
+    const { por_confirmar, fuera_de_disponibilidad } = (await api(token).get(`/negocios/${patitas}/citas/atencion`)).body.data;
+    expect(por_confirmar.length).toBeGreaterThanOrEqual(2);
+    expect(por_confirmar.every((c) => c.confirmar_antes_de !== null)).toBe(true);
+    expect(fuera_de_disponibilidad.map((c) => c.motivo_fuera)).toContainEqual({ tipo: "bloqueo", motivo: "Cita médica personal" });
+
+    const agenda = (await api(token).get(`/negocios/${patitas}/citas?desde=${sumarDias(hoyISO(), -3)}&hasta=${sumarDias(hoyISO(), 5)}`)).body.data;
+    const conCruce = agenda.some((a) =>
+      agenda.some((b) => a.id_cita !== b.id_cita && a.fecha === b.fecha && a.hora_inicio === b.hora_inicio && a.empleado.id_empleado !== b.empleado.id_empleado)
+    );
+    expect(conCruce).toBe(true);
   });
 
   it("Rocky no comparte su historial: Salud Animal ve solo su registro; la dueña de Rocky ve ambos", async () => {
