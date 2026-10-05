@@ -111,6 +111,12 @@ const getServicio = async (id_servicio) => {
   return formatServicio(row, empleados[id_servicio]);
 };
 
+/** Detalle del panel: incluye servicios eliminados y ocultos en la app. */
+export const getServicioGestion = async (id_servicio) => {
+  if (!(await servicioRepo.findById(id_servicio))) throw ApiError.notFound(NO_ENCONTRADO);
+  return getServicio(id_servicio);
+};
+
 export const getCategorias = () => servicioRepo.findCategoriasActivas();
 
 export const getServicios = async (id_negocio, { page, limit, ...filtros }) => {

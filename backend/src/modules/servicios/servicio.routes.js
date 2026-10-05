@@ -350,6 +350,36 @@ router.delete(
 
 /**
  * @swagger
+ * /servicios/{id_servicio}/gestion:
+ *   get:
+ *     summary: Detalle de un servicio (panel)
+ *     description: >
+ *       Requiere `servicios.ver`. El mismo formato del listado del panel, también para servicios
+ *       eliminados u ocultos en la app (el detalle público responde 404 en esos casos).
+ *     tags: [Servicios]
+ *     parameters:
+ *       - { in: path, name: id_servicio, required: true, schema: { type: integer } }
+ *     responses:
+ *       200:
+ *         description: Servicio
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ServicioRespuesta' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.get(
+  "/servicios/:id_servicio/gestion",
+  authMiddleware,
+  validate({ params: idServicioParams }),
+  authorize("servicios", "ver"),
+  controller.getServicioGestion
+);
+
+/**
+ * @swagger
  * /servicios/{id_servicio}/reactivar:
  *   patch:
  *     summary: Reactivar un servicio eliminado

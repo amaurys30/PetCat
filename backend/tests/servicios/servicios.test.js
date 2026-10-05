@@ -485,6 +485,38 @@ describe("DELETE y reactivar /servicios/:id_servicio", () => {
   });
 });
 
+describe("GET /servicios/:id_servicio/gestion", () => {
+  it("devuelve el formato del panel también para servicios eliminados y ocultos", async () => {
+    const { negocio, token } = await contexto();
+    const empleado = await crearEmpleado(negocio, { nombre: "Eva", apellido: "Sol" });
+    const eliminado = await crearServicio(negocio, { nombre: "Eliminado", activo: false, visible_app: false });
+    await asignarEmpleados(eliminado, [empleado]);
+
+    const res = await api(token).get(`/servicios/${eliminado.id_servicio}/gestion`);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({
+      id_servicio: eliminado.id_servicio,
+      nombre: "Eliminado",
+      activo: false,
+      visible_app: false,
+      categoria: { nombre: "Consulta y diagnóstico" },
+      empleados: [{ id_empleado: empleado.id_empleado, nombre: "Eva", apellido: "Sol" }],
+      sin_empleados: false,
+    });
+    expect((await api().get(`/servicios/${eliminado.id_servicio}`)).status).toBe(404);
+  });
+
+  it("recepcionista (servicios.ver) puede; otro negocio -> 403; sin token -> 401; inexistente -> 404", async () => {
+    const { negocio, token } = await contexto();
+    const servicio = await crearServicio(negocio);
+    const url = `/servicios/${servicio.id_servicio}/gestion`;
+    expect((await api(await empleadoConToken(negocio, "Recepcionista")).get(url)).status).toBe(200);
+    expect((await api((await contexto()).token).get(url)).status).toBe(403);
+    expect((await api().get(url)).status).toBe(401);
+    expect((await api(token).get("/servicios/999999999/gestion")).status).toBe(404);
+  });
+});
+
 describe("GET /servicios/:id_servicio (público)", () => {
   it("devuelve el servicio visible con sus empleados activos (especialidad y foto)", async () => {
     const { negocio } = await contexto();
