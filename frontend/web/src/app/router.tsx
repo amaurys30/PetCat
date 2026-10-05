@@ -8,6 +8,8 @@ import { DisponibilidadPage } from "@/features/equipo/pages/DisponibilidadPage";
 import { MiembrosPage } from "@/features/equipo/pages/MiembrosPage";
 import { RolesPage } from "@/features/equipo/pages/RolesPage";
 import { MiPerfilPage } from "@/features/perfil/pages/MiPerfilPage";
+import { ServicioFormPage } from "@/features/servicios/pages/ServicioFormPage";
+import { ServiciosPage } from "@/features/servicios/pages/ServiciosPage";
 import { LoginPage } from "@/features/auth/pages/LoginPage";
 import { PasswordNuevaPage } from "@/features/auth/pages/PasswordNuevaPage";
 import { RecuperarPasswordPage } from "@/features/auth/pages/RecuperarPasswordPage";
@@ -110,11 +112,20 @@ export const rutas: RouteObject[] = [
                 ],
               },
               {
+                path: "servicios",
+                handle: { titulo: "Servicios" } satisfies HandleRuta,
+                children: [
+                  { index: true, element: <ServiciosPage /> },
+                  { path: "nuevo", element: <ServicioFormPage /> },
+                  { path: ":idServicio", element: <ServicioFormPage /> },
+                ],
+              },
+              {
                 path: "mi-perfil",
                 element: <MiPerfilPage />,
                 handle: { titulo: "Mi perfil" } satisfies HandleRuta,
               },
-              ...SECCIONES.filter((s) => !["configuracion", "equipo"].includes(s.ruta)).map(
+              ...SECCIONES.filter((s) => !["configuracion", "equipo", "servicios"].includes(s.ruta)).map(
                 (seccion): RouteObject => ({
                   path: `${seccion.ruta}/*`,
                   element: <SeccionPendiente seccion={seccion} />,
