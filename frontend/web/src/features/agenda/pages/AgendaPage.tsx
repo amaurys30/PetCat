@@ -68,12 +68,13 @@ export function AgendaPage() {
 
   const paso = filtros.vista === "dia" ? 1 : 7;
   const titulo = filtros.vista === "dia" ? tituloDia(filtros.fecha) : tituloRango(dias[0]!, dias[6]!);
-  // Abrir una cita de otra fecha (desde el panel lateral) lleva a esa fecha.
+  // Abrir una cita fija también su fecha: "Día" muestra el día de la cita, y una cita de
+  // otra semana (desde el panel lateral) lleva a esa semana. Dentro del mismo rango no
+  // llena el historial.
   const abrir = (cita: CitaPanel) =>
     cambiar(
-      cita.fecha < desde || cita.fecha > hasta
-        ? { fecha: cita.fecha, idCita: cita.id_cita }
-        : { idCita: cita.id_cita },
+      { fecha: cita.fecha, idCita: cita.id_cita },
+      { reemplazar: cita.fecha >= desde && cita.fecha <= hasta },
     );
 
   const sedesVisibles = (sedes ?? []).filter(

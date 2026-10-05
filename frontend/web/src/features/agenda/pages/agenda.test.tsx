@@ -4,7 +4,7 @@ import { act } from "react";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { CitaPanel } from "@/api/citas";
 import { __reiniciarSesionParaPruebas } from "@/api/sesion";
-import { diasDeSemana, sumarDias } from "@/lib/agenda";
+import { diasDeSemana, sumarDias, tituloDia } from "@/lib/agenda";
 import { hoyISO } from "@/lib/format";
 import { useUi } from "@/stores/ui";
 import { citaPanelDemo, horarioPartido, profesionalDemo } from "@/test/agenda";
@@ -154,6 +154,10 @@ describe("B3 · Agenda semanal", () => {
     await user.click(await screen.findByRole("button", { name: /· Max ·/ }));
     expect(router.state.location.search).toContain("cita=1");
     expect(screen.getByRole("button", { name: /· Max ·/ })).toHaveAttribute("aria-pressed", "true");
+    // "Día" muestra el día de la cita elegida.
+    await user.click(screen.getByRole("radio", { name: "Día" }));
+    expect(screen.getByRole("heading", { level: 2, name: tituloDia(LUNES) })).toBeInTheDocument();
+    await user.click(screen.getByRole("radio", { name: "Semana" }));
 
     // Una cita de otra semana (desde el panel) lleva a su fecha.
     await user.click(screen.getByRole("button", { name: /Milo ·/ }));

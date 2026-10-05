@@ -43,7 +43,10 @@ export type CambiosUrl = Partial<{ [K in keyof FiltrosUrl]: FiltrosUrl[K] | unde
  * Estado de la agenda en la URL (`?vista=dia&fecha=2026-10-08&profesional=3&estados=pendiente`),
  * para poder compartir el enlace y volver atrás. Valores inválidos se ignoran.
  */
-export function useFiltrosUrl(): [FiltrosUrl, (cambios: CambiosUrl) => void] {
+export function useFiltrosUrl(): [
+  FiltrosUrl,
+  (cambios: CambiosUrl, opciones?: { reemplazar?: boolean }) => void,
+] {
   const [params, setParams] = useSearchParams();
 
   const filtros = useMemo<FiltrosUrl>(() => {
@@ -64,7 +67,7 @@ export function useFiltrosUrl(): [FiltrosUrl, (cambios: CambiosUrl) => void] {
   }, [params]);
 
   const cambiar = useCallback(
-    (cambios: CambiosUrl) =>
+    (cambios: CambiosUrl, opciones: { reemplazar?: boolean } = {}) =>
       setParams(
         (actuales) => {
           const nuevos = new URLSearchParams(actuales);
@@ -81,7 +84,7 @@ export function useFiltrosUrl(): [FiltrosUrl, (cambios: CambiosUrl) => void] {
           return nuevos;
         },
         // Abrir o cerrar una cita no llena el historial; cambiar de semana o de vista sí.
-        { replace: Object.keys(cambios).every((k) => k === "idCita") },
+        { replace: opciones.reemplazar ?? Object.keys(cambios).every((k) => k === "idCita") },
       ),
     [setParams],
   );
