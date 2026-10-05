@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Logo } from "@/components/common/Logo";
+import { useAtencion } from "@/features/agenda/hooks/useAgenda";
 import { useNegocioActivo, usePuede, useSuscripcion } from "@/features/negocios/hooks/useNegocio";
 import { cn } from "@/lib/utils";
 import { rolEnNegocio } from "@/features/negocios/textos";
@@ -50,6 +51,7 @@ export function Sidebar() {
                     >
                       <s.icono className="size-4 shrink-0" aria-hidden />
                       {s.titulo}
+                      {s.ruta === "agenda" && <PorConfirmar />}
                     </NavLink>
                   </li>
                 ))}
@@ -81,6 +83,22 @@ export function Sidebar() {
         <Usuario />
       </div>
     </aside>
+  );
+}
+
+/** Número de citas por confirmar en el menú (todas las del negocio desde hoy). */
+function PorConfirmar() {
+  const negocio = useNegocioActivo();
+  const { data } = useAtencion(negocio.id_negocio, {});
+  const n = data?.por_confirmar.length ?? 0;
+  if (n === 0) return null;
+  return (
+    <span
+      className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-warning px-1.5 text-[11px] font-bold text-white"
+      aria-label={`${n} por confirmar`}
+    >
+      {n}
+    </span>
   );
 }
 

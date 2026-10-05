@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate, type RouteObject } from "react-router";
+import { AgendaPage } from "@/features/agenda/pages/AgendaPage";
 import { ConfiguracionLayout } from "@/features/configuracion/ConfiguracionLayout";
 import { PerfilNegocioPage } from "@/features/configuracion/pages/PerfilNegocioPage";
 import { ResumenNegocioPage } from "@/features/configuracion/pages/ResumenNegocioPage";
@@ -121,11 +122,16 @@ export const rutas: RouteObject[] = [
                 ],
               },
               {
+                path: "agenda",
+                element: <AgendaPage />,
+                handle: { titulo: "Agenda" } satisfies HandleRuta,
+              },
+              {
                 path: "mi-perfil",
                 element: <MiPerfilPage />,
                 handle: { titulo: "Mi perfil" } satisfies HandleRuta,
               },
-              ...SECCIONES.filter((s) => !["configuracion", "equipo", "servicios"].includes(s.ruta)).map(
+              ...SECCIONES.filter((s) => !["agenda", "configuracion", "equipo", "servicios"].includes(s.ruta)).map(
                 (seccion): RouteObject => ({
                   path: `${seccion.ruta}/*`,
                   element: <SeccionPendiente seccion={seccion} />,
