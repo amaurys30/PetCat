@@ -12,12 +12,15 @@ export class ApiError extends Error {
   readonly status: number | null;
   /** Detalle por campo (422) u otros datos del error (`plan` en un 403 por límite del plan). */
   readonly errors: Record<string, string>;
+  /** Datos para resolver el error, si la API los manda (las citas del 409 al desactivar un servicio). */
+  readonly data: unknown;
 
-  constructor(status: number | null, message: string, errors: Record<string, string> = {}) {
+  constructor(status: number | null, message: string, errors: Record<string, string> = {}, data?: unknown) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.errors = errors;
+    this.data = data ?? null;
   }
 
   get sinConexion() {
@@ -33,6 +36,7 @@ export class ApiError extends Error {
 interface CuerpoError {
   message?: unknown;
   errors?: unknown;
+  data?: unknown;
 }
 
 const comoErrores = (valor: unknown): Record<string, string> => {
@@ -53,7 +57,7 @@ export function toApiError(error: unknown): ApiError {
     const cuerpo = (data ?? {}) as CuerpoError;
     const message =
       typeof cuerpo.message === "string" && cuerpo.message ? cuerpo.message : MENSAJE_INESPERADO;
-    return new ApiError(status, message, comoErrores(cuerpo.errors));
+    return new ApiError(status, message, comoErrores(cuerpo.errors), cuerpo.data);
   }
   return new ApiError(0, error instanceof Error ? error.message : MENSAJE_INESPERADO);
 }

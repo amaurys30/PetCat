@@ -11,11 +11,12 @@ import { useAuth } from "@/stores/auth";
 /** Los formularios y diálogos muestran sus errores (422 por campo, 409 en línea). */
 const meta = { avisarError: false } as const;
 
-export function useEmpleados(idNegocio: number, filtros: empleadosApi.FiltrosEmpleados) {
+export function useEmpleados(idNegocio: number, filtros: empleadosApi.FiltrosEmpleados, habilitada = true) {
   return useQuery({
     queryKey: queryKeys.empleados.lista(idNegocio, filtros),
     queryFn: () => empleadosApi.getEmpleados(idNegocio, filtros),
     placeholderData: keepPreviousData,
+    enabled: habilitada,
   });
 }
 
@@ -89,7 +90,7 @@ export function useRefrescarEquipo() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: queryKeys.empleados.todos() }),
       queryClient.invalidateQueries({ queryKey: queryKeys.roles(negocio.id_negocio) }),
-      queryClient.invalidateQueries({ queryKey: ["servicios", negocio.id_negocio] }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.servicios.todos(negocio.id_negocio) }),
       queryClient.invalidateQueries({ queryKey: queryKeys.negocios.suscripcion(negocio.id_negocio) }),
       // El cambio ya se guardó: si el perfil no se recarga ahora, se recarga en la siguiente visita.
       perfil ? recargarUsuario().catch(() => undefined) : undefined,

@@ -47,12 +47,11 @@ export function CitasAfectadasDialog() {
           <CalendarX2 className="size-6" aria-hidden />
         </span>
         <DialogTitle>
-          {afectadas?.guardado}. {textoCitasFuera(n)}
+          {afectadas?.textos?.titulo ?? `${afectadas?.guardado}. ${textoCitasFuera(n)}`}
         </DialogTitle>
         <DialogDescription className="mt-2">
-          Incluye las que ya estaban fuera antes de este cambio, para que ninguna se olvide. Avísale a cada
-          cliente para reasignarla, reprogramarla o cancelarla. Esta lista no se vuelve a mostrar: cópiala si
-          la necesitas después.
+          {afectadas?.textos?.descripcion ??
+            "Incluye las que ya estaban fuera antes de este cambio, para que ninguna se olvide. Avísale a cada cliente para reasignarla, reprogramarla o cancelarla. Esta lista no se vuelve a mostrar: cópiala si la necesitas después."}
         </DialogDescription>
         <div className="mt-4 max-h-80 overflow-y-auto rounded-control border">
           <table className="w-full text-left text-body">
