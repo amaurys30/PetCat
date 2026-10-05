@@ -1,9 +1,10 @@
 /**
  * Error de la API con código HTTP. El errorHandler lo traduce a
- * { success: false, message, errors }.
+ * { success: false, message, errors, data }.
  *
  *   throw ApiError.notFound("Mascota no encontrada");
  *   throw ApiError.unprocessable("Datos inválidos", { email: "Formato inválido" });
+ *   throw ApiError.conflict("Tiene citas").conDatos({ citas_afectadas });
  */
 export class ApiError extends Error {
   /**
@@ -16,6 +17,12 @@ export class ApiError extends Error {
     this.name = "ApiError";
     this.status = status;
     if (errors) this.errors = errors;
+  }
+
+  /** Datos para resolver el error (por ejemplo, las citas que lo impiden); van en `data`. */
+  conDatos(data) {
+    this.data = data;
+    return this;
   }
 
   static badRequest(message = "Solicitud inválida", errors) {

@@ -6438,13 +6438,21 @@ export interface paths {
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                /** @description El servicio tiene citas futuras pendientes o confirmadas */
+                /** @description El servicio tiene citas futuras pendientes o confirmadas. `data.citas_afectadas` las trae (mismo formato que `citas_afectadas` de horarios y disponibilidad) para cancelarlas o reprogramarlas. */
                 409: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
+                        "application/json": {
+                            /** @example false */
+                            success?: boolean;
+                            /** @example El servicio tiene 2 citas pendientes o confirmadas: cancélalas o reprográmalas antes de eliminarlo */
+                            message?: string;
+                            data?: {
+                                citas_afectadas?: components["schemas"]["CitasAfectadas"];
+                            };
+                        };
                     };
                 };
                 422: components["responses"]["ValidationError"];
@@ -6495,6 +6503,51 @@ export interface paths {
                 422: components["responses"]["ValidationError"];
             };
         };
+        trace?: never;
+    };
+    "/servicios/{id_servicio}/gestion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Detalle de un servicio (panel)
+         * @description Requiere `servicios.ver`. El mismo formato del listado del panel, también para servicios eliminados u ocultos en la app (el detalle público responde 404 en esos casos).
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id_servicio: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Servicio */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ServicioRespuesta"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["ValidationError"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/servicios/{id_servicio}/reactivar": {
@@ -8798,7 +8851,7 @@ export interface components {
             icono: string | null;
             orden_display: number;
         };
-        /** @description Campos opcionales con `null` se vacían. Reglas entre campos (422): `precio_maximo >= precio_base`, `peso_min_kg <= peso_max_kg`, con `en_oferta: true` se exige `precio_oferta < precio_base`, y `fecha_fin_oferta >= fecha_inicio_oferta`. Al editar se comprueban con los valores actuales. */
+        /** @description Campos opcionales con `null` se vacían. Reglas entre campos (422): `precio_maximo >= precio_base`, `peso_min_kg <= peso_max_kg`, con `en_oferta: true` se exige `precio_oferta < precio_base`, y `fecha_fin_oferta >= fecha_inicio_oferta`. Al editar se comprueban con los valores actuales. Al crear una oferta o cambiar alguno de sus campos (`en_oferta`, `precio_oferta`, `fecha_inicio_oferta`, `fecha_fin_oferta`, con un valor distinto del guardado), las dos fechas son obligatorias y `fecha_fin_oferta` no puede ser anterior a hoy (hora de Bogotá). Una oferta ya vencida que no se toca no impide editar el resto del servicio. */
         ServicioInput: {
             /** @description Categoría activa (GET /categorias-servicio) */
             id_categoria?: number;

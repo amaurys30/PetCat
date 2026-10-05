@@ -14,7 +14,7 @@ export function renderRuta(ruta: string, { usuario, state }: { usuario?: Me; sta
   useAuth.setState({ estado: usuario ? "autenticado" : "anonimo", usuario: usuario ?? null, salida: null });
   const url = new URL(ruta, "http://localhost");
   const router = createMemoryRouter(rutas, {
-    initialEntries: [{ pathname: url.pathname, search: url.search, state }],
+    initialEntries: [{ pathname: url.pathname, search: url.search, hash: url.hash, state }],
   });
   const resultado = render(
     <QueryClientProvider client={crearQueryClient()}>

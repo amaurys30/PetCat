@@ -17,9 +17,15 @@ export const queryKeys = {
   },
   roles: (idNegocio: number) => ["roles", idNegocio] as const,
   catalogoPermisos: () => ["permisos"] as const,
+  /** Todas empiezan por ["servicios", idNegocio]: Equipo las recarga con ese prefijo. */
   servicios: {
+    todos: (idNegocio: number) => ["servicios", idNegocio] as const,
     lista: (idNegocio: number, params: object) => ["servicios", idNegocio, params] as const,
+    catalogo: (idNegocio: number) => ["servicios", idNegocio, "catalogo"] as const,
+    detalle: (idNegocio: number, idServicio: number) =>
+      ["servicios", idNegocio, "detalle", idServicio] as const,
   },
+  categoriasServicio: () => ["categorias-servicio"] as const,
   disponibilidad: {
     todo: (idEmpleado: number) => ["disponibilidad", idEmpleado] as const,
     efectiva: (idEmpleado: number, fecha: string) =>

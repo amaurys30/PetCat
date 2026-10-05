@@ -20,6 +20,10 @@ export const getServicioPublico = async (req, res) => {
   return ok(res, await getPublico(req.params.id_servicio));
 };
 
+export const getServicioGestion = async (req, res) => {
+  return ok(res, await service.getServicioGestion(req.params.id_servicio));
+};
+
 export const updateServicio = async (req, res) => {
   const servicio = await service.updateServicio(req.params.id_servicio, req.body);
   return ok(res, servicio, "Servicio actualizado");

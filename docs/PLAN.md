@@ -540,3 +540,8 @@ Jobs sobre la base de node-cron de la 2.3 (funciones exportadas que los tests ll
 - `/negocios/mios` (y `/auth/me`) devuelve al propietario el `id_empleado` de su registro como empleado (activo o no), para "Agregarme como profesional".
 - Enviar y reenviar invitaciones **no** aplica las reglas de escalada (decisión de 0.C.5): una recepcionista con `empleados.crear` puede reenviar la del veterinario. El correo lo fijó quien creó al empleado.
 - `citas_afectadas` incluye todas las citas futuras que no caben, también las que ya estaban fuera antes del cambio (decisión de 1.4), para que ninguna se olvide.
+
+### Decisiones de la API para el panel P3 (octubre 2026)
+- `GET /servicios/:id_servicio/gestion` (`servicios.ver`): detalle del panel con el formato del listado, también de servicios eliminados u ocultos. El `GET /servicios/:id` sigue siendo el público de la app (404 en esos casos).
+- Los errores pueden traer `data` además de `errors` (`ApiError.conDatos`): `{ success: false, message, errors?, data? }`. El primer uso es el 409 al eliminar un servicio con citas futuras pendientes o confirmadas, que trae `data.citas_afectadas` con el mismo formato que horarios y disponibilidad (el panel reutiliza su diálogo). El mensaje dice cuántas son.
+- Oferta de un servicio: al crearla o cambiar alguno de sus campos (`en_oferta`, `precio_oferta`, `fecha_inicio_oferta`, `fecha_fin_oferta` con un valor distinto del guardado), las dos fechas son obligatorias y el fin no puede ser anterior a hoy (Bogotá). Una oferta vencida que no se toca no impide editar lo demás, y un formulario que reenvía los mismos valores no cuenta como cambio.

@@ -77,7 +77,7 @@ export const errorHandler = (err, req, res, next) => {
   if (res.headersSent) return next(err);
 
   if (err instanceof ApiError) {
-    return sendError(res, err.status, err.message, err.errors);
+    return sendError(res, err.status, err.message, err.errors, err.data);
   }
 
   if (err instanceof ZodError) {

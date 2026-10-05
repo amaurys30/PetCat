@@ -27,6 +27,10 @@ const router = express.Router();
  *         Campos opcionales con `null` se vacían. Reglas entre campos (422): `precio_maximo >= precio_base`,
  *         `peso_min_kg <= peso_max_kg`, con `en_oferta: true` se exige `precio_oferta < precio_base`, y
  *         `fecha_fin_oferta >= fecha_inicio_oferta`. Al editar se comprueban con los valores actuales.
+ *         Al crear una oferta o cambiar alguno de sus campos (`en_oferta`, `precio_oferta`, `fecha_inicio_oferta`,
+ *         `fecha_fin_oferta`, con un valor distinto del guardado), las dos fechas son obligatorias y
+ *         `fecha_fin_oferta` no puede ser anterior a hoy (hora de Bogotá). Una oferta ya vencida que no se toca
+ *         no impide editar el resto del servicio.
  *       properties:
  *         id_categoria: { type: integer, description: Categoría activa (GET /categorias-servicio) }
  *         nombre: { type: string, minLength: 2, maxLength: 150, description: Único entre los servicios activos del negocio }
@@ -320,10 +324,20 @@ router.post(
  *       403: { $ref: '#/components/responses/Forbidden' }
  *       404: { $ref: '#/components/responses/NotFound' }
  *       409:
- *         description: El servicio tiene citas futuras pendientes o confirmadas
+ *         description: >
+ *           El servicio tiene citas futuras pendientes o confirmadas. `data.citas_afectadas` las trae
+ *           (mismo formato que `citas_afectadas` de horarios y disponibilidad) para cancelarlas o reprogramarlas.
  *         content:
  *           application/json:
- *             schema: { $ref: '#/components/schemas/ErrorResponse' }
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: false }
+ *                 message: { type: string, example: "El servicio tiene 2 citas pendientes o confirmadas: cancélalas o reprográmalas antes de eliminarlo" }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     citas_afectadas: { $ref: '#/components/schemas/CitasAfectadas' }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
 router.get("/servicios/:id_servicio", validate({ params: idServicioParams }), controller.getServicioPublico);
@@ -342,6 +356,36 @@ router.delete(
   validate({ params: idServicioParams }),
   authorize("servicios", "eliminar"),
   controller.deleteServicio
+);
+
+/**
+ * @swagger
+ * /servicios/{id_servicio}/gestion:
+ *   get:
+ *     summary: Detalle de un servicio (panel)
+ *     description: >
+ *       Requiere `servicios.ver`. El mismo formato del listado del panel, también para servicios
+ *       eliminados u ocultos en la app (el detalle público responde 404 en esos casos).
+ *     tags: [Servicios]
+ *     parameters:
+ *       - { in: path, name: id_servicio, required: true, schema: { type: integer } }
+ *     responses:
+ *       200:
+ *         description: Servicio
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ServicioRespuesta' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.get(
+  "/servicios/:id_servicio/gestion",
+  authMiddleware,
+  validate({ params: idServicioParams }),
+  authorize("servicios", "ver"),
+  controller.getServicioGestion
 );
 
 /**

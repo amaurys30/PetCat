@@ -2,8 +2,9 @@ import * as servicioRepo from "./servicio.repository.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
 import { buildMeta } from "../../shared/utils/pagination.js";
 import { castFields } from "../../shared/utils/format.js";
+import { hoyISO } from "../../shared/utils/fechas.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
-
+import { citasFuturasDeServicio } from "../disponibilidad/disponibilidad.service.js";
 const NO_ENCONTRADO = "Servicio no encontrado";
 
 /** Columna SET de MySQL ("perro,gato") como arreglo; NULL se mantiene. */
@@ -39,11 +40,20 @@ const POR_DEFECTO = {
   fecha_fin_oferta: null,
 };
 
+const CAMPOS_OFERTA = ["en_oferta", "precio_oferta", "fecha_inicio_oferta", "fecha_fin_oferta"];
+
+/**
+ * Se crea la oferta o se cambia alguno de sus campos: al crear el servicio, o al
+ * editar con un valor distinto del guardado. Una oferta vencida que no se toca no
+ * impide editar el resto del servicio.
+ */
+const tocaOferta = (data, actual) => !actual || CAMPOS_OFERTA.some((c) => c in data && data[c] !== actual[c]);
+
 /**
  * Reglas entre campos, sobre el servicio ya combinado (valores actuales + body).
- * 422 con un error por campo.
+ * `actual` es el servicio guardado (undefined al crear). 422 con un error por campo.
  */
-const validarCoherencia = (s) => {
+const validarCoherencia = (s, data, actual) => {
   const errors = {};
   if (s.precio_maximo !== null && s.precio_maximo < s.precio_base) {
     errors.precio_maximo = "Debe ser mayor o igual que precio_base";
@@ -57,6 +67,13 @@ const validarCoherencia = (s) => {
   }
   if (s.fecha_inicio_oferta && s.fecha_fin_oferta && s.fecha_fin_oferta < s.fecha_inicio_oferta) {
     errors.fecha_fin_oferta = "No puede ser anterior a fecha_inicio_oferta";
+  }
+  if (s.en_oferta && tocaOferta(data, actual)) {
+    if (!s.fecha_inicio_oferta) errors.fecha_inicio_oferta = "Obligatoria si el servicio está en oferta";
+    if (!s.fecha_fin_oferta) errors.fecha_fin_oferta = "Obligatoria si el servicio está en oferta";
+    else if (!errors.fecha_fin_oferta && s.fecha_fin_oferta < hoyISO()) {
+      errors.fecha_fin_oferta = "No puede ser anterior a hoy";
+    }
   }
   if (Object.keys(errors).length > 0) throw ApiError.unprocessable("Datos inválidos", errors);
 };
@@ -95,6 +112,12 @@ const getServicio = async (id_servicio) => {
   return formatServicio(row, empleados[id_servicio]);
 };
 
+/** Detalle del panel: incluye servicios eliminados y ocultos en la app. */
+export const getServicioGestion = async (id_servicio) => {
+  if (!(await servicioRepo.findById(id_servicio))) throw ApiError.notFound(NO_ENCONTRADO);
+  return getServicio(id_servicio);
+};
+
 export const getCategorias = () => servicioRepo.findCategoriasActivas();
 
 export const getServicios = async (id_negocio, { page, limit, ...filtros }) => {
@@ -111,7 +134,7 @@ export const getServicios = async (id_negocio, { page, limit, ...filtros }) => {
 };
 
 export const createServicio = async (id_negocio, data) => {
-  validarCoherencia({ ...POR_DEFECTO, ...data });
+  validarCoherencia({ ...POR_DEFECTO, ...data }, data);
   const id_servicio = await withTransaction(async (conn) => {
     await servicioRepo.lockNegocio(id_negocio, conn);
     await verificarCategoria(data.id_categoria, conn);
@@ -133,7 +156,8 @@ export const updateServicio = async (id_servicio, data) => {
   await withTransaction(async (conn) => {
     const actual = await servicioRepo.findById(id_servicio, { conn, forUpdate: true });
     if (!actual) throw ApiError.notFound(NO_ENCONTRADO);
-    validarCoherencia({ ...castFields(actual, { bools: BOOLS, numbers: NUMEROS }), ...data });
+    const guardado = castFields(actual, { bools: BOOLS, numbers: NUMEROS });
+    validarCoherencia({ ...guardado, ...data }, data, guardado);
 
     await verificarCategoria(data.id_categoria, conn);
     if (data.nombre !== undefined && actual.activo) {
@@ -149,15 +173,20 @@ export const updateServicio = async (id_servicio, data) => {
 };
 
 /**
- * Borrado lógico. 404 si ya está eliminado; 409 si tiene citas futuras
- * pendientes o confirmadas. Las asignaciones de empleados se conservan.
+ * Borrado lógico. 404 si ya está eliminado; 409 si tiene citas futuras pendientes o
+ * confirmadas, con la lista en `data.citas_afectadas`. Las asignaciones de empleados se conservan.
  */
 export const deleteServicio = async (id_servicio) => {
   await withTransaction(async (conn) => {
     const actual = await servicioRepo.findById(id_servicio, { conn, forUpdate: true });
     if (!actual?.activo) throw ApiError.notFound(NO_ENCONTRADO);
-    if ((await servicioRepo.countCitasFuturasActivas(id_servicio, conn)) > 0) {
-      throw ApiError.conflict("El servicio tiene citas pendientes o confirmadas: cancélalas o reprográmalas antes de eliminarlo");
+    const citas_afectadas = await citasFuturasDeServicio(id_servicio, conn);
+    if (citas_afectadas.length > 0) {
+      const n = citas_afectadas.length;
+      throw ApiError.conflict(
+        `El servicio tiene ${n} ${n === 1 ? "cita pendiente o confirmada" : "citas pendientes o confirmadas"}: ` +
+          "cancélalas o reprográmalas antes de eliminarlo"
+      ).conDatos({ citas_afectadas });
     }
     await servicioRepo.setActivo(id_servicio, false, conn);
   });

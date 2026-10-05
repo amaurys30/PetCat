@@ -167,6 +167,10 @@ export const citasAfectadasDeSucursal = async (id_sucursal, id_negocio, conn) =>
 export const citasFuturasDeEmpleado = async (id_empleado, conn) =>
   (await disponibilidadRepo.findCitasFuturasActivas(id_empleado, conn)).map(formatCitaAfectada);
 
+/** Citas futuras pendientes o confirmadas de un servicio (impiden eliminarlo), con el formato de `citas_afectadas`. */
+export const citasFuturasDeServicio = async (id_servicio, conn) =>
+  (await disponibilidadRepo.findCitasFuturasActivasDeServicio(id_servicio, conn)).map(formatCitaAfectada);
+
 // ---------- Lectura ----------
 
 /** Horario semanal y excepciones (por defecto, las que terminan hoy o después). */

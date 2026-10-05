@@ -54,6 +54,12 @@ describe("errorHandler", () => {
     expect(res.body).toEqual({ success: false, message: "Horario ocupado", errors: { hora: "Ocupada" } });
   });
 
+  it("ApiError con datos los envía en data", async () => {
+    const res = await request(appThrowing(() => ApiError.conflict("Tiene citas").conDatos({ citas_afectadas: [] }))).get("/throw");
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ success: false, message: "Tiene citas", data: { citas_afectadas: [] } });
+  });
+
   it("ZodError -> 422 con errores por campo en español", async () => {
     const res = await request(
       appThrowing(() => z.object({ email: z.email() }).safeParse({ email: "x" }).error)
