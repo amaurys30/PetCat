@@ -6,7 +6,7 @@ import * as empleadoRepo from "../empleados/empleado.repository.js";
 import * as suscripcionRepo from "../suscripciones/suscripcion.repository.js";
 import { errorLimiteCitas, getLimiteCitasMes, motivoLimiteCitas } from "../suscripciones/suscripcion.service.js";
 import { combinarHorarios, iniciosLibres } from "./citas.calculo.js";
-import { aHora, aMinutos, calcularDisponibilidad, citaCabe, diaSemana } from "../disponibilidad/disponibilidad.calculo.js";
+import { aHora, aMinutos, calcularDisponibilidad, citaCabe, diaSemana, motivoFuera } from "../disponibilidad/disponibilidad.calculo.js";
 import { avisarLimiteAlcanzado, eventoCita, eventoUmbralPlan } from "./cita.avisos.js";
 import { conNotificaciones } from "../notificaciones/notificacion.service.js";
 import { inicioDeCita } from "../notificaciones/silencio.js";
@@ -15,6 +15,7 @@ import { estadosResenaDueno } from "../resenas/resena.plazo.js";
 import { aDatetimeSQL, hoyISO } from "../../shared/utils/fechas.js";
 import { toNumber } from "../../shared/utils/format.js";
 import { buildMeta } from "../../shared/utils/pagination.js";
+import { accesoPermite } from "../../shared/utils/permissions.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
 
 // Valores de servicios.dias_disponible (SET, sin tildes) y su nombre para mensajes.
@@ -401,9 +402,11 @@ const horaActual = () => {
 
 /**
  * Marca `fuera_de_disponibilidad` en citas del panel: las que aplican y no caben en
- * la disponibilidad de su empleado (1.4). Carga los datos de todos los empleados en lote.
+ * la disponibilidad de su empleado (1.4), con `motivo_fuera` (tipo y texto de la
+ * excepción). Carga los datos de todos los empleados en lote. El texto del motivo puede
+ * ser personal ("cita médica"): solo va con `verMotivo` (configuracion.ver); sin él, null.
  */
-const conDisponibilidad = async (rows, id_negocio, desde, hasta) => {
+const conDisponibilidad = async (rows, id_negocio, desde, hasta, { verMotivo = false } = {}) => {
   if (rows.length === 0) return [];
   const hoy = hoyISO();
   const ahora = horaActual();
@@ -414,19 +417,19 @@ const conDisponibilidad = async (rows, id_negocio, desde, hasta) => {
     disponibilidadRepo.findHorarioSemanalDeEmpleados(ids),
     disponibilidadRepo.findExcepcionesDeEmpleados(ids, desde, hasta),
   ]);
-  const fuera = new Set(
-    aplican
-      .filter(
-        (row) =>
-          !citaCabe(row, {
-            horariosPorSucursal,
-            horarioSemanal: semanales[row.id_empleado] ?? [],
-            excepciones: excepciones[row.id_empleado] ?? [],
-          })
-      )
-      .map((row) => row.id_cita)
-  );
-  return rows.map((row) => ({ ...formatCita(row, { conNotasInternas: true }), fuera_de_disponibilidad: fuera.has(row.id_cita) }));
+  const motivos = new Map();
+  for (const row of aplican) {
+    const excepcionesDe = excepciones[row.id_empleado] ?? [];
+    const cabe = citaCabe(row, { horariosPorSucursal, horarioSemanal: semanales[row.id_empleado] ?? [], excepciones: excepcionesDe });
+    if (cabe) continue;
+    const { tipo, motivo } = motivoFuera(row, excepcionesDe);
+    motivos.set(row.id_cita, { tipo, motivo: verMotivo ? motivo : null });
+  }
+  return rows.map((row) => ({
+    ...formatCita(row, { conNotasInternas: true }),
+    fuera_de_disponibilidad: motivos.has(row.id_cita),
+    motivo_fuera: motivos.get(row.id_cita) ?? null,
+  }));
 };
 
 /** Citas en el formato del dueño: sin notas internas y con el estado de su reseña (2.6). */
@@ -467,7 +470,21 @@ const verificarFiltros = async (id_negocio, filtros) => {
  * limita a las citas del perfil de empleado de quien consulta en este negocio
  * (también el propietario registrado como empleado); sin perfil, 422.
  */
-export const getAgenda = async (negocio, id_usuario, { solo_mias, fuera_de_disponibilidad, estado, ...filtros }) => {
+export const getAgenda = async (negocio, acceso, id_usuario, { solo_mias, fuera_de_disponibilidad, estado, ...filtros }) => {
+  await prepararFiltros(negocio, id_usuario, solo_mias, filtros);
+  const rows = await citaRepo.findAgenda({ id_negocio: negocio.id_negocio, estados: estado, ...filtros });
+  let citas = await conDisponibilidad(rows, negocio.id_negocio, filtros.desde, filtros.hasta, {
+    verMotivo: accesoPermite(acceso, "configuracion", "ver"),
+  });
+  if (fuera_de_disponibilidad !== undefined) citas = citas.filter((c) => c.fuera_de_disponibilidad === fuera_de_disponibilidad);
+  return { rows: citas, meta: { total: citas.length, desde: filtros.desde, hasta: filtros.hasta } };
+};
+
+/**
+ * `solo_mias` limita al perfil de empleado de quien consulta (422 sin perfil activo o
+ * con otro `id_empleado`); después, los filtros deben ser del negocio. Modifica `filtros`.
+ */
+const prepararFiltros = async (negocio, id_usuario, solo_mias, filtros) => {
   if (solo_mias) {
     const empleado = await empleadoRepo.findAccesoByUsuarioAndNegocio(id_usuario, negocio.id_negocio);
     if (!empleado?.activo) {
@@ -479,11 +496,34 @@ export const getAgenda = async (negocio, id_usuario, { solo_mias, fuera_de_dispo
     filtros.id_empleado = empleado.id_empleado;
   }
   await verificarFiltros(negocio.id_negocio, filtros);
+};
 
-  const rows = await citaRepo.findAgenda({ id_negocio: negocio.id_negocio, estados: estado, ...filtros });
-  let citas = await conDisponibilidad(rows, negocio.id_negocio, filtros.desde, filtros.hasta);
-  if (fuera_de_disponibilidad !== undefined) citas = citas.filter((c) => c.fuera_de_disponibilidad === fuera_de_disponibilidad);
-  return { rows: citas, meta: { total: citas.length, desde: filtros.desde, hasta: filtros.hasta } };
+const plazoOrden = (cita) => cita.confirmar_antes_de ?? "9999-12-31 23:59:59";
+
+/**
+ * Lo que la agenda debe atender, sin límite de rango: las citas pendientes desde hoy
+ * (ordenadas por su plazo para confirmar) y las futuras que quedaron fuera de la
+ * disponibilidad de su empleado (por fecha y hora). Mismos filtros que la agenda.
+ */
+export const getAtencion = async (negocio, acceso, id_usuario, { solo_mias, ...filtros }) => {
+  await prepararFiltros(negocio, id_usuario, solo_mias, filtros);
+  const hoy = hoyISO();
+  const rows = await citaRepo.findAgenda({
+    id_negocio: negocio.id_negocio,
+    desde: hoy,
+    hasta: null,
+    estados: ["pendiente", "confirmada"],
+    ...filtros,
+  });
+  const citas = await conDisponibilidad(rows, negocio.id_negocio, hoy, rows.at(-1)?.fecha ?? hoy, {
+    verMotivo: accesoPermite(acceso, "configuracion", "ver"),
+  });
+  return {
+    por_confirmar: citas
+      .filter((c) => c.estado === "pendiente")
+      .sort((a, b) => plazoOrden(a).localeCompare(plazoOrden(b))),
+    fuera_de_disponibilidad: citas.filter((c) => c.fuera_de_disponibilidad),
+  };
 };
 
 /**
@@ -495,7 +535,7 @@ export const getCita = async (id_cita, acceso) => {
   const row = await citaRepo.findDetalle(id_cita);
   if (acceso.relacion === "dueno") return (await formatCitasDueno([row], row.id_usuario))[0];
   const [[cita], historial_cumplimiento] = await Promise.all([
-    conDisponibilidad([row], row.id_negocio, row.fecha, row.fecha),
+    conDisponibilidad([row], row.id_negocio, row.fecha, row.fecha, { verMotivo: accesoPermite(acceso, "configuracion", "ver") }),
     citaRepo.resumenCumplimiento(row.id_usuario, row.id_negocio),
   ]);
   return { ...cita, cliente: { ...cita.cliente, historial_cumplimiento } };

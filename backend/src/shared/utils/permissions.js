@@ -60,6 +60,15 @@ export const parsePermisos = (permisos) => {
 export const hasPermission = (permisos, modulo, accion) =>
   parsePermisos(permisos)[modulo]?.includes(accion) ?? false;
 
+/**
+ * El acceso al panel que dejó authorize (`req.acceso`) tiene el permiso: el admin de
+ * plataforma y el propietario siempre; un empleado, según su rol.
+ */
+export const accesoPermite = (acceso, modulo, accion) =>
+  acceso?.relacion === "admin" ||
+  acceso?.relacion === "propietario" ||
+  (acceso?.relacion === "empleado" && hasPermission(acceso.permisos, modulo, accion));
+
 /** true si cada acción de `permisos` también está en `disponibles`. */
 export const permisosIncluidos = (permisos, disponibles) =>
   Object.entries(parsePermisos(permisos)).every(([modulo, acciones]) =>

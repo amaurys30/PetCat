@@ -3,6 +3,7 @@ import * as controller from "./cita.controller.js";
 import {
   actualizarCitaBody,
   agendaQuery,
+  atencionQuery,
   cambiarEstadoBody,
   cancelarCitaBody,
   reprogramarCitaBody,
@@ -276,6 +277,24 @@ router.post("/citas", authMiddleware, validate({ body: createCitaBody }), contro
  *                 Cita futura pendiente o confirmada que ya no cabe en la disponibilidad de su empleado
  *                 (bloqueo, vacaciones, cambio de horario): hay que reprogramarla o reasignarla.
  *                 false en las demás.
+ *             motivo_fuera:
+ *               type: object
+ *               nullable: true
+ *               description: Solo si `fuera_de_disponibilidad` es true; null en las demás.
+ *               properties:
+ *                 tipo:
+ *                   type: string
+ *                   enum: [vacacion, bloqueo, fuera_de_horario]
+ *                   description: >
+ *                     vacacion o bloqueo (la excepción que se cruza con la cita; la vacación gana) o
+ *                     fuera_de_horario (cambió el horario del empleado o de la sucursal, o tiene un evento en otra sucursal)
+ *                 motivo:
+ *                   type: string
+ *                   nullable: true
+ *                   example: Capacitación
+ *                   description: >
+ *                     Texto de la vacación o del bloqueo. Puede ser personal: solo se envía a quien tiene
+ *                     `configuracion.ver` (y al propietario y al admin); a los demás, null.
  *     CitaPanelDetalle:
  *       description: Detalle de la cita para el panel (GET /citas/{id_cita} y respuestas de los cambios).
  *       allOf:
@@ -754,6 +773,51 @@ router.get(
  *       409: { $ref: '#/components/responses/ReservaConflicto' }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
+/**
+ * @swagger
+ * /negocios/{id_negocio}/citas/atencion:
+ *   get:
+ *     summary: Citas por confirmar y fuera de disponibilidad (panel)
+ *     description: >
+ *       Requiere `citas.ver`. Sin límite de rango, desde hoy: `por_confirmar` son las citas pendientes
+ *       ordenadas por `confirmar_antes_de` (las que se cancelan solas primero) y `fuera_de_disponibilidad`
+ *       las pendientes o confirmadas futuras que ya no caben en la disponibilidad de su empleado, por fecha
+ *       y hora, con `motivo_fuera`. Una cita pendiente fuera de disponibilidad está en las dos listas.
+ *       Filtros: sucursal, empleado y `solo_mias`, como en la agenda.
+ *     tags: [Citas]
+ *     parameters:
+ *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
+ *       - { in: query, name: id_sucursal, schema: { type: integer } }
+ *       - { in: query, name: id_empleado, schema: { type: integer } }
+ *       - { in: query, name: solo_mias, schema: { type: string, enum: ["true", "false"] } }
+ *     responses:
+ *       200:
+ *         description: Citas por atender
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: OK }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     por_confirmar: { type: array, items: { $ref: '#/components/schemas/CitaPanel' } }
+ *                     fuera_de_disponibilidad: { type: array, items: { $ref: '#/components/schemas/CitaPanel' } }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.get(
+  "/negocios/:id_negocio/citas/atencion",
+  authMiddleware,
+  validate({ params: idNegocioParams, query: atencionQuery }),
+  authorize("citas", "ver"),
+  controller.getAtencion
+);
+
 router.get(
   "/negocios/:id_negocio/citas",
   authMiddleware,

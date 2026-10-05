@@ -30,8 +30,12 @@ export const getMisCitas = async (req, res) => {
 };
 
 export const getAgenda = async (req, res) => {
-  const { rows, meta } = await service.getAgenda(req.negocio, req.user.id_usuario, req.query);
+  const { rows, meta } = await service.getAgenda(req.negocio, req.acceso, req.user.id_usuario, req.query);
   return paginated(res, rows, meta);
+};
+
+export const getAtencion = async (req, res) => {
+  return ok(res, await service.getAtencion(req.negocio, req.acceso, req.user.id_usuario, req.query));
 };
 
 export const getCita = async (req, res) => {

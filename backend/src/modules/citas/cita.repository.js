@@ -354,9 +354,10 @@ export const findPageDeUsuario = async (id_usuario, { alcance, estados, id_masco
  * fecha y hora. Filtros opcionales: estados, sucursal, empleado, servicio y `q`
  * (nombre del cliente o de la mascota).
  */
+/** Citas del negocio desde `desde` hasta `hasta` (sin `hasta`, todas desde `desde`). */
 export const findAgenda = async ({ id_negocio, desde, hasta, estados, id_sucursal, id_empleado, id_servicio, q }) => {
-  const condiciones = ["c.id_negocio = ?", "c.fecha BETWEEN ? AND ?"];
-  const valores = [id_negocio, desde, hasta];
+  const condiciones = ["c.id_negocio = ?", hasta ? "c.fecha BETWEEN ? AND ?" : "c.fecha >= ?"];
+  const valores = hasta ? [id_negocio, desde, hasta] : [id_negocio, desde];
   if (estados) {
     condiciones.push("c.estado IN (?)");
     valores.push(estados);

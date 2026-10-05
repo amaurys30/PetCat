@@ -273,6 +273,110 @@ describe("GET /negocios/:id_negocio/citas (agenda)", () => {
   });
 });
 
+const excepcion = (empleado, { tipo, fecha, hasta = null, desdeHora = null, hastaHora = null, motivo = null }) =>
+  pool.query(
+    `INSERT INTO disponibilidad_empleado (id_empleado, tipo, fecha_especifica, fecha_fin, hora_inicio, hora_fin, motivo)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [empleado.id_empleado, tipo, fecha, hasta, desdeHora, hastaHora, motivo]
+  );
+
+/** Empleado con cuenta y un rol propio con esos permisos; devuelve su token. */
+const tokenConPermisos = async (ctx, permisos) => {
+  const usuario = await crearUsuario();
+  await crearEmpleado(ctx.negocio, { usuario, rol: (await crearRol(ctx.negocio, permisos)).id_rol });
+  return tokenDe(usuario);
+};
+
+describe("motivo_fuera", () => {
+  const agenda = (ctx, token = ctx.tokenPropietario) =>
+    api(token).get(`/negocios/${ctx.negocio.id_negocio}/citas?desde=${LUNES}&hasta=${LUNES}`);
+  const motivos = (res) => Object.fromEntries(res.body.data.map((c) => [c.id_cita, c.motivo_fuera]));
+
+  it("vacación (gana sobre el bloqueo), bloqueo que se cruza y fuera de horario; null si cabe", async () => {
+    const ctx = await contexto();
+    const enVacaciones = await cita(ctx);
+    const bloqueada = await cita(ctx, { id_empleado: ctx.luis.id_empleado, hora_inicio: "15:00:00", hora_fin: "15:30:00" });
+    const deNoche = await cita(ctx, { id_empleado: ctx.luis.id_empleado, hora_inicio: "19:00:00", hora_fin: "19:30:00" });
+    const cabe = await cita(ctx, { id_empleado: ctx.luis.id_empleado, hora_inicio: "10:00:00", hora_fin: "10:30:00" });
+    await excepcion(ctx.ana, { tipo: "vacacion", fecha: sumarDias(LUNES, -2), hasta: sumarDias(LUNES, 3), motivo: "Vacaciones de mitad de año" });
+    await excepcion(ctx.ana, { tipo: "bloqueo", fecha: LUNES, desdeHora: "08:00", hastaHora: "10:00", motivo: "Trámite" });
+    await excepcion(ctx.luis, { tipo: "bloqueo", fecha: LUNES, desdeHora: "14:00", hastaHora: "18:00", motivo: "Cita médica personal" });
+    // Un bloqueo que no se cruza con la cita no es el motivo.
+    await excepcion(ctx.luis, { tipo: "bloqueo", fecha: LUNES, desdeHora: "08:00", hastaHora: "09:00", motivo: "Otro" });
+
+    expect(motivos(await agenda(ctx))).toEqual({
+      [enVacaciones.id_cita]: { tipo: "vacacion", motivo: "Vacaciones de mitad de año" },
+      [bloqueada.id_cita]: { tipo: "bloqueo", motivo: "Cita médica personal" },
+      [deNoche.id_cita]: { tipo: "fuera_de_horario", motivo: null },
+      [cabe.id_cita]: null,
+    });
+  });
+
+  it("el texto del motivo solo va a quien tiene configuracion.ver; el tipo, a todos los de citas.ver", async () => {
+    const ctx = await contexto();
+    const c = await cita(ctx);
+    await excepcion(ctx.ana, { tipo: "bloqueo", fecha: LUNES, motivo: "Cita médica personal" });
+    const conConfiguracion = await tokenConPermisos(ctx, { citas: ["ver"], configuracion: ["ver"] });
+    const soloCitas = await tokenConPermisos(ctx, { citas: ["ver"] });
+
+    for (const token of [ctx.tokenPropietario, conConfiguracion]) {
+      expect(motivos(await agenda(ctx, token))[c.id_cita]).toEqual({ tipo: "bloqueo", motivo: "Cita médica personal" });
+      expect((await api(token).get(`/citas/${c.id_cita}`)).body.data.motivo_fuera.motivo).toBe("Cita médica personal");
+    }
+    const sinTexto = await agenda(ctx, soloCitas);
+    expect(motivos(sinTexto)[c.id_cita]).toEqual({ tipo: "bloqueo", motivo: null });
+    expect(JSON.stringify(sinTexto.body)).not.toContain("Cita médica personal");
+    const detalle = await api(soloCitas).get(`/citas/${c.id_cita}`);
+    expect(detalle.body.data.motivo_fuera).toEqual({ tipo: "bloqueo", motivo: null });
+  });
+});
+
+describe("GET /negocios/:id_negocio/citas/atencion", () => {
+  const atencion = (ctx, query = "", token = ctx.tokenPropietario) =>
+    api(token).get(`/negocios/${ctx.negocio.id_negocio}/citas/atencion${query ? `?${query}` : ""}`);
+  const idsDe = (lista) => lista.map((c) => c.id_cita);
+
+  it("pendientes desde hoy por plazo y fuera de disponibilidad futuras, sin límite de rango", async () => {
+    const ctx = await contexto();
+    const lejos = sumarDias(LUNES, 49);
+    const plazoTarde = await cita(ctx, { estado: "pendiente", confirmar_antes_de: `${LUNES} 08:30:00` });
+    const plazoPronto = await cita(ctx, {
+      estado: "pendiente",
+      fecha: lejos,
+      hora_inicio: "10:00:00",
+      hora_fin: "10:30:00",
+      confirmar_antes_de: `${sumarDias(HOY, 1)} 08:00:00`,
+    });
+    await cita(ctx, { estado: "pendiente", fecha: sumarDias(HOY, -1) });
+    await cita(ctx, { estado: "confirmada", hora_inicio: "11:00:00", hora_fin: "11:30:00" });
+    const fueraLejos = await cita(ctx, { id_empleado: ctx.luis.id_empleado, fecha: lejos });
+    await excepcion(ctx.luis, { tipo: "vacacion", fecha: lejos, motivo: "Viaje" });
+    await crearCita(await crearNegocio(), { estado: "pendiente", fecha: LUNES });
+
+    const res = await atencion(ctx);
+    expect(res.status).toBe(200);
+    expect(idsDe(res.body.data.por_confirmar)).toEqual([plazoPronto.id_cita, plazoTarde.id_cita]);
+    expect(idsDe(res.body.data.fuera_de_disponibilidad)).toEqual([fueraLejos.id_cita]);
+    expect(res.body.data.fuera_de_disponibilidad[0].motivo_fuera).toEqual({ tipo: "vacacion", motivo: "Viaje" });
+  });
+
+  it("filtra por sucursal, empleado y solo_mias; filtros ajenos -> 422; sin citas.ver -> 403", async () => {
+    const ctx = await contexto();
+    const deAna = await cita(ctx, { estado: "pendiente" });
+    const deLuis = await cita(ctx, { estado: "pendiente", id_empleado: ctx.luis.id_empleado });
+
+    expect(idsDe((await atencion(ctx, `id_empleado=${ctx.luis.id_empleado}`)).body.data.por_confirmar)).toEqual([deLuis.id_cita]);
+    expect(idsDe((await atencion(ctx, "solo_mias=true", ctx.tokenAna)).body.data.por_confirmar)).toEqual([deAna.id_cita]);
+    const otra = await crearSucursal(ctx.negocio);
+    expect((await atencion(ctx, `id_sucursal=${otra.id_sucursal}`)).body.data.por_confirmar).toEqual([]);
+
+    const otro = await contexto();
+    expect((await atencion(ctx, `id_empleado=${otro.ana.id_empleado}`)).status).toBe(422);
+    expect((await atencion(ctx, "", await tokenConPermisos(ctx, { inventario: ["ver"] }))).status).toBe(403);
+    expect((await atencion(ctx, "", otro.tokenPropietario)).status).toBe(403);
+  });
+});
+
 describe("GET /citas/:id_cita", () => {
   it("el dueño recibe la cita sin notas internas, con dónde es la cita", async () => {
     const ctx = await contexto();

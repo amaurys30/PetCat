@@ -88,6 +88,13 @@ export const agendaQuery = z
     }
   });
 
+/** Atención de la agenda: sin rango (desde hoy), con los filtros de la agenda que aplican. */
+export const atencionQuery = z.object({
+  id_sucursal: idQuery.optional(),
+  id_empleado: idQuery.optional(),
+  solo_mias: booleano.optional(),
+});
+
 // ---------- Cambios ----------
 
 const motivo = texto(300);

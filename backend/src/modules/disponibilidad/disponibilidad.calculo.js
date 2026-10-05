@@ -140,5 +140,24 @@ export const citaCabe = (cita, { horariosPorSucursal, horarioSemanal, excepcione
   return cabeEn(rangos, bloque.inicio, bloque.fin);
 };
 
+/**
+ * Por qué una cita que no cabe queda fuera de la disponibilidad: una vacación que cubre
+ * su fecha, un bloqueo que se cruza con ella o, si no hay ninguno, el horario (cambio del
+ * horario semanal o de la sucursal, o un evento en otra sucursal). La vacación gana sobre
+ * el bloqueo. `motivo` es el texto libre de la excepción (puede ser null).
+ * @returns {{ tipo: "vacacion" | "bloqueo" | "fuera_de_horario", motivo: string | null }}
+ */
+export const motivoFuera = (cita, excepciones) => {
+  const bloque = rangoDe(cita.hora_inicio, cita.hora_fin);
+  const cruzan = excepciones.filter(
+    (e) =>
+      (e.tipo === "vacacion" || e.tipo === "bloqueo") &&
+      cubre(e, cita.fecha) &&
+      interseccion([bloque], rangosQueRestan([e], cita.fecha)).length > 0
+  );
+  const excepcion = cruzan.find((e) => e.tipo === "vacacion") ?? cruzan[0];
+  return excepcion ? { tipo: excepcion.tipo, motivo: excepcion.motivo ?? null } : { tipo: "fuera_de_horario", motivo: null };
+};
+
 /** Rangos en formato de la API: [{ hora_inicio: "08:00", hora_fin: "12:00" }]. */
 export const comoHoras = (rangos) => rangos.map((r) => ({ hora_inicio: aHora(r.inicio), hora_fin: aHora(r.fin) }));
