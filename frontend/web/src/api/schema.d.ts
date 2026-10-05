@@ -1914,6 +1914,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/negocios/{id_negocio}/citas/atencion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Citas por confirmar y fuera de disponibilidad (panel)
+         * @description Requiere `citas.ver`. Sin límite de rango, desde hoy: `por_confirmar` son las citas pendientes ordenadas por `confirmar_antes_de` (las que se cancelan solas primero) y `fuera_de_disponibilidad` las pendientes o confirmadas futuras que ya no caben en la disponibilidad de su empleado, por fecha y hora, con `motivo_fuera`. Una cita pendiente fuera de disponibilidad está en las dos listas. Filtros: sucursal, empleado y `solo_mias`, como en la agenda.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    id_sucursal?: number;
+                    id_empleado?: number;
+                    solo_mias?: "true" | "false";
+                };
+                header?: never;
+                path: {
+                    id_negocio: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Citas por atender */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            /** @example OK */
+                            message: string;
+                            data: {
+                                por_confirmar: components["schemas"]["CitaPanel"][];
+                                fuera_de_disponibilidad: components["schemas"]["CitaPanel"][];
+                            };
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["ValidationError"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/negocios/{id_negocio}/clientes/buscar": {
         parameters: {
             query?: never;
@@ -2547,7 +2605,7 @@ export interface paths {
         };
         /**
          * Horario semanal y excepciones del empleado
-         * @description Requiere `configuracion.ver` o `citas.ver`; el propio empleado siempre puede ver la suya. Las excepciones se filtran por período (por defecto, las que terminan hoy o después). `sigue_horario_sucursal` es true si no tiene horario semanal.
+         * @description Requiere `configuracion.ver` o `citas.ver`; el propio empleado siempre puede ver la suya. Las excepciones se filtran por período (por defecto, las que terminan hoy o después). El `motivo` de cada excepción solo va con `configuracion.ver` o al propio empleado; con solo `citas.ver`, null. `sigue_horario_sucursal` es true si no tiene horario semanal.
          */
         get: {
             parameters: {
@@ -3125,6 +3183,75 @@ export interface paths {
                 422: components["responses"]["ValidationError"];
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/negocios/{id_negocio}/profesionales": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Profesionales del negocio para la agenda
+         * @description Requiere `citas.ver` (la lista completa del equipo, con contacto, es `GET /negocios/{id_negocio}/empleados`). Empleados activos, por nombre, sin datos de contacto ni de la invitación: las columnas de la vista Día, el filtro de profesionales y el selector al agendar o reasignar. Incluye a quien no atiende servicios (`servicios` vacío) y al propietario registrado como empleado.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id_negocio: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Profesionales */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            /** @example OK */
+                            message: string;
+                            data: {
+                                id_empleado: number;
+                                /** @example Carlos */
+                                nombre: string;
+                                /** @example Pérez */
+                                apellido: string;
+                                especialidad: string | null;
+                                foto_url: string | null;
+                                foto_miniatura_url: string | null;
+                                rol: {
+                                    id_rol: number;
+                                    /** @example Veterinario */
+                                    nombre: string;
+                                };
+                                /** @description Servicios activos que atiende */
+                                servicios: {
+                                    id_servicio: number;
+                                    nombre: string;
+                                }[];
+                            }[];
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -7688,6 +7815,19 @@ export interface components {
         CitaPanel: components["schemas"]["Cita"] & {
             /** @description Cita futura pendiente o confirmada que ya no cabe en la disponibilidad de su empleado (bloqueo, vacaciones, cambio de horario): hay que reprogramarla o reasignarla. false en las demás. */
             fuera_de_disponibilidad: boolean;
+            /** @description Solo si `fuera_de_disponibilidad` es true; null en las demás. */
+            motivo_fuera: {
+                /**
+                 * @description vacacion o bloqueo (la excepción que se cruza con la cita; la vacación gana) o fuera_de_horario (cambió el horario del empleado o de la sucursal, o tiene un evento en otra sucursal)
+                 * @enum {string}
+                 */
+                tipo: "vacacion" | "bloqueo" | "fuera_de_horario";
+                /**
+                 * @description Texto de la vacación o del bloqueo. Puede ser personal: solo se envía a quien tiene `configuracion.ver` (y al propietario y al admin); a los demás, null.
+                 * @example Capacitación
+                 */
+                motivo: string | null;
+            } | null;
         };
         /** @description Detalle de la cita para el panel (GET /citas/{id_cita} y respuestas de los cambios). */
         CitaPanelDetalle: components["schemas"]["CitaPanel"] & {
@@ -8029,6 +8169,7 @@ export interface components {
             hora_inicio: string | null;
             hora_fin: string | null;
             id_sucursal: number | null;
+            /** @description Texto libre; puede ser personal ("cita médica"). En GET /empleados/{id_empleado}/disponibilidad solo llega a quien tiene `configuracion.ver` (y al propietario y al admin) y al propio empleado; quien entra con `citas.ver` recibe null (ve el tipo y las fechas). */
             motivo: string | null;
         };
         /** @description Cita futura pendiente o confirmada que ya no cabe tras el cambio (en la disponibilidad del empleado o en el horario de la sucursal, según el endpoint) */

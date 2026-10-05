@@ -14,6 +14,14 @@ export const queryKeys = {
     todos: () => ["empleados"] as const,
     lista: (idNegocio: number, params: object) => ["empleados", idNegocio, params] as const,
     detalle: (idEmpleado: number) => ["empleados", "detalle", idEmpleado] as const,
+    /** Con el prefijo ["empleados"]: guardar un miembro también la recarga. */
+    profesionales: (idNegocio: number) => ["empleados", idNegocio, "profesionales"] as const,
+  },
+  /** Todas empiezan por ["citas", idNegocio]: un cambio en una cita recarga la agenda y la atención. */
+  citas: {
+    todas: (idNegocio: number) => ["citas", idNegocio] as const,
+    agenda: (idNegocio: number, filtros: object) => ["citas", idNegocio, "agenda", filtros] as const,
+    atencion: (idNegocio: number, filtros: object) => ["citas", idNegocio, "atencion", filtros] as const,
   },
   roles: (idNegocio: number) => ["roles", idNegocio] as const,
   catalogoPermisos: () => ["permisos"] as const,
@@ -30,5 +38,7 @@ export const queryKeys = {
     todo: (idEmpleado: number) => ["disponibilidad", idEmpleado] as const,
     efectiva: (idEmpleado: number, fecha: string) =>
       ["disponibilidad", idEmpleado, "efectiva", fecha] as const,
+    /** Excepciones que cubren un día (vista Día de la agenda). */
+    delDia: (idEmpleado: number, fecha: string) => ["disponibilidad", idEmpleado, "dia", fecha] as const,
   },
 };

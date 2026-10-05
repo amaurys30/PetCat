@@ -14,9 +14,12 @@ export type ActualizarExcepcionBody = Body<"/disponibilidad/{id_disponibilidad}"
 export type Disponibilidad = DataGet<"/empleados/{id_empleado}/disponibilidad">;
 export type DisponibilidadEfectiva = DataGet<"/empleados/{id_empleado}/disponibilidad-efectiva">;
 
-/** configuracion.ver, citas.ver o el propio empleado. Excepciones que terminan hoy o después. */
-export const getDisponibilidad = (idEmpleado: number) =>
-  apiGet<Disponibilidad>(`/empleados/${idEmpleado}/disponibilidad`);
+/**
+ * configuracion.ver, citas.ver o el propio empleado. Sin período, las excepciones que terminan
+ * hoy o después. El `motivo` llega en null a quien solo tiene citas.ver.
+ */
+export const getDisponibilidad = (idEmpleado: number, periodo?: { desde: string; hasta: string }) =>
+  apiGet<Disponibilidad>(`/empleados/${idEmpleado}/disponibilidad`, periodo);
 
 export const getDisponibilidadEfectiva = (idEmpleado: number, fecha: string) =>
   apiGet<DisponibilidadEfectiva>(`/empleados/${idEmpleado}/disponibilidad-efectiva`, { fecha });

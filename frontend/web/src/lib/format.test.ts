@@ -9,8 +9,10 @@ import {
   hora,
   hoyISO,
   iniciales,
+  minutoActualBogota,
   parseFecha,
   parseFechaHora,
+  tiempoCorto,
   tiempoHasta,
 } from "./format";
 
@@ -18,6 +20,15 @@ describe("fechas", () => {
   it("parseFecha conserva el día del calendario (no lo corre por UTC)", () => {
     const d = parseFecha("2026-09-01");
     expect([d.getFullYear(), d.getMonth(), d.getDate()]).toEqual([2026, 8, 1]);
+  });
+
+  it("minuto actual y tiempo corto en hora de Bogotá (UTC-5), sin importar la zona del navegador", () => {
+    const ahora = new Date("2026-09-25T12:00:00Z"); // 07:00 en Bogotá
+    expect(minutoActualBogota(ahora)).toBe(7 * 60);
+    expect(tiempoCorto("2026-09-25 07:45:00", ahora)).toBe("45 min");
+    expect(tiempoCorto("2026-09-25 09:59:00", ahora)).toBe("2 h");
+    expect(tiempoCorto("2026-09-28 07:00:00", ahora)).toBe("3 d");
+    expect(tiempoCorto("2026-09-25 06:59:00", ahora)).toBeNull();
   });
 
   it("parseFechaHora acepta con y sin segundos", () => {
