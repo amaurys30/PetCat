@@ -106,6 +106,24 @@ describe("GET /empleados/:id_empleado/disponibilidad", () => {
     expect((await api(sinPermisos.token).get(url(sinPermisos.empleado))).status).toBe(200);
   });
 
+  it("el motivo solo llega con configuracion.ver, al propietario y al propio empleado; con solo citas.ver, null", async () => {
+    const { negocio, token } = await contexto();
+    const propio = await tokenConPermisos(negocio, { inventario: ["ver"] });
+    await pool.query(
+      "INSERT INTO disponibilidad_empleado (id_empleado, tipo, fecha_especifica, motivo) VALUES (?, 'bloqueo', ?, 'Cita médica personal')",
+      [propio.empleado.id_empleado, proximo(LUNES)]
+    );
+    const motivo = async (t) => (await api(t).get(url(propio.empleado))).body.data.excepciones[0].motivo;
+
+    const conConfiguracion = await tokenConPermisos(negocio, { configuracion: ["ver"] });
+    for (const t of [token, conConfiguracion.token, propio.token]) expect(await motivo(t)).toBe("Cita médica personal");
+
+    const soloCitas = await tokenConPermisos(negocio, { citas: ["ver"] });
+    const res = await api(soloCitas.token).get(url(propio.empleado));
+    expect(res.body.data.excepciones[0]).toMatchObject({ tipo: "bloqueo", fecha_especifica: proximo(LUNES), motivo: null });
+    expect(JSON.stringify(res.body)).not.toContain("Cita médica personal");
+  });
+
   it("sin token -> 401; empleado inexistente -> 404; hasta antes de desde -> 422", async () => {
     const { empleado, token } = await contexto();
     expect((await api().get(url(empleado))).status).toBe(401);

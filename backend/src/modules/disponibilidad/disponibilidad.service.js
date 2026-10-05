@@ -174,7 +174,8 @@ export const citasFuturasDeServicio = async (id_servicio, conn) =>
 // ---------- Lectura ----------
 
 /** Horario semanal y excepciones (por defecto, las que terminan hoy o después). */
-export const getDisponibilidad = async (id_empleado, { desde = hoyISO(), hasta, tipo } = {}) => {
+/** Sin `verMotivo` (configuracion.ver o el propio empleado), el texto de cada excepción va en null. */
+export const getDisponibilidad = async (id_empleado, { desde = hoyISO(), hasta, tipo } = {}, { verMotivo = false } = {}) => {
   const [horario, excepciones] = await Promise.all([
     disponibilidadRepo.findHorarioSemanal(id_empleado),
     disponibilidadRepo.findExcepciones(id_empleado, { desde, hasta, tipo }),
@@ -182,7 +183,10 @@ export const getDisponibilidad = async (id_empleado, { desde = hoyISO(), hasta, 
   return {
     horario_semanal: horario.map(formatHorario),
     sigue_horario_sucursal: horario.length === 0,
-    excepciones: excepciones.map(formatExcepcion),
+    excepciones: excepciones.map((e) => {
+      const excepcion = formatExcepcion(e);
+      return verMotivo ? excepcion : { ...excepcion, motivo: null };
+    }),
   };
 };
 

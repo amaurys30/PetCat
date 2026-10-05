@@ -1,8 +1,12 @@
 import * as service from "./disponibilidad.service.js";
 import { ok, created } from "../../shared/utils/response.js";
+import { accesoPermite } from "../../shared/utils/permissions.js";
 
 export const getDisponibilidad = async (req, res) => {
-  return ok(res, await service.getDisponibilidad(req.params.id_empleado, req.query));
+  // El motivo puede ser personal: lo ven quien gestiona la configuración y el propio empleado.
+  const verMotivo =
+    accesoPermite(req.acceso, "configuracion", "ver") || req.acceso.id_empleado === req.params.id_empleado;
+  return ok(res, await service.getDisponibilidad(req.params.id_empleado, req.query, { verMotivo }));
 };
 
 export const getDisponibilidadEfectiva = async (req, res) => {

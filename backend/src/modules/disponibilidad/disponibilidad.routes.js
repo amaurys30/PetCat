@@ -77,7 +77,13 @@ const editar = authorize("configuracion", "editar");
  *         hora_inicio: { type: string, nullable: true }
  *         hora_fin: { type: string, nullable: true }
  *         id_sucursal: { type: integer, nullable: true }
- *         motivo: { type: string, nullable: true }
+ *         motivo:
+ *           type: string
+ *           nullable: true
+ *           description: >
+ *             Texto libre; puede ser personal ("cita médica"). En GET /empleados/{id_empleado}/disponibilidad
+ *             solo llega a quien tiene `configuracion.ver` (y al propietario y al admin) y al propio empleado;
+ *             quien entra con `citas.ver` recibe null (ve el tipo y las fechas).
  *     CitaAfectada:
  *       type: object
  *       description: >
@@ -138,7 +144,8 @@ const editar = authorize("configuracion", "editar");
  *     summary: Horario semanal y excepciones del empleado
  *     description: >
  *       Requiere `configuracion.ver` o `citas.ver`; el propio empleado siempre puede ver la suya.
- *       Las excepciones se filtran por período (por defecto, las que terminan hoy o después).
+ *       Las excepciones se filtran por período (por defecto, las que terminan hoy o después). El `motivo`
+ *       de cada excepción solo va con `configuracion.ver` o al propio empleado; con solo `citas.ver`, null.
  *       `sigue_horario_sucursal` es true si no tiene horario semanal.
  *     tags: [Disponibilidad]
  *     parameters:
