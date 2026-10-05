@@ -189,6 +189,65 @@ router.get(
   controller.getEmpleados
 );
 
+/**
+ * @swagger
+ * /negocios/{id_negocio}/profesionales:
+ *   get:
+ *     summary: Profesionales del negocio para la agenda
+ *     description: >
+ *       Requiere `citas.ver` (la lista completa del equipo, con contacto, es `GET /negocios/{id_negocio}/empleados`).
+ *       Empleados activos, por nombre, sin datos de contacto ni de la invitación: las columnas de la vista Día, el
+ *       filtro de profesionales y el selector al agendar o reasignar. Incluye a quien no atiende servicios
+ *       (`servicios` vacío) y al propietario registrado como empleado.
+ *     tags: [Empleados]
+ *     parameters:
+ *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
+ *     responses:
+ *       200:
+ *         description: Profesionales
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: OK }
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id_empleado: { type: integer }
+ *                       nombre: { type: string, example: Carlos }
+ *                       apellido: { type: string, example: Pérez }
+ *                       especialidad: { type: string, nullable: true }
+ *                       foto_url: { type: string, nullable: true }
+ *                       foto_miniatura_url: { type: string, nullable: true }
+ *                       rol:
+ *                         type: object
+ *                         properties:
+ *                           id_rol: { type: integer }
+ *                           nombre: { type: string, example: Veterinario }
+ *                       servicios:
+ *                         type: array
+ *                         description: Servicios activos que atiende
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             id_servicio: { type: integer }
+ *                             nombre: { type: string }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
+router.get(
+  "/negocios/:id_negocio/profesionales",
+  authMiddleware,
+  validate({ params: idNegocioParams }),
+  authorize("citas", "ver"),
+  controller.getProfesionales
+);
+
 router.post(
   "/negocios/:id_negocio/empleados",
   authMiddleware,

@@ -8,6 +8,10 @@ export const getEmpleados = async (req, res) => {
   return paginated(res, rows, meta);
 };
 
+export const getProfesionales = async (req, res) => {
+  return ok(res, await service.getProfesionales(req.negocio.id_negocio));
+};
+
 export const getEmpleado = async (req, res) => {
   return ok(res, await service.getEmpleado(req.params.id_empleado));
 };

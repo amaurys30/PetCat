@@ -112,6 +112,20 @@ export const getEmpleados = async (id_negocio, { page, limit, activo, q }) => {
   return { rows: await formatEmpleados(rows), meta: buildMeta(total, page, limit) };
 };
 
+/**
+ * Profesionales para la agenda (citas.ver): empleados activos sin datos de contacto ni
+ * de la invitación, con los servicios activos que atienden.
+ */
+export const getProfesionales = async (id_negocio) => {
+  const rows = await empleadoRepo.findProfesionales(id_negocio);
+  const servicios = await servicioRepo.findActivosDeEmpleados(rows.map((row) => row.id_empleado));
+  return rows.map(({ id_rol, rol_nombre, ...empleado }) => ({
+    ...conMiniaturas(empleado),
+    rol: { id_rol, nombre: rol_nombre },
+    servicios: servicios[empleado.id_empleado] ?? [],
+  }));
+};
+
 /** Detalle: el rol con sus permisos y los servicios activos que atiende. */
 export const getEmpleado = async (id_empleado) => {
   const empleado = await empleadoRepo.findById(id_empleado);
