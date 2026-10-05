@@ -27,6 +27,10 @@ const router = express.Router();
  *         Campos opcionales con `null` se vacían. Reglas entre campos (422): `precio_maximo >= precio_base`,
  *         `peso_min_kg <= peso_max_kg`, con `en_oferta: true` se exige `precio_oferta < precio_base`, y
  *         `fecha_fin_oferta >= fecha_inicio_oferta`. Al editar se comprueban con los valores actuales.
+ *         Al crear una oferta o cambiar alguno de sus campos (`en_oferta`, `precio_oferta`, `fecha_inicio_oferta`,
+ *         `fecha_fin_oferta`, con un valor distinto del guardado), las dos fechas son obligatorias y
+ *         `fecha_fin_oferta` no puede ser anterior a hoy (hora de Bogotá). Una oferta ya vencida que no se toca
+ *         no impide editar el resto del servicio.
  *       properties:
  *         id_categoria: { type: integer, description: Categoría activa (GET /categorias-servicio) }
  *         nombre: { type: string, minLength: 2, maxLength: 150, description: Único entre los servicios activos del negocio }

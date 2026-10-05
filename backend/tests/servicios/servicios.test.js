@@ -191,7 +191,34 @@ describe("POST /negocios/:id_negocio/servicios", () => {
     const oferta = await api(token)
       .post(`/negocios/${negocio.id_negocio}/servicios`)
       .send({ id_categoria, nombre: "Oferta cara", precio_base: 50000, en_oferta: true, precio_oferta: 50000 });
-    expect(oferta.body.errors).toEqual({ precio_oferta: "Debe ser menor que precio_base" });
+    expect(oferta.body.errors).toEqual({
+      precio_oferta: "Debe ser menor que precio_base",
+      fecha_inicio_oferta: "Obligatoria si el servicio está en oferta",
+      fecha_fin_oferta: "Obligatoria si el servicio está en oferta",
+    });
+  });
+
+  it("oferta: fechas obligatorias y fin no anterior a hoy -> 422; desde hoy hasta hoy, sí", async () => {
+    const { negocio, token, id_categoria } = await contexto();
+    const url = `/negocios/${negocio.id_negocio}/servicios`;
+    const base = { id_categoria, precio_base: 50000, en_oferta: true, precio_oferta: 40000 };
+
+    const vencida = await api(token)
+      .post(url)
+      .send({ ...base, nombre: "Vencida", fecha_inicio_oferta: diaRelativo(-10), fecha_fin_oferta: diaRelativo(-1) });
+    expect(vencida.status).toBe(422);
+    expect(vencida.body.errors).toEqual({ fecha_fin_oferta: "No puede ser anterior a hoy" });
+
+    const hoy = await api(token)
+      .post(url)
+      .send({ ...base, nombre: "De hoy", fecha_inicio_oferta: hoyISO(), fecha_fin_oferta: hoyISO() });
+    expect(hoy.status).toBe(201);
+    expect(hoy.body.data).toMatchObject({ oferta_vigente: true, precio_actual: 40000 });
+
+    const sinOferta = await api(token)
+      .post(url)
+      .send({ id_categoria, nombre: "Sin oferta", precio_base: 50000, fecha_fin_oferta: diaRelativo(-1) });
+    expect(sinOferta.status).toBe(201);
   });
 
   it("nombre repetido entre los activos (sin distinguir mayúsculas) -> 409; con uno eliminado, no", async () => {
@@ -340,8 +367,51 @@ describe("PATCH /servicios/:id_servicio", () => {
       .send({ en_oferta: true, precio_oferta: 40000, fecha_inicio_oferta: diaRelativo(-1), fecha_fin_oferta: diaRelativo(1) });
     expect(vigente.body.data).toMatchObject({ precio_actual: 40000, oferta_vigente: true });
 
-    const vencida = await api(token).patch(url).send({ fecha_inicio_oferta: diaRelativo(-5), fecha_fin_oferta: diaRelativo(-1) });
-    expect(vencida.body.data).toMatchObject({ precio_actual: 50000, oferta_vigente: false, en_oferta: true });
+    // La oferta vence con el paso de los días (la API ya no acepta poner un fin pasado).
+    await pool.query("UPDATE servicios SET fecha_inicio_oferta = ?, fecha_fin_oferta = ? WHERE id_servicio = ?", [
+      diaRelativo(-5),
+      diaRelativo(-1),
+      servicio.id_servicio,
+    ]);
+    const vencida = await api(token).get(`/negocios/${negocio.id_negocio}/servicios`);
+    expect(vencida.body.data[0]).toMatchObject({ precio_actual: 50000, oferta_vigente: false, en_oferta: true });
+  });
+
+  it("oferta vencida: se edita lo demás sin tocarla; al cambiarla se exige un fin desde hoy", async () => {
+    const { negocio, token } = await contexto();
+    const servicio = await crearServicio(negocio, {
+      precio_base: 50000,
+      en_oferta: true,
+      precio_oferta: 40000,
+      fecha_inicio_oferta: diaRelativo(-10),
+      fecha_fin_oferta: diaRelativo(-1),
+    });
+    const url = `/servicios/${servicio.id_servicio}`;
+
+    // Mismos valores de la oferta (un formulario que envía todo): no cuenta como cambio.
+    const otroCampo = await api(token).patch(url).send({
+      descripcion: "Nueva",
+      en_oferta: true,
+      precio_oferta: 40000,
+      fecha_inicio_oferta: diaRelativo(-10),
+      fecha_fin_oferta: diaRelativo(-1),
+    });
+    expect(otroCampo.status).toBe(200);
+
+    const precio = await api(token).patch(url).send({ precio_oferta: 35000 });
+    expect(precio.status).toBe(422);
+    expect(precio.body.errors).toEqual({ fecha_fin_oferta: "No puede ser anterior a hoy" });
+
+    const quitarFechas = await api(token).patch(url).send({ fecha_inicio_oferta: null, fecha_fin_oferta: diaRelativo(3) });
+    expect(quitarFechas.body.errors).toEqual({ fecha_inicio_oferta: "Obligatoria si el servicio está en oferta" });
+
+    const renovada = await api(token).patch(url).send({ fecha_inicio_oferta: hoyISO(), fecha_fin_oferta: diaRelativo(3) });
+    expect(renovada.status).toBe(200);
+    expect(renovada.body.data).toMatchObject({ oferta_vigente: true, precio_actual: 40000 });
+
+    const apagada = await api(token).patch(url).send({ en_oferta: false, precio_oferta: null, fecha_inicio_oferta: null, fecha_fin_oferta: null });
+    expect(apagada.status).toBe(200);
+    expect(apagada.body.data).toMatchObject({ en_oferta: false, precio_oferta: null, oferta_vigente: false });
   });
 
   it("nombre de otro servicio activo -> 409; servicio de otro negocio -> 403; inexistente -> 404", async () => {
