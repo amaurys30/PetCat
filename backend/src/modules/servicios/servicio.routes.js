@@ -324,10 +324,20 @@ router.post(
  *       403: { $ref: '#/components/responses/Forbidden' }
  *       404: { $ref: '#/components/responses/NotFound' }
  *       409:
- *         description: El servicio tiene citas futuras pendientes o confirmadas
+ *         description: >
+ *           El servicio tiene citas futuras pendientes o confirmadas. `data.citas_afectadas` las trae
+ *           (mismo formato que `citas_afectadas` de horarios y disponibilidad) para cancelarlas o reprogramarlas.
  *         content:
  *           application/json:
- *             schema: { $ref: '#/components/schemas/ErrorResponse' }
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: false }
+ *                 message: { type: string, example: "El servicio tiene 2 citas pendientes o confirmadas: cancélalas o reprográmalas antes de eliminarlo" }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     citas_afectadas: { $ref: '#/components/schemas/CitasAfectadas' }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
 router.get("/servicios/:id_servicio", validate({ params: idServicioParams }), controller.getServicioPublico);

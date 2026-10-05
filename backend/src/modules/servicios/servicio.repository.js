@@ -252,19 +252,6 @@ export const replaceEmpleadosActivos = async (id_servicio, ids, conn) => {
   }
 };
 
-/** Citas pendientes o confirmadas del servicio desde este momento. */
-export const countCitasFuturasActivas = async (id_servicio, conn) => {
-  const [[row]] = await (conn ?? db).query(
-    `SELECT COUNT(*) AS total
-     FROM citas
-     WHERE id_servicio = ?
-       AND estado IN ('pendiente', 'confirmada')
-       AND (fecha > CURDATE() OR (fecha = CURDATE() AND hora_inicio >= CURTIME()))`,
-    [id_servicio]
-  );
-  return row.total;
-};
-
 /** Bloquea la fila del negocio: serializa las altas y cambios de nombre de sus servicios. */
 export const lockNegocio = async (id_negocio, conn) => {
   await conn.query("SELECT id_negocio FROM negocios WHERE id_negocio = ? FOR UPDATE", [id_negocio]);

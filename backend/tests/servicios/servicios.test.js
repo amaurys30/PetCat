@@ -457,15 +457,34 @@ describe("DELETE y reactivar /servicios/:id_servicio", () => {
     expect((await api(token).patch(`${url}/reactivar`)).status).toBe(409);
   });
 
-  it("con citas futuras pendientes o confirmadas -> 409", async () => {
+  it("con citas futuras pendientes o confirmadas -> 409 con la lista en data.citas_afectadas", async () => {
     const { negocio, token } = await contexto();
-    const servicio = await crearServicio(negocio);
-    await crearCita(negocio, { servicio, estado: "confirmada" });
+    const servicio = await crearServicio(negocio, { nombre: "Baño" });
+    const cita = await crearCita(negocio, { servicio, estado: "confirmada", fecha: diaRelativo(2) });
+    await crearCita(negocio, { servicio, estado: "pendiente", fecha: diaRelativo(1) });
+    await crearCita(negocio, { servicio, estado: "cancelada", fecha: diaRelativo(1) });
+    await crearCita(negocio, { servicio, estado: "confirmada", fecha: diaRelativo(-1) });
+
     const res = await api(token).delete(`/servicios/${servicio.id_servicio}`);
     expect(res.status).toBe(409);
     expect(res.body.message).toBe(
-      "El servicio tiene citas pendientes o confirmadas: cancélalas o reprográmalas antes de eliminarlo"
+      "El servicio tiene 2 citas pendientes o confirmadas: cancélalas o reprográmalas antes de eliminarlo"
     );
+    const afectadas = res.body.data.citas_afectadas;
+    expect(afectadas.map((c) => c.fecha)).toEqual([diaRelativo(1), diaRelativo(2)]);
+    expect(afectadas[1]).toEqual({
+      id_cita: cita.id_cita,
+      fecha: diaRelativo(2),
+      hora_inicio: expect.stringMatching(/^\d{2}:\d{2}$/),
+      hora_fin: expect.stringMatching(/^\d{2}:\d{2}$/),
+      estado: "confirmada",
+      sucursal: cita.id_sucursal === null ? null : { id_sucursal: cita.id_sucursal, nombre: expect.any(String) },
+      servicio: { id_servicio: servicio.id_servicio, nombre: "Baño" },
+      mascota: { id_mascota: cita.id_mascota, nombre: expect.any(String) },
+      cliente: expect.objectContaining({ id_usuario: cita.id_usuario, nombre: expect.any(String) }),
+    });
+    expect(Object.keys(afectadas[1].cliente).sort()).toEqual(["apellido", "id_usuario", "nombre", "telefono"]);
+    expect((await api(token).get(`/servicios/${servicio.id_servicio}/gestion`)).body.data.activo).toBe(true);
   });
 
   it("reactivar con el nombre ocupado por otro activo -> 409", async () => {

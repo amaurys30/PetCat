@@ -4,6 +4,7 @@ import { buildMeta } from "../../shared/utils/pagination.js";
 import { castFields } from "../../shared/utils/format.js";
 import { hoyISO } from "../../shared/utils/fechas.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
+import { citasFuturasDeServicio } from "../disponibilidad/disponibilidad.service.js";
 const NO_ENCONTRADO = "Servicio no encontrado";
 
 /** Columna SET de MySQL ("perro,gato") como arreglo; NULL se mantiene. */
@@ -172,15 +173,20 @@ export const updateServicio = async (id_servicio, data) => {
 };
 
 /**
- * Borrado lógico. 404 si ya está eliminado; 409 si tiene citas futuras
- * pendientes o confirmadas. Las asignaciones de empleados se conservan.
+ * Borrado lógico. 404 si ya está eliminado; 409 si tiene citas futuras pendientes o
+ * confirmadas, con la lista en `data.citas_afectadas`. Las asignaciones de empleados se conservan.
  */
 export const deleteServicio = async (id_servicio) => {
   await withTransaction(async (conn) => {
     const actual = await servicioRepo.findById(id_servicio, { conn, forUpdate: true });
     if (!actual?.activo) throw ApiError.notFound(NO_ENCONTRADO);
-    if ((await servicioRepo.countCitasFuturasActivas(id_servicio, conn)) > 0) {
-      throw ApiError.conflict("El servicio tiene citas pendientes o confirmadas: cancélalas o reprográmalas antes de eliminarlo");
+    const citas_afectadas = await citasFuturasDeServicio(id_servicio, conn);
+    if (citas_afectadas.length > 0) {
+      const n = citas_afectadas.length;
+      throw ApiError.conflict(
+        `El servicio tiene ${n} ${n === 1 ? "cita pendiente o confirmada" : "citas pendientes o confirmadas"}: ` +
+          "cancélalas o reprográmalas antes de eliminarlo"
+      ).conDatos({ citas_afectadas });
     }
     await servicioRepo.setActivo(id_servicio, false, conn);
   });

@@ -164,8 +164,16 @@ export const findCitasFuturasActivas = async (id_empleado, conn) => findCitasFut
 /** Como findCitasFuturasActivas, de una sucursal (todas sus citas, de cualquier empleado). */
 export const findCitasFuturasActivasDeSucursal = async (id_sucursal, conn) => findCitasFuturas({ id_sucursal }, conn);
 
-const findCitasFuturas = async ({ id_empleado, id_sucursal }, conn) => {
-  const [columna, valor] = id_empleado !== undefined ? ["c.id_empleado", id_empleado] : ["c.id_sucursal", id_sucursal];
+/** Como findCitasFuturasActivas, de un servicio (al eliminarlo no puede tener citas por atender). */
+export const findCitasFuturasActivasDeServicio = async (id_servicio, conn) => findCitasFuturas({ id_servicio }, conn);
+
+const findCitasFuturas = async ({ id_empleado, id_sucursal, id_servicio }, conn) => {
+  const [columna, valor] =
+    id_empleado !== undefined
+      ? ["c.id_empleado", id_empleado]
+      : id_sucursal !== undefined
+        ? ["c.id_sucursal", id_sucursal]
+        : ["c.id_servicio", id_servicio];
   const [rows] = await (conn ?? db).query(
     `SELECT c.id_cita, c.fecha, c.id_empleado,
             TIME_FORMAT(c.hora_inicio, '%H:%i') AS hora_inicio, TIME_FORMAT(c.hora_fin, '%H:%i') AS hora_fin,

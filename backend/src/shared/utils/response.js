@@ -2,7 +2,7 @@
  * Formato único de respuesta de la API:
  *   { success: true,  message, data }
  *   { success: true,  message, data: [...], meta: { total, page, limit, totalPages, hasNext } }
- *   { success: false, message, errors? }
+ *   { success: false, message, errors?, data? }
  */
 
 export const ok = (res, data = null, message = "OK") =>
@@ -14,9 +14,10 @@ export const created = (res, data = null, message = "Creado correctamente") =>
 export const paginated = (res, rows, meta, message = "OK") =>
   res.status(200).json({ success: true, message, data: rows, meta });
 
-export const sendError = (res, status, message, errors) =>
+export const sendError = (res, status, message, errors, data) =>
   res.status(status).json({
     success: false,
     message,
     ...(errors && Object.keys(errors).length > 0 && { errors }),
+    ...(data !== undefined && { data }),
   });
