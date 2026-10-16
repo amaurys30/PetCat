@@ -558,3 +558,10 @@ Jobs sobre la base de node-cron de la 2.3 (funciones exportadas que los tests ll
 - Horarios libres del panel: aceptan `citas.crear` o `citas.editar`. Con `id_cita_excluir` (reprogramar), esa cita no ocupa su hora ni cuenta en los cupos ni en el límite del plan; debe ser del negocio (422) y exige `citas.editar` (403).
 - Los horarios libres no miran la agenda de la mascota: el cruce se detecta al reservar o reprogramar (409). Pendiente: `id_mascota` opcional para descartarlos de antemano.
 - Seed: cada cita tiene su historial (creación y cambios hasta su estado actual).
+
+### Decisiones de la API para el panel P4.3 (octubre 2026)
+- **Clientes sin cuenta** (migración `021_clientes_sin_cuenta.sql`): `usuarios.email` es opcional, con `CHECK (email IS NOT NULL OR telefono IS NOT NULL)`. Solo el panel los crea (`POST /negocios/:id/clientes` sin correo; el teléfono pasa a ser obligatorio). No reciben bienvenida, no pueden iniciar sesión ni recuperar la contraseña (todo es por correo), y `notificar` no les crea envíos por correo (ya exigía email; no tienen dispositivos). La autorización de la Ley 1581 sigue siendo obligatoria. Para no duplicarlos, sin correo se rechaza (409) un teléfono que ya tenga otro usuario activo; `clientes/buscar` los encuentra por teléfono. En las respuestas, `email` puede ser null. Pendiente (P5): agregarles correo para activar su cuenta.
+- `clientes/buscar` devuelve `usa_app`.
+- Horarios libres del panel con `id_mascota`: quitan las horas en que la mascota ya tiene otra cita en cualquier negocio (salvo `id_cita_excluir`); 422 si la mascota no existe o falleció.
+- `GET /negocios/:id/servicios` acepta `servicios.ver` o `citas.crear`.
+- Seed: la Sede Norte de Salud Animal 24h atiende de 00:00 a 23:59 todos los días.
