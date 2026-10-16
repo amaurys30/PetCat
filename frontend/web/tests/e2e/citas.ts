@@ -2,11 +2,17 @@ import { expect, type APIRequestContext } from "@playwright/test";
 
 /**
  * Citas propias para las pruebas de la agenda, creadas por la API de demo en Centro
- * Veterinario Salud Animal 24h (Pro: sin límite de citas; Sede Norte abre todos los días de
- * 7 a 21; sin confirmación automática: lo que reserva la app queda pendiente). No dependen de
+ * Veterinario Salud Animal 24h (Pro: sin límite de citas; la Sede Norte atiende las 24 horas
+ * todos los días; sin confirmación automática: lo que reserva la app queda pendiente). No dependen de
  * las citas del seed, que vencen. Cada prueba cancela al final lo que dejó activo.
  */
 export const PASSWORD = "Petcat123!";
+/**
+ * La preparación llama directo a la API de demo, no por el proxy del servidor de vista previa:
+ * con muchas llamadas seguidas, el proxy (y el reenvío de puertos de Docker) se saturaba y
+ * dejaba colgadas las peticiones de la página. Otra dirección: $env:E2E_API="http://127.0.0.1:3001".
+ */
+export const API = `${process.env.E2E_API ?? "http://127.0.0.1:3001"}/api/v1`;
 export const PROPIETARIO_SALUD = "saludanimal@petcat.test";
 const CLIENTE = "camilo@petcat.test";
 const SERVICIO = "Consulta especializada";
@@ -31,13 +37,13 @@ const respuesta = async <T>(res: Awaited<ReturnType<APIRequestContext["get"]>>, 
 };
 
 export async function token(request: APIRequestContext, email: string) {
-  const res = await request.post("/api/v1/auth/login", { data: { email, password: PASSWORD } });
+  const res = await request.post(`${API}/auth/login`, { data: { email, password: PASSWORD } });
   return (await respuesta<{ access_token: string }>(res, "login")).access_token;
 }
 
 const get = async <T>(request: APIRequestContext, url: string, tk?: string) =>
   respuesta<T>(
-    await request.get(`/api/v1${url}`, { headers: tk ? { Authorization: `Bearer ${tk}` } : {} }),
+    await request.get(`${API}${url}`, { headers: tk ? { Authorization: `Bearer ${tk}` } : {} }),
     url,
   );
 
@@ -59,6 +65,8 @@ export async function contextoSalud(request: APIRequestContext) {
     idNegocio: negocio.id_negocio,
     idSucursal: perfil.sucursales.find((s) => s.nombre === "Sede Norte")!.id_sucursal,
     idServicio: perfil.servicios.find((s) => s.nombre === SERVICIO)!.id_servicio,
+    /** 15 minutos: siempre queda un horario hoy en la sede de 24 horas, salvo en el último cuarto de hora. */
+    idServicioCorto: perfil.servicios.find((s) => s.nombre === "Desparasitación")!.id_servicio,
   };
 }
 
@@ -80,7 +88,7 @@ export async function reservaPendiente(request: APIRequestContext, ctx: Contexto
     // Los últimos del día: chocan menos con las citas del seed y de otras corridas.
     for (const h of [...libres.horarios].reverse().filter((x) => !conDos || x.empleados.length >= 2)) {
       for (const m of mascotas.filter((x) => !x.fallecido)) {
-        const res = await request.post("/api/v1/citas", {
+        const res = await request.post(`${API}/citas`, {
           headers: { Authorization: `Bearer ${tkCliente}` },
           data: {
             id_servicio: ctx.idServicio,
@@ -105,16 +113,16 @@ export async function citaDeHoy(request: APIRequestContext, ctx: Contexto) {
   const fecha = fechaBogota();
   const libres = await get<{ horarios: Horario[] }>(
     request,
-    `/negocios/${ctx.idNegocio}/citas/horarios-libres?id_servicio=${ctx.idServicio}&id_sucursal=${ctx.idSucursal}&fecha=${fecha}`,
+    `/negocios/${ctx.idNegocio}/citas/horarios-libres?id_servicio=${ctx.idServicioCorto}&id_sucursal=${ctx.idSucursal}&fecha=${fecha}`,
     ctx.tkNegocio,
   );
   for (const h of libres.horarios) {
     for (const m of mascotas.filter((x) => !x.fallecido)) {
-      const res = await request.post(`/api/v1/negocios/${ctx.idNegocio}/citas`, {
+      const res = await request.post(`${API}/negocios/${ctx.idNegocio}/citas`, {
         headers: { Authorization: `Bearer ${ctx.tkNegocio}` },
         data: {
           id_usuario: yo.id_usuario,
-          id_servicio: ctx.idServicio,
+          id_servicio: ctx.idServicioCorto,
           id_sucursal: ctx.idSucursal,
           fecha,
           hora_inicio: h.hora_inicio,
@@ -134,7 +142,7 @@ export const estadoDe = async (request: APIRequestContext, ctx: Contexto, idCita
 /** Limpieza: cancela la cita si quedó pendiente o confirmada. */
 export async function cancelarSiActiva(request: APIRequestContext, ctx: Contexto, idCita: number) {
   if (["pendiente", "confirmada"].includes(await estadoDe(request, ctx, idCita))) {
-    await request.post(`/api/v1/citas/${idCita}/cancelar`, {
+    await request.post(`${API}/citas/${idCita}/cancelar`, {
       headers: { Authorization: `Bearer ${ctx.tkNegocio}` },
       data: { motivo: "Limpieza de la prueba de punta a punta" },
     });
@@ -148,7 +156,7 @@ export async function bloquearHoraDe(
   cita: CitaCreada,
   motivo: string,
 ) {
-  const res = await request.post(`/api/v1/empleados/${cita.empleado!.id_empleado}/disponibilidad`, {
+  const res = await request.post(`${API}/empleados/${cita.empleado!.id_empleado}/disponibilidad`, {
     headers: { Authorization: `Bearer ${ctx.tkNegocio}` },
     data: {
       tipo: "bloqueo",
@@ -163,7 +171,7 @@ export async function bloquearHoraDe(
 }
 
 export async function quitarBloqueo(request: APIRequestContext, ctx: Contexto, idDisponibilidad: number) {
-  await request.delete(`/api/v1/disponibilidad/${idDisponibilidad}`, {
+  await request.delete(`${API}/disponibilidad/${idDisponibilidad}`, {
     headers: { Authorization: `Bearer ${ctx.tkNegocio}` },
   });
 }

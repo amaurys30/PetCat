@@ -146,7 +146,8 @@ test("iniciar la atención y completar con el precio final", async ({ page, requ
   test.setTimeout(90_000);
   const ctx = await contextoSalud(request);
   const cita = await citaDeHoy(request, ctx);
-  test.skip(!cita, "Ya no quedan horarios hoy en Salud Animal (abre hasta las 21:00)");
+  // La Sede Norte atiende las 24 horas: solo en el último cuarto de hora del día no queda horario hoy.
+  test.skip(!cita, "Es el último cuarto de hora del día: ya no quedan horarios hoy");
   try {
     await entrar(page);
     await page.goto(`/n/${ctx.idNegocio}/agenda?cita=${cita!.id_cita}`);
@@ -160,8 +161,13 @@ test("iniciar la atención y completar con el precio final", async ({ page, requ
     await dialogo.getByRole("button", { name: "Completar cita" }).click();
 
     await expect(page.getByText("Cita completada")).toBeVisible();
-    await expect(detalle.getByText("Precio final")).toBeVisible();
-    await expect(detalle.getByText(/95.000/)).toBeVisible();
+    // La fila "Precio final" de los datos y el cambio en el historial.
+    const fila = detalle
+      .getByRole("term")
+      .filter({ hasText: /^Precio final$/ })
+      .locator("..");
+    await expect(fila).toContainText(/95\.000/);
+    await expect(detalle.getByText(/^Precio final: .*95\.000$/)).toBeVisible();
     expect(await estadoDe(request, ctx, cita!.id_cita)).toBe("completada");
   } finally {
     if (cita) await cancelarSiActiva(request, ctx, cita.id_cita);
