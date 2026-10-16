@@ -599,3 +599,50 @@ describe("GET /negocios/:id_negocio/citas/horarios-libres con id_cita_excluir", 
     expect((await horarios(ctx, `&id_cita_excluir=${c.id_cita}`, await tokenDe(soloEditar))).status).toBe(200);
   });
 });
+
+describe("GET /negocios/:id_negocio/citas/horarios-libres con id_mascota", () => {
+  const url = (ctx, extra) =>
+    `/negocios/${ctx.negocio.id_negocio}/citas/horarios-libres?id_servicio=${ctx.servicio.id_servicio}&id_sucursal=${ctx.sucursal.id_sucursal}&fecha=${LUNES}${extra}`;
+
+  it("quita las horas en que la mascota ya tiene otra cita (en cualquier negocio), salvo la que se reprograma", async () => {
+    const ctx = await contexto();
+    const otroNegocio = await crearNegocio();
+    const ajena = await crearCita(otroNegocio, {
+      cliente: ctx.cliente,
+      mascota: ctx.mascota,
+      fecha: LUNES,
+      hora_inicio: "10:00:00",
+      hora_fin: "10:30:00",
+      estado: "confirmada",
+    });
+    const inicios = async (extra) =>
+      (await api(ctx.tokenPropietario).get(url(ctx, extra))).body.data.horarios.map((h) => h.hora_inicio);
+
+    expect(await inicios("")).toEqual(expect.arrayContaining(["09:45", "10:00", "10:15", "10:30"]));
+    const conMascota = await inicios(`&id_mascota=${ctx.mascota.id_mascota}`);
+    expect(conMascota).not.toContain("09:45");
+    expect(conMascota).not.toContain("10:00");
+    expect(conMascota).not.toContain("10:15");
+    expect(conMascota).toContain("09:30");
+    expect(conMascota).toContain("10:30");
+
+    expect(ajena.id_negocio).toBe(otroNegocio.id_negocio);
+
+    // La que se reprograma (de este negocio) no le quita su propia hora.
+    const propia = await cita(ctx, { hora_inicio: "15:00:00", hora_fin: "15:30:00" });
+    expect(await inicios(`&id_mascota=${ctx.mascota.id_mascota}`)).not.toContain("15:00");
+    const reprogramando = await inicios(`&id_mascota=${ctx.mascota.id_mascota}&id_cita_excluir=${propia.id_cita}`);
+    expect(reprogramando).toContain("15:00");
+    expect(reprogramando).not.toContain("10:00");
+  });
+
+  it("mascota inexistente o fallecida -> 422", async () => {
+    const ctx = await contexto();
+    const fallecida = await crearMascota(ctx.cliente, { fallecido: true, fecha_fallecimiento: "2026-01-01" });
+    for (const id of [999999999, fallecida.id_mascota]) {
+      const res = await api(ctx.tokenPropietario).get(url(ctx, `&id_mascota=${id}`));
+      expect(res.status).toBe(422);
+      expect(res.body.errors).toEqual({ id_mascota: "La mascota no existe o no puede recibir citas" });
+    }
+  });
+});

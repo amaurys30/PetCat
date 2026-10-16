@@ -316,7 +316,7 @@ router.post("/citas", authMiddleware, validate({ body: createCitaBody }), contro
  *             cliente:
  *               type: object
  *               properties:
- *                 email: { type: string, format: email, description: Para contactarlo por su cita, como el teléfono (el perfil completo exige clientes.ver) }
+ *                 email: { type: string, format: email, nullable: true, description: "Para contactarlo por su cita, como el teléfono (el perfil completo exige clientes.ver). null: cliente sin cuenta" }
  *                 usa_app: { type: boolean, description: Alguna vez inició sesión }
  *                 historial_cumplimiento:
  *                   type: object
@@ -732,7 +732,8 @@ router.get(
  *       Requiere `citas.crear` o `citas.editar` (agendar o reprogramar). Igual que el de la app, pero admite
  *       servicios ocultos en la app (del propio negocio) y no aplica la antelación mínima (solo que el horario
  *       sea futuro). Con `id_cita_excluir` (reprogramar), esa cita no ocupa su hora ni cuenta en los cupos ni
- *       en el límite del plan; debe ser de este negocio (422) y exige `citas.editar` (403). Si el negocio
+ *       en el límite del plan; debe ser de este negocio (422) y exige `citas.editar` (403). Con `id_mascota`, no
+ *       ofrece las horas en que la mascota ya tiene otra cita (el cruce daría 409 al reservar). Si el negocio
  *       alcanzó el límite de citas del mes de su plan, no hay horarios y `motivo_sin_horarios` lo dice
  *       ("El negocio alcanzó las 30 citas de su plan Gratuito en octubre de 2026").
  *     tags: [Citas]
@@ -743,6 +744,7 @@ router.get(
  *       - $ref: '#/components/parameters/horariosLibresFecha'
  *       - $ref: '#/components/parameters/horariosLibresEmpleado'
  *       - { in: query, name: id_cita_excluir, schema: { type: integer }, description: Cita que se reprograma (no ocupa su hora) }
+ *       - { in: query, name: id_mascota, schema: { type: integer }, description: "Quita las horas en que la mascota ya tiene otra cita, en cualquier negocio (422 si no existe o falleció)" }
  *     responses:
  *       200:
  *         description: Horarios

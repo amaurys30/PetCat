@@ -19,6 +19,8 @@ export const horariosLibresQuery = z.object({
 /** Panel: además, una cita que no ocupa su hora (los horarios para reprogramarla). */
 export const horariosLibresPanelQuery = horariosLibresQuery.extend({
   id_cita_excluir: idQuery.optional(),
+  /** Sin las horas en que la mascota ya tiene otra cita (en cualquier negocio). */
+  id_mascota: idQuery.optional(),
 });
 
 const campos = {

@@ -150,15 +150,21 @@ export const evaluarDia = async ({ servicio, id_sucursal, fecha, empleados, desd
  * `id_cita_excluir` (ya verificada: del negocio y editable por quien consulta) no ocupa su
  * hora ni cuenta en los cupos ni en el límite del plan: son los horarios para reprogramarla.
  */
-export const getHorariosLibres = async (canal, { id_negocio, id_cita_excluir, ...query }) => {
+export const getHorariosLibres = async (canal, { id_negocio, id_cita_excluir, id_mascota, ...query }) => {
   const excluirIdCita = id_cita_excluir ?? 0;
   const dia = await prepararDia({ canal, id_negocio, ...query, excluirIdCita });
-  const horarios = dia.motivo
+  let horarios = dia.motivo
     ? []
     : combinarHorarios(
         await evaluarDia({ ...dia, id_sucursal: query.id_sucursal, fecha: query.fecha, excluirIdCita }),
         dia.servicio.duracion_minutos
       );
+  // Panel: sin las horas en que la mascota ya tiene otra cita (el cruce daría 409 al reservar).
+  if (id_mascota !== undefined && horarios.length > 0) {
+    const ocupados = await citaRepo.findOcupadosDeMascota(id_mascota, query.fecha, excluirIdCita);
+    const duracion = dia.servicio.duracion_minutos;
+    horarios = horarios.filter((h) => !ocupados.some((o) => o.inicio < h.inicio + duracion && h.inicio < o.fin));
+  }
   return {
     fecha: query.fecha,
     servicio: {
@@ -169,7 +175,10 @@ export const getHorariosLibres = async (canal, { id_negocio, id_cita_excluir, ..
     },
     sucursal: dia.sucursal,
     horarios: horarios.map((h) => ({ hora_inicio: aHora(h.inicio), hora_fin: aHora(h.fin), empleados: h.empleados })),
-    motivo_sin_horarios: horarios.length > 0 ? null : (dia.motivo ?? SIN_HORARIOS),
+    motivo_sin_horarios:
+      horarios.length > 0
+        ? null
+        : (dia.motivo ?? (id_mascota !== undefined ? "No hay horarios en que la mascota esté libre ese día" : SIN_HORARIOS)),
   };
 };
 
@@ -184,6 +193,10 @@ export const getHorariosLibresPanel = async (id_negocio, query, acceso) => {
     if (!accesoPermite(acceso, "citas", "editar")) {
       throw ApiError.forbidden("Para ver los horarios de una reprogramación necesitas el permiso de editar citas");
     }
+  }
+  if (query.id_mascota !== undefined) {
+    const mascota = await citaRepo.findMascotaActiva(query.id_mascota);
+    if (!mascota || mascota.fallecido) throw invalido("id_mascota", "La mascota no existe o no puede recibir citas");
   }
   return getHorariosLibres("panel", { ...query, id_negocio });
 };

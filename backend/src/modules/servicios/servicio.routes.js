@@ -3,7 +3,7 @@ import * as controller from "./servicio.controller.js";
 import { createServicioBody, idServicioParams, listServiciosQuery, updateServicioBody } from "./servicio.schemas.js";
 import { idNegocioParams } from "../negocios/negocio.schemas.js";
 import { authMiddleware } from "../../shared/middlewares/auth.middleware.js";
-import { authorize } from "../../shared/middlewares/authorize.middleware.js";
+import { authorize, authorizeAny } from "../../shared/middlewares/authorize.middleware.js";
 import { validate } from "../../shared/middlewares/validate.js";
 
 const router = express.Router();
@@ -164,7 +164,7 @@ router.get("/categorias-servicio", controller.getCategorias);
  *   get:
  *     summary: Servicios del negocio (panel)
  *     description: >
- *       Requiere `servicios.ver`. Incluye servicios inactivos y ocultos (activos primero). Cada
+ *       Requiere `servicios.ver` o `citas.crear` (para elegir el servicio al agendar). Incluye servicios inactivos y ocultos (activos primero). Cada
  *       servicio trae sus empleados activos asignados y `sin_empleados`.
  *     tags: [Servicios]
  *     parameters:
@@ -222,7 +222,11 @@ router.get(
   "/negocios/:id_negocio/servicios",
   authMiddleware,
   validate({ params: idNegocioParams, query: listServiciosQuery }),
-  authorize("servicios", "ver"),
+  // Agendar desde el panel (B5) necesita elegir el servicio, también los ocultos en la app.
+  authorizeAny([
+    ["servicios", "ver"],
+    ["citas", "crear"],
+  ]),
   controller.getServicios
 );
 

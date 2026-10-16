@@ -91,6 +91,26 @@ export const countCupos = async ({ id_servicio, id_sucursal, fecha, excluirIdCit
   return row.total;
 };
 
+/**
+ * Citas de la mascota ese día (en cualquier negocio) que ocupan su agenda, en minutos:
+ * [{ inicio, fin }]. `excluirIdCita`: la que se reprograma.
+ */
+export const findOcupadosDeMascota = async (id_mascota, fecha, excluirIdCita = 0) => {
+  const [rows] = await db.query(
+    `SELECT TIME_TO_SEC(c.hora_inicio) DIV 60 AS inicio, TIME_TO_SEC(c.hora_fin) DIV 60 AS fin
+     FROM citas c
+     WHERE c.id_mascota = ? AND c.fecha = ? AND c.estado IN ${ESTADOS_OCUPAN} AND c.id_cita <> ?`,
+    [id_mascota, fecha, excluirIdCita]
+  );
+  return rows.map((r) => ({ inicio: Number(r.inicio), fin: Number(r.fin) }));
+};
+
+/** Mascota activa (para validar filtros): id, dueño y si falleció. */
+export const findMascotaActiva = async (id_mascota) => {
+  const [rows] = await db.query("SELECT id_mascota, id_usuario, fallecido FROM mascotas WHERE id_mascota = ? AND activo = TRUE", [id_mascota]);
+  return rows[0];
+};
+
 /** La mascota ya tiene una cita (en cualquier negocio) que se cruza con [hora_inicio, hora_fin). */
 export const mascotaTieneCruce = async ({ id_mascota, fecha, hora_inicio, hora_fin }, conn) => {
   const [rows] = await (conn ?? db).query(
