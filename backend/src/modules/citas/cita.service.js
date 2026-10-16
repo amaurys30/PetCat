@@ -109,13 +109,15 @@ const prepararDia = async ({ canal, id_negocio, id_servicio, id_sucursal, fecha,
 
 /**
  * Inicios libres de cada empleado ese día en la sucursal: disponibilidad efectiva
- * (1.4) menos sus citas (con margen), sobre la cuadrícula.
+ * (1.4) menos sus citas (con margen), sobre la cuadrícula. Devuelve también los rangos
+ * disponibles (sin descontar citas). `excluirIdCita`: una cita que no ocupa (la que se
+ * reprograma o se reasigna).
  */
-export const evaluarDia = async ({ servicio, id_sucursal, fecha, empleados, desde, intervalo }, conn) => {
+export const evaluarDia = async ({ servicio, id_sucursal, fecha, empleados, desde, intervalo, excluirIdCita = 0 }, conn) => {
   const ids = empleados.map((e) => e.id_empleado);
   const [horariosPorSucursal, ocupados] = await Promise.all([
     disponibilidadRepo.findHorariosSucursales(servicio.id_negocio, conn),
-    citaRepo.findOcupadosDeEmpleados(ids, fecha, conn),
+    citaRepo.findOcupadosDeEmpleados(ids, fecha, conn, excluirIdCita),
   ]);
   return Promise.all(
     empleados.map(async (empleado) => {
@@ -138,17 +140,25 @@ export const evaluarDia = async ({ servicio, id_sucursal, fecha, empleados, desd
         intervalo,
         desde,
       });
-      return { empleado, inicios };
+      return { empleado, inicios, rangos };
     })
   );
 };
 
-/** Horarios libres de un servicio en una sucursal y una fecha (app o panel). */
-export const getHorariosLibres = async (canal, { id_negocio, ...query }) => {
-  const dia = await prepararDia({ canal, id_negocio, ...query });
+/**
+ * Horarios libres de un servicio en una sucursal y una fecha (app o panel). En el panel,
+ * `id_cita_excluir` (ya verificada: del negocio y editable por quien consulta) no ocupa su
+ * hora ni cuenta en los cupos ni en el límite del plan: son los horarios para reprogramarla.
+ */
+export const getHorariosLibres = async (canal, { id_negocio, id_cita_excluir, ...query }) => {
+  const excluirIdCita = id_cita_excluir ?? 0;
+  const dia = await prepararDia({ canal, id_negocio, ...query, excluirIdCita });
   const horarios = dia.motivo
     ? []
-    : combinarHorarios(await evaluarDia({ ...dia, id_sucursal: query.id_sucursal, fecha: query.fecha }), dia.servicio.duracion_minutos);
+    : combinarHorarios(
+        await evaluarDia({ ...dia, id_sucursal: query.id_sucursal, fecha: query.fecha, excluirIdCita }),
+        dia.servicio.duracion_minutos
+      );
   return {
     fecha: query.fecha,
     servicio: {
@@ -161,6 +171,21 @@ export const getHorariosLibres = async (canal, { id_negocio, ...query }) => {
     horarios: horarios.map((h) => ({ hora_inicio: aHora(h.inicio), hora_fin: aHora(h.fin), empleados: h.empleados })),
     motivo_sin_horarios: horarios.length > 0 ? null : (dia.motivo ?? SIN_HORARIOS),
   };
+};
+
+/**
+ * Horarios libres del panel. Con `id_cita_excluir` (reprogramar), la cita debe ser de este
+ * negocio (422) y quien consulta debe poder editar citas (403): quien solo agenda no la toca.
+ */
+export const getHorariosLibresPanel = async (id_negocio, query, acceso) => {
+  if (query.id_cita_excluir !== undefined) {
+    const cita = await citaRepo.findCita(query.id_cita_excluir);
+    if (!cita || cita.id_negocio !== id_negocio) throw invalido("id_cita_excluir", "La cita no es de este negocio");
+    if (!accesoPermite(acceso, "citas", "editar")) {
+      throw ApiError.forbidden("Para ver los horarios de una reprogramación necesitas el permiso de editar citas");
+    }
+  }
+  return getHorariosLibres("panel", { ...query, id_negocio });
 };
 
 /** La mascota puede recibir este servicio: activa, del dueño, viva, de una especie y un peso admitidos. */
@@ -533,11 +558,25 @@ export const getAtencion = async (negocio, acceso, id_usuario, { solo_mias, ...f
 export const getCita = async (id_cita, acceso) => {
   const row = await citaRepo.findDetalle(id_cita);
   if (acceso.relacion === "dueno") return (await formatCitasDueno([row], row.id_usuario))[0];
-  const [[cita], historial_cumplimiento] = await Promise.all([
+  const [[cita], historial_cumplimiento, datos] = await Promise.all([
     conDisponibilidad([row], row.id_negocio, row.fecha, row.fecha, acceso),
     citaRepo.resumenCumplimiento(row.id_usuario, row.id_negocio),
+    citaRepo.findDatosPanel(id_cita),
   ]);
-  return { ...cita, cliente: { ...cita.cliente, historial_cumplimiento } };
+  return {
+    ...cita,
+    mascota: {
+      ...cita.mascota,
+      raza: datos.raza,
+      edad_meses: toNumber(datos.edad_meses),
+      peso: toNumber(datos.peso),
+      tiene_alergias: Boolean(datos.tiene_alergias),
+      alergias_detalle: datos.alergias_detalle,
+      fallecido: Boolean(datos.fallecido),
+    },
+    // Email y teléfono: para contactar al cliente por su cita (el perfil completo exige clientes.ver).
+    cliente: { ...cita.cliente, email: datos.email, usa_app: Boolean(datos.usa_app), historial_cumplimiento },
+  };
 };
 
 /** Citas en el formato del panel (con notas internas y fuera_de_disponibilidad), de un mismo negocio. */

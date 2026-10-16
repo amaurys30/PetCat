@@ -10,13 +10,14 @@ import {
   createCitaBody,
   createCitaPanelBody,
   horariosLibresQuery,
+  horariosLibresPanelQuery,
   idCitaParams,
   misCitasQuery,
 } from "./cita.schemas.js";
 import * as citaRepo from "./cita.repository.js";
 import { idNegocioParams } from "../negocios/negocio.schemas.js";
 import { authMiddleware } from "../../shared/middlewares/auth.middleware.js";
-import { authorize, authorizeDuenoO } from "../../shared/middlewares/authorize.middleware.js";
+import { authorize, authorizeAny, authorizeDuenoO } from "../../shared/middlewares/authorize.middleware.js";
 import { validate } from "../../shared/middlewares/validate.js";
 
 const router = express.Router();
@@ -302,9 +303,21 @@ router.post("/citas", authMiddleware, validate({ body: createCitaBody }), contro
  *         - $ref: '#/components/schemas/CitaPanel'
  *         - type: object
  *           properties:
+ *             mascota:
+ *               type: object
+ *               description: Perfil de la mascota que muestra el detalle (B4), además de id, nombre y especie
+ *               properties:
+ *                 raza: { type: string, nullable: true }
+ *                 edad_meses: { type: integer, nullable: true, description: Calculada con la fecha de nacimiento }
+ *                 peso: { type: number, nullable: true }
+ *                 tiene_alergias: { type: boolean }
+ *                 alergias_detalle: { type: string, nullable: true }
+ *                 fallecido: { type: boolean }
  *             cliente:
  *               type: object
  *               properties:
+ *                 email: { type: string, format: email, description: Para contactarlo por su cita, como el teléfono (el perfil completo exige clientes.ver) }
+ *                 usa_app: { type: boolean, description: Alguna vez inició sesión }
  *                 historial_cumplimiento:
  *                   type: object
  *                   description: Solo las citas del cliente con este negocio, nunca las de otros negocios
@@ -597,6 +610,64 @@ router.patch(
 
 /**
  * @swagger
+ * /citas/{id_cita}/profesionales-libres:
+ *   get:
+ *     summary: Profesionales libres para reasignar una cita (panel)
+ *     description: >
+ *       Requiere `citas.editar`. Cada profesional activo que atiende el servicio, con `libre` si puede tomar
+ *       la cita a su hora (disponibilidad y otras citas, con el mismo cálculo de la reserva y sin contar esta
+ *       cita) y, si no, el motivo. `actual` marca a quien la tiene ahora. Solo citas pendientes o confirmadas
+ *       (409). Para reasignar: `PATCH /citas/{id_cita}` con `id_empleado`.
+ *     tags: [Citas]
+ *     parameters:
+ *       - { in: path, name: id_cita, required: true, schema: { type: integer } }
+ *     responses:
+ *       200:
+ *         description: Profesionales
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: OK }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id_cita: { type: integer }
+ *                     fecha: { type: string, format: date }
+ *                     hora_inicio: { type: string, example: "15:30" }
+ *                     hora_fin: { type: string, example: "16:00" }
+ *                     profesionales:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id_empleado: { type: integer }
+ *                           nombre: { type: string }
+ *                           apellido: { type: string }
+ *                           actual: { type: boolean }
+ *                           libre: { type: boolean }
+ *                           motivo:
+ *                             type: string
+ *                             nullable: true
+ *                             example: Tiene otra cita a esa hora
+ *                             description: Por qué no está libre (null si lo está)
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       409: { $ref: '#/components/responses/CitaEstadoConflicto' }
+ */
+router.get(
+  "/citas/:id_cita/profesionales-libres",
+  authMiddleware,
+  validate({ params: idCitaParams }),
+  authorize("citas", "editar"),
+  controller.getProfesionalesLibres
+);
+
+/**
+ * @swagger
  * /citas/{id_cita}/historial:
  *   get:
  *     summary: Historial de cambios de una cita (dueño o negocio)
@@ -648,8 +719,10 @@ router.get(
  *   get:
  *     summary: Horarios libres para agendar (panel)
  *     description: >
- *       Requiere `citas.crear`. Igual que el de la app, pero admite servicios ocultos en la app (del
- *       propio negocio) y no aplica la antelación mínima (solo que el horario sea futuro). Si el negocio
+ *       Requiere `citas.crear` o `citas.editar` (agendar o reprogramar). Igual que el de la app, pero admite
+ *       servicios ocultos en la app (del propio negocio) y no aplica la antelación mínima (solo que el horario
+ *       sea futuro). Con `id_cita_excluir` (reprogramar), esa cita no ocupa su hora ni cuenta en los cupos ni
+ *       en el límite del plan; debe ser de este negocio (422) y exige `citas.editar` (403). Si el negocio
  *       alcanzó el límite de citas del mes de su plan, no hay horarios y `motivo_sin_horarios` lo dice
  *       ("El negocio alcanzó las 30 citas de su plan Gratuito en octubre de 2026").
  *     tags: [Citas]
@@ -659,6 +732,7 @@ router.get(
  *       - $ref: '#/components/parameters/horariosLibresSucursal'
  *       - $ref: '#/components/parameters/horariosLibresFecha'
  *       - $ref: '#/components/parameters/horariosLibresEmpleado'
+ *       - { in: query, name: id_cita_excluir, schema: { type: integer }, description: Cita que se reprograma (no ocupa su hora) }
  *     responses:
  *       200:
  *         description: Horarios
@@ -683,8 +757,11 @@ router.get(
 router.get(
   "/negocios/:id_negocio/citas/horarios-libres",
   authMiddleware,
-  validate({ params: idNegocioParams, query: horariosLibresQuery }),
-  authorize("citas", "crear"),
+  validate({ params: idNegocioParams, query: horariosLibresPanelQuery }),
+  authorizeAny([
+    ["citas", "crear"],
+    ["citas", "editar"],
+  ]),
   controller.getHorariosLibresPanel
 );
 

@@ -50,8 +50,9 @@ export const lockMascota = async (id_mascota, conn) => {
 /**
  * Citas que ocupan la agenda de los empleados ese día, en minutos, con el
  * margen de su servicio sumado al fin: { [id_empleado]: [{ inicio, fin }] }.
+ * `excluirIdCita`: una cita que no cuenta (la que se reprograma o se reasigna).
  */
-export const findOcupadosDeEmpleados = async (ids, fecha, conn) => {
+export const findOcupadosDeEmpleados = async (ids, fecha, conn, excluirIdCita = 0) => {
   if (ids.length === 0) return {};
   const [rows] = await (conn ?? db).query(
     `SELECT c.id_empleado,
@@ -59,8 +60,8 @@ export const findOcupadosDeEmpleados = async (ids, fecha, conn) => {
             TIME_TO_SEC(c.hora_fin) DIV 60 + sv.margen_minutos AS fin
      FROM citas c
      JOIN servicios sv ON sv.id_servicio = c.id_servicio
-     WHERE c.id_empleado IN (?) AND c.fecha = ? AND c.estado IN ${ESTADOS_OCUPAN}`,
-    [ids, fecha]
+     WHERE c.id_empleado IN (?) AND c.fecha = ? AND c.estado IN ${ESTADOS_OCUPAN} AND c.id_cita <> ?`,
+    [ids, fecha, excluirIdCita]
   );
   const porEmpleado = {};
   for (const { id_empleado, inicio, fin } of rows) {
@@ -133,7 +134,6 @@ export const create = async (data, conn) => {
   return result.insertId;
 };
 
-/** Primer registro de historial_citas: la creación (estado de null al inicial). */
 /**
  * Registra un cambio en historial_citas. `actor`: { id_usuario, id_empleado?, ip? }.
  * Los valores se guardan como texto (null se conserva).
@@ -307,6 +307,25 @@ const SELECT_CITA = `
 
 export const findDetalle = async (id_cita, conn) => {
   const [rows] = await (conn ?? db).query(`${SELECT_CITA} WHERE c.id_cita = ?`, [id_cita]);
+  return rows[0];
+};
+
+/**
+ * Datos de la mascota y del cliente que el detalle del panel (B4) muestra además de los
+ * de la cita: perfil de la mascota (con alergias) y contacto del cliente. `usa_app`: el
+ * cliente inició sesión alguna vez.
+ */
+export const findDatosPanel = async (id_cita) => {
+  const [rows] = await db.query(
+    `SELECT m.raza, TIMESTAMPDIFF(MONTH, m.fecha_nacimiento, CURDATE()) AS edad_meses, m.peso,
+            m.tiene_alergias, m.alergias_detalle, m.fallecido,
+            u.email, u.ultimo_acceso IS NOT NULL AS usa_app
+     FROM citas c
+     JOIN mascotas m ON m.id_mascota = c.id_mascota
+     JOIN usuarios u ON u.id_usuario = c.id_usuario
+     WHERE c.id_cita = ?`,
+    [id_cita]
+  );
   return rows[0];
 };
 

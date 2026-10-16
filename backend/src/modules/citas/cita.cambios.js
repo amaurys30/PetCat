@@ -2,7 +2,7 @@ import * as citaRepo from "./cita.repository.js";
 import * as servicioRepo from "../servicios/servicio.repository.js";
 import * as configuracionRepo from "../configuracion/configuracion.repository.js";
 import { configAgenda, crearCita, evaluarDia, getCita } from "./cita.service.js";
-import { aMinutos } from "../disponibilidad/disponibilidad.calculo.js";
+import { aHora, aMinutos, cabeEn } from "../disponibilidad/disponibilidad.calculo.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
 import { eventoCita } from "./cita.avisos.js";
 import { conNotificaciones } from "../notificaciones/notificacion.service.js";
@@ -255,6 +255,52 @@ export const actualizarCita = async (id_cita, data, actor, acceso) => {
     }
   });
   return getCita(id_cita, acceso);
+};
+
+/**
+ * Para reasignar: cada profesional activo que atiende el servicio, si está libre a la
+ * hora de la cita (con el mismo cálculo de la reserva, sin contar esta cita) y, si no,
+ * por qué. `actual`: el profesional que la tiene ahora.
+ */
+export const getProfesionalesLibres = async (id_cita) => {
+  const cita = await citaRepo.findCita(id_cita);
+  if (!ACTIVAS.includes(cita.estado)) throw ApiError.conflict("Solo se reasignan citas pendientes o confirmadas");
+  const [servicio, asignados, { intervalo }] = await Promise.all([
+    servicioRepo.findById(cita.id_servicio),
+    citaRepo.findEmpleadosAsignados(cita.id_servicio),
+    configAgenda(),
+  ]);
+  const evaluados = await evaluarDia({
+    servicio,
+    id_sucursal: cita.id_sucursal,
+    fecha: cita.fecha,
+    empleados: asignados,
+    desde: 0,
+    intervalo,
+    excluirIdCita: id_cita,
+  });
+  const inicio = aMinutos(cita.hora_inicio);
+  return {
+    id_cita,
+    fecha: cita.fecha,
+    hora_inicio: aHora(inicio),
+    hora_fin: aHora(aMinutos(cita.hora_fin)),
+    profesionales: evaluados.map(({ empleado, inicios, rangos }) => {
+      const libre = inicios.includes(inicio);
+      return {
+        id_empleado: empleado.id_empleado,
+        nombre: empleado.nombre,
+        apellido: empleado.apellido,
+        actual: empleado.id_empleado === cita.id_empleado,
+        libre,
+        motivo: libre
+          ? null
+          : cabeEn(rangos, inicio, inicio + servicio.duracion_minutos)
+            ? "Tiene otra cita a esa hora"
+            : "No está disponible a esa hora (horario, bloqueo o vacaciones)",
+      };
+    }),
+  };
 };
 
 // ---------- Historial ----------

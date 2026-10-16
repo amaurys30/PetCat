@@ -16,6 +16,11 @@ export const horariosLibresQuery = z.object({
   id_empleado: idQuery.optional(),
 });
 
+/** Panel: además, una cita que no ocupa su hora (los horarios para reprogramarla). */
+export const horariosLibresPanelQuery = horariosLibresQuery.extend({
+  id_cita_excluir: idQuery.optional(),
+});
+
 const campos = {
   id_servicio: id,
   id_sucursal: id,
