@@ -264,6 +264,31 @@ describe("seed de desarrollo: datos realistas", () => {
     expect(conCruce).toBe(true);
   });
 
+  it("cada cita tiene su creación en el historial, y una completada llega a completada en orden", async () => {
+    // Solo las del seed: las fábricas de los otros tests crean citas sin historial.
+    const [[{ sin_creacion }]] = await pool.query(
+      `SELECT COUNT(*) AS sin_creacion FROM citas c JOIN negocios n ON n.id_negocio = c.id_negocio
+       WHERE n.nombre IN (?) AND NOT EXISTS (SELECT 1 FROM historial_citas h
+                         WHERE h.id_cita = c.id_cita AND h.campo_modificado = 'estado' AND h.valor_anterior IS NULL)`,
+      [NEGOCIOS]
+    );
+    expect(Number(sin_creacion)).toBe(0);
+
+    const patitas = await idNegocio(NEGOCIOS[0]);
+    const [[completada]] = await pool.query(
+      "SELECT id_cita FROM citas WHERE id_negocio = ? AND estado = 'completada' AND origen = 'app_movil' LIMIT 1",
+      [patitas]
+    );
+    const historial = (await api(await login("propietario@petcat.test")).get(`/citas/${completada.id_cita}/historial`)).body.data;
+    const estados = historial.filter((h) => h.campo === "estado").map((h) => [h.valor_anterior, h.valor_nuevo, h.realizado_por]);
+    expect(estados).toEqual([
+      [null, "pendiente", "dueno"],
+      ["pendiente", "confirmada", "negocio"],
+      ["confirmada", "en_curso", "negocio"],
+      ["en_curso", "completada", "negocio"],
+    ]);
+  });
+
   it("Rocky no comparte su historial: Salud Animal ve solo su registro; la dueña de Rocky ve ambos", async () => {
     const rocky = await idMascota("camilo@petcat.test", "Rocky");
     const salud = await idNegocio(NEGOCIOS[3]);

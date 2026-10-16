@@ -844,3 +844,71 @@ UPDATE citas SET fecha_completada = TIMESTAMP(fecha, hora_fin) WHERE estado = 'c
 UPDATE negocios n
 SET total_citas = (SELECT COUNT(*) FROM citas c WHERE c.id_negocio = n.id_negocio AND c.estado = 'completada')
 WHERE n.id_negocio = @id_negocio;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+--  Panel P4.2: historial de las citas del seed (el detalle de la cita, B4)
+--  Cada cita tiene su creación y los cambios que llevaron a su estado actual, como
+--  los registra la API: la app crea pendientes (el dueño) y el negocio confirma; el
+--  panel crea confirmadas. Se agregan solo los registros que faltan.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- Las citas pasadas se reservaron unos días antes; la original reprogramada, hace dos días.
+UPDATE citas SET fecha_creacion = TIMESTAMP(fecha - INTERVAL 3 DAY, '18:00:00')
+WHERE fecha < CURDATE() AND fecha_creacion > TIMESTAMP(fecha - INTERVAL 3 DAY, '18:00:00');
+UPDATE citas SET fecha_creacion = NOW() - INTERVAL 2 DAY WHERE estado = 'reprogramada';
+
+-- Creación: el dueño desde la app (pendiente) o el negocio desde el panel (confirmada).
+INSERT INTO historial_citas (id_cita, id_usuario, campo_modificado, valor_anterior, valor_nuevo, motivo, fecha_cambio)
+SELECT c.id_cita, IF(c.origen = 'app_movil', c.id_usuario, n.id_usuario_propietario), 'estado', NULL,
+       IF(c.origen = 'app_movil', 'pendiente', 'confirmada'),
+       IF(c.id_cita_origen IS NULL, 'Cita creada', CONCAT('Reprogramación de la cita #', c.id_cita_origen)),
+       c.fecha_creacion
+FROM citas c JOIN negocios n ON n.id_negocio = c.id_negocio
+WHERE NOT EXISTS (SELECT 1 FROM historial_citas h
+                  WHERE h.id_cita = c.id_cita AND h.campo_modificado = 'estado' AND h.valor_anterior IS NULL);
+
+-- El negocio confirmó las reservas de la app que ya no están pendientes (salvo las que
+-- se cancelaron solas sin confirmar).
+INSERT INTO historial_citas (id_cita, id_usuario, campo_modificado, valor_anterior, valor_nuevo, fecha_cambio)
+SELECT c.id_cita, n.id_usuario_propietario, 'estado', 'pendiente', 'confirmada',
+       LEAST(c.fecha_creacion + INTERVAL 1 HOUR, NOW())
+FROM citas c JOIN negocios n ON n.id_negocio = c.id_negocio
+WHERE c.origen = 'app_movil' AND c.estado <> 'pendiente' AND NOT (c.cancelada_por <=> 'sistema')
+  AND NOT EXISTS (SELECT 1 FROM historial_citas h WHERE h.id_cita = c.id_cita AND h.valor_nuevo = 'confirmada');
+
+-- Atención: en curso desde la hora de inicio; completada con su precio final.
+INSERT INTO historial_citas (id_cita, id_usuario, campo_modificado, valor_anterior, valor_nuevo, fecha_cambio)
+SELECT c.id_cita, n.id_usuario_propietario, 'estado', 'confirmada', 'en_curso', TIMESTAMP(c.fecha, c.hora_inicio)
+FROM citas c JOIN negocios n ON n.id_negocio = c.id_negocio
+WHERE c.estado IN ('en_curso', 'completada')
+  AND NOT EXISTS (SELECT 1 FROM historial_citas h WHERE h.id_cita = c.id_cita AND h.valor_nuevo = 'en_curso');
+
+INSERT INTO historial_citas (id_cita, id_usuario, campo_modificado, valor_anterior, valor_nuevo, fecha_cambio)
+SELECT c.id_cita, n.id_usuario_propietario, 'estado', 'en_curso', 'completada', c.fecha_completada
+FROM citas c JOIN negocios n ON n.id_negocio = c.id_negocio
+WHERE c.estado = 'completada'
+  AND NOT EXISTS (SELECT 1 FROM historial_citas h WHERE h.id_cita = c.id_cita AND h.valor_nuevo = 'completada');
+
+INSERT INTO historial_citas (id_cita, id_usuario, campo_modificado, valor_anterior, valor_nuevo, fecha_cambio)
+SELECT c.id_cita, n.id_usuario_propietario, 'precio_final', NULL, c.precio_final, c.fecha_completada
+FROM citas c JOIN negocios n ON n.id_negocio = c.id_negocio
+WHERE c.estado = 'completada'
+  AND NOT EXISTS (SELECT 1 FROM historial_citas h WHERE h.id_cita = c.id_cita AND h.campo_modificado = 'precio_final');
+
+-- Inasistencias: marcadas 15 minutos después de la hora de inicio.
+INSERT INTO historial_citas (id_cita, id_usuario, campo_modificado, valor_anterior, valor_nuevo, fecha_cambio)
+SELECT c.id_cita, n.id_usuario_propietario, 'estado', 'confirmada', 'no_asistio',
+       TIMESTAMP(c.fecha, c.hora_inicio) + INTERVAL 15 MINUTE
+FROM citas c JOIN negocios n ON n.id_negocio = c.id_negocio
+WHERE c.estado = 'no_asistio'
+  AND NOT EXISTS (SELECT 1 FROM historial_citas h WHERE h.id_cita = c.id_cita AND h.valor_nuevo = 'no_asistio');
+
+-- Cancelaciones del dueño o del negocio (las del sistema ya tienen su registro).
+INSERT INTO historial_citas (id_cita, id_usuario, campo_modificado, valor_anterior, valor_nuevo, motivo, fecha_cambio)
+SELECT c.id_cita, IF(c.cancelada_por = 'dueno', c.id_usuario, n.id_usuario_propietario), 'estado', 'confirmada', 'cancelada',
+       IF(c.cancelacion_tardia, CONCAT('Cancelación tardía', IF(c.motivo_cancelacion IS NULL, '', CONCAT(': ', c.motivo_cancelacion))),
+          c.motivo_cancelacion),
+       c.fecha_cancelacion
+FROM citas c JOIN negocios n ON n.id_negocio = c.id_negocio
+WHERE c.estado = 'cancelada' AND c.cancelada_por IN ('dueno', 'negocio')
+  AND NOT EXISTS (SELECT 1 FROM historial_citas h WHERE h.id_cita = c.id_cita AND h.valor_nuevo = 'cancelada');
