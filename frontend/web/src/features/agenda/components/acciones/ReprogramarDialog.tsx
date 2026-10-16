@@ -70,6 +70,7 @@ export function ReprogramarDialog({
           fecha,
           id_empleado: empleado === CUALQUIERA ? undefined : Number(empleado),
           id_cita_excluir: cita.id_cita,
+          id_mascota: cita.mascota.id_mascota,
         }
       : null,
   );
