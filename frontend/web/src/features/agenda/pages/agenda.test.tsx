@@ -7,7 +7,7 @@ import { __reiniciarSesionParaPruebas } from "@/api/sesion";
 import { diasDeSemana, sumarDias, tituloDia } from "@/lib/agenda";
 import { hoyISO } from "@/lib/format";
 import { useUi } from "@/stores/ui";
-import { citaPanelDemo, horarioPartido, profesionalDemo } from "@/test/agenda";
+import { citaDetalleDemo, citaPanelDemo, horarioPartido, profesionalDemo } from "@/test/agenda";
 import { gestionDemo, negocioDemo, renderRuta, sedeDemo, usuarioDemo } from "@/test/render";
 import { citaAfectadaDemo } from "@/test/servicios";
 import { API, http, ok, servidor } from "@/test/servidor";
@@ -147,20 +147,29 @@ describe("B3 · Agenda semanal", () => {
     await waitFor(() => expect(peticiones.at(-1)!.searchParams.get("desde")).toBe(sumarDias(LUNES, 7)));
   });
 
-  it("elegir una cita la deja en la URL y la resalta", async () => {
+  it("elegir una cita la deja en la URL, abre su detalle y fija su fecha", async () => {
     const user = userEvent.setup();
-    servidor.use(...base());
+    servidor.use(
+      ...base(),
+      http.get(`${API}/citas/:id`, ({ params }) =>
+        ok({ ...citaDetalleDemo({ ...max }), id_cita: Number(params.id) }),
+      ),
+      http.get(`${API}/citas/:id/historial`, () => ok([])),
+    );
     const { router } = renderRuta("/n/1/agenda", { usuario: usuarioDemo() });
     await user.click(await screen.findByRole("button", { name: /· Max ·/ }));
     expect(router.state.location.search).toContain("cita=1");
-    expect(screen.getByRole("button", { name: /· Max ·/ })).toHaveAttribute("aria-pressed", "true");
-    // "Día" muestra el día de la cita elegida.
+    expect(await screen.findByRole("dialog", { name: "Cita #1" })).toBeInTheDocument();
+
+    // Al cerrar el detalle, la cita sigue resaltada hasta elegir otra; "Día" abre su día.
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(router.state.location.search).not.toContain("cita="));
     await user.click(screen.getByRole("radio", { name: "Día" }));
     expect(screen.getByRole("heading", { level: 2, name: tituloDia(LUNES) })).toBeInTheDocument();
     await user.click(screen.getByRole("radio", { name: "Semana" }));
 
     // Una cita de otra semana (desde el panel) lleva a su fecha.
-    await user.click(screen.getByRole("button", { name: /Milo ·/ }));
+    await user.click(await screen.findByRole("button", { name: /Milo ·/ }));
     expect(router.state.location.search).toContain(`fecha=${fuera.fecha}`);
     expect(router.state.location.search).toContain("cita=4");
   });

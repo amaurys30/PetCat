@@ -7,16 +7,20 @@ import { ErrorConsulta } from "@/components/common/QueryState";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { aviso } from "@/components/ui/toaster";
 import { useSedes } from "@/features/equipo/hooks/useDisponibilidad";
 import { useNegocioActivo, usePuede } from "@/features/negocios/hooks/useNegocio";
 import { diasDeSemana, sumarDias, tituloDia, tituloRango } from "@/lib/agenda";
 import { hoyISO, minutoActualBogota } from "@/lib/format";
+import { useUi } from "@/stores/ui";
 import { BarraAgenda } from "../components/BarraAgenda";
+import { DetalleCita } from "../components/DetalleCita";
 import { PanelAtencion } from "../components/PanelAtencion";
 import { VistaDia } from "../components/VistaDia";
 import { VistaLista } from "../components/VistaLista";
 import { VistaSemana } from "../components/VistaSemana";
 import { useAgenda, useAhora, useAtencion, useFiltrosUrl, useProfesionales } from "../hooks/useAgenda";
+import { useCambiarEstado } from "../hooks/useCita";
 
 /** Columna de un profesional que ya no está en la lista (inactivo) pero tiene citas ese día. */
 const profesionalDeCita = (e: NonNullable<CitaPanel["empleado"]>): Profesional => ({
@@ -31,7 +35,7 @@ const profesionalDeCita = (e: NonNullable<CitaPanel["empleado"]>): Profesional =
 /**
  * B3 · B9 · B10 · Agenda: Semana, Día por profesional y Lista, con los filtros en la URL y
  * el panel "Por confirmar" / "Fuera de disponibilidad". Requiere citas.ver. Al elegir una
- * cita queda en la URL (`?cita=`); el detalle (B4) llega en P4.2.
+ * cita queda en la URL (`?cita=`) y se abre su detalle (B4) en un panel lateral.
  */
 export function AgendaPage() {
   const negocio = useNegocioActivo();
@@ -57,6 +61,8 @@ export function AgendaPage() {
     verCitas && !soloFuera,
   );
   const atencion = useAtencion(negocio.id_negocio, filtrosApi, verCitas);
+  const confirmar = useCambiarEstado(negocio.id_negocio);
+  const abrirAccion = useUi((s) => s.abrirAccionCita);
 
   if (!verCitas) {
     return (
@@ -171,6 +177,18 @@ export function AgendaPage() {
             ahora={ahora}
             idSeleccionada={filtros.idCita}
             onAbrir={abrir}
+            permisos={{ editar: puede("citas", "editar"), cancelar: puede("citas", "cancelar") }}
+            confirmando={confirmar.isPending ? confirmar.variables.idCita : undefined}
+            onConfirmar={(c) =>
+              confirmar.mutate(
+                { idCita: c.id_cita, estado: "confirmada" },
+                {
+                  onSuccess: () => aviso.exito(`Cita de ${c.mascota.nombre} confirmada`),
+                  onError: (e) => aviso.advertencia(e.message),
+                },
+              )
+            }
+            onAccion={(tipo, c) => abrirAccion(tipo, c.id_cita)}
           />
           {atencion.data && atencion.data.fuera_de_disponibilidad.length > 0 && !soloFuera && (
             <Link
@@ -182,6 +200,10 @@ export function AgendaPage() {
           )}
         </aside>
       </div>
+
+      {filtros.idCita !== undefined && (
+        <DetalleCita idCita={filtros.idCita} onCerrar={() => cambiar({ idCita: undefined })} />
+      )}
     </div>
   );
 }

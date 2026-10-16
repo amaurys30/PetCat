@@ -20,7 +20,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { aviso } from "@/components/ui/toaster";
-import { Tooltip } from "@/components/ui/tooltip";
 import { usePuede } from "@/features/negocios/hooks/useNegocio";
 import {
   erroresSemanaProfesional,
@@ -457,6 +456,7 @@ function Excepciones({
 /** Aviso que queda en la pantalla con las citas fuera de la disponibilidad tras el último cambio. */
 function CitasFuera({ afectadas: { citas, guardado } }: { afectadas: Afectadas }) {
   const mostrarCitasAfectadas = useUi((s) => s.mostrarCitasAfectadas);
+  const puede = usePuede();
   return (
     <div role="status" className="rounded-card border border-warning/40 bg-warning-soft p-4 text-warning-ink">
       <p className="flex items-center gap-2 text-body font-semibold">
@@ -473,15 +473,8 @@ function CitasFuera({ afectadas: { citas, guardado } }: { afectadas: Afectadas }
       </ul>
       <div className="mt-3 flex flex-wrap gap-2">
         <Button size="sm" onClick={() => mostrarCitasAfectadas(citas, guardado)}>
-          Ver detalle y copiar
+          {puede("citas", "editar") ? "Reasignar o reprogramar" : "Ver detalle y copiar"}
         </Button>
-        <Tooltip texto="Reasignar y reprogramar llegan con la agenda (P4)">
-          <span>
-            <Button size="sm" variant="secondary" disabled>
-              Reasignar
-            </Button>
-          </span>
-        </Tooltip>
       </div>
     </div>
   );

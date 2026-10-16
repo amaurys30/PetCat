@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } f
 import { textoCitasFuera } from "@/lib/citas";
 import { fechaCorta, hora } from "@/lib/format";
 import { queryKeys } from "@/lib/queryKeys";
-import { useNegocioStore } from "@/stores/negocio";
+import { useNegocioGlobal } from "@/features/negocios/hooks/useNegocio";
 import { useUi } from "@/stores/ui";
 
 const cliente = (c: CitaAfectada) => `${c.cliente.nombre} ${c.cliente.apellido}`;
@@ -34,7 +34,10 @@ export function CitasAfectadasDialog() {
   const onCerrar = useUi((s) => s.cerrarCitasAfectadas);
   const citas = afectadas?.citas;
   const n = citas?.length ?? 0;
-  const idNegocio = useNegocioStore((s) => s.idNegocio);
+  const { idNegocio, puede } = useNegocioGlobal();
+  const abrirAccion = useUi((s) => s.abrirAccionCita);
+  // Reasignar y reprogramar abren su diálogo encima; al resolverla, la cita sale de la lista.
+  const conAcciones = idNegocio !== null && puede("citas", "editar");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   // La agenda las sigue mostrando (fuera de disponibilidad, desde hoy y sin límite de rango).
@@ -55,7 +58,7 @@ export function CitasAfectadasDialog() {
 
   return (
     <Dialog open={n > 0} onOpenChange={(abierto) => !abierto && onCerrar()}>
-      <DialogContent className="max-w-[720px]">
+      <DialogContent className={conAcciones ? "max-w-[900px]" : "max-w-[720px]"}>
         <span className="mb-4 flex size-12 items-center justify-center rounded-full bg-warning-soft text-warning-ink">
           <CalendarX2 className="size-6" aria-hidden />
         </span>
@@ -76,6 +79,11 @@ export function CitasAfectadasDialog() {
                 <th className="px-3 py-2 font-semibold">Mascota</th>
                 <th className="px-3 py-2 font-semibold">Cliente</th>
                 <th className="px-3 py-2 font-semibold">Teléfono</th>
+                {conAcciones && (
+                  <th className="px-3 py-2 font-semibold">
+                    <span className="sr-only">Acciones</span>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -97,6 +105,28 @@ export function CitasAfectadasDialog() {
                       <span className="text-subtle">Sin teléfono</span>
                     )}
                   </td>
+                  {conAcciones && (
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <span className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          aria-label={`Reasignar la cita de ${c.mascota.nombre}`}
+                          onClick={() => abrirAccion("reasignar", c.id_cita)}
+                        >
+                          Reasignar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          aria-label={`Reprogramar la cita de ${c.mascota.nombre}`}
+                          onClick={() => abrirAccion("reprogramar", c.id_cita)}
+                        >
+                          Reprogramar
+                        </Button>
+                      </span>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
