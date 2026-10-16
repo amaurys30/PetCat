@@ -29,16 +29,26 @@ export const buscarClienteQuery = z
 const nombre = z.string().trim().min(2).max(80);
 
 /** Cliente sin app registrado desde el panel, con su primera mascota. */
-export const registrarClienteBody = z.strictObject({
-  nombre,
-  apellido: nombre,
-  email,
-  telefono: telefono.optional(),
-  autoriza_tratamiento_datos: autorizacionDatos(
-    "Se requiere la autorización del titular para el tratamiento de sus datos (Ley 1581 de 2012)"
-  ),
-  mascota: createMascotaBody,
-});
+/**
+ * Cliente registrado desde el panel. Sin correo queda "sin cuenta" (no recibe la
+ * bienvenida ni puede entrar a la app) y el teléfono es obligatorio para encontrarlo.
+ */
+export const registrarClienteBody = z
+  .strictObject({
+    nombre,
+    apellido: nombre,
+    email: email.optional(),
+    telefono: telefono.optional(),
+    autoriza_tratamiento_datos: autorizacionDatos(
+      "Se requiere la autorización del titular para el tratamiento de sus datos (Ley 1581 de 2012)"
+    ),
+    mascota: createMascotaBody,
+  })
+  .superRefine((datos, ctx) => {
+    if (!datos.email && !datos.telefono) {
+      ctx.addIssue({ code: "custom", path: ["telefono"], message: "Obligatorio si el cliente no tiene correo" });
+    }
+  });
 
 export const agregarMascotaBody = createMascotaBody;
 
