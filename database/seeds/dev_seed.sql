@@ -296,9 +296,9 @@ INSERT INTO sucursales (id_negocio, nombre, telefono, direccion, ciudad, latitud
 (@n_salud, 'Sede Sur',   '6052804141', 'Calle 10 # 15-20, La Pollita', 'Sincelejo', 9.28870000, -75.39840000, FALSE);
 SET @s_norte = (SELECT id_sucursal FROM sucursales WHERE id_negocio = @n_salud AND nombre = 'Sede Norte');
 SET @s_sur   = (SELECT id_sucursal FROM sucursales WHERE id_negocio = @n_salud AND nombre = 'Sede Sur');
--- Norte: todos los días de 7:00 a 21:00. Sur: horario partido de lunes a sábado.
+-- Norte: abierta las 24 horas, todos los días (00:00 a 23:59). Sur: horario partido de lunes a sábado.
 INSERT INTO horarios_negocio (id_sucursal, dia_semana, hora_apertura, hora_cierre)
-SELECT @s_norte, d, '07:00:00', '21:00:00'
+SELECT @s_norte, d, '00:00:00', '23:59:00'
 FROM (SELECT 0 AS d UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6) dias;
 INSERT INTO horarios_negocio (id_sucursal, dia_semana, hora_apertura, hora_cierre)
 SELECT @s_sur, d, h.apertura, h.cierre
