@@ -6,6 +6,7 @@ import type { Modulo, NegocioMio } from "@/api/types";
 import { puede } from "@/lib/permisos";
 import { queryKeys } from "@/lib/queryKeys";
 import { useAuth } from "@/stores/auth";
+import { useNegocioStore } from "@/stores/negocio";
 
 /** Negocio de la URL (/n/:idNegocio) si el usuario puede entrar a él. */
 export function useNegocioDeRuta(): NegocioMio | null {
@@ -38,4 +39,19 @@ export function useSuscripcion(idNegocio: number, habilitada = true) {
     queryFn: () => getSuscripcion(idNegocio),
     enabled: habilitada,
   });
+}
+
+/**
+ * Negocio activo y `puede()` fuera de las rutas /n/:idNegocio (los diálogos globales de
+ * Raiz): sale del store que llena PanelLayout.
+ */
+export function useNegocioGlobal() {
+  const idNegocio = useNegocioStore((s) => s.idNegocio);
+  const usuario = useAuth((s) => s.usuario);
+  const negocio = usuario?.negocios.find((n) => n.id_negocio === idNegocio) ?? null;
+  const puedeEn = useCallback(
+    (modulo: Modulo, accion: string) => puede(usuario, negocio, modulo, accion),
+    [usuario, negocio],
+  );
+  return { idNegocio, negocio, puede: puedeEn };
 }

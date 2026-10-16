@@ -176,3 +176,8 @@ export function tituloRango(desde: string, hasta: string): string {
 /** "JUEVES 25 SEP" para los grupos de la vista Lista. */
 export const encabezadoGrupo = (fecha: string) =>
   sinPunto(format(parseFecha(fecha), "EEEE d MMM", { locale: es })).toLocaleUpperCase("es");
+
+/** "Jue 25 sep, 9:30 a.m." para resumir una cita en una línea. */
+export const fechaHoraCita = (fecha: string, hora: string) =>
+  capitalizar(sinPunto(format(parseFecha(fecha), "EEE d MMM", { locale: es }))) +
+  `, ${format(new Date(2000, 0, 1, ...(hora.split(":").slice(0, 2).map(Number) as [number, number])), "h:mm aaaa", { locale: es })}`;

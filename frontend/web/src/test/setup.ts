@@ -26,6 +26,6 @@ afterEach(() => {
   servidor.resetHandlers();
   localStorage.clear();
   sessionStorage.clear();
-  useUi.setState({ limitePlan: null, citasAfectadas: null });
+  useUi.setState({ limitePlan: null, citasAfectadas: null, accionCita: null });
 });
 afterAll(() => servidor.close());

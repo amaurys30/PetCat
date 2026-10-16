@@ -77,6 +77,11 @@ export function tiempoCorto(valor: string, ahora: Date = new Date()): string | n
   return `${Math.floor(minutos / (24 * 60))} d`;
 }
 
+/** Ya llegó (o pasó) un "YYYY-MM-DD HH:MM[:SS]" de Bogotá. */
+export function yaLlego(valor: string, ahora: Date = new Date()): boolean {
+  return parseFechaHora(valor).getTime() <= ahoraBogota(ahora).getTime();
+}
+
 /** Tiempo hasta un "YYYY-MM-DD HH:MM[:SS]" de Bogotá: "2 días", "5 horas", "1 minuto". */
 export function tiempoHasta(valor: string, ahora: Date = new Date()): string {
   return formatDistanceStrict(parseFechaHora(valor), ahoraBogota(ahora), {

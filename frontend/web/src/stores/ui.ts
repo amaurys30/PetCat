@@ -17,7 +17,18 @@ interface UiState {
   citasAfectadas: { citas: CitaAfectada[]; guardado: string; textos?: TextosCitas } | null;
   mostrarCitasAfectadas: (citas: CitaAfectada[], guardado: string, textos?: TextosCitas) => void;
   cerrarCitasAfectadas: () => void;
+  /** Ya se resolvió (se reasignó, reprogramó o canceló): sale de la lista de citas afectadas. */
+  quitarCitaAfectada: (idCita: number) => void;
+  /**
+   * Acción sobre una cita que se abre desde cualquier pantalla (detalle, panel lateral de la
+   * agenda, citas afectadas de E2/D1/D3/D5/D6). La pinta AccionesCita en Raiz.
+   */
+  accionCita: { tipo: TipoAccionCita; idCita: number } | null;
+  abrirAccionCita: (tipo: TipoAccionCita, idCita: number) => void;
+  cerrarAccionCita: () => void;
 }
+
+export type TipoAccionCita = "cancelar" | "rechazar" | "reprogramar" | "reasignar" | "completar";
 
 export interface TextosCitas {
   titulo: string;
@@ -32,4 +43,13 @@ export const useUi = create<UiState>()((set) => ({
   mostrarCitasAfectadas: (citas, guardado, textos) =>
     set({ citasAfectadas: citas.length > 0 ? { citas, guardado, textos } : null }),
   cerrarCitasAfectadas: () => set({ citasAfectadas: null }),
+  quitarCitaAfectada: (idCita) =>
+    set(({ citasAfectadas }) => {
+      if (!citasAfectadas) return {};
+      const citas = citasAfectadas.citas.filter((c) => c.id_cita !== idCita);
+      return { citasAfectadas: citas.length > 0 ? { ...citasAfectadas, citas } : null };
+    }),
+  accionCita: null,
+  abrirAccionCita: (tipo, idCita) => set({ accionCita: { tipo, idCita } }),
+  cerrarAccionCita: () => set({ accionCita: null }),
 }));

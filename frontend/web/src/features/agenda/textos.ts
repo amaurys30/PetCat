@@ -1,5 +1,7 @@
 import type { CitaPanel } from "@/api/citas";
-import { hora, tiempoCorto } from "@/lib/format";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+import { fechaHoraLarga, hora, parseFechaHora, tiempoCorto } from "@/lib/format";
 
 export const nombreCompleto = (p: { nombre: string; apellido: string }) => `${p.nombre} ${p.apellido}`;
 
@@ -63,3 +65,32 @@ export const ORIGEN: Record<CitaPanel["origen"], string> = {
   presencial: "Presencial",
   telefono: "Teléfono",
 };
+
+/** 38 -> "3 años", 8 -> "8 meses", 12 -> "1 año". */
+export function textoEdad(meses: number | null): string | null {
+  if (meses === null) return null;
+  if (meses < 12) return `${meses} ${meses === 1 ? "mes" : "meses"}`;
+  const anios = Math.floor(meses / 12);
+  return `${anios} ${anios === 1 ? "año" : "años"}`;
+}
+
+/** "4,2 kg" */
+export const textoPeso = (kg: number | null) =>
+  kg === null ? null : `${new Intl.NumberFormat("es-CO", { maximumFractionDigits: 1 }).format(kg)} kg`;
+
+/** "Confírmala antes de las 11:30 a.m." (hoy) o "antes del 26 de octubre, 11:30 a.m.". */
+export function textoPlazoLargo(valor: string, hoy: string): string {
+  const enHora = format(parseFechaHora(valor), "h:mm aaaa", { locale: es });
+  return valor.startsWith(hoy) ? `antes de las ${enHora}` : `antes del ${fechaHoraLarga(valor)}`;
+}
+
+const POR_CANCELACION = { dueno: "el cliente", negocio: "el negocio", sistema: "el sistema" } as const;
+
+/** "Cancelada por el cliente (tardía): Se me presentó un viaje". */
+export function textoCancelacion(c: Pick<CitaPanel, "cancelacion">): string | null {
+  const x = c.cancelacion;
+  if (!x) return null;
+  if (x.por === "sistema") return "Se canceló sola: nadie la confirmó a tiempo.";
+  const por = x.por ? ` por ${POR_CANCELACION[x.por]}` : "";
+  return `Cancelada${por}${x.tardia ? " a menos de 2 horas (tardía)" : ""}${x.motivo ? `: ${x.motivo}` : "."}`;
+}
