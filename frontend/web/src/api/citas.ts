@@ -84,8 +84,16 @@ export interface ConsultaHorarios {
   id_empleado?: number;
   /** La cita que se reprograma: no ocupa su hora (exige citas.editar). */
   id_cita_excluir?: number;
+  /** Sin las horas en que la mascota ya tiene otra cita. */
+  id_mascota?: number;
 }
 
 /** citas.crear o citas.editar. Sin antelación mínima; `motivo_sin_horarios` si no hay. */
 export const getHorariosLibresPanel = (idNegocio: number, consulta: ConsultaHorarios) =>
   apiGet<HorariosLibres>(`/negocios/${idNegocio}/citas/horarios-libres`, consulta);
+
+export type CrearCitaPanelBody = Body<"/negocios/{id_negocio}/citas", "post">;
+
+/** citas.crear (B5). Queda confirmada. 403 con `errors.plan` si el mes de la cita ya llegó al límite del plan. */
+export const crearCitaPanel = (idNegocio: number, body: CrearCitaPanelBody) =>
+  apiPost<Cita>(`/negocios/${idNegocio}/citas`, body);

@@ -38,6 +38,11 @@ export const queryKeys = {
       ["servicios", idNegocio, "detalle", idServicio] as const,
   },
   categoriasServicio: () => ["categorias-servicio"] as const,
+  clientes: {
+    todos: (idNegocio: number) => ["clientes", idNegocio] as const,
+    lista: (idNegocio: number, params: object) => ["clientes", idNegocio, "lista", params] as const,
+    detalle: (idNegocio: number, idUsuario: number) => ["clientes", idNegocio, "detalle", idUsuario] as const,
+  },
   disponibilidad: {
     todo: (idEmpleado: number) => ["disponibilidad", idEmpleado] as const,
     efectiva: (idEmpleado: number, fecha: string) =>

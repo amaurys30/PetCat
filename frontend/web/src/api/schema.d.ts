@@ -1810,7 +1810,7 @@ export interface paths {
         };
         /**
          * Horarios libres para agendar (panel)
-         * @description Requiere `citas.crear` o `citas.editar` (agendar o reprogramar). Igual que el de la app, pero admite servicios ocultos en la app (del propio negocio) y no aplica la antelación mínima (solo que el horario sea futuro). Con `id_cita_excluir` (reprogramar), esa cita no ocupa su hora ni cuenta en los cupos ni en el límite del plan; debe ser de este negocio (422) y exige `citas.editar` (403). Si el negocio alcanzó el límite de citas del mes de su plan, no hay horarios y `motivo_sin_horarios` lo dice ("El negocio alcanzó las 30 citas de su plan Gratuito en octubre de 2026").
+         * @description Requiere `citas.crear` o `citas.editar` (agendar o reprogramar). Igual que el de la app, pero admite servicios ocultos en la app (del propio negocio) y no aplica la antelación mínima (solo que el horario sea futuro). Con `id_cita_excluir` (reprogramar), esa cita no ocupa su hora ni cuenta en los cupos ni en el límite del plan; debe ser de este negocio (422) y exige `citas.editar` (403). Con `id_mascota`, no ofrece las horas en que la mascota ya tiene otra cita (el cruce daría 409 al reservar). Si el negocio alcanzó el límite de citas del mes de su plan, no hay horarios y `motivo_sin_horarios` lo dice ("El negocio alcanzó las 30 citas de su plan Gratuito en octubre de 2026").
          */
         get: {
             parameters: {
@@ -1824,6 +1824,8 @@ export interface paths {
                     id_empleado?: components["parameters"]["horariosLibresEmpleado"];
                     /** @description Cita que se reprograma (no ocupa su hora) */
                     id_cita_excluir?: number;
+                    /** @description Quita las horas en que la mascota ya tiene otra cita, en cualquier negocio (422 si no existe o falleció) */
+                    id_mascota?: number;
                 };
                 header?: never;
                 path: {
@@ -2091,6 +2093,8 @@ export interface paths {
                             /** @example OK */
                             message: string;
                             data: (components["schemas"]["ClienteContacto"] & {
+                                /** @description Alguna vez inició sesión */
+                                usa_app: boolean;
                                 mascotas: {
                                     id_mascota: number;
                                     nombre: string;
@@ -2168,7 +2172,7 @@ export interface paths {
         put?: never;
         /**
          * Registrar un cliente sin app (panel)
-         * @description Requiere `citas.crear`. Crea la cuenta del cliente con su primera mascota. Exige `autoriza_tratamiento_datos: true` (Ley 1581 de 2012): se guarda con la fecha, el negocio, quién la registró, la versión de la política y la IP. El cliente recibe un correo de bienvenida con el nombre del negocio y el enlace `${FRONTEND_URL}/crear-password/<token>` (vigente 7 días; se usa con `POST /auth/reset-password`). Después se agenda con `POST /negocios/{id_negocio}/citas`.
+         * @description Requiere `citas.crear`. Crea la cuenta del cliente con su primera mascota. Exige `autoriza_tratamiento_datos: true` (Ley 1581 de 2012): se guarda con la fecha, el negocio, quién la registró, la versión de la política y la IP. Con correo, el cliente recibe la bienvenida con el nombre del negocio y el enlace `${FRONTEND_URL}/crear-password/<token>` (vigente 7 días; se usa con `POST /auth/reset-password`). Sin correo queda **sin cuenta** (`sin_cuenta: true`): el teléfono es obligatorio (422), no recibe correos ni recordatorios y no puede iniciar sesión; si ya hay un usuario activo con ese teléfono, 409 (buscarlo con clientes/buscar). Después se agenda con `POST /negocios/{id_negocio}/citas`.
          */
         post: {
             parameters: {
@@ -2186,9 +2190,10 @@ export interface paths {
                         apellido: string;
                         /**
                          * Format: email
-                         * @description Obligatorio por ahora
+                         * @description Sin correo
                          */
-                        email: string;
+                        email?: string;
+                        /** @description Obligatorio si no hay correo */
                         telefono?: string;
                         /**
                          * @description El titular autorizó el tratamiento de sus datos
@@ -2209,11 +2214,13 @@ export interface paths {
                         "application/json": {
                             /** @example true */
                             success: boolean;
-                            /** @example Cliente registrado. Le enviamos un correo para que cree su contraseña */
-                            message: string;
+                            /** @enum {string} */
+                            message: "Cliente registrado. Le enviamos un correo para que cree su contraseña" | "Cliente registrado sin cuenta: no recibirá correos ni recordatorios y no podrá entrar a la app";
                             data: {
                                 cliente: components["schemas"]["ClienteContacto"];
                                 mascota: components["schemas"]["Mascota"];
+                                /** @description Se registró sin correo */
+                                sin_cuenta: boolean;
                             };
                         };
                     };
@@ -2221,7 +2228,7 @@ export interface paths {
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                /** @description Ya existe una cuenta con ese correo (buscarla con clientes/buscar) */
+                /** @description Ya existe una cuenta con ese correo o, sin correo, un usuario con ese teléfono (buscarlo con clientes/buscar) */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -6467,7 +6474,7 @@ export interface paths {
         };
         /**
          * Servicios del negocio (panel)
-         * @description Requiere `servicios.ver`. Incluye servicios inactivos y ocultos (activos primero). Cada servicio trae sus empleados activos asignados y `sin_empleados`.
+         * @description Requiere `servicios.ver` o `citas.crear` (para elegir el servicio al agendar). Incluye servicios inactivos y ocultos (activos primero). Cada servicio trae sus empleados activos asignados y `sin_empleados`.
          */
         get: {
             parameters: {
@@ -7925,9 +7932,9 @@ export interface components {
             cliente: {
                 /**
                  * Format: email
-                 * @description Para contactarlo por su cita
+                 * @description Para contactarlo por su cita, como el teléfono (el perfil completo exige clientes.ver). null: cliente sin cuenta
                  */
-                email: string;
+                email: string | null;
                 /** @description Alguna vez inició sesión */
                 usa_app: boolean;
                 /** @description Solo las citas del cliente con este negocio, nunca las de otros negocios */
@@ -7942,8 +7949,11 @@ export interface components {
             id_usuario: number;
             nombre: string;
             apellido: string;
-            /** Format: email */
-            email: string;
+            /**
+             * Format: email
+             * @description null en un cliente sin cuenta (registrado desde el panel sin correo; tiene teléfono)
+             */
+            email: string | null;
             telefono: string | null;
         };
         ClienteFila: components["schemas"]["ClienteContacto"] & {
