@@ -699,8 +699,18 @@ router.get(
  *                       valor_nuevo: { type: string, nullable: true }
  *                       motivo: { type: string, nullable: true }
  *                       realizado_por: { type: string, enum: [dueno, negocio, sistema] }
- *                       usuario: { type: object, nullable: true, x-opcional: true, description: Solo en el panel }
- *                       empleado: { type: object, nullable: true, x-opcional: true, description: Solo en el panel }
+ *                       usuario:
+ *                         type: object
+ *                         nullable: true
+ *                         x-opcional: true
+ *                         description: Solo en el panel. Quién hizo el cambio (null en los del sistema)
+ *                         properties: { id_usuario: { type: integer }, nombre: { type: string }, apellido: { type: string } }
+ *                       empleado:
+ *                         type: object
+ *                         nullable: true
+ *                         x-opcional: true
+ *                         description: Solo en el panel. Su perfil de empleado en el negocio, si lo tiene
+ *                         properties: { id_empleado: { type: integer }, nombre: { type: string }, apellido: { type: string } }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       403: { $ref: '#/components/responses/Forbidden' }
  *       404: { $ref: '#/components/responses/NotFound' }
