@@ -7,7 +7,6 @@ import { inputClases } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { ESTADOS_CITA, type CambiosUrl, type FiltrosUrl, type Vista } from "../hooks/useAgenda";
 import { nombreCompleto } from "../textos";
@@ -37,6 +36,7 @@ export function BarraAgenda({
   sedes,
   conPerfilPropio,
   puedeCrear,
+  onNuevaCita,
   onAnterior,
   onSiguiente,
   onHoy,
@@ -49,6 +49,7 @@ export function BarraAgenda({
   /** El usuario es profesional de este negocio ("Solo mis citas"). */
   conPerfilPropio: boolean;
   puedeCrear: boolean;
+  onNuevaCita: () => void;
   onAnterior: () => void;
   onSiguiente: () => void;
   onHoy: () => void;
@@ -152,13 +153,9 @@ export function BarraAgenda({
         )}
 
         {puedeCrear && (
-          <Tooltip texto="Agendar desde el panel llega en P4.3">
-            <span>
-              <Button disabled>
-                <Plus /> Nueva cita
-              </Button>
-            </span>
-          </Tooltip>
+          <Button onClick={onNuevaCita}>
+            <Plus /> Nueva cita
+          </Button>
         )}
       </div>
     </div>

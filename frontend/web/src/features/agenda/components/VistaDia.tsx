@@ -49,6 +49,7 @@ export function VistaDia({
   minutoActual,
   idSeleccionada,
   onAbrir,
+  onHueco,
 }: {
   fecha: string;
   citas: CitaPanel[];
@@ -60,6 +61,7 @@ export function VistaDia({
   minutoActual: number;
   idSeleccionada?: number;
   onAbrir: (cita: CitaPanel) => void;
+  onHueco?: (columna: string, minuto: number) => void;
 }) {
   const disponibilidad = useDisponibilidadDelDia(
     profesionales.map((p) => p.id_empleado),
@@ -132,6 +134,7 @@ export function VistaDia({
       ahora={fecha === hoy ? { minuto: minutoActual, columnas: [...claves] } : null}
       idSeleccionada={idSeleccionada}
       onAbrir={onAbrir}
+      onHueco={onHueco}
     />
   );
 }

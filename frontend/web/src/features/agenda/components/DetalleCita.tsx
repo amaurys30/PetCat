@@ -265,15 +265,25 @@ function Cliente({ cita }: { cita: CitaPanelDetalle }) {
                 {c.telefono}
               </a>
             )}
-            {c.telefono && " · "}
-            <a href={`mailto:${c.email}`} className="hover:text-primary hover:underline">
-              {c.email}
-            </a>
+            {c.telefono && c.email && " · "}
+            {c.email && (
+              <a href={`mailto:${c.email}`} className="hover:text-primary hover:underline">
+                {c.email}
+              </a>
+            )}
           </p>
         </div>
       </div>
       <div className="mt-3 flex flex-wrap gap-2" aria-label="Cumplimiento con este negocio">
-        <Badge tono="info">{c.usa_app ? "Usa la app" : "Sin app"}</Badge>
+        {c.email === null ? (
+          <Tooltip texto="Registrado sin correo: no recibe correos ni recordatorios y no puede entrar a la app">
+            <span>
+              <Badge>Sin cuenta</Badge>
+            </span>
+          </Tooltip>
+        ) : (
+          <Badge tono="info">{c.usa_app ? "Usa la app" : "Sin app"}</Badge>
+        )}
         <Badge tono="primary">{plural(h.completadas, "completada", "completadas")}</Badge>
         <Badge tono={h.inasistencias > 0 ? "warning" : "neutral"}>
           {plural(h.inasistencias, "inasistencia", "inasistencias")}

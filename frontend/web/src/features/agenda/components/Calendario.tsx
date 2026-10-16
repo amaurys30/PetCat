@@ -34,6 +34,7 @@ export function Calendario({
   vista,
   idSeleccionada,
   onAbrir,
+  onHueco,
 }: {
   columnas: ColumnaCalendario[];
   citas: { cita: CitaPanel; columna: string }[];
@@ -43,6 +44,8 @@ export function Calendario({
   vista: "semana" | "dia";
   idSeleccionada?: number;
   onAbrir: (cita: CitaPanel) => void;
+  /** Clic en un espacio vacío de una columna: agendar ahí (fila de 15 minutos). */
+  onHueco?: (columna: string, minuto: number) => void;
 }) {
   const scroll = useRef<HTMLDivElement>(null);
   const alto = px(ventana.fin - ventana.inicio);
@@ -119,7 +122,13 @@ export function Calendario({
               key={col.clave}
               role="group"
               aria-label={col.nombre}
-              className={cn("relative border-l", col.resaltada && "bg-selected/60")}
+              className={cn("relative border-l", col.resaltada && "bg-selected/60", onHueco && "cursor-copy")}
+              // Solo con el mouse: con teclado se agenda con "+ Nueva cita".
+              onClick={(e) => {
+                if (!onHueco || (e.target as HTMLElement).closest("button")) return;
+                const y = e.clientY - e.currentTarget.getBoundingClientRect().top;
+                onHueco(col.clave, ventana.inicio + Math.floor(y / ALTO_FILA) * MINUTOS_FILA);
+              }}
               style={{
                 height: alto,
                 backgroundImage: `repeating-linear-gradient(to bottom, var(--color-border) 0 1px, transparent 1px ${px(60)}px)`,

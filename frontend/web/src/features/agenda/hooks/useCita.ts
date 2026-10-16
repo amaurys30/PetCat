@@ -128,3 +128,14 @@ export function useActualizarCita(idNegocio: number) {
     onSettled: recargar,
   });
 }
+
+/** B5 · Agendar desde el panel (queda confirmada). */
+export function useCrearCita(idNegocio: number) {
+  const recargar = useRecargar(idNegocio);
+  return useMutation({
+    meta,
+    mutationFn: (body: api.CrearCitaPanelBody) => api.crearCitaPanel(idNegocio, body),
+    onError: abrirLimitePlanSiAplica,
+    onSettled: recargar,
+  });
+}

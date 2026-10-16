@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router";
 import type { CitaPanel, FiltrosAgenda } from "@/api/citas";
 import type { Profesional } from "@/api/empleados";
@@ -10,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { aviso } from "@/components/ui/toaster";
 import { useSedes } from "@/features/equipo/hooks/useDisponibilidad";
 import { useNegocioActivo, usePuede } from "@/features/negocios/hooks/useNegocio";
-import { diasDeSemana, sumarDias, tituloDia, tituloRango } from "@/lib/agenda";
+import { aHora, diasDeSemana, fechaHoraCita, sumarDias, tituloDia, tituloRango } from "@/lib/agenda";
 import { hoyISO, minutoActualBogota } from "@/lib/format";
 import { useUi } from "@/stores/ui";
 import { BarraAgenda } from "../components/BarraAgenda";
@@ -19,6 +20,7 @@ import { PanelAtencion } from "../components/PanelAtencion";
 import { VistaDia } from "../components/VistaDia";
 import { VistaLista } from "../components/VistaLista";
 import { VistaSemana } from "../components/VistaSemana";
+import { NuevaCitaDialog, type InicioNuevaCita } from "../components/nueva/NuevaCitaDialog";
 import { useAgenda, useAhora, useAtencion, useFiltrosUrl, useProfesionales } from "../hooks/useAgenda";
 import { useCambiarEstado } from "../hooks/useCita";
 
@@ -63,6 +65,8 @@ export function AgendaPage() {
   const atencion = useAtencion(negocio.id_negocio, filtrosApi, verCitas);
   const confirmar = useCambiarEstado(negocio.id_negocio);
   const abrirAccion = useUi((s) => s.abrirAccionCita);
+  const [nuevaCita, setNuevaCita] = useState<InicioNuevaCita | null>(null);
+  const puedeCrear = puede("citas", "crear");
 
   if (!verCitas) {
     return (
@@ -109,7 +113,8 @@ export function AgendaPage() {
         profesionales={profesionales.data ?? []}
         sedes={sedes ?? []}
         conPerfilPropio={negocio.id_empleado !== null}
-        puedeCrear={puede("citas", "crear")}
+        puedeCrear={puedeCrear}
+        onNuevaCita={() => setNuevaCita({ fecha: filtros.vista === "dia" ? filtros.fecha : undefined })}
         onAnterior={() => cambiar({ fecha: sumarDias(filtros.fecha, -paso), idCita: undefined })}
         onSiguiente={() => cambiar({ fecha: sumarDias(filtros.fecha, paso), idCita: undefined })}
         onHoy={() => cambiar({ fecha: hoy, idCita: undefined })}
@@ -141,6 +146,9 @@ export function AgendaPage() {
               minutoActual={minutoActualBogota(ahora)}
               idSeleccionada={filtros.idCita}
               onAbrir={abrir}
+              onHueco={
+                puedeCrear ? (dia, minuto) => setNuevaCita({ fecha: dia, hora: aHora(minuto) }) : undefined
+              }
             />
           ) : filtros.vista === "dia" ? (
             <VistaDia
@@ -157,6 +165,16 @@ export function AgendaPage() {
               minutoActual={minutoActualBogota(ahora)}
               idSeleccionada={filtros.idCita}
               onAbrir={abrir}
+              onHueco={
+                puedeCrear
+                  ? (columna, minuto) =>
+                      setNuevaCita({
+                        fecha: filtros.fecha,
+                        hora: aHora(minuto),
+                        idEmpleado: Number(columna) || undefined,
+                      })
+                  : undefined
+              }
             />
           ) : (
             <VistaLista
@@ -203,6 +221,19 @@ export function AgendaPage() {
 
       {filtros.idCita !== undefined && (
         <DetalleCita idCita={filtros.idCita} onCerrar={() => cambiar({ idCita: undefined })} />
+      )}
+      {nuevaCita && (
+        <NuevaCitaDialog
+          inicio={nuevaCita}
+          onCerrar={() => setNuevaCita(null)}
+          onCreada={(cita) => {
+            setNuevaCita(null);
+            aviso.exito(
+              `Cita agendada y confirmada: ${cita.mascota.nombre}, ${fechaHoraCita(cita.fecha, cita.hora_inicio)}`,
+            );
+            cambiar({ fecha: cita.fecha, idCita: cita.id_cita });
+          }}
+        />
       )}
     </div>
   );

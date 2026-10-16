@@ -17,6 +17,7 @@ export function VistaSemana({
   minutoActual,
   idSeleccionada,
   onAbrir,
+  onHueco,
 }: {
   dias: string[];
   citas: CitaPanel[];
@@ -25,6 +26,7 @@ export function VistaSemana({
   minutoActual: number;
   idSeleccionada?: number;
   onAbrir: (cita: CitaPanel) => void;
+  onHueco?: (columna: string, minuto: number) => void;
 }) {
   const conAlgo = dias.filter((d) => abiertosDelDia(sedes, d).length > 0 || citas.some((c) => c.fecha === d));
   const visibles = conAlgo.length > 0 ? conAlgo : dias;
@@ -48,6 +50,7 @@ export function VistaSemana({
       ahora={visibles.includes(hoy) ? { minuto: minutoActual, columnas: [hoy] } : null}
       idSeleccionada={idSeleccionada}
       onAbrir={onAbrir}
+      onHueco={onHueco}
     />
   );
 }
