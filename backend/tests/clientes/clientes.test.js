@@ -298,3 +298,110 @@ describe("clientes sin cuenta (registrados sin correo)", () => {
     expect(sucursal).toBeGreaterThan(0);
   });
 });
+
+describe("PUT /negocios/:id_negocio/clientes/:id_usuario/correo", () => {
+  const telefonoUnico = () => `31${String(Date.now()).slice(-8)}`;
+  const sinCuenta = async (ctx) => {
+    const res = await api(ctx.token)
+      .post(`/negocios/${ctx.negocio.id_negocio}/clientes`)
+      .send(datosCliente({ email: undefined, telefono: telefonoUnico() }));
+    return res.body.data.cliente;
+  };
+  const ponerCorreo = (ctx, id_usuario, email, token = ctx.token) =>
+    api(token).put(`/negocios/${ctx.negocio.id_negocio}/clientes/${id_usuario}/correo`).send({ email });
+  const detalle = (ctx, id_usuario) => api(ctx.token).get(`/negocios/${ctx.negocio.id_negocio}/clientes/${id_usuario}`);
+
+  it("agrega el correo a un cliente sin cuenta, envía la bienvenida y con ella activa su cuenta", async () => {
+    const ctx = await contexto();
+    const cliente = await sinCuenta(ctx);
+    expect((await detalle(ctx, cliente.id_usuario)).body.data.cliente.correo_editable).toBe(true);
+    const email = `nuevo_${unique()}@petcat.test`;
+
+    const res = await ponerCorreo(ctx, cliente.id_usuario, email.toUpperCase());
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toBe("Correo agregado. Le enviamos la bienvenida para que active su cuenta");
+    expect(res.body.data).toEqual({ accion: "agregado", cliente: { ...cliente, email } });
+    expect(outbox).toHaveLength(1);
+    expect(outbox[0]).toMatchObject({ to: email, subject: `${ctx.negocio.nombre} te registró en PetCat` });
+
+    const enlace = tokenDelCorreo(outbox[0]);
+    expect((await api().post("/auth/reset-password").send({ token: enlace, password: "MiClave2026" })).status).toBe(200);
+    const login = await api().post("/auth/login").send({ email, password: "MiClave2026" });
+    expect(login.status).toBe(200);
+
+    // Activada la cuenta, el negocio ya no puede cambiar el correo.
+    expect((await detalle(ctx, cliente.id_usuario)).body.data.cliente).toMatchObject({ usa_app: true, correo_editable: false });
+    const otra = await ponerCorreo(ctx, cliente.id_usuario, `otro_${unique()}@petcat.test`);
+    expect(otra.status).toBe(409);
+    expect(otra.body.message).toBe("El cliente ya activó su cuenta: solo él puede cambiar su correo desde la app");
+  });
+
+  it("corregir el correo invalida el enlace anterior; el mismo correo reenvía con un minuto de espera", async () => {
+    const ctx = await contexto();
+    const registro = await api(ctx.token).post(`/negocios/${ctx.negocio.id_negocio}/clientes`).send(datosCliente());
+    const { id_usuario } = registro.body.data.cliente;
+    const enlaceViejo = tokenDelCorreo(outbox[0]);
+    clearOutbox();
+    const correcto = `corregido_${unique()}@petcat.test`;
+
+    const res = await ponerCorreo(ctx, id_usuario, correcto);
+    expect(res.status).toBe(200);
+    expect(res.body.data.accion).toBe("corregido");
+    expect(res.body.message).toBe("Correo corregido. Le enviamos una bienvenida nueva; el enlace anterior ya no sirve");
+    expect(outbox.map((m) => m.to)).toEqual([correcto]);
+    const enlaceNuevo = tokenDelCorreo(outbox[0]);
+
+    const viejo = await api().post("/auth/reset-password").send({ token: enlaceViejo, password: "MiClave2026" });
+    expect(viejo.status).toBe(400);
+
+    // Reenviar al mismo correo enseguida: 429 y el enlace vigente sigue sirviendo.
+    const reenvio = await ponerCorreo(ctx, id_usuario, correcto);
+    expect(reenvio.status).toBe(429);
+    await pool.query("UPDATE usuarios SET token_recuperacion_expira = token_recuperacion_expira - INTERVAL 2 MINUTE WHERE id_usuario = ?", [
+      id_usuario,
+    ]);
+    clearOutbox();
+    const otraVez = await ponerCorreo(ctx, id_usuario, correcto);
+    expect(otraVez.status).toBe(200);
+    expect(otraVez.body).toMatchObject({ message: "Le reenviamos la bienvenida", data: { accion: "reenviado" } });
+    expect(outbox).toHaveLength(1);
+    expect((await api().post("/auth/reset-password").send({ token: enlaceNuevo, password: "MiClave2026" })).status).toBe(400);
+    expect((await api().post("/auth/reset-password").send({ token: tokenDelCorreo(outbox[0]), password: "MiClave2026" })).status).toBe(200);
+  });
+
+  it("correo de otra cuenta -> 409; otro negocio no corrige un correo que no registró -> 403; no cliente -> 404", async () => {
+    const ctx = await contexto();
+    const cliente = await sinCuenta(ctx);
+    const ajeno = await crearUsuario();
+    const dup = await ponerCorreo(ctx, cliente.id_usuario, ajeno.email);
+    expect(dup.status).toBe(409);
+    expect(dup.body.errors).toEqual({ email: "Ya está registrado" });
+
+    // Cliente con correo registrado por la clínica, que también tiene una cita en otro negocio.
+    const registro = await api(ctx.token).post(`/negocios/${ctx.negocio.id_negocio}/clientes`).send(datosCliente());
+    const otro = await contexto();
+    const id_usuario = registro.body.data.cliente.id_usuario;
+    const [[mascota]] = await pool.query("SELECT id_mascota FROM mascotas WHERE id_usuario = ?", [id_usuario]);
+    await crearCita(otro.negocio, { cliente: { id_usuario }, mascota });
+    expect((await api(otro.token).get(`/negocios/${otro.negocio.id_negocio}/clientes/${id_usuario}`)).body.data.cliente.correo_editable).toBe(false);
+    expect((await ponerCorreo(otro, id_usuario, `x_${unique()}@petcat.test`)).status).toBe(403);
+
+    expect((await ponerCorreo(otro, ajeno.id_usuario, `y_${unique()}@petcat.test`)).status).toBe(404);
+  });
+
+  it("acepta citas.crear o clientes.editar; con otro permiso -> 403", async () => {
+    const ctx = await contexto();
+    const conRol = async (permisos) => {
+      const usuario = await crearUsuario();
+      await crearEmpleado(ctx.negocio, { usuario, rol: (await crearRol(ctx.negocio, permisos)).id_rol });
+      return tokenDe(usuario);
+    };
+    const a = await sinCuenta(ctx);
+    expect((await ponerCorreo(ctx, a.id_usuario, `a_${unique()}@petcat.test`, await conRol({ citas: ["crear"] }))).status).toBe(200);
+    const b = await sinCuenta(ctx);
+    expect((await ponerCorreo(ctx, b.id_usuario, `b_${unique()}@petcat.test`, await conRol({ clientes: ["editar"] }))).status).toBe(200);
+    const c = await sinCuenta(ctx);
+    expect((await ponerCorreo(ctx, c.id_usuario, `c_${unique()}@petcat.test`, await conRol({ clientes: ["ver"] }))).status).toBe(403);
+  });
+});

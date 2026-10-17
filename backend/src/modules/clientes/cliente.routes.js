@@ -9,6 +9,7 @@ import {
   listClientesQuery,
   notaBody,
   notasQuery,
+  correoClienteBody,
   registrarClienteBody,
 } from "./cliente.schemas.js";
 import { idNegocioParams } from "../negocios/negocio.schemas.js";
@@ -177,6 +178,9 @@ router.get(
  *             ultima_cita: { type: string, format: date, nullable: true, description: Última cita ya pasada (sin canceladas ni reprogramadas) }
  *             proxima_cita: { type: string, format: date, nullable: true }
  *             inasistencias: { type: integer, description: Con este negocio }
+ *             usa_app: { type: boolean, description: Alguna vez inició sesión }
+ *             registrado_por_el_negocio: { type: boolean }
+ *             cliente_desde: { type: string, format: date, description: Primera cita o autorización registrada por el negocio }
  *     ClienteDetalle:
  *       type: object
  *       properties:
@@ -188,6 +192,11 @@ router.get(
  *                 cliente_desde: { type: string, format: date, description: Primera cita o autorización registrada por el negocio }
  *                 registrado_por_el_negocio: { type: boolean }
  *                 usa_app: { type: boolean, description: Alguna vez inició sesión }
+ *                 correo_editable:
+ *                   type: boolean
+ *                   description: >
+ *                     El negocio puede ponerle correo (no tiene) o corregirlo (lo registró este negocio y aún no activó
+ *                     su cuenta) con PUT /negocios/{id_negocio}/clientes/{id_usuario}/correo
  *         historial_cumplimiento:
  *           type: object
  *           description: Solo las citas del cliente con este negocio
@@ -561,6 +570,78 @@ router.post(
   validate({ params: clienteParams, body: agregarMascotaBody }),
   authorize("citas", "crear"),
   controller.agregarMascota
+);
+
+/**
+ * @swagger
+ * /negocios/{id_negocio}/clientes/{id_usuario}/correo:
+ *   put:
+ *     summary: Poner o corregir el correo de un cliente sin cuenta activa (panel)
+ *     description: >
+ *       Requiere `citas.crear` o `clientes.editar`. Le envía la bienvenida con el nombre del negocio y el enlace
+ *       `${FRONTEND_URL}/crear-password/<token>` (vigente 7 días); al crear su contraseña con
+ *       `POST /auth/reset-password` la cuenta queda activa y puede entrar a la app. Se permite si el cliente no tiene
+ *       correo, o para corregir el de un cliente que registró este negocio y que aún no activó su cuenta
+ *       (`correo_editable` del detalle). Al corregirlo, el enlace anterior deja de servir. Con el mismo correo
+ *       es un reenvío de la bienvenida. Tiene el límite estricto de solicitudes.
+ *     tags: [Clientes]
+ *     parameters:
+ *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
+ *       - { in: path, name: id_usuario, required: true, schema: { type: integer } }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             additionalProperties: false
+ *             required: [email]
+ *             properties:
+ *               email: { type: string, format: email, maxLength: 150 }
+ *     responses:
+ *       200:
+ *         description: Correo guardado y bienvenida enviada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message:
+ *                   type: string
+ *                   enum:
+ *                     - Correo agregado. Le enviamos la bienvenida para que active su cuenta
+ *                     - Correo corregido. Le enviamos una bienvenida nueva; el enlace anterior ya no sirve
+ *                     - Le reenviamos la bienvenida
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     cliente: { $ref: '#/components/schemas/ClienteContacto' }
+ *                     accion: { type: string, enum: [agregado, corregido, reenviado] }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403:
+ *         description: Sin permiso, o el cliente ya tiene correo y no lo registró este negocio
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorResponse' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       409:
+ *         description: El cliente ya activó su cuenta (solo él cambia su correo) o el correo es de otra cuenta
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorResponse' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ *       429: { $ref: '#/components/responses/TooManyRequests' }
+ */
+router.put(
+  "/negocios/:id_negocio/clientes/:id_usuario/correo",
+  authMiddleware,
+  validate({ params: clienteParams, body: correoClienteBody }),
+  authorizeAny([
+    ["citas", "crear"],
+    ["clientes", "editar"],
+  ]),
+  controller.asignarCorreo
 );
 
 export default router;

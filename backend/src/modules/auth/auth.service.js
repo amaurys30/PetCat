@@ -300,12 +300,14 @@ export const MINUTOS_BIENVENIDA = 7 * 24 * 60;
 
 /**
  * Deja el token para que un cliente registrado por un negocio cree su contraseña
- * (mismo flujo que restablecer, con vigencia de 7 días). Devuelve el token real.
+ * (mismo flujo que restablecer, con vigencia de 7 días). Reemplaza el enlace anterior.
+ * Devuelve el token real, o null si ya se emitió uno hace menos de `esperaMinutos`
+ * (con 0 siempre se emite: al corregir un correo el enlace anterior no debe servir).
  */
-export const emitirEnlaceBienvenida = async (id_usuario, conn) => {
+export const emitirEnlaceBienvenida = async (id_usuario, conn, { esperaMinutos = 1 } = {}) => {
   const { token, token_hash } = nuevoToken();
-  await usuarioRepo.setToken(id_usuario, "recuperacion", { token_hash, minutos: MINUTOS_BIENVENIDA }, conn);
-  return token;
+  const emitido = await usuarioRepo.setToken(id_usuario, "recuperacion", { token_hash, minutos: MINUTOS_BIENVENIDA, esperaMinutos }, conn);
+  return emitido ? token : null;
 };
 
 /** Correo de bienvenida con el nombre del negocio; se envía sin esperar. */

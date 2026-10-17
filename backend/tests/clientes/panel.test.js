@@ -58,8 +58,18 @@ describe("GET /negocios/:id_negocio/clientes", () => {
       ultima_cita: sumarDias(HOY, -10),
       proxima_cita: sumarDias(HOY, 3),
       inasistencias: 2,
+      usa_app: false,
+      registrado_por_el_negocio: false,
+      cliente_desde: sumarDias(HOY, -30),
     });
-    expect(res.body.data[2]).toMatchObject({ nombre: "Marta", total_citas: 0, ultima_cita: null, inasistencias: 0 });
+    expect(res.body.data[2]).toMatchObject({
+      nombre: "Marta",
+      total_citas: 0,
+      ultima_cita: null,
+      inasistencias: 0,
+      registrado_por_el_negocio: true,
+      cliente_desde: HOY,
+    });
   });
 
   it("busca por nombre, teléfono y mascota; ordena por nombre o inasistencias", async () => {
@@ -100,6 +110,7 @@ describe("GET /negocios/:id_negocio/clientes/:id_usuario", () => {
       cliente_desde: sumarDias(HOY, -30),
       registrado_por_el_negocio: false,
       usa_app: false,
+      correo_editable: false,
     });
     expect(historial_cumplimiento).toEqual({ completadas: 1, inasistencias: 2, cancelaciones_tardias: 1 });
     expect(mascotas).toEqual([
