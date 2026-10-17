@@ -1,4 +1,4 @@
-import { Bell, LayoutGrid, LogOut, Search, UserRound } from "lucide-react";
+import { Bell, LayoutGrid, LogOut, UserRound } from "lucide-react";
 import { Link, useMatches } from "react-router";
 import { Avatar } from "@/components/common/Avatar";
 import {
@@ -13,6 +13,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { useNegocioActivo } from "@/features/negocios/hooks/useNegocio";
 import { fechaLargaTitulo, hoyISO } from "@/lib/format";
 import { useAuth } from "@/stores/auth";
+import { BuscadorClientes } from "./BuscadorClientes";
 
 export interface HandleRuta {
   titulo?: string;
@@ -33,18 +34,7 @@ export function Topbar() {
           {fechaLargaTitulo(hoyISO())} · {negocio.nombre}
         </p>
       </div>
-      <Tooltip texto="La búsqueda llega con Clientes (P5)">
-        <div className="relative w-64">
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle" />
-          <input
-            type="search"
-            disabled
-            aria-label="Buscar cliente, mascota o cita"
-            placeholder="Buscar cliente, mascota o cita…"
-            className="h-9 w-full rounded-control border-0 bg-surface pr-3 pl-9 text-body placeholder:text-subtle"
-          />
-        </div>
-      </Tooltip>
+      <BuscadorClientes />
       <Tooltip texto="Las notificaciones llegan en P6">
         <span>
           <button
