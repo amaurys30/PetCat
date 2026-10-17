@@ -74,3 +74,7 @@ export const citasClienteQuery = paginationSchema.extend({
 });
 
 export const correoClienteBody = z.strictObject({ email });
+
+export const citasMascotaParams = idParam("id_negocio").extend({ id_mascota: z.coerce.number().int().positive() });
+
+export const citasMascotaQuery = citasClienteQuery;

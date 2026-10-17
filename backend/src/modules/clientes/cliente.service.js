@@ -223,3 +223,24 @@ export const getCitasCliente = async (id_negocio, id_usuario, { page, limit, est
   });
   return { rows: await formatCitasPanel(rows, id_negocio), meta: buildMeta(total, page, limit) };
 };
+
+/**
+ * Citas de una mascota con el negocio (ficha de la mascota y "Vincular a una cita"), de la
+ * más reciente hacia atrás. 404 si la mascota no existe, su dueño la eliminó o no tiene
+ * ninguna cita con el negocio (no se revela que exista).
+ */
+export const getCitasMascota = async (id_negocio, id_mascota, { page, limit, estado }, acceso) => {
+  const mascota = await mascotaRepo.findById(id_mascota);
+  if (!mascota?.activo || !(await clienteRepo.mascotaTieneCitas(id_mascota, id_negocio))) {
+    throw ApiError.notFound("Mascota no encontrada en este negocio");
+  }
+  const { rows, total } = await citaRepo.findPageDeUsuario(mascota.id_usuario, {
+    id_negocio,
+    id_mascota,
+    alcance: "todas",
+    estados: estado,
+    limit,
+    offset: (page - 1) * limit,
+  });
+  return { rows: await formatCitasPanel(rows, id_negocio, acceso), meta: buildMeta(total, page, limit) };
+};

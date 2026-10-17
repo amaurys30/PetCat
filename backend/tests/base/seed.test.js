@@ -227,6 +227,17 @@ describe("seed de desarrollo: datos realistas", () => {
     expect(res.body.data.evolucion_peso.puntos.length).toBeGreaterThanOrEqual(2);
   });
 
+  it("historial de Max en Patitas: comparte, así que ve el registro de Salud Animal sin su nota interna", async () => {
+    const patitas = await idNegocio(NEGOCIOS[0]);
+    const token = await login("propietario@petcat.test");
+    const max = await idMascota("cliente@petcat.test", "Max");
+    const res = await api(token).get(`/negocios/${patitas}/mascotas/${max}/historial`);
+    const ajeno = res.body.data.find((r) => r.negocio?.id_negocio !== patitas);
+    expect(ajeno).toMatchObject({ tipo: "urgencia", es_propio: false });
+    expect(ajeno).not.toHaveProperty("notas_internas");
+    expect(res.body.data.filter((r) => r.es_propio).length).toBeGreaterThanOrEqual(2);
+  });
+
   it("clientes de Patitas y Salud Animal: cumplimiento, cliente sin app y cita fuera de disponibilidad", async () => {
     const patitas = await idNegocio(NEGOCIOS[0]);
     const tokenPatitas = await login("propietario@petcat.test");

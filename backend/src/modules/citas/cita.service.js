@@ -621,7 +621,7 @@ export const getCita = async (id_cita, acceso) => {
 };
 
 /** Citas en el formato del panel (con notas internas y fuera_de_disponibilidad), de un mismo negocio. */
-export const formatCitasPanel = (rows, id_negocio) => {
+export const formatCitasPanel = (rows, id_negocio, acceso = null) => {
   const fechas = rows.map((r) => r.fecha).sort();
-  return conDisponibilidad(rows, id_negocio, fechas[0], fechas.at(-1));
+  return conDisponibilidad(rows, id_negocio, fechas[0], fechas.at(-1), acceso);
 };

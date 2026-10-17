@@ -4,6 +4,8 @@ import {
   agregarMascotaBody,
   buscarClienteQuery,
   citasClienteQuery,
+  citasMascotaParams,
+  citasMascotaQuery,
   clienteParams,
   idNotaParams,
   listClientesQuery,
@@ -642,6 +644,50 @@ router.put(
     ["clientes", "editar"],
   ]),
   controller.asignarCorreo
+);
+
+/**
+ * @swagger
+ * /negocios/{id_negocio}/mascotas/{id_mascota}/citas:
+ *   get:
+ *     summary: Citas de una mascota con el negocio (panel)
+ *     description: >
+ *       Requiere `citas.ver` o `clientes.ver` (un veterinario ve en la ficha las citas de la mascota, igual que en la
+ *       agenda). Solo las citas con este negocio, paginadas, de la más reciente hacia atrás. 404 si la mascota no
+ *       existe, su dueño la eliminó o no tiene ninguna cita con el negocio.
+ *     tags: [Clientes]
+ *     parameters:
+ *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
+ *       - { in: path, name: id_mascota, required: true, schema: { type: integer } }
+ *       - $ref: '#/components/parameters/page'
+ *       - $ref: '#/components/parameters/limit'
+ *       - { in: query, name: estado, schema: { type: string }, example: "completada,confirmada" }
+ *     responses:
+ *       200:
+ *         description: Página de citas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: OK }
+ *                 data: { type: array, items: { $ref: '#/components/schemas/CitaPanel' } }
+ *                 meta: { $ref: '#/components/schemas/PaginationMeta' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/Forbidden' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.get(
+  "/negocios/:id_negocio/mascotas/:id_mascota/citas",
+  authMiddleware,
+  validate({ params: citasMascotaParams, query: citasMascotaQuery }),
+  authorizeAny([
+    ["citas", "ver"],
+    ["clientes", "ver"],
+  ]),
+  controller.getCitasMascota
 );
 
 export default router;

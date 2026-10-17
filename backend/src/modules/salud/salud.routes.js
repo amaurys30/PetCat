@@ -26,18 +26,18 @@ const router = express.Router();
  *       type: object
  *       properties:
  *         mascota:
+ *           allOf:
+ *             - $ref: '#/components/schemas/Mascota'
+ *           description: >
+ *             La mascota completa (cabecera de la ficha), con `compartir_historial`. Alergias y condiciones
+ *             médicas siempre visibles.
+ *         dueno:
  *           type: object
- *           description: Datos básicos; alergias y condiciones médicas siempre visibles
+ *           description: Dueño de la mascota
  *           properties:
- *             id_mascota: { type: integer }
+ *             id_usuario: { type: integer }
  *             nombre: { type: string }
- *             especie: { type: string }
- *             edad_meses: { type: integer, nullable: true }
- *             peso: { type: number, nullable: true }
- *             tiene_alergias: { type: boolean }
- *             alergias_detalle: { type: string, nullable: true }
- *             condiciones_medicas: { type: string, nullable: true }
- *             fallecido: { type: boolean }
+ *             apellido: { type: string }
  *         vacunas_vencidas:
  *           type: array
  *           description: Dosis vigentes con fecha_proxima anterior a hoy, de la más vencida a la menos
@@ -49,20 +49,52 @@ const router = express.Router();
  *         ultimo_control:
  *           type: object
  *           nullable: true
- *           description: Registro de historial más reciente (fuente historial) o, si no hay, la última cita completada (fuente cita)
+ *           description: >
+ *             Registro de historial más reciente (fuente historial: id_historial, tipo y diagnóstico) o, si no
+ *             hay, la última cita completada (fuente cita: id_cita, hora, estado y servicio).
  *           properties:
  *             fuente: { type: string, enum: [historial, cita] }
  *             fecha: { type: string, format: date }
+ *             negocio:
+ *               type: object
+ *               nullable: true
+ *               properties: { id_negocio: { type: integer }, nombre: { type: string } }
+ *             id_historial: { type: integer, x-opcional: true }
+ *             tipo: { type: string, x-opcional: true }
+ *             diagnostico: { type: string, nullable: true, x-opcional: true }
+ *             id_cita: { type: integer, x-opcional: true }
+ *             hora_inicio: { type: string, example: "08:00", x-opcional: true }
+ *             estado: { type: string, x-opcional: true }
+ *             servicio:
+ *               type: object
+ *               x-opcional: true
+ *               properties: { id_servicio: { type: integer }, nombre: { type: string } }
  *         proximo_control:
  *           type: object
  *           nullable: true
  *           description: El proximo_control más cercano (hoy o después) que indicó un veterinario
  *           properties:
  *             fecha: { type: string, format: date }
+ *             id_historial: { type: integer }
+ *             negocio:
+ *               type: object
+ *               nullable: true
+ *               properties: { id_negocio: { type: integer }, nombre: { type: string } }
  *         proxima_cita:
  *           type: object
  *           nullable: true
  *           description: La cita pendiente o confirmada más cercana que no terminó (para un negocio, solo las suyas)
+ *           properties:
+ *             id_cita: { type: integer }
+ *             fecha: { type: string, format: date }
+ *             hora_inicio: { type: string, example: "08:00" }
+ *             estado: { type: string, enum: [pendiente, confirmada] }
+ *             servicio:
+ *               type: object
+ *               properties: { id_servicio: { type: integer }, nombre: { type: string } }
+ *             negocio:
+ *               type: object
+ *               properties: { id_negocio: { type: integer }, nombre: { type: string } }
  *         evolucion_peso:
  *           type: object
  *           properties:

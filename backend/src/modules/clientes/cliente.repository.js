@@ -178,3 +178,9 @@ export const lockCuenta = async (id_usuario, conn) => {
 export const updateEmail = async (id_usuario, email, conn) => {
   await conn.query("UPDATE usuarios SET email = ? WHERE id_usuario = ?", [email, id_usuario]);
 };
+
+/** La mascota tiene alguna cita (en cualquier estado) con el negocio. */
+export const mascotaTieneCitas = async (id_mascota, id_negocio) => {
+  const [rows] = await db.query("SELECT 1 FROM citas WHERE id_mascota = ? AND id_negocio = ? LIMIT 1", [id_mascota, id_negocio]);
+  return rows.length > 0;
+};

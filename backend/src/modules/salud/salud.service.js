@@ -5,6 +5,7 @@ import { vacunasConEstado } from "../vacunas/vacuna.service.js";
 import { diasEntre } from "../vacunas/vacuna.calculo.js";
 import { hoyISO } from "../../shared/utils/fechas.js";
 import { toNumber } from "../../shared/utils/format.js";
+import { formatMascota } from "../mascotas/mascota.service.js";
 
 const MESES_PESO = 24;
 const MAX_PUNTOS_PESO = 24;
@@ -45,6 +46,12 @@ const ultimaCitaCompletada = async (id_mascota, contexto) => {
   return rows[0];
 };
 
+/** Dueño de la mascota (cabecera de la ficha del panel). */
+const findDueno = async (id_usuario) => {
+  const [rows] = await db.query("SELECT id_usuario, nombre, apellido FROM usuarios WHERE id_usuario = ?", [id_usuario]);
+  return rows[0];
+};
+
 const proximaCita = async (id_mascota, contexto) => {
   const [condicion, valores] = filtroNegocio(contexto);
   const [rows] = await db.query(
@@ -78,23 +85,6 @@ export const evolucionPeso = (registros, pesoActual, hoy) => {
   return { peso_actual: toNumber(pesoActual), puntos, variacion_kg, variacion_pct, tendencia };
 };
 
-const formatMascota = (m) => ({
-  id_mascota: m.id_mascota,
-  nombre: m.nombre,
-  especie: m.especie,
-  raza: m.raza,
-  sexo: m.sexo,
-  fecha_nacimiento: m.fecha_nacimiento,
-  edad_meses: toNumber(m.edad_meses),
-  peso: toNumber(m.peso),
-  esterilizado: Boolean(m.esterilizado),
-  // Siempre visibles para quien tiene acceso, también sin compartir_historial.
-  tiene_alergias: Boolean(m.tiene_alergias),
-  alergias_detalle: m.alergias_detalle,
-  condiciones_medicas: m.condiciones_medicas,
-  fallecido: Boolean(m.fallecido),
-});
-
 /**
  * Resumen de salud sobre lo visible para quien consulta (ver docs/PLAN.md, 1.6):
  * vacunas vencidas y próximas (de todas las vacunas), último y próximo control y
@@ -103,9 +93,10 @@ const formatMascota = (m) => ({
 const resumen = async ({ mascota, contexto }) => {
   const hoy = hoyISO();
   const soloNegocio = contexto.tipo === "negocio" && !contexto.compartir ? contexto.id_negocio : undefined;
-  const [vacunas, registros] = await Promise.all([
+  const [vacunas, registros, dueno] = await Promise.all([
     vacunasConEstado(mascota.id_mascota),
     historialRepo.findParaResumen(mascota.id_mascota, soloNegocio),
+    findDueno(mascota.id_usuario),
   ]);
   const viva = !mascota.fallecido;
 
@@ -150,6 +141,7 @@ const resumen = async ({ mascota, contexto }) => {
 
   return {
     mascota: formatMascota(mascota),
+    dueno,
     vacunas_vencidas,
     vacunas_proximas,
     ultimo_control,
