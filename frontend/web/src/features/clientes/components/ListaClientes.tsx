@@ -112,7 +112,7 @@ export function ListaClientes({
       {lista.isPending ? (
         <div className="flex flex-col gap-2" aria-label="Cargando clientes">
           {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-16" />
+            <Skeleton key={i} className="h-16 rounded-card" />
           ))}
         </div>
       ) : lista.isError ? (

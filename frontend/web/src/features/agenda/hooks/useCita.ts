@@ -43,7 +43,7 @@ const meta = { avisarError: false } as const;
 
 /**
  * Toda acción recarga la agenda, la atención, el detalle y el historial del negocio, y los
- * clientes (su detalle trae las citas y su cumplimiento).
+ * clientes y la ficha de la mascota (traen las citas, el cumplimiento y la próxima cita).
  */
 function useRecargar(idNegocio: number) {
   const queryClient = useQueryClient();
@@ -51,6 +51,7 @@ function useRecargar(idNegocio: number) {
     Promise.all([
       queryClient.invalidateQueries({ queryKey: queryKeys.citas.todas(idNegocio) }),
       queryClient.invalidateQueries({ queryKey: queryKeys.clientes.todos(idNegocio) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.salud.todo(idNegocio) }),
     ]);
 }
 

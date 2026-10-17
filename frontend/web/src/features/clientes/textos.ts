@@ -36,11 +36,15 @@ export const TEXTO_SIN_CUENTA =
 export const TEXTO_LEY_1581 =
   "Escribe solo lo que no te incomodaría que el cliente leyera: por la Ley 1581 puede pedir conocer sus datos. Los diagnósticos van en el historial médico.";
 
-/** "Jue 25 · 8:00" */
-export const diaYHora = (c: Pick<CitaPanel, "fecha" | "hora_inicio">) => {
-  const dia = format(parseFecha(c.fecha), "EEE d", { locale: es });
-  return `${dia.charAt(0).toUpperCase()}${dia.slice(1)} · ${hora(c.hora_inicio)}`;
+/** "2026-09-25" -> "Jue 25" */
+export const diaCorto = (fecha: string) => {
+  const dia = format(parseFecha(fecha), "EEE d", { locale: es });
+  return `${dia.charAt(0).toUpperCase()}${dia.slice(1)}`;
 };
+
+/** "Jue 25 · 8:00" */
+export const diaYHora = (c: Pick<CitaPanel, "fecha" | "hora_inicio">) =>
+  `${diaCorto(c.fecha)} · ${hora(c.hora_inicio)}`;
 
 /** "25 sep, 8:00" */
 export const fechaCita = (c: Pick<CitaPanel, "fecha" | "hora_inicio">) =>

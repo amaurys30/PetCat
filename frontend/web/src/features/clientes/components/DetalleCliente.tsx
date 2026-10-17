@@ -2,7 +2,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { CalendarPlus, Mail, Phone, Plus, TriangleAlert } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import type { CitaPanel } from "@/api/citas";
 import type { ClienteDetalle } from "@/api/clientes";
 import { Avatar } from "@/components/common/Avatar";
@@ -261,6 +261,9 @@ function Mascotas({ detalle }: { detalle: ClienteDetalle }) {
 }
 
 function FilaMascota({ mascota: m }: { mascota: Mascota }) {
+  const negocio = useNegocioActivo();
+  const puede = usePuede();
+  const verFicha = puede("historial_medico", "ver") || puede("vacunas", "ver");
   return (
     <div className={cn("flex items-center gap-3 rounded-card border p-3", m.fallecido && "opacity-60")}>
       <span
@@ -279,15 +282,20 @@ function FilaMascota({ mascota: m }: { mascota: Mascota }) {
         </Badge>
       )}
       {m.fallecido && <Badge>Fallecido</Badge>}
-      <Tooltip
-        texto={
-          m.acceso_historial
-            ? "La ficha médica llega en P5.2"
-            : "Sin una cita válida con tu negocio no puedes ver su historial"
-        }
-      >
-        <span className="text-label font-semibold text-subtle">Ficha →</span>
-      </Tooltip>
+      {verFicha &&
+        (m.acceso_historial ? (
+          <Link
+            to={`/n/${negocio.id_negocio}/clientes/mascotas/${m.id_mascota}`}
+            className="text-label font-semibold text-primary hover:underline"
+            aria-label={`Ficha de ${m.nombre}`}
+          >
+            Ficha →
+          </Link>
+        ) : (
+          <Tooltip texto="Sin una cita válida con tu negocio no puedes ver su ficha médica">
+            <span className="text-label font-semibold text-subtle">Ficha →</span>
+          </Tooltip>
+        ))}
     </div>
   );
 }

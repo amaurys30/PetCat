@@ -2689,6 +2689,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/negocios/{id_negocio}/mascotas/{id_mascota}/citas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Citas de una mascota con el negocio (panel)
+         * @description Requiere `citas.ver` o `clientes.ver` (un veterinario ve en la ficha las citas de la mascota, igual que en la agenda). Solo las citas con este negocio, paginadas, de la más reciente hacia atrás. 404 si la mascota no existe, su dueño la eliminó o no tiene ninguna cita con el negocio.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["page"];
+                    limit?: components["parameters"]["limit"];
+                    /** @example completada,confirmada */
+                    estado?: string;
+                };
+                header?: never;
+                path: {
+                    id_negocio: number;
+                    id_mascota: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Página de citas */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            /** @example OK */
+                            message: string;
+                            data: components["schemas"]["CitaPanel"][];
+                            meta: components["schemas"]["PaginationMeta"];
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["ValidationError"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/negocios/{id_negocio}/dashboard": {
         parameters: {
             query?: never;
@@ -9126,36 +9184,68 @@ export interface components {
             dias_restantes?: number;
         };
         ResumenSalud: {
-            /** @description Datos básicos; alergias y condiciones médicas siempre visibles */
-            mascota: {
-                id_mascota: number;
+            /** @description La mascota completa (cabecera de la ficha), con `compartir_historial`. Alergias y condiciones médicas siempre visibles. */
+            mascota: components["schemas"]["Mascota"];
+            /** @description Dueño de la mascota */
+            dueno: {
+                id_usuario: number;
                 nombre: string;
-                especie: string;
-                edad_meses: number | null;
-                peso: number | null;
-                tiene_alergias: boolean;
-                alergias_detalle: string | null;
-                condiciones_medicas: string | null;
-                fallecido: boolean;
+                apellido: string;
             };
             /** @description Dosis vigentes con fecha_proxima anterior a hoy, de la más vencida a la menos */
             vacunas_vencidas: components["schemas"]["VacunaAlerta"][];
             /** @description Dosis vigentes con fecha_proxima entre hoy y hoy + 30 días (dias_aviso_vacuna) */
             vacunas_proximas: components["schemas"]["VacunaAlerta"][];
-            /** @description Registro de historial más reciente (fuente historial) o, si no hay, la última cita completada (fuente cita) */
+            /** @description Registro de historial más reciente (fuente historial: id_historial, tipo y diagnóstico) o, si no hay, la última cita completada (fuente cita: id_cita, hora, estado y servicio). */
             ultimo_control: {
                 /** @enum {string} */
                 fuente: "historial" | "cita";
                 /** Format: date */
                 fecha: string;
+                negocio: {
+                    id_negocio: number;
+                    nombre: string;
+                } | null;
+                id_historial?: number;
+                tipo?: string;
+                diagnostico?: string | null;
+                id_cita?: number;
+                /** @example 08:00 */
+                hora_inicio?: string;
+                estado?: string;
+                servicio?: {
+                    id_servicio: number;
+                    nombre: string;
+                };
             } | null;
             /** @description El proximo_control más cercano (hoy o después) que indicó un veterinario */
             proximo_control: {
                 /** Format: date */
                 fecha: string;
+                id_historial: number;
+                negocio: {
+                    id_negocio: number;
+                    nombre: string;
+                } | null;
             } | null;
             /** @description La cita pendiente o confirmada más cercana que no terminó (para un negocio, solo las suyas) */
-            proxima_cita: Record<string, never> | null;
+            proxima_cita: {
+                id_cita: number;
+                /** Format: date */
+                fecha: string;
+                /** @example 08:00 */
+                hora_inicio: string;
+                /** @enum {string} */
+                estado: "pendiente" | "confirmada";
+                servicio: {
+                    id_servicio: number;
+                    nombre: string;
+                };
+                negocio: {
+                    id_negocio: number;
+                    nombre: string;
+                };
+            } | null;
             evolucion_peso: {
                 peso_actual: number | null;
                 /** @description Pesos del historial de los últimos 24 meses (máximo 24), del más antiguo al más reciente */

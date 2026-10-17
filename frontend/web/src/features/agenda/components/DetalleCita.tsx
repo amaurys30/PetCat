@@ -1,5 +1,6 @@
 import { TriangleAlert } from "lucide-react";
 import { useState, type ReactNode } from "react";
+import { Link } from "react-router";
 import type { CitaPanelDetalle } from "@/api/citas";
 import { Avatar } from "@/components/common/Avatar";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
@@ -213,6 +214,9 @@ function Contenido({ cita }: { cita: CitaPanelDetalle }) {
 }
 
 function Mascota({ cita }: { cita: CitaPanelDetalle }) {
+  const negocio = useNegocioActivo();
+  const puede = usePuede();
+  const verFicha = puede("historial_medico", "ver") || puede("vacunas", "ver");
   const m = cita.mascota;
   const detalle = [
     ESPECIE[m.especie] ?? m.especie,
@@ -242,9 +246,14 @@ function Mascota({ cita }: { cita: CitaPanelDetalle }) {
         )}
         {m.fallecido && <Badge>Fallecida</Badge>}
       </div>
-      <Tooltip texto="La ficha médica llega con Clientes y salud (P5)">
-        <span className="mt-2 inline-block text-label font-semibold text-subtle">Ver ficha médica →</span>
-      </Tooltip>
+      {verFicha && (
+        <Link
+          to={`/n/${negocio.id_negocio}/clientes/mascotas/${m.id_mascota}`}
+          className="mt-2 inline-block text-label font-semibold text-primary hover:underline"
+        >
+          Ver ficha médica →
+        </Link>
+      )}
     </section>
   );
 }
