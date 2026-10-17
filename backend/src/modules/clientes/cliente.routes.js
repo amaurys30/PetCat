@@ -672,7 +672,17 @@ router.put(
  *               properties:
  *                 success: { type: boolean, example: true }
  *                 message: { type: string, example: OK }
- *                 data: { type: array, items: { $ref: '#/components/schemas/CitaPanel' } }
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     allOf:
+ *                       - $ref: '#/components/schemas/CitaPanel'
+ *                       - type: object
+ *                         properties:
+ *                           registros_medicos:
+ *                             type: array
+ *                             description: Registros médicos ligados a la cita (para "Vincular a una cita" de C4)
+ *                             items: { $ref: '#/components/schemas/RegistroDeCita' }
  *                 meta: { $ref: '#/components/schemas/PaginationMeta' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       403: { $ref: '#/components/responses/Forbidden' }

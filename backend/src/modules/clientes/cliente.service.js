@@ -9,6 +9,7 @@ import { hashPassword } from "../../shared/utils/hash.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
 import * as citaRepo from "../citas/cita.repository.js";
+import * as historialRepo from "../historial/historial.repository.js";
 import { formatCitasPanel } from "../citas/cita.service.js";
 import { buildMeta } from "../../shared/utils/pagination.js";
 import { castFields } from "../../shared/utils/format.js";
@@ -242,5 +243,12 @@ export const getCitasMascota = async (id_negocio, id_mascota, { page, limit, est
     limit,
     offset: (page - 1) * limit,
   });
-  return { rows: await formatCitasPanel(rows, id_negocio, acceso), meta: buildMeta(total, page, limit) };
+  const [citas, registros] = await Promise.all([
+    formatCitasPanel(rows, id_negocio, acceso),
+    historialRepo.findRegistrosDeCitas(rows.map((r) => r.id_cita)),
+  ]);
+  return {
+    rows: citas.map((c) => ({ ...c, registros_medicos: registros[c.id_cita] ?? [] })),
+    meta: buildMeta(total, page, limit),
+  };
 };

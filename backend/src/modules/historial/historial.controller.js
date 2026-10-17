@@ -18,7 +18,8 @@ export const crearRegistro = async (req, res) => {
 };
 
 export const actualizarRegistro = async (req, res) => {
-  return ok(res, await service.actualizarRegistro(req.params.id_historial, req.negocio, req.body), "Registro actualizado");
+  const registro = await service.actualizarRegistro(req.params.id_historial, req.negocio, req.user.id_usuario, req.body);
+  return ok(res, registro, "Registro actualizado");
 };
 
 export const agregarArchivos = async (req, res) => {

@@ -18,6 +18,7 @@ import { toNumber } from "../../shared/utils/format.js";
 import { buildMeta } from "../../shared/utils/pagination.js";
 import { accesoPermite } from "../../shared/utils/permissions.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
+import * as historialRepo from "../historial/historial.repository.js";
 
 // Valores de servicios.dias_disponible (SET, sin tildes) y su nombre para mensajes.
 const DIAS_SET = ["domingo", "lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
@@ -599,10 +600,11 @@ export const getAtencion = async (negocio, acceso, id_usuario, { solo_mias, ...f
 export const getCita = async (id_cita, acceso) => {
   const row = await citaRepo.findDetalle(id_cita);
   if (acceso.relacion === "dueno") return (await formatCitasDueno([row], row.id_usuario))[0];
-  const [[cita], historial_cumplimiento, datos] = await Promise.all([
+  const [[cita], historial_cumplimiento, datos, registros] = await Promise.all([
     conDisponibilidad([row], row.id_negocio, row.fecha, row.fecha, acceso),
     citaRepo.resumenCumplimiento(row.id_usuario, row.id_negocio),
     citaRepo.findDatosPanel(id_cita),
+    historialRepo.findRegistrosDeCitas([row.id_cita]),
   ]);
   return {
     ...cita,
@@ -617,6 +619,7 @@ export const getCita = async (id_cita, acceso) => {
     },
     // Email y teléfono: para contactar al cliente por su cita (el perfil completo exige clientes.ver).
     cliente: { ...cita.cliente, email: datos.email, usa_app: Boolean(datos.usa_app), historial_cumplimiento },
+    registros_medicos: registros[row.id_cita] ?? [],
   };
 };
 

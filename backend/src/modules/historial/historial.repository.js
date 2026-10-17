@@ -7,10 +7,13 @@ const SELECT_HISTORIAL = `
          h.id_empleado, e.nombre AS empleado_nombre, e.apellido AS empleado_apellido,
          h.tipo, h.fecha, h.motivo_consulta, h.diagnostico, h.tratamiento, h.medicamentos_prescritos,
          h.indicaciones, h.proximo_control, h.peso_registro, h.temperatura, h.frecuencia_cardiaca,
-         h.frecuencia_respiratoria, h.archivos_json, h.notas_internas, h.fecha_creacion
+         h.frecuencia_respiratoria, h.archivos_json, h.notas_internas, h.fecha_creacion,
+         h.fecha_edicion, h.id_usuario_edicion, ue.nombre AS editor_nombre, ue.apellido AS editor_apellido,
+         (SELECT COUNT(*) FROM historial_medico_ediciones he WHERE he.id_historial = h.id_historial) AS ediciones
   FROM historial_medico h
   LEFT JOIN negocios n ON n.id_negocio = h.id_negocio
-  LEFT JOIN empleados e ON e.id_empleado = h.id_empleado`;
+  LEFT JOIN empleados e ON e.id_empleado = h.id_empleado
+  LEFT JOIN usuarios ue ON ue.id_usuario = h.id_usuario_edicion`;
 
 export const findById = async (id_historial, conn) => {
   const [rows] = await (conn ?? db).query(`${SELECT_HISTORIAL} WHERE h.id_historial = ?`, [id_historial]);
@@ -115,4 +118,35 @@ export const actualizarPesoMascota = async (id_mascota, peso, conn) => {
 export const lockRegistro = async (id_historial, conn) => {
   const [rows] = await conn.query("SELECT id_mascota FROM historial_medico WHERE id_historial = ? FOR UPDATE", [id_historial]);
   return rows[0];
+};
+
+/**
+ * Deja constancia de una edición: la guarda con los campos que cambiaron y sus valores
+ * anteriores, y la marca como la última del registro.
+ */
+export const registrarEdicion = async (id_historial, id_usuario, anteriores, conn) => {
+  await conn.query(
+    "INSERT INTO historial_medico_ediciones (id_historial, id_usuario, campos, valores_anteriores) VALUES (?, ?, ?, ?)",
+    [id_historial, id_usuario, JSON.stringify(Object.keys(anteriores)), JSON.stringify(anteriores)]
+  );
+  await conn.query("UPDATE historial_medico SET fecha_edicion = NOW(), id_usuario_edicion = ? WHERE id_historial = ?", [
+    id_usuario,
+    id_historial,
+  ]);
+};
+
+/** Registros médicos de esas citas (de su negocio): { [id_cita]: [{ id_historial, tipo, fecha }] }. */
+export const findRegistrosDeCitas = async (ids) => {
+  if (ids.length === 0) return {};
+  const [rows] = await db.query(
+    `SELECT h.id_cita, h.id_historial, h.tipo, h.fecha
+     FROM historial_medico h
+     JOIN citas c ON c.id_cita = h.id_cita AND c.id_negocio = h.id_negocio
+     WHERE h.id_cita IN (?)
+     ORDER BY h.fecha, h.id_historial`,
+    [ids]
+  );
+  const porCita = {};
+  for (const { id_cita, ...registro } of rows) (porCita[id_cita] ??= []).push(registro);
+  return porCita;
 };

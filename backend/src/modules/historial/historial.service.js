@@ -56,6 +56,16 @@ export const formatRegistro = (row, contexto, archivos = []) => {
     ...(contexto.tipo === "negocio" && { es_propio: propio }),
     ...(propio && { notas_internas: row.notas_internas }),
     fecha_creacion: row.fecha_creacion,
+    // Los registros no se borran: la última edición (quién y cuándo) y cuántas hubo.
+    edicion: row.fecha_edicion
+      ? {
+          fecha: row.fecha_edicion,
+          usuario: row.id_usuario_edicion
+            ? { id_usuario: row.id_usuario_edicion, nombre: row.editor_nombre, apellido: row.editor_apellido }
+            : null,
+        }
+      : null,
+    ediciones: Number(row.ediciones ?? 0),
   };
 };
 
@@ -147,11 +157,25 @@ export const crearRegistro = async (negocio, { id_usuario, acceso }, data) => {
   return registroDelNegocio(id_historial, negocio.id_negocio);
 };
 
+// Campos numéricos: MySQL devuelve los DECIMAL como texto ("28.50").
+const NUMERICOS = new Set(["peso_registro", "temperatura", "frecuencia_cardiaca", "frecuencia_respiratoria", "id_empleado"]);
+const normalizar = (campo, valor) => (NUMERICOS.has(campo) ? toNumber(valor) : (valor ?? null));
+
+/** Valores anteriores de los campos que de verdad cambian: { campo: valor_anterior }. */
+const cambiosDe = (actual, data) =>
+  Object.fromEntries(
+    Object.entries(data)
+      .filter(([campo, valor]) => normalizar(campo, actual[campo]) !== normalizar(campo, valor))
+      .map(([campo]) => [campo, normalizar(campo, actual[campo])])
+  );
+
 /**
  * Edita un registro. Solo el negocio que lo creó (authorize lo resuelve por
- * id_historial). Las fechas se validan contra los valores actuales.
+ * id_historial). Las fechas se validan contra los valores actuales. Si algo cambia, deja
+ * constancia de quién, cuándo, qué campos y sus valores anteriores (los registros no se
+ * borran); si nada cambia, no hay edición.
  */
-export const actualizarRegistro = async (id_historial, negocio, data) => {
+export const actualizarRegistro = async (id_historial, negocio, id_usuario, data) => {
   // La mascota de un registro no cambia: se busca fuera de la transacción para no fijar su foto.
   const { id_mascota } = await historialRepo.findById(id_historial);
   await withTransaction(async (conn) => {
@@ -164,7 +188,10 @@ export const actualizarRegistro = async (id_historial, negocio, data) => {
     if (data.id_empleado && !(await historialRepo.empleadoActivoDelNegocio(data.id_empleado, negocio.id_negocio, conn))) {
       throw invalido({ id_empleado: "No es un empleado activo del negocio" });
     }
+    const anteriores = cambiosDe(actual, data);
+    if (Object.keys(anteriores).length === 0) return;
     await historialRepo.update(id_historial, data, conn);
+    await historialRepo.registrarEdicion(id_historial, id_usuario, anteriores, conn);
     const peso = data.peso_registro !== undefined ? data.peso_registro : toNumber(actual.peso_registro);
     await actualizarPesoSiEsElUltimo(actual.id_mascota, id_historial, fecha, peso, conn);
   });

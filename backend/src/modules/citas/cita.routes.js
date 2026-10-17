@@ -325,6 +325,16 @@ router.post("/citas", authMiddleware, validate({ body: createCitaBody }), contro
  *                     completadas: { type: integer }
  *                     inasistencias: { type: integer }
  *                     cancelaciones_tardias: { type: integer }
+ *             registros_medicos:
+ *               type: array
+ *               description: Registros médicos ligados a la cita (puede haber más de uno, p. ej. consulta y examen)
+ *               items: { $ref: '#/components/schemas/RegistroDeCita' }
+ *     RegistroDeCita:
+ *       type: object
+ *       properties:
+ *         id_historial: { type: integer }
+ *         tipo: { type: string }
+ *         fecha: { type: string, format: date }
  */
 
 /**
