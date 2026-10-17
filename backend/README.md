@@ -73,7 +73,7 @@ La primera vez que se crea el volumen de MySQL, compose carga automáticamente e
 | `backend` | `petcat_backend` | `http://localhost:3000` | `petcat_db` | La API de siempre (desarrollo del backend, app móvil) |
 | `backend-demo` | `petcat_backend_demo` | `http://127.0.0.1:3001` | `petcat_demo` | El panel web (`frontend/web`) y sus pruebas, con datos conocidos |
 
-`backend-demo` usa la misma imagen y el mismo `backend/.env`; solo cambia la base, el puerto y los límites de solicitudes (`RATE_LIMIT_MAX` y `AUTH_RATE_LIMIT_MAX` mucho más altos, para que las pruebas de punta a punta no reciban 429). Está en el **perfil `panel`**: un `docker compose up -d` normal no lo arranca. La primera vez crea `petcat_demo` con el esquema y el seed.
+`backend-demo` usa la misma imagen y el mismo `backend/.env`; solo cambia la base, el puerto, los límites de solicitudes (`RATE_LIMIT_MAX` y `AUTH_RATE_LIMIT_MAX` mucho más altos, para que las pruebas de punta a punta no reciban 429) y la carpeta de Cloudinary (`CLOUDINARY_FOLDER=petcat-demo`, para que los archivos de la demo no se mezclen con los de `petcat-dev`). Está en el **perfil `panel`**: un `docker compose up -d` normal no lo arranca. La primera vez crea `petcat_demo` con el esquema y el seed.
 
 Cada servicio puede correr en dos modos:
 
@@ -171,7 +171,7 @@ Hay tres archivos, ninguno se sube al repositorio (solo sus plantillas `.example
 | `RATE_LIMIT_MAX` | | 300 | Máximo cada 15 min por IP en toda la API (límite general). La API de demo (`backend-demo`) usa uno mucho más alto |
 | `AUTH_RATE_LIMIT_MAX` | | 10 en producción, 100 en desarrollo | Máximo cada 15 min por IP en login, forgot-password, reset-password, verify-email, resend-verification, request-verification e invitaciones |
 | `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | En producción | | Credenciales de Cloudinary (las tres juntas). En desarrollo, sin ellas la API funciona pero las subidas de archivos responden 503. Los tests no las usan |
-| `CLOUDINARY_FOLDER` | | `petcat-dev` | Carpeta raíz en Cloudinary, una por entorno (`petcat-prod` en producción) |
+| `CLOUDINARY_FOLDER` | | `petcat-dev` | Carpeta raíz en Cloudinary, una por entorno (`petcat-prod` en producción; `backend-demo` usa `petcat-demo`) |
 | `ARCHIVOS_URL_VIGENCIA_MIN` | | `15` | Minutos de vigencia de las URLs firmadas de archivos privados |
 | `EXPO_ACCESS_TOKEN` | | | Solo si el proyecto de Expo tiene activada la seguridad de push; sin ella las push se envían igual |
 

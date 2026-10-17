@@ -86,6 +86,9 @@ services:
       # muchas solicitudes seguidas desde la misma IP. petcat_backend conserva los normales.
       RATE_LIMIT_MAX: "100000"
       AUTH_RATE_LIMIT_MAX: "10000"
+      # Carpeta propia en Cloudinary: los archivos de la demo y de sus pruebas no se mezclan
+      # con los de petcat-dev. Las credenciales salen de backend/.env, como en backend.
+      CLOUDINARY_FOLDER: petcat-demo
     # Esquema y seed para crear o recargar petcat_demo desde el contenedor.
     volumes:
       - ./database:/database:ro
