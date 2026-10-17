@@ -107,8 +107,8 @@ router.get(
  *       la registró, la versión de la política y la IP. Con correo, el cliente recibe la bienvenida con el
  *       nombre del negocio y el enlace `${FRONTEND_URL}/crear-password/<token>` (vigente 7 días; se usa con
  *       `POST /auth/reset-password`). Sin correo queda **sin cuenta** (`sin_cuenta: true`): el teléfono es
- *       obligatorio (422), no recibe correos ni recordatorios y no puede iniciar sesión; si ya hay un usuario
- *       activo con ese teléfono, 409 (buscarlo con clientes/buscar). Después se agenda con
+ *       obligatorio (422), no recibe correos ni recordatorios y no puede iniciar sesión; si ya hay un cliente
+ *       del negocio con ese teléfono, 409 (buscarlo con clientes/buscar y agregarle la mascota). Después se agenda con
  *       `POST /negocios/{id_negocio}/citas`.
  *     tags: [Clientes]
  *     parameters:
@@ -155,7 +155,10 @@ router.get(
  *       403: { $ref: '#/components/responses/Forbidden' }
  *       404: { $ref: '#/components/responses/NotFound' }
  *       409:
- *         description: Ya existe una cuenta con ese correo o, sin correo, un usuario con ese teléfono (buscarlo con clientes/buscar)
+ *         description: >
+ *           Ya existe una cuenta con ese correo o, sin correo, un cliente del negocio con ese teléfono. En una familia es
+ *           común compartir el teléfono: se busca con clientes/buscar y se le agrega la mascota a ese cliente
+ *           (POST /negocios/{id_negocio}/clientes/{id_usuario}/mascotas).
  *         content:
  *           application/json:
  *             schema: { $ref: '#/components/schemas/ErrorResponse' }

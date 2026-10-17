@@ -251,7 +251,13 @@ describe("clientes sin cuenta (registrados sin correo)", () => {
 
     const otra = await api(token).post(url).send(datosCliente({ email: undefined, telefono: `${telefono.slice(0, 3)} ${telefono.slice(3)}` }));
     expect(otra.status).toBe(409);
-    expect(otra.body.errors).toEqual({ telefono: "Ya está registrado" });
+    expect(otra.body.errors).toEqual({ telefono: "Ya hay un cliente con este teléfono" });
+    expect(otra.body.message).toMatch(/misma familia.*agrégale la mascota/);
+
+    // El teléfono de alguien que no es cliente de este negocio no lo impide: no podría agregarle mascotas.
+    const ajeno = telefonoUnico().replace(/^31/, "32");
+    await crearUsuario({ telefono: ajeno });
+    expect((await api(token).post(url).send(datosCliente({ email: undefined, telefono: ajeno }))).status).toBe(201);
   });
 
   it("no pueden iniciar sesión ni recuperar la contraseña, y las citas no les envían correo", async () => {
