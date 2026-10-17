@@ -32,7 +32,8 @@ describe("bloqueos por índice secundario con solicitudes simultáneas", () => {
     }
   });
 
-  it("el mismo enlace para restablecer la contraseña 5 veces a la vez: una 200 y las demás 400", async () => {
+  // Cinco rondas de hash de contraseña simultáneos: con la suite completa en paralelo pasan de los 5 s.
+  it("el mismo enlace para restablecer la contraseña 5 veces a la vez: una 200 y las demás 400", { timeout: 30_000 }, async () => {
     for (let ronda = 0; ronda < RONDAS; ronda++) {
       const token = await conToken("recuperacion");
       const respuestas = await Promise.all(
