@@ -1,4 +1,5 @@
 import * as horarioRepo from "./horario.repository.js";
+import { avisarAgenda } from "../citas/agenda.tiempoReal.js";
 import * as sucursalRepo from "../sucursales/sucursal.repository.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
@@ -44,16 +45,21 @@ export const getHorarios = async (id_sucursal) => {
  * Devuelve los horarios y `citas_afectadas`: citas futuras pendientes o confirmadas de
  * la sucursal que ya no caben (el cambio se guarda igual).
  */
-export const replaceHorarios = async (id_sucursal, horarios) => {
+export const replaceHorarios = async (id_sucursal, horarios, por = null) => {
   validarRangos(horarios);
-  return withTransaction(async (conn) => {
+  let id_negocio;
+  const resultado = await withTransaction(async (conn) => {
     // Primero el bloqueo de la sede (por clave primaria) y después las lecturas.
     const sucursal = await sucursalRepo.lockById(id_sucursal, conn);
     if (!sucursal?.activo) throw ApiError.notFound("Sucursal no encontrada");
+    id_negocio = sucursal.id_negocio;
     await horarioRepo.replaceBySucursal(id_sucursal, horarios, conn);
     return {
       horarios: await horarioRepo.findBySucursal(id_sucursal, conn),
       citas_afectadas: await citasAfectadasDeSucursal(id_sucursal, sucursal.id_negocio, conn),
     };
   });
+  // La agenda sombrea lo cerrado con este horario y pudo cambiar qué citas quedan fuera.
+  await avisarAgenda(id_negocio, { accion: "disponibilidad", id_sucursal, por });
+  return resultado;
 };

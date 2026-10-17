@@ -485,7 +485,7 @@ export const findConfirmacionVencida = async (ahora, limite) => {
  */
 export const lockCitaSinEsperar = async (id_cita, conn) => {
   const [rows] = await conn.query(
-    `SELECT id_cita, id_sucursal, id_servicio, id_mascota, estado, fecha, hora_inicio, fecha_creacion,
+    `SELECT id_cita, id_negocio, id_sucursal, id_servicio, id_mascota, estado, fecha, hora_inicio, fecha_creacion,
             confirmar_antes_de, aviso_por_confirmar_en
      FROM citas WHERE id_cita = ? FOR UPDATE SKIP LOCKED`,
     [id_cita]

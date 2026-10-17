@@ -1,4 +1,5 @@
 import * as citaRepo from "./cita.repository.js";
+import { avisarAgenda } from "./agenda.tiempoReal.js";
 import * as configuracionRepo from "../configuracion/configuracion.repository.js";
 import { eventoCita } from "./cita.avisos.js";
 import { conNotificaciones, configSilencio } from "../notificaciones/notificacion.service.js";
@@ -89,12 +90,12 @@ const avisarPorConfirmar = (id_cita, { ahora }) =>
  * empezó, avisa al dueño (con los ids para reservar de nuevo; urgente si la cita está cerca) y
  * al negocio. Si el negocio la confirmó a la vez, gana quien bloqueó primero. Devuelve true si canceló.
  */
-const cancelarSinConfirmar = (id_cita, { ahora }) =>
-  conNotificaciones(
+const cancelarSinConfirmar = async (id_cita, { ahora }) => {
+  const cancelada = await conNotificaciones(
     async (conn, notificar) => {
       const cita = await citaRepo.lockCitaSinEsperar(id_cita, conn);
-      if (!cita || cita.estado !== "pendiente" || !cita.confirmar_antes_de) return false;
-      if (deDatetimeSQL(cita.confirmar_antes_de) > ahora) return false;
+      if (!cita || cita.estado !== "pendiente" || !cita.confirmar_antes_de) return null;
+      if (deDatetimeSQL(cita.confirmar_antes_de) > ahora) return null;
 
       await citaRepo.cancelarPorSistema(id_cita, { motivo: MOTIVO_SISTEMA, fecha: aDatetimeSQL(ahora) }, conn);
       await citaRepo.insertHistorial(
@@ -111,10 +112,14 @@ const cancelarSinConfirmar = (id_cita, { ahora }) =>
           await eventoCita("cita_no_confirmada", id_cita, { para: "negocio" }, conn),
         ]);
       }
-      return true;
+      return cita;
     },
     { ahora }
   );
+  if (!cancelada) return false;
+  await avisarAgenda(cancelada.id_negocio, { accion: "cancelada", id_cita, fechas: [cancelada.fecha], por: null });
+  return true;
+};
 
 /**
  * Job de cada minuto: primero los avisos de mitad de plazo y después las cancelaciones de

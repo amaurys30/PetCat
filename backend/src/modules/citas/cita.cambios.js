@@ -5,6 +5,7 @@ import { configAgenda, crearCita, evaluarDia, getCita } from "./cita.service.js"
 import { aHora, aMinutos, cabeEn } from "../disponibilidad/disponibilidad.calculo.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
 import { eventoCita } from "./cita.avisos.js";
+import { avisarAgenda } from "./agenda.tiempoReal.js";
 import { conNotificaciones } from "../notificaciones/notificacion.service.js";
 import { programarInvitacion } from "../resenas/resena.plazo.js";
 import { aDatetimeSQL, hoyISO } from "../../shared/utils/fechas.js";
@@ -46,7 +47,7 @@ const invalido = (campo, mensaje) => ApiError.unprocessable("Datos inválidos", 
  * total_citas y se programa la invitación a reseñar (2.6).
  */
 export const cambiarEstado = async (id_cita, { estado, motivo, precio_final }, actor, acceso) => {
-  await conNotificaciones(async (conn, notificar) => {
+  const cita = await conNotificaciones(async (conn, notificar) => {
     const cita = await citaRepo.lockCita(id_cita, conn);
     const permitidas = TRANSICIONES[cita.estado] ?? [];
     if (!permitidas.includes(estado)) {
@@ -89,7 +90,9 @@ export const cambiarEstado = async (id_cita, { estado, motivo, precio_final }, a
     if (estado === "confirmada") {
       await notificar([await eventoCita("cita_confirmada", id_cita, { para: "dueno", actor }, conn)]);
     }
+    return cita;
   });
+  await avisarAgenda(cita.id_negocio, { accion: "estado", id_cita, estado, fechas: [cita.fecha], por: actor.id_usuario });
   return getCita(id_cita, acceso);
 };
 
@@ -104,7 +107,7 @@ export const cambiarEstado = async (id_cita, { estado, motivo, precio_final }, a
 export const cancelarCita = async (id_cita, { motivo }, actor, acceso) => {
   const esDueno = acceso.relacion === "dueno";
   const horas = await horasAntelacionApp();
-  await conNotificaciones(async (conn, notificar) => {
+  const cancelada = await conNotificaciones(async (conn, notificar) => {
     const cita = await citaRepo.lockCita(id_cita, conn);
     if (!ACTIVAS.includes(cita.estado)) {
       throw ApiError.conflict(`Solo se cancelan citas pendientes o confirmadas (esta está ${cita.estado})`);
@@ -136,7 +139,9 @@ export const cancelarCita = async (id_cita, { motivo }, actor, acceso) => {
         extra: { motivo: motivo ?? null, tardia },
       }, conn),
     ]);
+    return cita;
   });
+  await avisarAgenda(cancelada.id_negocio, { accion: "cancelada", id_cita, fechas: [cancelada.fecha], por: actor.id_usuario });
   return getCita(id_cita, acceso);
 };
 
@@ -217,7 +222,7 @@ export const reprogramarCita = async (id_cita, { fecha, hora_inicio, id_empleado
  * en el historial.
  */
 export const actualizarCita = async (id_cita, data, actor, acceso) => {
-  await withTransaction(async (conn) => {
+  const editada = await withTransaction(async (conn) => {
     const cita = await citaRepo.lockCita(id_cita, conn);
     const cambiaEmpleado = data.id_empleado !== undefined && data.id_empleado !== cita.id_empleado;
 
@@ -253,6 +258,14 @@ export const actualizarCita = async (id_cita, data, actor, acceso) => {
     for (const campo of campos) {
       await citaRepo.insertHistorial({ id_cita, actor, campo, anterior: cita[campo], nuevo: data[campo] }, conn);
     }
+    return { cita, cambiaEmpleado };
+  });
+  await avisarAgenda(editada.cita.id_negocio, {
+    accion: "editada",
+    id_cita,
+    ...(editada.cambiaEmpleado && { id_empleado: data.id_empleado }),
+    fechas: [editada.cita.fecha],
+    por: actor.id_usuario,
   });
   return getCita(id_cita, acceso);
 };

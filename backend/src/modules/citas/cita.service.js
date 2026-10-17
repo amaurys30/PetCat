@@ -8,6 +8,7 @@ import { errorLimiteCitas, getLimiteCitasMes, motivoLimiteCitas } from "../suscr
 import { combinarHorarios, iniciosLibres } from "./citas.calculo.js";
 import { aHora, aMinutos, calcularDisponibilidad, citaCabe, diaSemana, motivoFuera } from "../disponibilidad/disponibilidad.calculo.js";
 import { avisarLimiteAlcanzado, eventoCita, eventoUmbralPlan } from "./cita.avisos.js";
+import { avisarAgenda } from "./agenda.tiempoReal.js";
 import { conNotificaciones } from "../notificaciones/notificacion.service.js";
 import { inicioDeCita } from "../notificaciones/silencio.js";
 import { calcularPlazoConfirmacion, configConfirmacion } from "./cita.confirmacion.js";
@@ -413,7 +414,34 @@ const reservar = async (canal, datos, actor, id_negocio, reprogramacion) => {
     return id;
   });
 
-  return formatCita(await citaRepo.findDetalle(id_cita), { conNotasInternas: canal === "panel" });
+  const cita = formatCita(await citaRepo.findDetalle(id_cita), { conNotasInternas: canal === "panel" });
+  await avisarAgenda(
+    servicio.id_negocio,
+    reprogramacion
+      ? {
+          accion: "reprogramada",
+          id_cita: reprogramacion.id_cita_origen,
+          id_cita_nueva: id_cita,
+          fechas: [...new Set([reprogramacion.aviso.fecha_anterior, datos.fecha])],
+          por: actor.id_usuario,
+        }
+      : {
+          accion: canal === "app" ? "reserva_app" : "creada",
+          id_cita,
+          fechas: [datos.fecha],
+          por: actor.id_usuario,
+          ...(canal === "app" && {
+            cita: {
+              mascota: cita.mascota.nombre,
+              servicio: cita.servicio.nombre,
+              fecha: cita.fecha,
+              hora_inicio: cita.hora_inicio,
+              estado: cita.estado,
+            },
+          }),
+        }
+  );
+  return cita;
 };
 
 export const crearCitaApp = (datos, usuario) =>

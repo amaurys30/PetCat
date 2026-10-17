@@ -34,12 +34,12 @@ export const updateEmpleado = async (req, res) => {
 };
 
 export const desactivarEmpleado = async (req, res) => {
-  const data = await service.desactivarEmpleado(req.params.id_empleado, req.acceso);
+  const data = await service.desactivarEmpleado(req.params.id_empleado, req.acceso, req.user.id_usuario);
   return ok(res, data, mensajeConAfectadas("Empleado desactivado", data.citas_afectadas));
 };
 
 export const reactivarEmpleado = async (req, res) => {
-  const empleado = await service.reactivarEmpleado(req.params.id_empleado, req.acceso);
+  const empleado = await service.reactivarEmpleado(req.params.id_empleado, req.acceso, req.user.id_usuario);
   return ok(res, empleado, "Empleado reactivado");
 };
 

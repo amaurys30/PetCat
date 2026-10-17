@@ -38,6 +38,15 @@ export const registrarEmisor = (fn) => {
   emisor = fn;
 };
 
+/** Emite un evento a un usuario por Socket.IO, sin guardar nada (avisos de pantalla). Nunca lanza. */
+export const emitirAUsuario = (id_usuario, evento, datos) => {
+  try {
+    emisor(id_usuario, evento, datos);
+  } catch (err) {
+    console.error(`[notificaciones] Error al emitir ${evento} por Socket.IO:`, err.message);
+  }
+};
+
 export const configSilencio = async () =>
   silencioDe({
     inicio: await configuracionRepo.getValor("silencio_inicio", "21:00"),

@@ -14,21 +14,21 @@ export const getDisponibilidadEfectiva = async (req, res) => {
 };
 
 export const replaceHorarioSemanal = async (req, res) => {
-  const data = await service.replaceHorarioSemanal(req.params.id_empleado, req.body.horarios);
+  const data = await service.replaceHorarioSemanal(req.params.id_empleado, req.body.horarios, req.user.id_usuario);
   return ok(res, data, service.mensajeConAfectadas("Horario semanal actualizado", data.citas_afectadas));
 };
 
 export const createExcepcion = async (req, res) => {
-  const { mensaje, ...data } = await service.createExcepcion(req.params.id_empleado, req.body);
+  const { mensaje, ...data } = await service.createExcepcion(req.params.id_empleado, req.body, req.user.id_usuario);
   return created(res, data, mensaje);
 };
 
 export const updateExcepcion = async (req, res) => {
-  const { mensaje, ...data } = await service.updateExcepcion(req.params.id_disponibilidad, req.body);
+  const { mensaje, ...data } = await service.updateExcepcion(req.params.id_disponibilidad, req.body, req.user.id_usuario);
   return ok(res, data, mensaje);
 };
 
 export const deleteExcepcion = async (req, res) => {
-  const { mensaje, ...data } = await service.deleteExcepcion(req.params.id_disponibilidad);
+  const { mensaje, ...data } = await service.deleteExcepcion(req.params.id_disponibilidad, req.user.id_usuario);
   return ok(res, data, mensaje);
 };
