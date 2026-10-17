@@ -42,6 +42,10 @@ export const queryKeys = {
     todos: (idNegocio: number) => ["clientes", idNegocio] as const,
     lista: (idNegocio: number, params: object) => ["clientes", idNegocio, "lista", params] as const,
     detalle: (idNegocio: number, idUsuario: number) => ["clientes", idNegocio, "detalle", idUsuario] as const,
+    citas: (idNegocio: number, idUsuario: number) => ["clientes", idNegocio, "citas", idUsuario] as const,
+    notas: (idNegocio: number, idUsuario: number) => ["clientes", idNegocio, "notas", idUsuario] as const,
+    /** Búsqueda del Topbar (clientes y mascotas por nombre, correo o teléfono). */
+    busqueda: (idNegocio: number, q: string) => ["clientes", idNegocio, "busqueda", q] as const,
   },
   disponibilidad: {
     todo: (idEmpleado: number) => ["disponibilidad", idEmpleado] as const,

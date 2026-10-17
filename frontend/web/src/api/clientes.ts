@@ -1,4 +1,5 @@
-import { apiGet, apiGetPagina, apiPost } from "./client";
+import { apiDelete, apiGet, apiGetPagina, apiPatch, apiPost, apiPut } from "./client";
+import type { CitaPanel } from "./citas";
 import type { components } from "./schema";
 import type { Body, DataGet } from "./types";
 
@@ -25,8 +26,12 @@ export const buscarClientes = (idNegocio: number, consulta: { email: string } | 
   apiGet<ClienteBuscado[]>(`/negocios/${idNegocio}/clientes/buscar`, consulta);
 
 /** clientes.ver. Clientes del negocio por nombre, correo, teléfono o mascota. */
-export const getClientes = (idNegocio: number, params: { q?: string; limit?: number; page?: number }) =>
-  apiGetPagina<ClienteFila>(`/negocios/${idNegocio}/clientes`, params);
+export type OrdenClientes = "ultima_cita" | "nombre" | "inasistencias";
+
+export const getClientes = (
+  idNegocio: number,
+  params: { q?: string; limit?: number; page?: number; orden?: OrdenClientes },
+) => apiGetPagina<ClienteFila>(`/negocios/${idNegocio}/clientes`, params);
 
 /** clientes.ver. Contacto, cumplimiento y mascotas del cliente con este negocio. */
 export const getCliente = (idNegocio: number, idUsuario: number) =>
@@ -42,3 +47,40 @@ export const registrarCliente = (idNegocio: number, body: RegistrarClienteBody) 
 /** citas.crear (C6). 403 si el cliente aún no tiene relación con el negocio. */
 export const agregarMascota = (idNegocio: number, idUsuario: number, body: MascotaNueva) =>
   apiPost<Mascota>(`/negocios/${idNegocio}/clientes/${idUsuario}/mascotas`, body);
+
+/** clientes.ver. Todas las citas del cliente con el negocio, de la más reciente hacia atrás. */
+export const getCitasCliente = (
+  idNegocio: number,
+  idUsuario: number,
+  params: { page: number; limit: number },
+) => apiGetPagina<CitaPanel>(`/negocios/${idNegocio}/clientes/${idUsuario}/citas`, params);
+
+export type NotaCliente = Schemas["NotaCliente"];
+
+/** clientes.ver. Notas privadas del negocio sobre el cliente, de la más reciente a la más antigua. */
+export const getNotas = (idNegocio: number, idUsuario: number, params: { page: number; limit: number }) =>
+  apiGetPagina<NotaCliente>(`/negocios/${idNegocio}/clientes/${idUsuario}/notas`, params);
+
+/** clientes.editar. */
+export const crearNota = (idNegocio: number, idUsuario: number, texto: string) =>
+  apiPost<NotaCliente>(`/negocios/${idNegocio}/clientes/${idUsuario}/notas`, { texto });
+
+/** clientes.editar y ser el autor. */
+export const editarNota = (idNota: number, texto: string) =>
+  apiPatch<NotaCliente>(`/notas-cliente/${idNota}`, { texto });
+
+/** clientes.editar y ser el autor o el propietario. Borrado físico. */
+export const borrarNota = (idNota: number) => apiDelete<null>(`/notas-cliente/${idNota}`);
+
+export interface CorreoAsignado {
+  cliente: Schemas["ClienteContacto"];
+  accion: "agregado" | "corregido" | "reenviado";
+}
+
+/**
+ * citas.crear o clientes.editar. Pone el correo de un cliente sin cuenta, o corrige el de uno
+ * que registró este negocio y no ha activado su cuenta (el enlace anterior deja de servir), y
+ * le envía la bienvenida. Con el mismo correo la reenvía.
+ */
+export const asignarCorreo = (idNegocio: number, idUsuario: number, email: string) =>
+  apiPut<CorreoAsignado>(`/negocios/${idNegocio}/clientes/${idUsuario}/correo`, { email });

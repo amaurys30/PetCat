@@ -36,11 +36,17 @@ const ORIGENES = [
 ] as const;
 type Origen = (typeof ORIGENES)[number]["valor"];
 
-/** Lo que se sabe al abrir: un hueco del calendario deja la fecha, la hora y el profesional. */
+/**
+ * Lo que se sabe al abrir: un hueco del calendario deja la fecha, la hora y el profesional;
+ * "Agendar cita" desde Clientes (C1) deja el cliente con sus mascotas vivas y, si tiene una
+ * sola, la mascota.
+ */
 export interface InicioNuevaCita {
   fecha?: string;
   hora?: string;
   idEmpleado?: number;
+  cliente?: ClienteElegido;
+  idMascota?: number;
 }
 
 const Paso = ({ n, titulo }: { n: number; titulo: string }) => (
@@ -72,12 +78,12 @@ export function NuevaCitaDialog({
   const profesionales = useProfesionales(negocio.id_negocio);
   const crear = useCrearCita(negocio.id_negocio);
 
-  const [cliente, setCliente] = useState<ClienteElegido | null>(null);
+  const [cliente, setCliente] = useState<ClienteElegido | null>(inicio.cliente ?? null);
   const [registrando, setRegistrando] = useState<{ email?: string; telefono?: string } | null>(null);
   /** Lo que C3 pide buscar tras un 409 (correo o teléfono de un cliente que ya existe). */
   const [busqueda, setBusqueda] = useState<string>();
   const [agregandoMascota, setAgregandoMascota] = useState(false);
-  const [idMascota, setIdMascota] = useState<number | null>(null);
+  const [idMascota, setIdMascota] = useState<number | null>(inicio.idMascota ?? null);
   const [idServicio, setIdServicio] = useState<number | null>(null);
   const [idSucursal, setIdSucursal] = useState<number | null>(null);
   const [fecha, setFecha] = useState(inicio.fecha && inicio.fecha >= hoy ? inicio.fecha : hoy);

@@ -2172,7 +2172,7 @@ export interface paths {
         put?: never;
         /**
          * Registrar un cliente sin app (panel)
-         * @description Requiere `citas.crear`. Crea la cuenta del cliente con su primera mascota. Exige `autoriza_tratamiento_datos: true` (Ley 1581 de 2012): se guarda con la fecha, el negocio, quién la registró, la versión de la política y la IP. Con correo, el cliente recibe la bienvenida con el nombre del negocio y el enlace `${FRONTEND_URL}/crear-password/<token>` (vigente 7 días; se usa con `POST /auth/reset-password`). Sin correo queda **sin cuenta** (`sin_cuenta: true`): el teléfono es obligatorio (422), no recibe correos ni recordatorios y no puede iniciar sesión; si ya hay un usuario activo con ese teléfono, 409 (buscarlo con clientes/buscar). Después se agenda con `POST /negocios/{id_negocio}/citas`.
+         * @description Requiere `citas.crear`. Crea la cuenta del cliente con su primera mascota. Exige `autoriza_tratamiento_datos: true` (Ley 1581 de 2012): se guarda con la fecha, el negocio, quién la registró, la versión de la política y la IP. Con correo, el cliente recibe la bienvenida con el nombre del negocio y el enlace `${FRONTEND_URL}/crear-password/<token>` (vigente 7 días; se usa con `POST /auth/reset-password`). Sin correo queda **sin cuenta** (`sin_cuenta: true`): el teléfono es obligatorio (422), no recibe correos ni recordatorios y no puede iniciar sesión; si ya hay un cliente del negocio con ese teléfono, 409 (buscarlo con clientes/buscar y agregarle la mascota). Después se agenda con `POST /negocios/{id_negocio}/citas`.
          */
         post: {
             parameters: {
@@ -2228,7 +2228,7 @@ export interface paths {
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                /** @description Ya existe una cuenta con ese correo o, sin correo, un usuario con ese teléfono (buscarlo con clientes/buscar) */
+                /** @description Ya existe una cuenta con ese correo o, sin correo, un cliente del negocio con ese teléfono. En una familia es común compartir el teléfono: se busca con clientes/buscar y se le agrega la mascota a ese cliente (POST /negocios/{id_negocio}/clientes/{id_usuario}/mascotas). */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -2602,6 +2602,87 @@ export interface paths {
                 422: components["responses"]["ValidationError"];
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/negocios/{id_negocio}/clientes/{id_usuario}/correo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Poner o corregir el correo de un cliente sin cuenta activa (panel)
+         * @description Requiere `citas.crear` o `clientes.editar`. Le envía la bienvenida con el nombre del negocio y el enlace `${FRONTEND_URL}/crear-password/<token>` (vigente 7 días); al crear su contraseña con `POST /auth/reset-password` la cuenta queda activa y puede entrar a la app. Se permite si el cliente no tiene correo, o para corregir el de un cliente que registró este negocio y que aún no activó su cuenta (`correo_editable` del detalle). Al corregirlo, el enlace anterior deja de servir. Con el mismo correo es un reenvío de la bienvenida. Tiene el límite estricto de solicitudes.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id_negocio: number;
+                    id_usuario: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: email */
+                        email: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Correo guardado y bienvenida enviada */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            /** @enum {string} */
+                            message: "Correo agregado. Le enviamos la bienvenida para que active su cuenta" | "Correo corregido. Le enviamos una bienvenida nueva; el enlace anterior ya no sirve" | "Le reenviamos la bienvenida";
+                            data: {
+                                cliente: components["schemas"]["ClienteContacto"];
+                                /** @enum {string} */
+                                accion: "agregado" | "corregido" | "reenviado";
+                            };
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                /** @description Sin permiso, o el cliente ya tiene correo y no lo registró este negocio */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+                /** @description El cliente ya activó su cuenta (solo él cambia su correo) o el correo es de otra cuenta */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                422: components["responses"]["ValidationError"];
+                429: components["responses"]["TooManyRequests"];
+            };
+        };
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -7968,6 +8049,14 @@ export interface components {
             proxima_cita: string | null;
             /** @description Con este negocio */
             inasistencias: number;
+            /** @description Alguna vez inició sesión */
+            usa_app: boolean;
+            registrado_por_el_negocio: boolean;
+            /**
+             * Format: date
+             * @description Primera cita o autorización registrada por el negocio
+             */
+            cliente_desde: string;
         };
         ClienteDetalle: {
             cliente: components["schemas"]["ClienteContacto"] & {
@@ -7979,6 +8068,8 @@ export interface components {
                 registrado_por_el_negocio: boolean;
                 /** @description Alguna vez inició sesión */
                 usa_app: boolean;
+                /** @description El negocio puede ponerle correo (no tiene) o corregirlo (lo registró este negocio y aún no activó su cuenta) con PUT /negocios/{id_negocio}/clientes/{id_usuario}/correo */
+                correo_editable: boolean;
             };
             /** @description Solo las citas del cliente con este negocio */
             historial_cumplimiento: {
