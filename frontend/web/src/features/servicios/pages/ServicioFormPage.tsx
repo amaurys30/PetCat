@@ -21,7 +21,7 @@ import { useNegocioActivo, usePuede } from "@/features/negocios/hooks/useNegocio
 import { aplicarErroresApi } from "@/lib/forms";
 import { fechaCorta, hoyISO } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { CampoDinero } from "../components/CampoDinero";
+import { CampoDinero } from "@/components/common/CampoDinero";
 import { useEstadoServicio, type EstadoRenombrar } from "../components/EstadoServicio";
 import { IndicacionesPrevias } from "../components/IndicacionesPrevias";
 import { ProfesionalesServicio } from "../components/ProfesionalesServicio";

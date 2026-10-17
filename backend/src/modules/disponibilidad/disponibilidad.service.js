@@ -1,4 +1,5 @@
 import * as disponibilidadRepo from "./disponibilidad.repository.js";
+import { avisarAgenda } from "../citas/agenda.tiempoReal.js";
 import { calcularDisponibilidad, citaCabe, comoHoras, diaSemana } from "./disponibilidad.calculo.js";
 import { COLUMNAS_POR_TIPO, excepcionSchema } from "./disponibilidad.schemas.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
@@ -62,6 +63,10 @@ export const mensajeConAfectadas = (mensaje, citas_afectadas, fueraDe = "de la d
 // ---------- Validaciones ----------
 
 /** Empleado bloqueado (FOR UPDATE) y activo; 409 si está inactivo. */
+/** Tras el commit: la agenda del negocio se recarga (pudo cambiar qué citas quedan fuera). */
+const avisarDisponibilidad = (empleado, por) =>
+  avisarAgenda(empleado.id_negocio, { accion: "disponibilidad", id_empleado: empleado.id_empleado, por });
+
 const lockEmpleadoActivo = async (id_empleado, conn) => {
   const empleado = await disponibilidadRepo.lockEmpleado(id_empleado, conn);
   if (!empleado) throw ApiError.notFound("Empleado no encontrado");
@@ -174,7 +179,8 @@ export const citasFuturasDeServicio = async (id_servicio, conn) =>
 // ---------- Lectura ----------
 
 /** Horario semanal y excepciones (por defecto, las que terminan hoy o después). */
-export const getDisponibilidad = async (id_empleado, { desde = hoyISO(), hasta, tipo } = {}) => {
+/** Sin `verMotivo` (configuracion.ver o el propio empleado), el texto de cada excepción va en null. */
+export const getDisponibilidad = async (id_empleado, { desde = hoyISO(), hasta, tipo } = {}, { verMotivo = false } = {}) => {
   const [horario, excepciones] = await Promise.all([
     disponibilidadRepo.findHorarioSemanal(id_empleado),
     disponibilidadRepo.findExcepciones(id_empleado, { desde, hasta, tipo }),
@@ -182,7 +188,10 @@ export const getDisponibilidad = async (id_empleado, { desde = hoyISO(), hasta, 
   return {
     horario_semanal: horario.map(formatHorario),
     sigue_horario_sucursal: horario.length === 0,
-    excepciones: excepciones.map(formatExcepcion),
+    excepciones: excepciones.map((e) => {
+      const excepcion = formatExcepcion(e);
+      return verMotivo ? excepcion : { ...excepcion, motivo: null };
+    }),
   };
 };
 
@@ -230,10 +239,11 @@ export const getDisponibilidadEfectiva = async (id_empleado, { fecha, id_sucursa
 // ---------- Escritura ----------
 
 /** Reemplaza el `horario_normal` del empleado. Lista vacía = sigue el horario de la sucursal. */
-export const replaceHorarioSemanal = async (id_empleado, horarios) => {
+export const replaceHorarioSemanal = async (id_empleado, horarios, por = null) => {
   validarCrucesSemanales(horarios);
-  return withTransaction(async (conn) => {
-    const empleado = await lockEmpleadoActivo(id_empleado, conn);
+  let empleado;
+  const resultado = await withTransaction(async (conn) => {
+    empleado = await lockEmpleadoActivo(id_empleado, conn);
     await verificarSucursales(
       empleado.id_negocio,
       horarios.map((h, i) => ({ id_sucursal: h.id_sucursal, ruta: `horarios.${i}.id_sucursal` })),
@@ -243,6 +253,8 @@ export const replaceHorarioSemanal = async (id_empleado, horarios) => {
     const horario = await disponibilidadRepo.findHorarioSemanal(id_empleado, conn);
     return { horario_semanal: horario.map(formatHorario), citas_afectadas: await citasAfectadas(empleado, conn) };
   });
+  await avisarDisponibilidad(empleado, por);
+  return resultado;
 };
 
 /** Valida lo que depende de la base (sucursal del evento y cruces entre eventos) y guarda. */
@@ -252,9 +264,10 @@ const validarExcepcion = async (empleado, excepcion, excluirId, conn) => {
   await verificarEventoSinCruces(empleado.id_empleado, excepcion, excluirId, conn);
 };
 
-export const createExcepcion = async (id_empleado, data) =>
-  withTransaction(async (conn) => {
-    const empleado = await lockEmpleadoActivo(id_empleado, conn);
+export const createExcepcion = async (id_empleado, data, por = null) => {
+  let empleado;
+  const resultado = await withTransaction(async (conn) => {
+    empleado = await lockEmpleadoActivo(id_empleado, conn);
     await validarExcepcion(empleado, data, 0, conn);
     const id = await disponibilidadRepo.create(id_empleado, data, conn);
     const citas_afectadas = await citasAfectadas(empleado, conn);
@@ -264,6 +277,9 @@ export const createExcepcion = async (id_empleado, data) =>
       mensaje: mensajeConAfectadas(MENSAJE_CREADA[data.tipo], citas_afectadas),
     };
   });
+  await avisarDisponibilidad(empleado, por);
+  return resultado;
+};
 
 /** Registro activo de tipo excepción; el horario semanal se cambia con el PUT (409). */
 const findExcepcionActiva = async (id_disponibilidad, conn) => {
@@ -279,10 +295,11 @@ const findExcepcionActiva = async (id_disponibilidad, conn) => {
  * Edición parcial: el body se combina con la fila actual y se valida con el
  * esquema de su tipo (un campo que el tipo no tiene da 422).
  */
-export const updateExcepcion = async (id_disponibilidad, data) =>
-  withTransaction(async (conn) => {
+export const updateExcepcion = async (id_disponibilidad, data, por = null) => {
+  let empleado;
+  const resultado = await withTransaction(async (conn) => {
     const actual = await findExcepcionActiva(id_disponibilidad, conn);
-    const empleado = await lockEmpleadoActivo(actual.id_empleado, conn);
+    empleado = await lockEmpleadoActivo(actual.id_empleado, conn);
     const combinado = excepcionSchema(actual.tipo).parse({ ...pick(actual, COLUMNAS_POR_TIPO[actual.tipo]), ...data });
     await validarExcepcion(empleado, combinado, id_disponibilidad, conn);
     await disponibilidadRepo.update(id_disponibilidad, combinado, conn);
@@ -293,13 +310,20 @@ export const updateExcepcion = async (id_disponibilidad, data) =>
       mensaje: mensajeConAfectadas("Disponibilidad actualizada", citas_afectadas),
     };
   });
+  await avisarDisponibilidad(empleado, por);
+  return resultado;
+};
 
 /** Borrado lógico. Quitar un evento especial puede dejar citas fuera de la disponibilidad. */
-export const deleteExcepcion = async (id_disponibilidad) =>
-  withTransaction(async (conn) => {
+export const deleteExcepcion = async (id_disponibilidad, por = null) => {
+  let empleado;
+  const resultado = await withTransaction(async (conn) => {
     const actual = await findExcepcionActiva(id_disponibilidad, conn);
-    const empleado = await lockEmpleadoActivo(actual.id_empleado, conn);
+    empleado = await lockEmpleadoActivo(actual.id_empleado, conn);
     await disponibilidadRepo.softDelete(id_disponibilidad, conn);
     const citas_afectadas = await citasAfectadas(empleado, conn);
     return { citas_afectadas, mensaje: mensajeConAfectadas("Disponibilidad eliminada", citas_afectadas) };
   });
+  await avisarDisponibilidad(empleado, por);
+  return resultado;
+};

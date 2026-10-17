@@ -1,11 +1,12 @@
 import { apiDelete, apiGet, apiGetPagina, apiPatch, apiPost, apiPostRespuesta, apiPut } from "./client";
 import type { CitaAfectada } from "./negocios";
 import type { components } from "./schema";
-import type { Body } from "./types";
+import type { Body, DataGet } from "./types";
 
 type Schemas = components["schemas"];
 
 export type Empleado = Schemas["Empleado"];
+export type Profesional = DataGet<"/negocios/{id_negocio}/profesionales">[number];
 export type InvitacionEnviada = Schemas["InvitacionEnviada"];
 export type CrearEmpleadoBody = Body<"/negocios/{id_negocio}/empleados", "post">;
 export type ActualizarEmpleadoBody = Body<"/empleados/{id_empleado}", "patch">;
@@ -21,6 +22,10 @@ export interface FiltrosEmpleados {
 /** Requiere empleados.ver. Paginado; activos primero. */
 export const getEmpleados = (idNegocio: number, params: FiltrosEmpleados) =>
   apiGetPagina<Empleado>(`/negocios/${idNegocio}/empleados`, params);
+
+/** Requiere citas.ver. Miembros activos, sin contacto, con los servicios que atienden (agenda). */
+export const getProfesionales = (idNegocio: number) =>
+  apiGet<Profesional[]>(`/negocios/${idNegocio}/profesionales`);
 
 /** Detalle con los permisos del rol. Requiere empleados.ver. */
 export const getEmpleado = (idEmpleado: number) => apiGet<Empleado>(`/empleados/${idEmpleado}`);

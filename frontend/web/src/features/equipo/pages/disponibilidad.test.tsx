@@ -83,7 +83,7 @@ describe("D5 · Disponibilidad del profesional", () => {
       horarios: [{ dia_semana: 1, hora_inicio: "08:00", hora_fin: "12:00", id_sucursal: 3 }],
     });
 
-    await user.click(screen.getByRole("button", { name: "Ver detalle y copiar" }));
+    await user.click(screen.getByRole("button", { name: "Reasignar o reprogramar" }));
     expect(await screen.findByRole("dialog")).toHaveTextContent(
       "Horario guardado. 2 citas están fuera de la disponibilidad",
     );

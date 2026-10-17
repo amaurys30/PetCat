@@ -50,8 +50,9 @@ export const lockMascota = async (id_mascota, conn) => {
 /**
  * Citas que ocupan la agenda de los empleados ese día, en minutos, con el
  * margen de su servicio sumado al fin: { [id_empleado]: [{ inicio, fin }] }.
+ * `excluirIdCita`: una cita que no cuenta (la que se reprograma o se reasigna).
  */
-export const findOcupadosDeEmpleados = async (ids, fecha, conn) => {
+export const findOcupadosDeEmpleados = async (ids, fecha, conn, excluirIdCita = 0) => {
   if (ids.length === 0) return {};
   const [rows] = await (conn ?? db).query(
     `SELECT c.id_empleado,
@@ -59,8 +60,8 @@ export const findOcupadosDeEmpleados = async (ids, fecha, conn) => {
             TIME_TO_SEC(c.hora_fin) DIV 60 + sv.margen_minutos AS fin
      FROM citas c
      JOIN servicios sv ON sv.id_servicio = c.id_servicio
-     WHERE c.id_empleado IN (?) AND c.fecha = ? AND c.estado IN ${ESTADOS_OCUPAN}`,
-    [ids, fecha]
+     WHERE c.id_empleado IN (?) AND c.fecha = ? AND c.estado IN ${ESTADOS_OCUPAN} AND c.id_cita <> ?`,
+    [ids, fecha, excluirIdCita]
   );
   const porEmpleado = {};
   for (const { id_empleado, inicio, fin } of rows) {
@@ -88,6 +89,26 @@ export const countCupos = async ({ id_servicio, id_sucursal, fecha, excluirIdCit
     [id_servicio, id_sucursal, fecha, excluirIdCita]
   );
   return row.total;
+};
+
+/**
+ * Citas de la mascota ese día (en cualquier negocio) que ocupan su agenda, en minutos:
+ * [{ inicio, fin }]. `excluirIdCita`: la que se reprograma.
+ */
+export const findOcupadosDeMascota = async (id_mascota, fecha, excluirIdCita = 0) => {
+  const [rows] = await db.query(
+    `SELECT TIME_TO_SEC(c.hora_inicio) DIV 60 AS inicio, TIME_TO_SEC(c.hora_fin) DIV 60 AS fin
+     FROM citas c
+     WHERE c.id_mascota = ? AND c.fecha = ? AND c.estado IN ${ESTADOS_OCUPAN} AND c.id_cita <> ?`,
+    [id_mascota, fecha, excluirIdCita]
+  );
+  return rows.map((r) => ({ inicio: Number(r.inicio), fin: Number(r.fin) }));
+};
+
+/** Mascota activa (para validar filtros): id, dueño y si falleció. */
+export const findMascotaActiva = async (id_mascota) => {
+  const [rows] = await db.query("SELECT id_mascota, id_usuario, fallecido FROM mascotas WHERE id_mascota = ? AND activo = TRUE", [id_mascota]);
+  return rows[0];
 };
 
 /** La mascota ya tiene una cita (en cualquier negocio) que se cruza con [hora_inicio, hora_fin). */
@@ -133,7 +154,6 @@ export const create = async (data, conn) => {
   return result.insertId;
 };
 
-/** Primer registro de historial_citas: la creación (estado de null al inicial). */
 /**
  * Registra un cambio en historial_citas. `actor`: { id_usuario, id_empleado?, ip? }.
  * Los valores se guardan como texto (null se conserva).
@@ -310,6 +330,25 @@ export const findDetalle = async (id_cita, conn) => {
   return rows[0];
 };
 
+/**
+ * Datos de la mascota y del cliente que el detalle del panel (B4) muestra además de los
+ * de la cita: perfil de la mascota (con alergias) y contacto del cliente. `usa_app`: el
+ * cliente inició sesión alguna vez.
+ */
+export const findDatosPanel = async (id_cita) => {
+  const [rows] = await db.query(
+    `SELECT m.raza, TIMESTAMPDIFF(MONTH, m.fecha_nacimiento, CURDATE()) AS edad_meses, m.peso,
+            m.tiene_alergias, m.alergias_detalle, m.fallecido,
+            u.email, u.ultimo_acceso IS NOT NULL AS usa_app
+     FROM citas c
+     JOIN mascotas m ON m.id_mascota = c.id_mascota
+     JOIN usuarios u ON u.id_usuario = c.id_usuario
+     WHERE c.id_cita = ?`,
+    [id_cita]
+  );
+  return rows[0];
+};
+
 /** La cita es de ese usuario (dueño de la mascota que la pidió). */
 export const esDelUsuario = async (id_cita, id_usuario) => {
   const [rows] = await db.query("SELECT 1 FROM citas WHERE id_cita = ? AND id_usuario = ?", [id_cita, id_usuario]);
@@ -354,9 +393,10 @@ export const findPageDeUsuario = async (id_usuario, { alcance, estados, id_masco
  * fecha y hora. Filtros opcionales: estados, sucursal, empleado, servicio y `q`
  * (nombre del cliente o de la mascota).
  */
+/** Citas del negocio desde `desde` hasta `hasta` (sin `hasta`, todas desde `desde`). */
 export const findAgenda = async ({ id_negocio, desde, hasta, estados, id_sucursal, id_empleado, id_servicio, q }) => {
-  const condiciones = ["c.id_negocio = ?", "c.fecha BETWEEN ? AND ?"];
-  const valores = [id_negocio, desde, hasta];
+  const condiciones = ["c.id_negocio = ?", hasta ? "c.fecha BETWEEN ? AND ?" : "c.fecha >= ?"];
+  const valores = hasta ? [id_negocio, desde, hasta] : [id_negocio, desde];
   if (estados) {
     condiciones.push("c.estado IN (?)");
     valores.push(estados);
@@ -445,7 +485,7 @@ export const findConfirmacionVencida = async (ahora, limite) => {
  */
 export const lockCitaSinEsperar = async (id_cita, conn) => {
   const [rows] = await conn.query(
-    `SELECT id_cita, id_sucursal, id_servicio, id_mascota, estado, fecha, hora_inicio, fecha_creacion,
+    `SELECT id_cita, id_negocio, id_sucursal, id_servicio, id_mascota, estado, fecha, hora_inicio, fecha_creacion,
             confirmar_antes_de, aviso_por_confirmar_en
      FROM citas WHERE id_cita = ? FOR UPDATE SKIP LOCKED`,
     [id_cita]

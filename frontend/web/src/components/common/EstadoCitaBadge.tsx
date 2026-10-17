@@ -23,14 +23,18 @@ export function EstadoCitaBadge({
   estado,
   cancelacion,
   fueraDeDisponibilidad,
+  plazo,
 }: {
   estado: EstadoCita;
   cancelacion?: Cancelacion | null;
   fueraDeDisponibilidad?: boolean;
+  /** Tiempo que queda para confirmar una pendiente ("2 h"): "Pendiente · 2 h". */
+  plazo?: string | null;
 }) {
   if (fueraDeDisponibilidad && (estado === "pendiente" || estado === "confirmada")) {
     return <Badge tono="warning">Fuera de disponibilidad</Badge>;
   }
+  if (estado === "pendiente" && plazo) return <Badge tono="warning">Pendiente · {plazo}</Badge>;
   const { texto, tono } = ESTADOS[estado];
   if (estado === "cancelada" && cancelacion?.por === "sistema")
     return <Badge tono="danger">Cancelada · sistema</Badge>;

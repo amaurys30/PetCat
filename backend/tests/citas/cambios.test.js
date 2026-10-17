@@ -495,3 +495,154 @@ describe("historial_cumplimiento del cliente", () => {
     expect(dueno.body.data.cliente).not.toHaveProperty("historial_cumplimiento");
   });
 });
+
+describe("GET /citas/:id_cita (detalle del panel, B4)", () => {
+  it("trae el perfil de la mascota y el contacto del cliente con citas.ver, sin clientes.ver", async () => {
+    const ctx = await contexto();
+    await pool.query(
+      "UPDATE mascotas SET raza = 'Criolla', peso = 4.2, tiene_alergias = TRUE, alergias_detalle = 'Penicilina', fecha_nacimiento = CURDATE() - INTERVAL 38 MONTH WHERE id_mascota = ?",
+      [ctx.mascota.id_mascota]
+    );
+    await pool.query("UPDATE usuarios SET ultimo_acceso = NOW() WHERE id_usuario = ?", [ctx.cliente.id_usuario]);
+    const c = await cita(ctx);
+    const usuario = await crearUsuario();
+    await crearEmpleado(ctx.negocio, { usuario, rol: (await crearRol(ctx.negocio, { citas: ["ver"] })).id_rol });
+
+    const res = await api(await tokenDe(usuario)).get(`/citas/${c.id_cita}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.mascota).toMatchObject({
+      raza: "Criolla",
+      edad_meses: 38,
+      peso: 4.2,
+      tiene_alergias: true,
+      alergias_detalle: "Penicilina",
+      fallecido: false,
+    });
+    expect(res.body.data.cliente).toMatchObject({ email: ctx.cliente.email, usa_app: true });
+    // El dueño no recibe la vista del panel.
+    const dueno = await api(ctx.tokenCliente).get(`/citas/${c.id_cita}`);
+    expect(dueno.body.data.cliente).not.toHaveProperty("usa_app");
+  });
+});
+
+describe("GET /citas/:id_cita/profesionales-libres", () => {
+  const libres = (c, token) => api(token).get(`/citas/${c.id_cita}/profesionales-libres`);
+
+  it("marca a quién está libre a la hora de la cita, al actual y por qué no está libre", async () => {
+    const ctx = await contexto();
+    const pedro = await crearEmpleado(ctx.negocio, { nombre: "Pedro", apellido: "Mora" });
+    await asignarEmpleados(ctx.servicio, [pedro]);
+    const c = await cita(ctx);
+    await cita(ctx, { id_empleado: ctx.luis.id_empleado, hora_inicio: "09:15:00", hora_fin: "09:45:00", mascota: await crearMascota(ctx.cliente) });
+    await pool.query("INSERT INTO disponibilidad_empleado (id_empleado, tipo, fecha_especifica) VALUES (?, 'vacacion', ?)", [
+      pedro.id_empleado,
+      LUNES,
+    ]);
+
+    const res = await libres(c, ctx.tokenPropietario);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({ id_cita: c.id_cita, fecha: LUNES, hora_inicio: "09:00", hora_fin: "09:30" });
+    const porNombre = Object.fromEntries(res.body.data.profesionales.map((p) => [p.nombre, p]));
+    expect(porNombre.Ana).toMatchObject({ actual: true, libre: true, motivo: null });
+    expect(porNombre.Luis).toMatchObject({ actual: false, libre: false, motivo: "Tiene otra cita a esa hora" });
+    expect(porNombre.Pedro).toMatchObject({
+      libre: false,
+      motivo: "No está disponible a esa hora (horario, bloqueo o vacaciones)",
+    });
+  });
+
+  it("solo pendientes o confirmadas (409); sin citas.editar (403)", async () => {
+    const ctx = await contexto();
+    expect((await libres(await cita(ctx, { estado: "completada" }), ctx.tokenPropietario)).status).toBe(409);
+    const usuario = await crearUsuario();
+    await crearEmpleado(ctx.negocio, { usuario, rol: (await crearRol(ctx.negocio, { citas: ["ver", "crear"] })).id_rol });
+    expect((await libres(await cita(ctx), await tokenDe(usuario))).status).toBe(403);
+  });
+});
+
+describe("GET /negocios/:id_negocio/citas/horarios-libres con id_cita_excluir", () => {
+  const horarios = (ctx, query, token = ctx.tokenPropietario) =>
+    api(token).get(
+      `/negocios/${ctx.negocio.id_negocio}/citas/horarios-libres?id_servicio=${ctx.servicio.id_servicio}&id_sucursal=${ctx.sucursal.id_sucursal}&fecha=${LUNES}&id_empleado=${ctx.ana.id_empleado}${query}`
+    );
+  const inicios = (res) => res.body.data.horarios.map((h) => h.hora_inicio);
+
+  it("la cita que se reprograma no ocupa su hora ni su cupo", async () => {
+    const ctx = await contexto({ servicio: { max_citas_dia: 1 } });
+    const c = await cita(ctx);
+
+    const sin = await horarios(ctx, "");
+    expect(sin.body.data.horarios).toEqual([]);
+    expect(sin.body.data.motivo_sin_horarios).toBe("No quedan cupos para este servicio ese día");
+
+    const con = await horarios(ctx, `&id_cita_excluir=${c.id_cita}`);
+    expect(con.status).toBe(200);
+    expect(inicios(con)).toEqual(expect.arrayContaining(["09:00", "09:15"]));
+  });
+
+  it("la cita debe ser del negocio (422) y exige citas.editar (403); con solo citas.editar se consultan horarios", async () => {
+    const ctx = await contexto();
+    const otro = await contexto();
+    const ajena = await cita(otro);
+    const res = await horarios(ctx, `&id_cita_excluir=${ajena.id_cita}`);
+    expect(res.status).toBe(422);
+    expect(res.body.errors).toEqual({ id_cita_excluir: "La cita no es de este negocio" });
+
+    const c = await cita(ctx);
+    const soloCrear = await crearUsuario();
+    await crearEmpleado(ctx.negocio, { usuario: soloCrear, rol: (await crearRol(ctx.negocio, { citas: ["ver", "crear"] })).id_rol });
+    expect((await horarios(ctx, `&id_cita_excluir=${c.id_cita}`, await tokenDe(soloCrear))).status).toBe(403);
+    expect((await horarios(ctx, "", await tokenDe(soloCrear))).status).toBe(200);
+
+    const soloEditar = await crearUsuario();
+    await crearEmpleado(ctx.negocio, { usuario: soloEditar, rol: (await crearRol(ctx.negocio, { citas: ["ver", "editar"] })).id_rol });
+    expect((await horarios(ctx, `&id_cita_excluir=${c.id_cita}`, await tokenDe(soloEditar))).status).toBe(200);
+  });
+});
+
+describe("GET /negocios/:id_negocio/citas/horarios-libres con id_mascota", () => {
+  const url = (ctx, extra) =>
+    `/negocios/${ctx.negocio.id_negocio}/citas/horarios-libres?id_servicio=${ctx.servicio.id_servicio}&id_sucursal=${ctx.sucursal.id_sucursal}&fecha=${LUNES}${extra}`;
+
+  it("quita las horas en que la mascota ya tiene otra cita (en cualquier negocio), salvo la que se reprograma", async () => {
+    const ctx = await contexto();
+    const otroNegocio = await crearNegocio();
+    const ajena = await crearCita(otroNegocio, {
+      cliente: ctx.cliente,
+      mascota: ctx.mascota,
+      fecha: LUNES,
+      hora_inicio: "10:00:00",
+      hora_fin: "10:30:00",
+      estado: "confirmada",
+    });
+    const inicios = async (extra) =>
+      (await api(ctx.tokenPropietario).get(url(ctx, extra))).body.data.horarios.map((h) => h.hora_inicio);
+
+    expect(await inicios("")).toEqual(expect.arrayContaining(["09:45", "10:00", "10:15", "10:30"]));
+    const conMascota = await inicios(`&id_mascota=${ctx.mascota.id_mascota}`);
+    expect(conMascota).not.toContain("09:45");
+    expect(conMascota).not.toContain("10:00");
+    expect(conMascota).not.toContain("10:15");
+    expect(conMascota).toContain("09:30");
+    expect(conMascota).toContain("10:30");
+
+    expect(ajena.id_negocio).toBe(otroNegocio.id_negocio);
+
+    // La que se reprograma (de este negocio) no le quita su propia hora.
+    const propia = await cita(ctx, { hora_inicio: "15:00:00", hora_fin: "15:30:00" });
+    expect(await inicios(`&id_mascota=${ctx.mascota.id_mascota}`)).not.toContain("15:00");
+    const reprogramando = await inicios(`&id_mascota=${ctx.mascota.id_mascota}&id_cita_excluir=${propia.id_cita}`);
+    expect(reprogramando).toContain("15:00");
+    expect(reprogramando).not.toContain("10:00");
+  });
+
+  it("mascota inexistente o fallecida -> 422", async () => {
+    const ctx = await contexto();
+    const fallecida = await crearMascota(ctx.cliente, { fallecido: true, fecha_fallecimiento: "2026-01-01" });
+    for (const id of [999999999, fallecida.id_mascota]) {
+      const res = await api(ctx.tokenPropietario).get(url(ctx, `&id_mascota=${id}`));
+      expect(res.status).toBe(422);
+      expect(res.body.errors).toEqual({ id_mascota: "La mascota no existe o no puede recibir citas" });
+    }
+  });
+});

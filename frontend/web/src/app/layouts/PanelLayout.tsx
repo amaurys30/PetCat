@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { useNegocioActivo, useNegocioDeRuta, usePuede } from "@/features/negocios/hooks/useNegocio";
 import { useNegocioStore } from "@/stores/negocio";
+import { AccionesCita } from "@/features/agenda/components/acciones/AccionesCita";
+import { TiempoRealAgenda } from "@/features/agenda/components/TiempoRealAgenda";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
@@ -51,6 +53,8 @@ export function PanelLayout() {
           <AvisoConfiguracionPendiente />
           <Outlet />
         </main>
+        <AccionesCita />
+        <TiempoRealAgenda />
       </div>
     </div>
   );

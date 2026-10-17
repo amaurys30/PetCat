@@ -8,7 +8,13 @@ export const buscarClientes = async (req, res) => {
 
 export const registrarCliente = async (req, res) => {
   const data = await service.registrarCliente(req.negocio, req.body, { id_usuario: req.user.id_usuario, ip: req.ip });
-  return created(res, data, "Cliente registrado. Le enviamos un correo para que cree su contraseña");
+  return created(
+    res,
+    data,
+    data.sin_cuenta
+      ? "Cliente registrado sin cuenta: no recibirá correos ni recordatorios y no podrá entrar a la app"
+      : "Cliente registrado. Le enviamos un correo para que cree su contraseña"
+  );
 };
 
 export const agregarMascota = async (req, res) => {

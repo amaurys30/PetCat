@@ -1658,6 +1658,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/citas/{id_cita}/profesionales-libres": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Profesionales libres para reasignar una cita (panel)
+         * @description Requiere `citas.editar`. Cada profesional activo que atiende el servicio, con `libre` si puede tomar la cita a su hora (disponibilidad y otras citas, con el mismo cálculo de la reserva y sin contar esta cita) y, si no, el motivo. `actual` marca a quien la tiene ahora. Solo citas pendientes o confirmadas (409). Para reasignar: `PATCH /citas/{id_cita}` con `id_empleado`.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id_cita: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Profesionales */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            /** @example OK */
+                            message: string;
+                            data: {
+                                id_cita: number;
+                                /** Format: date */
+                                fecha: string;
+                                /** @example 15:30 */
+                                hora_inicio: string;
+                                /** @example 16:00 */
+                                hora_fin: string;
+                                profesionales: {
+                                    id_empleado: number;
+                                    nombre: string;
+                                    apellido: string;
+                                    actual: boolean;
+                                    libre: boolean;
+                                    /**
+                                     * @description Por qué no está libre (null si lo está)
+                                     * @example Tiene otra cita a esa hora
+                                     */
+                                    motivo: string | null;
+                                }[];
+                            };
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["CitaEstadoConflicto"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/citas/{id_cita}/historial": {
         parameters: {
             query?: never;
@@ -1701,10 +1772,18 @@ export interface paths {
                                 motivo: string | null;
                                 /** @enum {string} */
                                 realizado_por: "dueno" | "negocio" | "sistema";
-                                /** @description Solo en el panel */
-                                usuario?: Record<string, never> | null;
-                                /** @description Solo en el panel */
-                                empleado?: Record<string, never> | null;
+                                /** @description Solo en el panel. Quién hizo el cambio (null en los del sistema) */
+                                usuario?: {
+                                    id_usuario: number;
+                                    nombre: string;
+                                    apellido: string;
+                                } | null;
+                                /** @description Solo en el panel. Su perfil de empleado en el negocio, si lo tiene */
+                                empleado?: {
+                                    id_empleado: number;
+                                    nombre: string;
+                                    apellido: string;
+                                } | null;
                             }[];
                         };
                     };
@@ -1731,7 +1810,7 @@ export interface paths {
         };
         /**
          * Horarios libres para agendar (panel)
-         * @description Requiere `citas.crear`. Igual que el de la app, pero admite servicios ocultos en la app (del propio negocio) y no aplica la antelación mínima (solo que el horario sea futuro). Si el negocio alcanzó el límite de citas del mes de su plan, no hay horarios y `motivo_sin_horarios` lo dice ("El negocio alcanzó las 30 citas de su plan Gratuito en octubre de 2026").
+         * @description Requiere `citas.crear` o `citas.editar` (agendar o reprogramar). Igual que el de la app, pero admite servicios ocultos en la app (del propio negocio) y no aplica la antelación mínima (solo que el horario sea futuro). Con `id_cita_excluir` (reprogramar), esa cita no ocupa su hora ni cuenta en los cupos ni en el límite del plan; debe ser de este negocio (422) y exige `citas.editar` (403). Con `id_mascota`, no ofrece las horas en que la mascota ya tiene otra cita (el cruce daría 409 al reservar). Si el negocio alcanzó el límite de citas del mes de su plan, no hay horarios y `motivo_sin_horarios` lo dice ("El negocio alcanzó las 30 citas de su plan Gratuito en octubre de 2026").
          */
         get: {
             parameters: {
@@ -1743,6 +1822,10 @@ export interface paths {
                     fecha: components["parameters"]["horariosLibresFecha"];
                     /** @description Solo ese empleado (debe atender el servicio) */
                     id_empleado?: components["parameters"]["horariosLibresEmpleado"];
+                    /** @description Cita que se reprograma (no ocupa su hora) */
+                    id_cita_excluir?: number;
+                    /** @description Quita las horas en que la mascota ya tiene otra cita, en cualquier negocio (422 si no existe o falleció) */
+                    id_mascota?: number;
                 };
                 header?: never;
                 path: {
@@ -1914,6 +1997,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/negocios/{id_negocio}/citas/atencion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Citas por confirmar y fuera de disponibilidad (panel)
+         * @description Requiere `citas.ver`. Sin límite de rango, desde hoy: `por_confirmar` son las citas pendientes ordenadas por `confirmar_antes_de` (las que se cancelan solas primero) y `fuera_de_disponibilidad` las pendientes o confirmadas futuras que ya no caben en la disponibilidad de su empleado, por fecha y hora, con `motivo_fuera`. Una cita pendiente fuera de disponibilidad está en las dos listas. Filtros: sucursal, empleado y `solo_mias`, como en la agenda.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    id_sucursal?: number;
+                    id_empleado?: number;
+                    solo_mias?: "true" | "false";
+                };
+                header?: never;
+                path: {
+                    id_negocio: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Citas por atender */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            /** @example OK */
+                            message: string;
+                            data: {
+                                por_confirmar: components["schemas"]["CitaPanel"][];
+                                fuera_de_disponibilidad: components["schemas"]["CitaPanel"][];
+                            };
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["ValidationError"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/negocios/{id_negocio}/clientes/buscar": {
         parameters: {
             query?: never;
@@ -1952,6 +2093,8 @@ export interface paths {
                             /** @example OK */
                             message: string;
                             data: (components["schemas"]["ClienteContacto"] & {
+                                /** @description Alguna vez inició sesión */
+                                usa_app: boolean;
                                 mascotas: {
                                     id_mascota: number;
                                     nombre: string;
@@ -2029,7 +2172,7 @@ export interface paths {
         put?: never;
         /**
          * Registrar un cliente sin app (panel)
-         * @description Requiere `citas.crear`. Crea la cuenta del cliente con su primera mascota. Exige `autoriza_tratamiento_datos: true` (Ley 1581 de 2012): se guarda con la fecha, el negocio, quién la registró, la versión de la política y la IP. El cliente recibe un correo de bienvenida con el nombre del negocio y el enlace `${FRONTEND_URL}/crear-password/<token>` (vigente 7 días; se usa con `POST /auth/reset-password`). Después se agenda con `POST /negocios/{id_negocio}/citas`.
+         * @description Requiere `citas.crear`. Crea la cuenta del cliente con su primera mascota. Exige `autoriza_tratamiento_datos: true` (Ley 1581 de 2012): se guarda con la fecha, el negocio, quién la registró, la versión de la política y la IP. Con correo, el cliente recibe la bienvenida con el nombre del negocio y el enlace `${FRONTEND_URL}/crear-password/<token>` (vigente 7 días; se usa con `POST /auth/reset-password`). Sin correo queda **sin cuenta** (`sin_cuenta: true`): el teléfono es obligatorio (422), no recibe correos ni recordatorios y no puede iniciar sesión; si ya hay un usuario activo con ese teléfono, 409 (buscarlo con clientes/buscar). Después se agenda con `POST /negocios/{id_negocio}/citas`.
          */
         post: {
             parameters: {
@@ -2047,9 +2190,10 @@ export interface paths {
                         apellido: string;
                         /**
                          * Format: email
-                         * @description Obligatorio por ahora
+                         * @description Sin correo
                          */
-                        email: string;
+                        email?: string;
+                        /** @description Obligatorio si no hay correo */
                         telefono?: string;
                         /**
                          * @description El titular autorizó el tratamiento de sus datos
@@ -2070,11 +2214,13 @@ export interface paths {
                         "application/json": {
                             /** @example true */
                             success: boolean;
-                            /** @example Cliente registrado. Le enviamos un correo para que cree su contraseña */
-                            message: string;
+                            /** @enum {string} */
+                            message: "Cliente registrado. Le enviamos un correo para que cree su contraseña" | "Cliente registrado sin cuenta: no recibirá correos ni recordatorios y no podrá entrar a la app";
                             data: {
                                 cliente: components["schemas"]["ClienteContacto"];
                                 mascota: components["schemas"]["Mascota"];
+                                /** @description Se registró sin correo */
+                                sin_cuenta: boolean;
                             };
                         };
                     };
@@ -2082,7 +2228,7 @@ export interface paths {
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                /** @description Ya existe una cuenta con ese correo (buscarla con clientes/buscar) */
+                /** @description Ya existe una cuenta con ese correo o, sin correo, un usuario con ese teléfono (buscarlo con clientes/buscar) */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -2547,7 +2693,7 @@ export interface paths {
         };
         /**
          * Horario semanal y excepciones del empleado
-         * @description Requiere `configuracion.ver` o `citas.ver`; el propio empleado siempre puede ver la suya. Las excepciones se filtran por período (por defecto, las que terminan hoy o después). `sigue_horario_sucursal` es true si no tiene horario semanal.
+         * @description Requiere `configuracion.ver` o `citas.ver`; el propio empleado siempre puede ver la suya. Las excepciones se filtran por período (por defecto, las que terminan hoy o después). El `motivo` de cada excepción solo va con `configuracion.ver` o al propio empleado; con solo `citas.ver`, null. `sigue_horario_sucursal` es true si no tiene horario semanal.
          */
         get: {
             parameters: {
@@ -3125,6 +3271,75 @@ export interface paths {
                 422: components["responses"]["ValidationError"];
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/negocios/{id_negocio}/profesionales": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Profesionales del negocio para la agenda
+         * @description Requiere `citas.ver` (la lista completa del equipo, con contacto, es `GET /negocios/{id_negocio}/empleados`). Empleados activos, por nombre, sin datos de contacto ni de la invitación: las columnas de la vista Día, el filtro de profesionales y el selector al agendar o reasignar. Incluye a quien no atiende servicios (`servicios` vacío) y al propietario registrado como empleado.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id_negocio: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Profesionales */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            /** @example OK */
+                            message: string;
+                            data: {
+                                id_empleado: number;
+                                /** @example Carlos */
+                                nombre: string;
+                                /** @example Pérez */
+                                apellido: string;
+                                especialidad: string | null;
+                                foto_url: string | null;
+                                foto_miniatura_url: string | null;
+                                rol: {
+                                    id_rol: number;
+                                    /** @example Veterinario */
+                                    nombre: string;
+                                };
+                                /** @description Servicios activos que atiende */
+                                servicios: {
+                                    id_servicio: number;
+                                    nombre: string;
+                                }[];
+                            }[];
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -6259,7 +6474,7 @@ export interface paths {
         };
         /**
          * Servicios del negocio (panel)
-         * @description Requiere `servicios.ver`. Incluye servicios inactivos y ocultos (activos primero). Cada servicio trae sus empleados activos asignados y `sin_empleados`.
+         * @description Requiere `servicios.ver` o `citas.crear` (para elegir el servicio al agendar). Incluye servicios inactivos y ocultos (activos primero). Cada servicio trae sus empleados activos asignados y `sin_empleados`.
          */
         get: {
             parameters: {
@@ -7688,10 +7903,40 @@ export interface components {
         CitaPanel: components["schemas"]["Cita"] & {
             /** @description Cita futura pendiente o confirmada que ya no cabe en la disponibilidad de su empleado (bloqueo, vacaciones, cambio de horario): hay que reprogramarla o reasignarla. false en las demás. */
             fuera_de_disponibilidad: boolean;
+            /** @description Solo si `fuera_de_disponibilidad` es true; null en las demás. */
+            motivo_fuera: {
+                /**
+                 * @description vacacion o bloqueo (la excepción que se cruza con la cita; la vacación gana) o fuera_de_horario (cambió el horario del empleado o de la sucursal, o tiene un evento en otra sucursal)
+                 * @enum {string}
+                 */
+                tipo: "vacacion" | "bloqueo" | "fuera_de_horario";
+                /**
+                 * @description Texto de la vacación o del bloqueo. Puede ser personal: solo se envía a quien tiene `configuracion.ver` (y al propietario y al admin) y al propio empleado de la cita (es su información); a los demás, null.
+                 * @example Capacitación
+                 */
+                motivo: string | null;
+            } | null;
         };
         /** @description Detalle de la cita para el panel (GET /citas/{id_cita} y respuestas de los cambios). */
         CitaPanelDetalle: components["schemas"]["CitaPanel"] & {
+            /** @description Perfil de la mascota que muestra el detalle (B4), además de id, nombre y especie */
+            mascota: {
+                raza: string | null;
+                /** @description Calculada con la fecha de nacimiento */
+                edad_meses: number | null;
+                peso: number | null;
+                tiene_alergias: boolean;
+                alergias_detalle: string | null;
+                fallecido: boolean;
+            };
             cliente: {
+                /**
+                 * Format: email
+                 * @description Para contactarlo por su cita, como el teléfono (el perfil completo exige clientes.ver). null: cliente sin cuenta
+                 */
+                email: string | null;
+                /** @description Alguna vez inició sesión */
+                usa_app: boolean;
                 /** @description Solo las citas del cliente con este negocio, nunca las de otros negocios */
                 historial_cumplimiento: {
                     completadas: number;
@@ -7704,8 +7949,11 @@ export interface components {
             id_usuario: number;
             nombre: string;
             apellido: string;
-            /** Format: email */
-            email: string;
+            /**
+             * Format: email
+             * @description null en un cliente sin cuenta (registrado desde el panel sin correo; tiene teléfono)
+             */
+            email: string | null;
             telefono: string | null;
         };
         ClienteFila: components["schemas"]["ClienteContacto"] & {
@@ -8029,6 +8277,7 @@ export interface components {
             hora_inicio: string | null;
             hora_fin: string | null;
             id_sucursal: number | null;
+            /** @description Texto libre; puede ser personal ("cita médica"). En GET /empleados/{id_empleado}/disponibilidad solo llega a quien tiene `configuracion.ver` (y al propietario y al admin) y al propio empleado; quien entra con `citas.ver` recibe null (ve el tipo y las fechas). */
             motivo: string | null;
         };
         /** @description Cita futura pendiente o confirmada que ya no cabe tras el cambio (en la disponibilidad del empleado o en el horario de la sucursal, según el endpoint) */

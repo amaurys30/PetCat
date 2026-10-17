@@ -20,27 +20,46 @@ const MAX_CITAS_RECIENTES = 10;
 export const buscarClientes = async (query) => {
   const clientes = await clienteRepo.buscar(query);
   const mascotas = await clienteRepo.findMascotasVivas(clientes.map((c) => c.id_usuario));
-  return clientes.map((c) => ({ ...c, mascotas: mascotas[c.id_usuario] ?? [] }));
+  return clientes.map((c) => ({ ...c, usa_app: Boolean(c.usa_app), mascotas: mascotas[c.id_usuario] ?? [] }));
+};
+
+/** Algún usuario activo con ese teléfono (solo dígitos) ya es cliente del negocio. */
+const yaEsClienteConTelefono = async (id_negocio, telefono) => {
+  const mismos = await clienteRepo.buscar({ telefono: telefono.replace(/\D/g, "") });
+  for (const u of mismos) if (await clienteRepo.tieneRelacion(u.id_usuario, id_negocio)) return true;
+  return false;
 };
 
 /**
  * Registra un cliente sin app con su primera mascota, en una transacción: el
  * usuario (contraseña aleatoria que nadie conoce), la mascota, la autorización de
- * datos (canal panel, negocio y quién la registró) y el enlace de bienvenida para
- * crear su contraseña. El correo se envía después, sin esperar.
+ * datos (canal panel, negocio y quién la registró) y, con correo, el enlace de
+ * bienvenida para crear su contraseña (el correo se envía después, sin esperar).
+ * Sin correo queda sin cuenta: no hay bienvenida y, para no duplicarlo, no puede haber
+ * otro cliente de este negocio con el mismo teléfono (409): en una familia es común
+ * compartirlo, y a ese cliente sí se le puede agregar la mascota. Un usuario con ese teléfono
+ * sin relación con el negocio no lo impide: el negocio no podría agregarle mascotas.
+ * Devuelve también `sin_cuenta`.
  */
 export const registrarCliente = async (negocio, { mascota, ...datos }, actor) => {
-  if (await usuarioRepo.findByEmail(datos.email)) {
+  const sinCuenta = !datos.email;
+  if (!sinCuenta && (await usuarioRepo.findByEmail(datos.email))) {
     throw ApiError.conflict("Ya existe una cuenta con ese correo: búscala con clientes/buscar", {
       email: "Ya está registrado",
     });
+  }
+  if (sinCuenta && (await yaEsClienteConTelefono(negocio.id_negocio, datos.telefono))) {
+    throw ApiError.conflict(
+      "Ya hay un cliente con ese teléfono. Si es de la misma familia, búscalo por teléfono, elígelo y agrégale la mascota.",
+      { telefono: "Ya hay un cliente con este teléfono" }
+    );
   }
   const password_hash = await hashPassword(randomBytes(32).toString("hex"));
   const version_politica = await versionPolitica();
 
   const { id_usuario, id_mascota, token } = await withTransaction(async (conn) => {
     const id = await usuarioRepo.create(
-      { nombre: datos.nombre, apellido: datos.apellido, email: datos.email, telefono: datos.telefono, password_hash },
+      { nombre: datos.nombre, apellido: datos.apellido, email: datos.email ?? null, telefono: datos.telefono, password_hash },
       conn
     );
     const idMascota = await mascotaRepo.create(id, mascota, conn);
@@ -55,13 +74,14 @@ export const registrarCliente = async (negocio, { mascota, ...datos }, actor) =>
       },
       conn
     );
-    return { id_usuario: id, id_mascota: idMascota, token: await emitirEnlaceBienvenida(id, conn) };
+    return { id_usuario: id, id_mascota: idMascota, token: sinCuenta ? null : await emitirEnlaceBienvenida(id, conn) };
   });
 
-  await enviarBienvenida({ token, email: datos.email, nombre: datos.nombre, negocio: negocio.nombre });
+  if (!sinCuenta) await enviarBienvenida({ token, email: datos.email, nombre: datos.nombre, negocio: negocio.nombre });
   return {
     cliente: await clienteRepo.findActivo(id_usuario),
     mascota: formatMascota(await mascotaRepo.findById(id_mascota)),
+    sin_cuenta: sinCuenta,
   };
 };
 

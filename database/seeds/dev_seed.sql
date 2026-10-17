@@ -16,6 +16,8 @@
 --    valeria@petcat.test         Dueña de Copito y Nala (fallecida)
 --    jorge@petcat.test           Cliente sin app registrado desde el panel (Toby)
 --    andrea@, luis@, marta@petcat.test  Clientes sin app de la guardería (Fase 2)
+--    lorena@petcat.test          Clienta de Patitas con la app (Milo y Nina)
+--    pedro@petcat.test           Cliente sin app registrado desde el panel de Patitas (Lucas)
 --  El detalle de lo que hay en cada negocio está en backend/README.md (Seed de desarrollo).
 --  Empleado sin cuenta:
 --    recepcionista@petcat.test   Rol Recepcionista, con invitación pendiente.
@@ -294,9 +296,9 @@ INSERT INTO sucursales (id_negocio, nombre, telefono, direccion, ciudad, latitud
 (@n_salud, 'Sede Sur',   '6052804141', 'Calle 10 # 15-20, La Pollita', 'Sincelejo', 9.28870000, -75.39840000, FALSE);
 SET @s_norte = (SELECT id_sucursal FROM sucursales WHERE id_negocio = @n_salud AND nombre = 'Sede Norte');
 SET @s_sur   = (SELECT id_sucursal FROM sucursales WHERE id_negocio = @n_salud AND nombre = 'Sede Sur');
--- Norte: todos los días de 7:00 a 21:00. Sur: horario partido de lunes a sábado.
+-- Norte: abierta las 24 horas, todos los días (00:00 a 23:59). Sur: horario partido de lunes a sábado.
 INSERT INTO horarios_negocio (id_sucursal, dia_semana, hora_apertura, hora_cierre)
-SELECT @s_norte, d, '07:00:00', '21:00:00'
+SELECT @s_norte, d, '00:00:00', '23:59:00'
 FROM (SELECT 0 AS d UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6) dias;
 INSERT INTO horarios_negocio (id_sucursal, dia_semana, hora_apertura, hora_cierre)
 SELECT @s_sur, d, h.apertura, h.cierre
@@ -735,3 +737,178 @@ SELECT @u_camilo, @n_huellitas, 'resena_respondida', 'Respondieron tu reseña',
        JSON_OBJECT('enlace', JSON_OBJECT('tipo', 'resena_respondida', 'id_cita', r.id_cita, 'id_negocio', @n_huellitas, 'id_resena', r.id_resena)),
        'in_app', 'enviada', r.fecha_respuesta
 FROM resenas r WHERE r.id_negocio = @n_huellitas;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+--  Panel P4: una semana de agenda en Patitas
+--  Citas desde 3 días antes hasta 5 días después de hoy (sin domingos; el sábado
+--  solo en la mañana), con dos profesionales que a veces atienden a la misma hora
+--  (lado a lado en la vista Semana), pendientes con plazo para confirmar y una cita
+--  fuera de disponibilidad por un bloqueo personal. Usa clientes nuevos: no cambia
+--  el cumplimiento de Sofía ni los conteos que comprueban los tests del seed.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- Paula: veterinaria sin cuenta en PetCat. Con ella Patitas llega a 3 de 3 empleados.
+INSERT INTO empleados (id_negocio, id_rol, nombre, apellido, email, telefono, especialidad, fecha_vinculacion)
+VALUES (@id_negocio, (SELECT id_rol FROM roles WHERE nombre = 'Veterinario' AND es_sistema = TRUE),
+        'Paula', 'Rojas', 'paula@patitas.test', '3002228899', 'Cirugía y medicina interna', CURDATE() - INTERVAL 8 MONTH);
+SET @e_paula = LAST_INSERT_ID();
+INSERT INTO empleado_servicios (id_empleado, id_servicio) VALUES (@e_paula, @sv_consulta), (@e_paula, @sv_vacuna);
+
+-- Lorena usa la app; Pedro no: lo registró Patitas desde el panel.
+INSERT INTO usuarios (nombre, apellido, email, password_hash, telefono, tipo_usuario, email_verificado, ultimo_acceso) VALUES
+('Lorena', 'Gómez', 'lorena@petcat.test', @password_hash, '3001234567', 'cliente', TRUE, NOW() - INTERVAL 2 DAY);
+INSERT INTO usuarios (nombre, apellido, email, password_hash, telefono, tipo_usuario, email_verificado) VALUES
+('Pedro', 'Díaz', 'pedro@petcat.test', @password_hash, '3009876543', 'cliente', FALSE);
+SET @u_lorena = (SELECT id_usuario FROM usuarios WHERE email = 'lorena@petcat.test');
+SET @u_pedro = (SELECT id_usuario FROM usuarios WHERE email = 'pedro@petcat.test');
+INSERT INTO autorizaciones_datos (id_usuario, canal, id_usuario_registro, version_politica)
+VALUES (@u_lorena, 'app', @u_lorena, @version);
+INSERT INTO autorizaciones_datos (id_usuario, canal, id_negocio, id_usuario_registro, version_politica)
+VALUES (@u_pedro, 'panel', @id_negocio, @id_propietario, @version);
+
+INSERT INTO mascotas (id_usuario, nombre, especie, raza, color, fecha_nacimiento, sexo, peso, esterilizado, tiene_alergias, alergias_detalle) VALUES
+(@u_lorena, 'Milo',  'perro', 'Schnauzer', 'Sal y pimienta', '2021-05-03', 'macho',  8.20, TRUE,  FALSE, NULL),
+(@u_lorena, 'Nina',  'gato',  'Criolla',   'Carey',          '2023-01-20', 'hembra', 4.20, TRUE,  TRUE,  'Penicilina'),
+(@u_pedro, 'Lucas', 'perro', 'Criollo',   'Negro',          '2018-09-11', 'macho', 21.00, FALSE, FALSE, NULL);
+SET @m_milo  = (SELECT id_mascota FROM mascotas WHERE id_usuario = @u_lorena AND nombre = 'Milo');
+SET @m_nina  = (SELECT id_mascota FROM mascotas WHERE id_usuario = @u_lorena AND nombre = 'Nina');
+SET @m_lucas = (SELECT id_mascota FROM mascotas WHERE id_usuario = @u_pedro AND nombre = 'Lucas');
+
+-- Día hábil (lunes a viernes) desde pasado mañana, para el bloqueo de Paula.
+SET @dia_bloqueo = CURDATE() + INTERVAL (2 + CASE DAYOFWEEK(CURDATE() + INTERVAL 2 DAY) WHEN 7 THEN 2 WHEN 1 THEN 1 ELSE 0 END) DAY;
+-- Mañanas abiertas (lunes a sábado) para las pendientes: mañana y en 3 días.
+SET @p1 = CURDATE() + INTERVAL (1 + (DAYOFWEEK(CURDATE() + INTERVAL 1 DAY) = 1)) DAY;
+SET @p3 = CURDATE() + INTERVAL (3 + (DAYOFWEEK(CURDATE() + INTERVAL 3 DAY) = 1)) DAY;
+
+INSERT INTO disponibilidad_empleado (id_empleado, tipo, fecha_especifica, hora_inicio, hora_fin, motivo)
+VALUES (@e_paula, 'bloqueo', @dia_bloqueo, '14:00:00', '18:00:00', 'Cita médica personal');
+
+-- (día respecto a hoy, hora, servicio, profesional, mascota, estado si ya pasó, origen)
+-- Las de hoy y las futuras quedan confirmadas.
+CREATE TEMPORARY TABLE seed_agenda (
+  dia INT, hora TIME, id_servicio INT, id_empleado INT, id_mascota INT, estado_pasado VARCHAR(20), origen VARCHAR(20)
+);
+INSERT INTO seed_agenda VALUES
+(-3, '08:00:00', @sv_consulta, @id_veterinario, @m_milo,  'completada', 'app_movil'),
+(-3, '10:00:00', @sv_consulta, @e_paula,        @m_lucas, 'completada', 'presencial'),
+(-2, '09:00:00', @sv_vacuna,   @id_veterinario, @m_nina,  'completada', 'app_movil'),
+(-2, '15:00:00', @sv_consulta, @e_paula,        @m_rocky, 'no_asistio', 'telefono'),
+(-1, '08:30:00', @sv_consulta, @id_veterinario, @m_lucas, 'completada', 'telefono'),
+(-1, '14:30:00', @sv_consulta, @e_paula,        @m_mia,   'completada', 'app_movil'),
+( 0, '08:00:00', @sv_consulta, @id_veterinario, @m_milo,  'completada', 'app_movil'),
+( 0, '08:00:00', @sv_vacuna,   @e_paula,        @m_nina,  'completada', 'app_movil'),
+( 0, '10:00:00', @sv_consulta, @id_veterinario, @m_mia,   'completada', 'app_movil'),
+( 0, '14:00:00', @sv_consulta, @e_paula,        @m_lucas, 'completada', 'whatsapp'),
+( 1, '10:00:00', @sv_consulta, @e_paula,        @m_rocky, 'completada', 'telefono'),
+( 1, '15:00:00', @sv_consulta, @id_veterinario, @m_nina,  'completada', 'app_movil'),
+( 2, '09:00:00', @sv_consulta, @id_veterinario, @m_lucas, 'completada', 'presencial'),
+( 3, '11:00:00', @sv_vacuna,   @id_veterinario, @m_rocky, 'completada', 'app_movil'),
+( 3, '11:00:00', @sv_consulta, @e_paula,        @m_milo,  'completada', 'app_movil'),
+( 4, '08:30:00', @sv_consulta, @id_veterinario, @m_milo,  'completada', 'app_movil'),
+( 5, '09:00:00', @sv_consulta, @e_paula,        @m_nina,  'completada', 'app_movil');
+
+INSERT INTO citas (id_negocio, id_sucursal, id_usuario, id_mascota, id_servicio, id_empleado, fecha, hora_inicio, hora_fin,
+                   estado, precio_estimado, precio_final, origen, fecha_creacion)
+SELECT @id_negocio, @id_sucursal, m.id_usuario, a.id_mascota, a.id_servicio, a.id_empleado, CURDATE() + INTERVAL a.dia DAY, a.hora,
+       ADDTIME(a.hora, SEC_TO_TIME(s.duracion_minutos * 60)),
+       IF(a.dia < 0, a.estado_pasado, 'confirmada'),
+       COALESCE(IF(s.en_oferta, s.precio_oferta, NULL), s.precio_base),
+       IF(a.dia < 0 AND a.estado_pasado = 'completada', COALESCE(IF(s.en_oferta, s.precio_oferta, NULL), s.precio_base), NULL),
+       a.origen, TIMESTAMP(CURDATE() + INTERVAL (a.dia - 3) DAY, '18:00:00')
+FROM seed_agenda a
+JOIN servicios s ON s.id_servicio = a.id_servicio
+JOIN mascotas m ON m.id_mascota = a.id_mascota
+WHERE DAYOFWEEK(CURDATE() + INTERVAL a.dia DAY) <> 1
+  AND (DAYOFWEEK(CURDATE() + INTERVAL a.dia DAY) <> 7 OR a.hora < '12:00:00');
+DROP TEMPORARY TABLE seed_agenda;
+
+-- Cae en el bloqueo de Paula: la agenda la marca fuera de disponibilidad.
+INSERT INTO citas (id_negocio, id_sucursal, id_usuario, id_mascota, id_servicio, id_empleado, fecha, hora_inicio, hora_fin,
+                   estado, precio_estimado, origen, notas_cliente, fecha_creacion)
+VALUES (@id_negocio, @id_sucursal, @u_lorena, @m_milo, @sv_consulta, @e_paula, @dia_bloqueo, '15:30:00', '16:00:00',
+        'confirmada', 60000, 'app_movil', 'Control de la otitis', NOW() - INTERVAL 6 DAY);
+
+-- Reservas de la app sin confirmar: se cancelan solas si nadie las confirma antes del plazo
+-- (24 horas después de reservar o 60 minutos antes de la cita, lo que ocurra primero).
+INSERT INTO citas (id_negocio, id_sucursal, id_usuario, id_mascota, id_servicio, id_empleado, fecha, hora_inicio, hora_fin,
+                   estado, precio_estimado, origen, notas_cliente, fecha_creacion) VALUES
+(@id_negocio, @id_sucursal, @u_lorena,  @m_nina, @sv_vacuna,   @id_veterinario, @p1, '09:30:00', '09:45:00',
+ 'pendiente', 38000, 'app_movil', NULL, NOW() - INTERVAL 4 HOUR),
+(@id_negocio, @id_sucursal, @u_camilo, @m_mia,  @sv_consulta, @e_paula,        @p3, '10:00:00', '10:30:00',
+ 'pendiente', 60000, 'app_movil', 'Vomita después de comer', NOW() - INTERVAL 1 HOUR);
+UPDATE citas
+SET confirmar_antes_de = LEAST(fecha_creacion + INTERVAL 24 HOUR, TIMESTAMP(fecha, hora_inicio) - INTERVAL 60 MINUTE)
+WHERE id_negocio = @id_negocio AND estado = 'pendiente' AND confirmar_antes_de IS NULL;
+
+UPDATE citas SET fecha_completada = TIMESTAMP(fecha, hora_fin) WHERE estado = 'completada' AND fecha_completada IS NULL;
+UPDATE negocios n
+SET total_citas = (SELECT COUNT(*) FROM citas c WHERE c.id_negocio = n.id_negocio AND c.estado = 'completada')
+WHERE n.id_negocio = @id_negocio;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+--  Panel P4.2: historial de las citas del seed (el detalle de la cita, B4)
+--  Cada cita tiene su creación y los cambios que llevaron a su estado actual, como
+--  los registra la API: la app crea pendientes (el dueño) y el negocio confirma; el
+--  panel crea confirmadas. Se agregan solo los registros que faltan.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- Las citas pasadas se reservaron unos días antes; la original reprogramada, hace dos días.
+UPDATE citas SET fecha_creacion = TIMESTAMP(fecha - INTERVAL 3 DAY, '18:00:00')
+WHERE fecha < CURDATE() AND fecha_creacion > TIMESTAMP(fecha - INTERVAL 3 DAY, '18:00:00');
+UPDATE citas SET fecha_creacion = NOW() - INTERVAL 2 DAY WHERE estado = 'reprogramada';
+
+-- Creación: el dueño desde la app (pendiente) o el negocio desde el panel (confirmada).
+INSERT INTO historial_citas (id_cita, id_usuario, campo_modificado, valor_anterior, valor_nuevo, motivo, fecha_cambio)
+SELECT c.id_cita, IF(c.origen = 'app_movil', c.id_usuario, n.id_usuario_propietario), 'estado', NULL,
+       IF(c.origen = 'app_movil', 'pendiente', 'confirmada'),
+       IF(c.id_cita_origen IS NULL, 'Cita creada', CONCAT('Reprogramación de la cita #', c.id_cita_origen)),
+       c.fecha_creacion
+FROM citas c JOIN negocios n ON n.id_negocio = c.id_negocio
+WHERE NOT EXISTS (SELECT 1 FROM historial_citas h
+                  WHERE h.id_cita = c.id_cita AND h.campo_modificado = 'estado' AND h.valor_anterior IS NULL);
+
+-- El negocio confirmó las reservas de la app que ya no están pendientes (salvo las que
+-- se cancelaron solas sin confirmar).
+INSERT INTO historial_citas (id_cita, id_usuario, campo_modificado, valor_anterior, valor_nuevo, fecha_cambio)
+SELECT c.id_cita, n.id_usuario_propietario, 'estado', 'pendiente', 'confirmada',
+       LEAST(c.fecha_creacion + INTERVAL 1 HOUR, NOW())
+FROM citas c JOIN negocios n ON n.id_negocio = c.id_negocio
+WHERE c.origen = 'app_movil' AND c.estado <> 'pendiente' AND NOT (c.cancelada_por <=> 'sistema')
+  AND NOT EXISTS (SELECT 1 FROM historial_citas h WHERE h.id_cita = c.id_cita AND h.valor_nuevo = 'confirmada');
+
+-- Atención: en curso desde la hora de inicio; completada con su precio final.
+INSERT INTO historial_citas (id_cita, id_usuario, campo_modificado, valor_anterior, valor_nuevo, fecha_cambio)
+SELECT c.id_cita, n.id_usuario_propietario, 'estado', 'confirmada', 'en_curso', TIMESTAMP(c.fecha, c.hora_inicio)
+FROM citas c JOIN negocios n ON n.id_negocio = c.id_negocio
+WHERE c.estado IN ('en_curso', 'completada')
+  AND NOT EXISTS (SELECT 1 FROM historial_citas h WHERE h.id_cita = c.id_cita AND h.valor_nuevo = 'en_curso');
+
+INSERT INTO historial_citas (id_cita, id_usuario, campo_modificado, valor_anterior, valor_nuevo, fecha_cambio)
+SELECT c.id_cita, n.id_usuario_propietario, 'estado', 'en_curso', 'completada', c.fecha_completada
+FROM citas c JOIN negocios n ON n.id_negocio = c.id_negocio
+WHERE c.estado = 'completada'
+  AND NOT EXISTS (SELECT 1 FROM historial_citas h WHERE h.id_cita = c.id_cita AND h.valor_nuevo = 'completada');
+
+INSERT INTO historial_citas (id_cita, id_usuario, campo_modificado, valor_anterior, valor_nuevo, fecha_cambio)
+SELECT c.id_cita, n.id_usuario_propietario, 'precio_final', NULL, c.precio_final, c.fecha_completada
+FROM citas c JOIN negocios n ON n.id_negocio = c.id_negocio
+WHERE c.estado = 'completada'
+  AND NOT EXISTS (SELECT 1 FROM historial_citas h WHERE h.id_cita = c.id_cita AND h.campo_modificado = 'precio_final');
+
+-- Inasistencias: marcadas 15 minutos después de la hora de inicio.
+INSERT INTO historial_citas (id_cita, id_usuario, campo_modificado, valor_anterior, valor_nuevo, fecha_cambio)
+SELECT c.id_cita, n.id_usuario_propietario, 'estado', 'confirmada', 'no_asistio',
+       TIMESTAMP(c.fecha, c.hora_inicio) + INTERVAL 15 MINUTE
+FROM citas c JOIN negocios n ON n.id_negocio = c.id_negocio
+WHERE c.estado = 'no_asistio'
+  AND NOT EXISTS (SELECT 1 FROM historial_citas h WHERE h.id_cita = c.id_cita AND h.valor_nuevo = 'no_asistio');
+
+-- Cancelaciones del dueño o del negocio (las del sistema ya tienen su registro).
+INSERT INTO historial_citas (id_cita, id_usuario, campo_modificado, valor_anterior, valor_nuevo, motivo, fecha_cambio)
+SELECT c.id_cita, IF(c.cancelada_por = 'dueno', c.id_usuario, n.id_usuario_propietario), 'estado', 'confirmada', 'cancelada',
+       IF(c.cancelacion_tardia, CONCAT('Cancelación tardía', IF(c.motivo_cancelacion IS NULL, '', CONCAT(': ', c.motivo_cancelacion))),
+          c.motivo_cancelacion),
+       c.fecha_cancelacion
+FROM citas c JOIN negocios n ON n.id_negocio = c.id_negocio
+WHERE c.estado = 'cancelada' AND c.cancelada_por IN ('dueno', 'negocio')
+  AND NOT EXISTS (SELECT 1 FROM historial_citas h WHERE h.id_cita = c.id_cita AND h.valor_nuevo = 'cancelada');

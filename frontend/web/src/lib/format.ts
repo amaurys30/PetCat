@@ -59,6 +59,29 @@ function ahoraBogota(ahora: Date): Date {
   return new Date(Number(p.year), Number(p.month) - 1, Number(p.day), Number(p.hour), Number(p.minute));
 }
 
+/** Minuto del día en Bogotá (0–1439), para la línea de la hora actual de la agenda. */
+export function minutoActualBogota(ahora: Date = new Date()): number {
+  const p = partesBogota(ahora);
+  return Number(p.hour) * 60 + Number(p.minute);
+}
+
+/**
+ * Tiempo hasta un "YYYY-MM-DD HH:MM[:SS]" de Bogotá en corto: "45 min", "2 h", "3 d"
+ * (hacia abajo). null si ya pasó.
+ */
+export function tiempoCorto(valor: string, ahora: Date = new Date()): string | null {
+  const minutos = Math.floor((parseFechaHora(valor).getTime() - ahoraBogota(ahora).getTime()) / 60_000);
+  if (minutos < 0) return null;
+  if (minutos < 60) return `${minutos} min`;
+  if (minutos < 24 * 60) return `${Math.floor(minutos / 60)} h`;
+  return `${Math.floor(minutos / (24 * 60))} d`;
+}
+
+/** Ya llegó (o pasó) un "YYYY-MM-DD HH:MM[:SS]" de Bogotá. */
+export function yaLlego(valor: string, ahora: Date = new Date()): boolean {
+  return parseFechaHora(valor).getTime() <= ahoraBogota(ahora).getTime();
+}
+
 /** Tiempo hasta un "YYYY-MM-DD HH:MM[:SS]" de Bogotá: "2 días", "5 horas", "1 minuto". */
 export function tiempoHasta(valor: string, ahora: Date = new Date()): string {
   return formatDistanceStrict(parseFechaHora(valor), ahoraBogota(ahora), {

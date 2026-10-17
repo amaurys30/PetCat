@@ -55,6 +55,19 @@ export const findPageByNegocio = async (id_negocio, { activo, q, limit, offset }
   return { rows, total };
 };
 
+/** Empleados activos del negocio para la agenda: solo datos de presentación. */
+export const findProfesionales = async (id_negocio) => {
+  const [rows] = await db.query(
+    `SELECT e.id_empleado, e.nombre, e.apellido, e.especialidad, e.foto_url, r.id_rol, r.nombre AS rol_nombre
+     FROM empleados e
+     JOIN roles r ON r.id_rol = e.id_rol
+     WHERE e.id_negocio = ? AND e.activo = TRUE
+     ORDER BY e.nombre, e.apellido, e.id_empleado`,
+    [id_negocio]
+  );
+  return rows;
+};
+
 /** Empleado del negocio con ese email (sin distinguir mayúsculas), excepto `excluirId`. */
 export const findByEmailInNegocio = async (id_negocio, email, excluirId = 0, conn) => {
   const [rows] = await (conn ?? db).query(

@@ -125,7 +125,8 @@ describe("D2 · Nuevo servicio", () => {
       fecha_fin_oferta: "2099-01-10",
       empleados: [1],
     });
-  });
+    // Llena todo el formulario: con la suite completa en paralelo pasa de los 15 s globales.
+  }, 40_000);
 
   it("sin profesionales pide confirmación; sin días y sin especies no deja guardar", async () => {
     let creado: unknown;

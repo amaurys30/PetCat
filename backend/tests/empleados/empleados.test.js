@@ -6,6 +6,7 @@ import {
   crearInvitacion,
   crearNegocio,
   crearRol,
+  crearServicio,
   crearUsuario,
   rolDelSistema,
   tokenDe,
@@ -85,6 +86,43 @@ describe("GET /negocios/:id_negocio/empleados", () => {
     await crearEmpleado(negocio, { usuario: recepcion, rol: "Recepcionista" });
     expect((await api(await tokenDe(recepcion)).get(url)).status).toBe(403);
     expect((await api(token).get("/negocios/999999/empleados")).status).toBe(404);
+  });
+});
+
+describe("GET /negocios/:id_negocio/profesionales", () => {
+  it("activos por nombre, con rol y servicios, sin contacto ni invitación; basta citas.ver", async () => {
+    const { negocio, token } = await negocioConToken();
+    const { id_servicio: servicio } = await crearServicio(negocio, { nombre: "Consulta" });
+    const zoe = await crearEmpleado(negocio, { nombre: "Zoe", especialidad: "Cirugía" });
+    await crearEmpleado(negocio, { nombre: "Ana", rol: "Recepcionista" });
+    await pool.query("INSERT INTO empleado_servicios (id_empleado, id_servicio) VALUES (?, ?)", [zoe.id_empleado, servicio]);
+    await crearEmpleado(negocio, { nombre: "Beto", activo: false });
+    await crearEmpleado(await crearNegocio(), { nombre: "Ajeno" });
+
+    const res = await api(token).get(`/negocios/${negocio.id_negocio}/profesionales`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.map((p) => p.nombre)).toEqual(["Ana", "Zoe"]);
+    expect(res.body.data[1]).toEqual({
+      id_empleado: zoe.id_empleado,
+      nombre: "Zoe",
+      apellido: "Prueba",
+      especialidad: "Cirugía",
+      foto_url: null,
+      foto_miniatura_url: null,
+      rol: { id_rol: await rolDelSistema("Veterinario"), nombre: "Veterinario" },
+      servicios: [{ id_servicio: servicio, nombre: "Consulta" }],
+    });
+    expect(res.body.data[0].servicios).toEqual([]);
+
+    // Un rol con citas.ver y sin empleados.ver la ve; sin citas.ver, 403.
+    const recepcion = await crearUsuario();
+    await crearEmpleado(negocio, { usuario: recepcion, rol: (await crearRol(negocio, { citas: ["ver"] })).id_rol });
+    const tokenRecepcion = await tokenDe(recepcion);
+    expect((await api(tokenRecepcion).get(`/negocios/${negocio.id_negocio}/profesionales`)).status).toBe(200);
+    expect((await api(tokenRecepcion).get(`/negocios/${negocio.id_negocio}/empleados`)).status).toBe(403);
+    const sinCitas = await crearUsuario();
+    await crearEmpleado(negocio, { usuario: sinCitas, rol: (await crearRol(negocio, { empleados: ["ver"] })).id_rol });
+    expect((await api(await tokenDe(sinCitas)).get(`/negocios/${negocio.id_negocio}/profesionales`)).status).toBe(403);
   });
 });
 

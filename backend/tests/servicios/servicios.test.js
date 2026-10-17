@@ -9,6 +9,7 @@ import {
   crearEmpleado,
   crearNegocio,
   crearServicio,
+  crearRol,
   crearUsuario,
   tokenDe,
   unique,
@@ -245,6 +246,20 @@ describe("POST /negocios/:id_negocio/servicios", () => {
 });
 
 describe("GET /negocios/:id_negocio/servicios", () => {
+  it("también con citas.crear (para elegir el servicio al agendar); sin servicios.ver ni citas.crear -> 403", async () => {
+    const { negocio } = await contexto();
+    await crearServicio(negocio, { nombre: "Oculto", visible_app: false });
+    const conRol = async (permisos) => {
+      const usuario = await crearUsuario();
+      await crearEmpleado(negocio, { usuario, rol: (await crearRol(negocio, permisos)).id_rol });
+      return tokenDe(usuario);
+    };
+    const agenda = await api(await conRol({ citas: ["ver", "crear"] })).get(`/negocios/${negocio.id_negocio}/servicios`);
+    expect(agenda.status).toBe(200);
+    expect(agenda.body.data.map((s) => s.nombre)).toContain("Oculto");
+    expect((await api(await conRol({ citas: ["ver"] })).get(`/negocios/${negocio.id_negocio}/servicios`)).status).toBe(403);
+  });
+
   it("lista todos los servicios (activos primero) con empleados activos y sin_empleados", async () => {
     const { negocio, token } = await contexto();
     const activo = await crearEmpleado(negocio, { nombre: "Ana", apellido: "Activa" });

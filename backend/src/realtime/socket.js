@@ -9,8 +9,11 @@ import { registrarEmisor } from "../modules/notificaciones/notificacion.service.
  *   authMiddleware (sesión activa y vigente, usuario activo).
  * - Cada socket entra en `usuario:<id>` (lo que se le emite al usuario) y `sesion:<id>`
  *   (para desconectarlo al cerrar esa sesión).
- * - Eventos del servidor: `notificacion` (una nueva, con la forma de GET /notificaciones)
- *   y `notificaciones_leidas` ({ no_leidas }, al marcar desde otra sesión del mismo usuario).
+ * - Eventos del servidor:
+ *   - `notificacion`: una nueva, con la forma de GET /notificaciones.
+ *   - `notificaciones_leidas`: { no_leidas }, al marcar desde otra sesión del mismo usuario.
+ *   - `agenda_actualizada`: cambio en las citas o la disponibilidad de un negocio, para el
+ *     personal con citas.ver y el propietario; no se guarda (citas/agenda.tiempoReal.js).
  * Un solo proceso en el MVP (sin Redis): las salas viven en memoria.
  */
 

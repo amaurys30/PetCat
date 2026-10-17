@@ -16,6 +16,13 @@ export const horariosLibresQuery = z.object({
   id_empleado: idQuery.optional(),
 });
 
+/** Panel: además, una cita que no ocupa su hora (los horarios para reprogramarla). */
+export const horariosLibresPanelQuery = horariosLibresQuery.extend({
+  id_cita_excluir: idQuery.optional(),
+  /** Sin las horas en que la mascota ya tiene otra cita (en cualquier negocio). */
+  id_mascota: idQuery.optional(),
+});
+
 const campos = {
   id_servicio: id,
   id_sucursal: id,
@@ -87,6 +94,13 @@ export const agendaQuery = z
       ctx.addIssue({ code: "custom", path: ["hasta"], message: `El rango máximo es de ${MAX_DIAS_AGENDA} días` });
     }
   });
+
+/** Atención de la agenda: sin rango (desde hoy), con los filtros de la agenda que aplican. */
+export const atencionQuery = z.object({
+  id_sucursal: idQuery.optional(),
+  id_empleado: idQuery.optional(),
+  solo_mias: booleano.optional(),
+});
 
 // ---------- Cambios ----------
 

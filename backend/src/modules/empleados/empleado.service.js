@@ -5,6 +5,7 @@ import * as usuarioRepo from "../usuarios/usuario.repository.js";
 import * as servicioRepo from "../servicios/servicio.repository.js";
 import { bloquearYVerificarLimite } from "../suscripciones/suscripcion.service.js";
 import { citasFuturasDeEmpleado } from "../disponibilidad/disponibilidad.service.js";
+import { avisarAgenda } from "../citas/agenda.tiempoReal.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
 import { buildMeta } from "../../shared/utils/pagination.js";
 import { hasPermission, permisosIncluidos } from "../../shared/utils/permissions.js";
@@ -110,6 +111,20 @@ export const getEmpleados = async (id_negocio, { page, limit, activo, q }) => {
     offset: (page - 1) * limit,
   });
   return { rows: await formatEmpleados(rows), meta: buildMeta(total, page, limit) };
+};
+
+/**
+ * Profesionales para la agenda (citas.ver): empleados activos sin datos de contacto ni
+ * de la invitación, con los servicios activos que atienden.
+ */
+export const getProfesionales = async (id_negocio) => {
+  const rows = await empleadoRepo.findProfesionales(id_negocio);
+  const servicios = await servicioRepo.findActivosDeEmpleados(rows.map((row) => row.id_empleado));
+  return rows.map(({ id_rol, rol_nombre, ...empleado }) => ({
+    ...conMiniaturas(empleado),
+    rol: { id_rol, nombre: rol_nombre },
+    servicios: servicios[empleado.id_empleado] ?? [],
+  }));
 };
 
 /** Detalle: el rol con sus permisos y los servicios activos que atiende. */
@@ -250,9 +265,11 @@ export const updateEmpleado = async (id_empleado, data, acceso) => {
  * devuelve `citas_afectadas`: todas sus citas futuras pendientes o confirmadas, porque un
  * empleado inactivo no tiene disponibilidad. Hay que reasignarlas o reprogramarlas.
  */
-export const desactivarEmpleado = async (id_empleado, acceso) => {
+export const desactivarEmpleado = async (id_empleado, acceso, por = null) => {
+  let id_negocio;
   const citas_afectadas = await withTransaction(async (conn) => {
     const empleado = await empleadoRepo.findById(id_empleado, conn, { forUpdate: true });
+    id_negocio = empleado?.id_negocio;
     if (!empleado) throw ApiError.notFound(NO_ENCONTRADO);
     if (!empleado.activo) throw ApiError.conflict("El empleado ya está inactivo");
     if (esElMismo(empleado, acceso)) throw ApiError.forbidden("No puedes desactivarte a ti mismo");
@@ -262,6 +279,7 @@ export const desactivarEmpleado = async (id_empleado, acceso) => {
     await invitacionRepo.invalidatePrevious(id_empleado, conn);
     return citasFuturasDeEmpleado(id_empleado, conn);
   });
+  await avisarAgenda(id_negocio, { accion: "disponibilidad", id_empleado, por });
   return { empleado: await getEmpleado(id_empleado), citas_afectadas };
 };
 
@@ -269,7 +287,7 @@ export const desactivarEmpleado = async (id_empleado, acceso) => {
  * Reactivar cuenta para el límite de empleados del plan, salvo que sea el propietario
  * registrado como empleado de su negocio (no ocupa cupo).
  */
-export const reactivarEmpleado = async (id_empleado, acceso) => {
+export const reactivarEmpleado = async (id_empleado, acceso, por = null) => {
   const empleado = await empleadoRepo.findById(id_empleado);
   if (!empleado) throw ApiError.notFound(NO_ENCONTRADO);
   if (empleado.activo) throw ApiError.conflict("El empleado ya está activo");
@@ -279,6 +297,7 @@ export const reactivarEmpleado = async (id_empleado, acceso) => {
     if (!empleado.es_propietario) await bloquearYVerificarLimite(empleado.id_negocio, "empleados", conn);
     await empleadoRepo.reactivar(id_empleado, conn);
   });
+  await avisarAgenda(empleado.id_negocio, { accion: "disponibilidad", id_empleado, por });
   return getEmpleado(id_empleado);
 };
 

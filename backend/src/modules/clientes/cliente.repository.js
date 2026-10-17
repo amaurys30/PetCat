@@ -12,7 +12,7 @@ export const buscar = async ({ email, telefono }) => {
     ? ["u.email = ?", email]
     : ["REGEXP_REPLACE(u.telefono, '[^0-9]', '') = ?", telefono];
   const [rows] = await db.query(
-    `SELECT u.id_usuario, u.nombre, u.apellido, u.email, u.telefono
+    `SELECT u.id_usuario, u.nombre, u.apellido, u.email, u.telefono, u.ultimo_acceso IS NOT NULL AS usa_app
      FROM usuarios u
      WHERE u.activo = TRUE AND ${condicion}
      ORDER BY u.id_usuario

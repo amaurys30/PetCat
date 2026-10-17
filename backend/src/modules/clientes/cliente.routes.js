@@ -28,7 +28,11 @@ const router = express.Router();
  *         id_usuario: { type: integer }
  *         nombre: { type: string }
  *         apellido: { type: string }
- *         email: { type: string, format: email }
+ *         email:
+ *           type: string
+ *           format: email
+ *           nullable: true
+ *           description: null en un cliente sin cuenta (registrado desde el panel sin correo; tiene teléfono)
  *         telefono: { type: string, nullable: true }
  */
 
@@ -65,6 +69,7 @@ const router = express.Router();
  *                       - $ref: '#/components/schemas/ClienteContacto'
  *                       - type: object
  *                         properties:
+ *                           usa_app: { type: boolean, description: Alguna vez inició sesión }
  *                           mascotas:
  *                             type: array
  *                             items:
@@ -99,9 +104,12 @@ router.get(
  *     description: >
  *       Requiere `citas.crear`. Crea la cuenta del cliente con su primera mascota. Exige
  *       `autoriza_tratamiento_datos: true` (Ley 1581 de 2012): se guarda con la fecha, el negocio, quién
- *       la registró, la versión de la política y la IP. El cliente recibe un correo de bienvenida con el
+ *       la registró, la versión de la política y la IP. Con correo, el cliente recibe la bienvenida con el
  *       nombre del negocio y el enlace `${FRONTEND_URL}/crear-password/<token>` (vigente 7 días; se usa con
- *       `POST /auth/reset-password`). Después se agenda con `POST /negocios/{id_negocio}/citas`.
+ *       `POST /auth/reset-password`). Sin correo queda **sin cuenta** (`sin_cuenta: true`): el teléfono es
+ *       obligatorio (422), no recibe correos ni recordatorios y no puede iniciar sesión; si ya hay un cliente
+ *       del negocio con ese teléfono, 409 (buscarlo con clientes/buscar y agregarle la mascota). Después se agenda con
+ *       `POST /negocios/{id_negocio}/citas`.
  *     tags: [Clientes]
  *     parameters:
  *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
@@ -112,12 +120,12 @@ router.get(
  *           schema:
  *             type: object
  *             additionalProperties: false
- *             required: [nombre, apellido, email, autoriza_tratamiento_datos, mascota]
+ *             required: [nombre, apellido, autoriza_tratamiento_datos, mascota]
  *             properties:
  *               nombre: { type: string, minLength: 2, maxLength: 80 }
  *               apellido: { type: string, minLength: 2, maxLength: 80 }
- *               email: { type: string, format: email, description: Obligatorio por ahora }
- *               telefono: { type: string }
+ *               email: { type: string, format: email, description: Sin correo, el cliente queda sin cuenta }
+ *               telefono: { type: string, description: Obligatorio si no hay correo }
  *               autoriza_tratamiento_datos: { type: boolean, enum: [true], description: El titular autorizó el tratamiento de sus datos }
  *               mascota:
  *                 allOf:
@@ -132,17 +140,25 @@ router.get(
  *               type: object
  *               properties:
  *                 success: { type: boolean, example: true }
- *                 message: { type: string, example: Cliente registrado. Le enviamos un correo para que cree su contraseña }
+ *                 message:
+ *                   type: string
+ *                   enum:
+ *                     - Cliente registrado. Le enviamos un correo para que cree su contraseña
+ *                     - "Cliente registrado sin cuenta: no recibirá correos ni recordatorios y no podrá entrar a la app"
  *                 data:
  *                   type: object
  *                   properties:
  *                     cliente: { $ref: '#/components/schemas/ClienteContacto' }
  *                     mascota: { $ref: '#/components/schemas/Mascota' }
+ *                     sin_cuenta: { type: boolean, description: Se registró sin correo }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       403: { $ref: '#/components/responses/Forbidden' }
  *       404: { $ref: '#/components/responses/NotFound' }
  *       409:
- *         description: Ya existe una cuenta con ese correo (buscarla con clientes/buscar)
+ *         description: >
+ *           Ya existe una cuenta con ese correo o, sin correo, un cliente del negocio con ese teléfono. En una familia es
+ *           común compartir el teléfono: se busca con clientes/buscar y se le agrega la mascota a ese cliente
+ *           (POST /negocios/{id_negocio}/clientes/{id_usuario}/mascotas).
  *         content:
  *           application/json:
  *             schema: { $ref: '#/components/schemas/ErrorResponse' }

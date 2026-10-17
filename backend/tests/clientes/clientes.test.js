@@ -53,6 +53,7 @@ describe("GET /negocios/:id_negocio/clientes/buscar", () => {
         apellido: cliente.apellido,
         email: cliente.email,
         telefono: "3001234567",
+        usa_app: false,
         mascotas: [{ id_mascota: viva.id_mascota, nombre: "Bruno", especie: "perro", raza: null }],
       },
     ]);
@@ -148,12 +149,15 @@ describe("POST /negocios/:id_negocio/clientes", () => {
     }
   });
 
-  it("valida la mascota y exige el email; email existente -> 409 y no crea nada", async () => {
+  it("valida la mascota; sin correo ni teléfono -> 422; email existente -> 409 y no crea nada", async () => {
     const { negocio, token } = await contexto();
     const url = `/negocios/${negocio.id_negocio}/clientes`;
-    const invalido = await api(token).post(url).send(datosCliente({ email: undefined, mascota: { nombre: "X" } }));
+    const invalido = await api(token).post(url).send(datosCliente({ mascota: { nombre: "X" } }));
     expect(invalido.status).toBe(422);
-    expect(invalido.body.errors).toEqual({ email: "Campo obligatorio", "mascota.especie": "Campo obligatorio" });
+    expect(invalido.body.errors).toEqual({ "mascota.especie": "Campo obligatorio" });
+    const sinContacto = await api(token).post(url).send(datosCliente({ email: undefined, telefono: undefined }));
+    expect(sinContacto.status).toBe(422);
+    expect(sinContacto.body.errors).toEqual({ telefono: "Obligatorio si el cliente no tiene correo" });
 
     const existente = await crearUsuario();
     const res = await api(token).post(url).send(datosCliente({ email: existente.email }));
@@ -213,5 +217,84 @@ describe("POST /negocios/:id_negocio/clientes/:id_usuario/mascotas", () => {
       .post(`/negocios/${negocio.id_negocio}/clientes/${cliente.id_usuario}/mascotas`)
       .send({ nombre: "Lola", especie: "conejo" });
     expect(res.status).toBe(403);
+  });
+});
+
+describe("clientes sin cuenta (registrados sin correo)", () => {
+  const telefonoUnico = () => `31${String(Date.now()).slice(-8)}`;
+
+  it("se registran con teléfono, sin bienvenida; la búsqueda por teléfono los encuentra y no se duplican", async () => {
+    const { negocio, token } = await contexto();
+    const url = `/negocios/${negocio.id_negocio}/clientes`;
+    const telefono = telefonoUnico();
+    const res = await api(token).post(url).send(datosCliente({ email: undefined, telefono }));
+
+    expect(res.status).toBe(201);
+    expect(res.body.message).toBe(
+      "Cliente registrado sin cuenta: no recibirá correos ni recordatorios y no podrá entrar a la app"
+    );
+    expect(res.body.data).toMatchObject({ sin_cuenta: true, cliente: { email: null, telefono } });
+    expect(outbox).toHaveLength(0);
+    const [[usuario]] = await pool.query("SELECT email, token_recuperacion FROM usuarios WHERE id_usuario = ?", [
+      res.body.data.cliente.id_usuario,
+    ]);
+    expect(usuario).toEqual({ email: null, token_recuperacion: null });
+    const [[autorizacion]] = await pool.query("SELECT canal, id_negocio FROM autorizaciones_datos WHERE id_usuario = ?", [
+      res.body.data.cliente.id_usuario,
+    ]);
+    expect(autorizacion).toEqual({ canal: "panel", id_negocio: negocio.id_negocio });
+
+    const encontrado = await api(token).get(`${url}/buscar?telefono=${telefono}`);
+    expect(encontrado.body.data).toEqual([
+      expect.objectContaining({ id_usuario: res.body.data.cliente.id_usuario, email: null, usa_app: false }),
+    ]);
+
+    const otra = await api(token).post(url).send(datosCliente({ email: undefined, telefono: `${telefono.slice(0, 3)} ${telefono.slice(3)}` }));
+    expect(otra.status).toBe(409);
+    expect(otra.body.errors).toEqual({ telefono: "Ya hay un cliente con este teléfono" });
+    expect(otra.body.message).toMatch(/misma familia.*agrégale la mascota/);
+
+    // El teléfono de alguien que no es cliente de este negocio no lo impide: no podría agregarle mascotas.
+    const ajeno = telefonoUnico().replace(/^31/, "32");
+    await crearUsuario({ telefono: ajeno });
+    expect((await api(token).post(url).send(datosCliente({ email: undefined, telefono: ajeno }))).status).toBe(201);
+  });
+
+  it("no pueden iniciar sesión ni recuperar la contraseña, y las citas no les envían correo", async () => {
+    const { negocio, token } = await contexto();
+    const sucursal = await pool
+      .query("INSERT INTO sucursales (id_negocio, nombre, direccion) VALUES (?, 'Sede', 'Calle 1')", [negocio.id_negocio])
+      .then(([r]) => r.insertId);
+    const res = await api(token)
+      .post(`/negocios/${negocio.id_negocio}/clientes`)
+      .send(datosCliente({ email: undefined, telefono: telefonoUnico() }));
+    const { id_usuario } = res.body.data.cliente;
+
+    // Login y recuperación son por correo: no hay con qué entrar y la respuesta es la neutra.
+    expect((await api().post("/auth/login").send({ email: "", password: "x" })).status).toBe(422);
+    const recuperar = await api().post("/auth/forgot-password").send({ email: `nadie_${unique()}@petcat.test` });
+    expect(recuperar.status).toBe(200);
+
+    // Una notificación al dueño (cita agendada desde el panel) queda en la app, sin envío por correo.
+    const { conNotificaciones } = await import("../../src/modules/notificaciones/notificacion.service.js");
+    clearOutbox();
+    await conNotificaciones((conn, notificar) =>
+      notificar([
+        {
+          tipo: "cita_agendada",
+          id_negocio: negocio.id_negocio,
+          datos: { fecha: "2026-12-01", hora_inicio: "09:00", negocio: negocio.nombre, sucursal: "Sede", direccion: "Calle 1", mascota: "Canela", servicio: "Consulta", cliente: "Rosa Pérez" },
+          enlace: { id_negocio: negocio.id_negocio },
+          destinatarios: [{ id_usuario, rol: "dueno" }],
+        },
+      ])
+    );
+    const [envios] = await pool.query(
+      "SELECT e.canal FROM notificaciones_envios e JOIN notificaciones n ON n.id_notificacion = e.id_notificacion WHERE n.id_usuario = ?",
+      [id_usuario]
+    );
+    expect(envios).toEqual([]);
+    expect(outbox).toHaveLength(0);
+    expect(sucursal).toBeGreaterThan(0);
   });
 });

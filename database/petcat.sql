@@ -38,7 +38,8 @@ CREATE TABLE usuarios (
     id_usuario       INT UNSIGNED    NOT NULL AUTO_INCREMENT,
     nombre           VARCHAR(80)     NOT NULL,
     apellido         VARCHAR(80)     NOT NULL,
-    email            VARCHAR(150)    NOT NULL,
+    -- NULL: cliente sin cuenta, registrado desde el panel sin correo (migración 021).
+    email            VARCHAR(150)    NULL,
     password_hash    VARCHAR(255)    NOT NULL,
     telefono         VARCHAR(20)     NULL,
     foto_url         VARCHAR(500)    NULL,
@@ -70,7 +71,9 @@ CREATE TABLE usuarios (
     UNIQUE KEY uq_usuarios_token_recuperacion (token_recuperacion),
     INDEX idx_usuarios_tipo (tipo_usuario),
     INDEX idx_usuarios_activo (activo),
-    INDEX idx_usuarios_email_verificado (email_verificado)
+    INDEX idx_usuarios_email_verificado (email_verificado),
+    -- Sin correo, el teléfono es obligatorio (migración 021).
+    CONSTRAINT chk_usuarios_contacto CHECK (email IS NOT NULL OR telefono IS NOT NULL)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Tabla central de usuarios: clientes dueños de mascotas y administradores de negocios';
 
@@ -1824,7 +1827,8 @@ INSERT INTO schema_migrations (nombre) VALUES
 ('017_confirmacion_automatica.sql'),
 ('018_resenas.sql'),
 ('019_notas_cliente.sql'),
-('020_autorizaciones_panel_web.sql');
+('020_autorizaciones_panel_web.sql'),
+('021_clientes_sin_cuenta.sql');
 
 
 SET FOREIGN_KEY_CHECKS = 1;

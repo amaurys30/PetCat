@@ -7,7 +7,7 @@ export const getHorariosLibres = async (req, res) => {
 };
 
 export const getHorariosLibresPanel = async (req, res) => {
-  return ok(res, await service.getHorariosLibres("panel", { ...req.query, id_negocio: req.negocio.id_negocio }));
+  return ok(res, await service.getHorariosLibresPanel(req.negocio.id_negocio, req.query, req.acceso));
 };
 
 export const createCita = async (req, res) => {
@@ -30,8 +30,12 @@ export const getMisCitas = async (req, res) => {
 };
 
 export const getAgenda = async (req, res) => {
-  const { rows, meta } = await service.getAgenda(req.negocio, req.user.id_usuario, req.query);
+  const { rows, meta } = await service.getAgenda(req.negocio, req.acceso, req.user.id_usuario, req.query);
   return paginated(res, rows, meta);
+};
+
+export const getAtencion = async (req, res) => {
+  return ok(res, await service.getAtencion(req.negocio, req.acceso, req.user.id_usuario, req.query));
 };
 
 export const getCita = async (req, res) => {
@@ -65,6 +69,10 @@ export const reprogramarCita = async (req, res) => {
 
 export const actualizarCita = async (req, res) => {
   return ok(res, await cambios.actualizarCita(req.params.id_cita, req.body, actorDe(req), req.acceso), "Cita actualizada");
+};
+
+export const getProfesionalesLibres = async (req, res) => {
+  return ok(res, await cambios.getProfesionalesLibres(req.params.id_cita));
 };
 
 export const getHistorial = async (req, res) => {
