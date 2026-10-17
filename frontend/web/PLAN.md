@@ -63,7 +63,7 @@ Sub-bloques: P4.1 calendario y vistas · P4.2 detalle y acciones · P4.3 nueva c
 - [x] B4 Detalle de cita (panel lateral): datos, cumplimiento del cliente, notas internas, historial, plazo para confirmar — P4.2
 - [x] B6 Cancelar · B7 Reprogramar · B8 Completar / No asistió · reasignar profesional; "Reasignar" y "Reprogramar" en el diálogo de citas afectadas — P4.2
 - [x] B5 Nueva cita: búsqueda de cliente, registro de cliente sin app (C3), horarios libres, origen — P4.3
-- [ ] Actualizar la agenda con los eventos de Socket.IO — P4.4
+- [x] Actualizar la agenda con los eventos de Socket.IO — P4.4
 
 ## P5 — Clientes y salud
 - [ ] C1 Clientes: lista, detalle, cumplimiento, notas privadas
@@ -76,7 +76,7 @@ Sub-bloques: P4.1 calendario y vistas · P4.2 detalle y acciones · P4.3 nueva c
 - [ ] B1 / B2 Dashboard (secciones bloqueadas en Gratuito, rango máximo por plan)
 - [ ] E3 Reseñas: responder, reportar, filtros
 - [ ] E4 Suscripción y planes (prueba Pro)
-- [ ] E5 Notificaciones: desplegable, contador, marcar leídas, Socket.IO
+- [ ] E5 Notificaciones: desplegable, contador, marcar leídas (la conexión de Socket.IO ya existe: `lib/socket.ts`, P4.4)
 - [ ] X1 Administración: asignar plan (solo `tipo_usuario = admin`)
 
 ## P7 — Cierre del panel v1
@@ -100,6 +100,7 @@ _(Lo que el panel necesite y la API no tenga. No se inventa: se anota aquí.)_
 - **"Desde" y "Todo el día" del mockup (D1 y D2):** la API tiene `tipo_precio` fijo, por hora, por día y variable, y no hay un precio "desde" ni una duración "todo el día". El panel muestra un precio variable sin máximo como "Desde $X" y una duración de 1440 minutos como "Todo el día".
 - **Disponibilidad efectiva en lote (B9):** la vista Día pide `GET /empleados/:id/disponibilidad-efectiva` y las excepciones del día (`GET /empleados/:id/disponibilidad`) por cada profesional: 2 consultas por columna. Sirve para equipos pequeños; con muchos profesionales conviene `GET /negocios/:id/disponibilidad-efectiva?fecha&id_sucursal` con todos los empleados (rangos y excepciones del día) en una consulta.
 - **Agregar correo a un cliente sin cuenta (P5):** no hay endpoint para ponerle correo a un cliente registrado sin él (y enviarle la bienvenida para que active su cuenta). Propuesta: `PUT /negocios/:id/clientes/:id_usuario/correo` con `citas.crear` o `clientes.ver`, solo si no tiene correo, con 409 si el correo ya es de otra cuenta.
+- Resueltos en P4.4 (backend): evento `agenda_actualizada` de Socket.IO para el personal con `citas.ver` (reservas, cambios de estado, cancelaciones, reprogramaciones, ediciones y cambios de disponibilidad); el 409 por teléfono repetido de un cliente sin correo aplica solo a los clientes del negocio y explica cómo agregarle la mascota.
 - Resueltos en P4.3 (backend): clientes sin cuenta (migración 021: `usuarios.email` opcional, con teléfono obligatorio si no hay correo); `usa_app` en `clientes/buscar`; `id_mascota` en los horarios libres del panel (sin las horas en que la mascota ya tiene otra cita); `GET /negocios/:id/servicios` también con `citas.crear`; Sede Norte de Salud Animal de 24 horas en el seed.
 - Resueltos en P4.2 (backend): detalle del panel con raza, edad, peso, alergias y fallecido de la mascota, y email y `usa_app` del cliente (con `citas.ver`); `GET /citas/:id/profesionales-libres` (`citas.editar`); `id_cita_excluir` en los horarios libres del panel (de este negocio y con `citas.editar`), que aceptan `citas.crear` o `citas.editar`; `usuario` y `empleado` del historial documentados en Swagger; historial completo de las citas del seed.
 - Resueltos en P4.1 (backend): `GET /negocios/:id/profesionales` con `citas.ver` (el rol Recepcionista no tiene `empleados.ver`); `GET /negocios/:id/citas/atencion` (por confirmar y fuera de disponibilidad, desde hoy y sin límite de rango); `motivo_fuera` en `CitaPanel` (el tipo para `citas.ver`; el texto solo con `configuracion.ver` o al propio empleado de la cita); el `motivo` de las excepciones en `GET /empleados/:id/disponibilidad` sigue la misma regla (antes llegaba a cualquiera con `citas.ver`).
@@ -185,3 +186,8 @@ _(Lo que el panel necesite y la API no tenga. No se inventa: se anota aquí.)_
 - P4.3: C3 vive en `features/clientes` para reutilizarlo en P5. El correo es opcional: sin correo el teléfono es obligatorio y el diálogo avisa antes de registrar que queda como **cliente sin cuenta** (no recibe correos ni recordatorios y no puede entrar a la app). Con correo anuncia la bienvenida. Un 409 (correo o teléfono ya registrados) ofrece buscarlo. B4 muestra "Sin cuenta" y no ofrece el enlace de correo.
 - P4.3: "Nueva mascota" (C6) para un cliente existente; si aún no tiene relación con el negocio (403), se explica que primero se agenda con una de sus mascotas.
 - Pruebas de punta a punta (P4.3): la preparación por la API va directo a `http://127.0.0.1:3001` (`E2E_API` para otra dirección), no por el proxy de la vista previa, que con muchas llamadas se saturaba junto con el reenvío de puertos de Docker y dejaba la página colgada. "Iniciar y completar" usa la Sede Norte de 24 horas y un servicio de 15 minutos: solo en el último cuarto de hora del día no hay horario hoy y la prueba se salta.
+- P4.4: una conexión de Socket.IO por pestaña (`lib/socket.ts`), abierta por PanelLayout con la sesión. Se autentica con el access token vigente en cada intento; ante un 401 del handshake renueva la sesión una vez y reconecta (si la renovación falla, la sesión se cierra y la conexión con ella); otro rechazo se reintenta cada minuto. Se cierra al salir y se abre otra al cambiar de cuenta.
+- P4.4: `agenda_actualizada` recarga todas las consultas `["citas", id_negocio]` (agenda, atención, detalle, historial); con `disponibilidad`, también la disponibilidad y los profesionales. Las notificaciones `cita_*` recargan igual. Al reconectar se recarga la agenda (pudo perder eventos). Sin conexión, la agenda dice "Sin actualización en tiempo real · reintentando" y la agenda y "Por confirmar" se recargan cada minuto.
+- P4.4: solo las reservas nuevas desde la app tienen aviso flotante ("Nueva reserva desde la app", mascota, servicio, día y hora, con "Ver" que abre su detalle), solo para quien tiene `citas.editar` en el negocio abierto y nunca si el cambio lo hizo el propio usuario. Los demás cambios solo actualizan la agenda en silencio.
+- P4.4: en C3, el 409 por teléfono repetido (una familia que comparte el teléfono) ofrece "Buscarlo": cierra C3 y busca ese teléfono en B5, para elegir al cliente y agregarle la mascota con "Nueva mascota".
+- Pruebas (P4.4): `socket.io-client` se reemplaza en Vitest por `test/socketFalso.ts` (conectar, recibir eventos, perder la conexión, rechazar). La prueba de punta a punta usa dos navegadores con sesiones distintas y espera el paquete de conexión de Socket.IO antes de actuar.
