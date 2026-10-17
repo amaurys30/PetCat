@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { CitaAfectada } from "@/api/negocios";
+import type { RegistroHistorial } from "@/api/salud";
 
 /** Estado de la interfaz que se abre desde fuera de las pantallas o que debe sobrevivir a una navegación. */
 interface UiState {
@@ -26,6 +27,37 @@ interface UiState {
   accionCita: { tipo: TipoAccionCita; idCita: number } | null;
   abrirAccionCita: (tipo: TipoAccionCita, idCita: number) => void;
   cerrarAccionCita: () => void;
+  /**
+   * C4 · Nuevo o editar registro médico, desde la ficha, B4 o al completar una cita (B8). Lo
+   * pinta RegistroMedicoHost en PanelLayout, así sobrevive a cerrar el diálogo de B8.
+   */
+  registroMedico: InicioRegistroMedico | null;
+  abrirRegistroMedico: (inicio: InicioRegistroMedico) => void;
+  cerrarRegistroMedico: () => void;
+  /**
+   * C5 · Nueva vacuna, también vinculada a un registro de vacunación ("Registrar también en
+   * el carnet"). El diálogo llega en P5.4; aquí queda la forma de abrirlo.
+   */
+  vacuna: InicioVacuna | null;
+  abrirVacuna: (inicio: InicioVacuna) => void;
+  cerrarVacuna: () => void;
+}
+
+export interface InicioRegistroMedico {
+  idMascota: number;
+  /** Editar este registro (propio); sin él, uno nuevo. */
+  registro?: RegistroHistorial;
+  /** Cita a la que se vincula (B8, B4), con su fecha y su profesional. */
+  idCita?: number;
+  fecha?: string;
+  idEmpleado?: number | null;
+}
+
+export interface InicioVacuna {
+  idMascota: number;
+  idHistorialMedico?: number;
+  fechaAplicacion?: string;
+  idEmpleado?: number | null;
 }
 
 export type TipoAccionCita = "cancelar" | "rechazar" | "reprogramar" | "reasignar" | "completar";
@@ -52,4 +84,10 @@ export const useUi = create<UiState>()((set) => ({
   accionCita: null,
   abrirAccionCita: (tipo, idCita) => set({ accionCita: { tipo, idCita } }),
   cerrarAccionCita: () => set({ accionCita: null }),
+  registroMedico: null,
+  abrirRegistroMedico: (inicio) => set({ registroMedico: inicio }),
+  cerrarRegistroMedico: () => set({ registroMedico: null }),
+  vacuna: null,
+  abrirVacuna: (inicio) => set({ vacuna: inicio }),
+  cerrarVacuna: () => set({ vacuna: null }),
 }));

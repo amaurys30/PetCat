@@ -87,6 +87,8 @@ export const registroDemo = (cambios: Partial<RegistroHistorial> = {}): Registro
   es_propio: true,
   notas_internas: null,
   fecha_creacion: "2026-08-12 10:00:00",
+  edicion: null,
+  ediciones: 0,
   ...cambios,
 });
 

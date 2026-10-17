@@ -18,6 +18,7 @@ import { nombreCompleto, textoEdad, textoPeso } from "@/features/agenda/textos";
 import { TablaCitas } from "@/features/clientes/components/TablaCitas";
 import { diaCorto, textoEspecie } from "@/features/clientes/textos";
 import { useNegocioActivo, usePuede } from "@/features/negocios/hooks/useNegocio";
+import { useUi } from "@/stores/ui";
 import { fechaCorta, parseFecha } from "@/lib/format";
 import { GraficoPeso } from "../components/GraficoPeso";
 import { HistorialPestana } from "../components/HistorialPestana";
@@ -140,6 +141,7 @@ function Ficha({
 function Cabecera({ resumen }: { resumen: ResumenSalud }) {
   const negocio = useNegocioActivo();
   const puede = usePuede();
+  const abrirRegistro = useUi((s) => s.abrirRegistroMedico);
   const { mascota: m, dueno } = resumen;
   const verClientes = puede("clientes", "ver");
   const base = `/n/${negocio.id_negocio}/clientes`;
@@ -224,13 +226,9 @@ function Cabecera({ resumen }: { resumen: ResumenSalud }) {
         </div>
         <div className="flex shrink-0 gap-2">
           {puede("historial_medico", "crear") && (
-            <Tooltip texto="Llega en P5.3">
-              <span>
-                <Button disabled>
-                  <Plus /> Registro médico
-                </Button>
-              </span>
-            </Tooltip>
+            <Button onClick={() => abrirRegistro({ idMascota: m.id_mascota })}>
+              <Plus /> Registro médico
+            </Button>
           )}
           {puede("vacunas", "crear") && (
             <Tooltip texto="Llega en P5.4">

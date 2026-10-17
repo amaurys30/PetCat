@@ -2728,7 +2728,10 @@ export interface paths {
                             success: boolean;
                             /** @example OK */
                             message: string;
-                            data: components["schemas"]["CitaPanel"][];
+                            data: (components["schemas"]["CitaPanel"] & {
+                                /** @description Registros médicos ligados a la cita (para "Vincular a una cita" de C4) */
+                                registros_medicos: components["schemas"]["RegistroDeCita"][];
+                            })[];
                             meta: components["schemas"]["PaginationMeta"];
                         };
                     };
@@ -4111,7 +4114,7 @@ export interface paths {
         head?: never;
         /**
          * Editar un registro del historial médico (panel)
-         * @description Requiere `historial_medico.editar` en el negocio que creó el registro (otro negocio: 403). Sin límite de tiempo. Al menos un campo; la mascota, la cita y el negocio no cambian.
+         * @description Requiere `historial_medico.editar` en el negocio que creó el registro (otro negocio: 403). Sin límite de tiempo. Al menos un campo; la mascota, la cita y el negocio no cambian. Si algo cambia, queda la edición con quién, cuándo, los campos y sus valores anteriores (`edicion` y `ediciones` en la respuesta); si los valores son los mismos, no hay edición.
          */
         patch: {
             parameters: {
@@ -8083,6 +8086,14 @@ export interface components {
                     cancelaciones_tardias: number;
                 };
             };
+            /** @description Registros médicos ligados a la cita (puede haber más de uno, p. ej. consulta y examen) */
+            registros_medicos: components["schemas"]["RegistroDeCita"][];
+        };
+        RegistroDeCita: {
+            id_historial: number;
+            tipo: string;
+            /** Format: date */
+            fecha: string;
         };
         ClienteContacto: {
             id_usuario: number;
@@ -8589,7 +8600,7 @@ export interface components {
         /** @description Campos opcionales con `null` se vacían. `proximo_control` no puede ser anterior a `fecha`. Los archivos no van aquí (`archivos` da 422): se suben con `POST /historial/{id_historial}/archivos`. */
         HistorialInput: {
             /** @enum {string} */
-            tipo?: "consulta_general" | "cirugia" | "vacunacion" | "examen_laboratorio" | "radiografia" | "ecografia" | "hospitalizacion" | "urgencia" | "desparasitacion" | "otro";
+            tipo?: "consulta_general" | "control" | "cirugia" | "vacunacion" | "examen_laboratorio" | "radiografia" | "ecografia" | "hospitalizacion" | "urgencia" | "desparasitacion" | "otro";
             /**
              * Format: date
              * @description Por defecto hoy; no puede ser futura
@@ -8646,6 +8657,19 @@ export interface components {
             /** @description Solo en los registros del negocio que consulta */
             notas_internas?: string | null;
             fecha_creacion: string;
+            /** @description Última edición (los registros no se borran: cada edición queda con quién, cuándo, los campos que cambiaron y sus valores anteriores). null si nunca se editó. Los archivos tienen su propio rastro. */
+            edicion: {
+                /** @example 2026-10-17 10:15:00 */
+                fecha: string;
+                /** @description null si la cuenta de quien editó ya no existe */
+                usuario: {
+                    id_usuario: number;
+                    nombre: string;
+                    apellido: string;
+                } | null;
+            } | null;
+            /** @description Cuántas veces se editó */
+            ediciones: number;
         };
         HistorialPagina: {
             /** @example true */

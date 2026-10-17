@@ -7,7 +7,8 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useNegocioActivo } from "@/features/negocios/hooks/useNegocio";
+import { useNegocioActivo, usePuede } from "@/features/negocios/hooks/useNegocio";
+import { useUi } from "@/stores/ui";
 import { sumarDias } from "@/lib/agenda";
 import { hoyISO } from "@/lib/format";
 import { useHistorial } from "../hooks/useSalud";
@@ -24,6 +25,8 @@ const TODOS = "todos";
  */
 export function HistorialPestana({ idMascota, comparte }: { idMascota: number; comparte: boolean }) {
   const negocio = useNegocioActivo();
+  const puedeEditar = usePuede()("historial_medico", "editar");
+  const abrirRegistro = useUi((s) => s.abrirRegistroMedico);
   const [tipo, setTipo] = useState<TipoHistorial | typeof TODOS>(TODOS);
   const [periodo, setPeriodo] = useState<Periodo>("todo");
   const filtros: FiltrosHistorial = {
@@ -95,7 +98,13 @@ export function HistorialPestana({ idMascota, comparte }: { idMascota: number; c
         <ul className="flex flex-col gap-3" aria-label="Historial médico">
           {registros.map((r) => (
             <li key={r.id_historial}>
-              <RegistroHistorialCard registro={r} obtenerArchivo={obtenerArchivo} />
+              <RegistroHistorialCard
+                registro={r}
+                obtenerArchivo={obtenerArchivo}
+                onEditar={
+                  r.es_propio && puedeEditar ? () => abrirRegistro({ idMascota, registro: r }) : undefined
+                }
+              />
             </li>
           ))}
         </ul>

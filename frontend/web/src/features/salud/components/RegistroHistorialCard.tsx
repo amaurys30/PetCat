@@ -1,11 +1,12 @@
-import { FileText, Image as ImageIcon, Lock, Paperclip } from "lucide-react";
+import { FileText, Image as ImageIcon, Lock, Paperclip, Pencil } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import type { ArchivoPrivado, RegistroHistorial } from "@/api/salud";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { aviso } from "@/components/ui/toaster";
 import { nombreCompleto, textoPeso } from "@/features/agenda/textos";
 import { abrirArchivoPrivado } from "@/lib/archivos";
-import { fechaCorta } from "@/lib/format";
+import { fechaCorta, fechaHora } from "@/lib/format";
 import { textoTipo } from "../textos";
 
 /**
@@ -15,8 +16,11 @@ import { textoTipo } from "../textos";
 export function RegistroHistorialCard({
   registro: r,
   obtenerArchivo,
+  onEditar,
 }: {
   registro: RegistroHistorial;
+  /** Solo en los registros propios y con historial_medico.editar. */
+  onEditar?: () => void;
   /** Vuelve a pedir el historial y devuelve el archivo con una URL vigente. */
   obtenerArchivo: (idArchivo: number) => Promise<ArchivoPrivado | undefined>;
 }) {
@@ -45,7 +49,19 @@ export function RegistroHistorialCard({
             <Lock className="size-3" aria-hidden /> Otro negocio · solo lectura
           </Badge>
         )}
+        {onEditar && (
+          <Button variant="link" size="sm" className="ml-auto" onClick={onEditar}>
+            <Pencil /> Editar
+          </Button>
+        )}
       </header>
+      {r.edicion && (
+        <p className="mt-0.5 text-label text-subtle">
+          Editado por {r.edicion.usuario ? nombreCompleto(r.edicion.usuario) : "un ex miembro del equipo"} ·{" "}
+          {fechaHora(r.edicion.fecha)}
+          {r.ediciones > 1 && ` · ${r.ediciones} ediciones`}
+        </p>
+      )}
       <dl className="mt-2 flex flex-col gap-1 text-body">
         {campos.map(
           ([etiqueta, valor]) =>

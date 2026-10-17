@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as api from "@/api/salud";
 import { vigenciaRestante } from "@/lib/archivos";
 import { queryKeys } from "@/lib/queryKeys";
@@ -57,5 +57,72 @@ export function useCitasMascota(idNegocio: number, idMascota: number, habilitada
     initialPageParam: 1,
     getNextPageParam: siguiente,
     enabled: habilitada,
+  });
+}
+
+/** Guardar un registro recarga la ficha (historial, resumen y peso) y las citas (B4 y sus registros). */
+function useRecargarSalud(idNegocio: number) {
+  const queryClient = useQueryClient();
+  return () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.salud.todo(idNegocio) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.citas.todas(idNegocio) }),
+    ]);
+}
+
+/** El diálogo muestra sus errores (422 por campo). */
+const meta = { avisarError: false } as const;
+
+export function useCrearRegistro(idNegocio: number) {
+  const recargar = useRecargarSalud(idNegocio);
+  return useMutation({
+    meta,
+    mutationFn: (body: api.NuevoRegistro) => api.crearRegistro(idNegocio, body),
+    onSuccess: recargar,
+  });
+}
+
+export function useEditarRegistro(idNegocio: number) {
+  const recargar = useRecargarSalud(idNegocio);
+  return useMutation({
+    meta,
+    mutationFn: ({ idHistorial, cambios }: { idHistorial: number; cambios: api.CambiosRegistro }) =>
+      api.editarRegistro(idHistorial, cambios),
+    onSuccess: recargar,
+  });
+}
+
+/**
+ * Sube los archivos de a 5 (lo que admite la API por envío), uno tras otro. Si un envío
+ * falla, los anteriores ya quedaron: el error trae cuántos se subieron.
+ */
+export function useSubirArchivos(idNegocio: number) {
+  const recargar = useRecargarSalud(idNegocio);
+  return useMutation({
+    meta,
+    mutationFn: async ({ idHistorial, archivos }: { idHistorial: number; archivos: File[] }) => {
+      let registro: api.RegistroHistorial | undefined;
+      for (let i = 0; i < archivos.length; i += api.ARCHIVOS_POR_ENVIO) {
+        try {
+          registro = await api.subirArchivosRegistro(
+            idHistorial,
+            archivos.slice(i, i + api.ARCHIVOS_POR_ENVIO),
+          );
+        } catch (error) {
+          throw Object.assign(error as Error, { subidos: i });
+        }
+      }
+      return registro;
+    },
+    onSettled: recargar,
+  });
+}
+
+export function useEliminarArchivo(idNegocio: number) {
+  const recargar = useRecargarSalud(idNegocio);
+  return useMutation({
+    mutationFn: ({ idHistorial, idArchivo }: { idHistorial: number; idArchivo: number }) =>
+      api.eliminarArchivoRegistro(idHistorial, idArchivo),
+    onSuccess: recargar,
   });
 }

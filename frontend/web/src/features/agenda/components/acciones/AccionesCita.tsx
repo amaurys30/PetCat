@@ -26,6 +26,7 @@ export function AccionesCita() {
   const accion = useUi((s) => s.accionCita);
   const cerrar = useUi((s) => s.cerrarAccionCita);
   const quitarCitaAfectada = useUi((s) => s.quitarCitaAfectada);
+  const abrirRegistroMedico = useUi((s) => s.abrirRegistroMedico);
   const navigate = useNavigate();
   const { pathname, search } = useLocation();
   const cita = useCita(negocio.id_negocio, accion?.idCita);
@@ -84,7 +85,18 @@ export function AccionesCita() {
             editar: puede("citas", "editar"),
             cancelar: puede("citas", "cancelar"),
           })}
-          onListo={(_c, mensaje) => resuelta(mensaje)}
+          ofrecerRegistro={puede("historial_medico", "crear")}
+          onListo={(c, mensaje, crearRegistro) => {
+            resuelta(mensaje);
+            // C4 con la cita, su fecha y su profesional (lo pinta RegistroMedicoHost).
+            if (crearRegistro)
+              abrirRegistroMedico({
+                idMascota: c.mascota.id_mascota,
+                idCita: c.id_cita,
+                fecha: c.fecha,
+                idEmpleado: c.empleado?.id_empleado ?? null,
+              });
+          }}
         />
       );
   }

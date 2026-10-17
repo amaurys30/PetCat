@@ -6,6 +6,7 @@ import { hoyISO, parseFecha } from "@/lib/format";
 
 export const TIPO_HISTORIAL: Record<TipoHistorial, string> = {
   consulta_general: "Consulta",
+  control: "Control",
   cirugia: "Cirugía",
   vacunacion: "Vacunación",
   examen_laboratorio: "Examen de laboratorio",

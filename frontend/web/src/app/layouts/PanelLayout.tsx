@@ -7,6 +7,7 @@ import { Alert } from "@/components/ui/alert";
 import { useNegocioActivo, useNegocioDeRuta, usePuede } from "@/features/negocios/hooks/useNegocio";
 import { useNegocioStore } from "@/stores/negocio";
 import { AccionesCita } from "@/features/agenda/components/acciones/AccionesCita";
+import { RegistroMedicoHost } from "@/features/salud/components/RegistroMedicoDialog";
 import { TiempoRealAgenda } from "@/features/agenda/components/TiempoRealAgenda";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
@@ -54,6 +55,7 @@ export function PanelLayout() {
           <Outlet />
         </main>
         <AccionesCita />
+        <RegistroMedicoHost />
         <TiempoRealAgenda />
       </div>
     </div>
