@@ -6,6 +6,7 @@ import { getDisponibilidad, getDisponibilidadEfectiva } from "@/api/disponibilid
 import { getProfesionales } from "@/api/empleados";
 import { hoyISO } from "@/lib/format";
 import { queryKeys } from "@/lib/queryKeys";
+import { useEstadoConexion } from "@/lib/socket";
 
 export type Vista = "semana" | "dia" | "lista";
 
@@ -92,24 +93,33 @@ export function useFiltrosUrl(): [
   return [filtros, cambiar];
 }
 
+/** Sin tiempo real, la agenda se recarga cada minuto mientras se reintenta la conexión. */
+const RECARGA_SIN_TIEMPO_REAL_MS = 60_000;
+const useRecargaSinTiempoReal = () =>
+  useEstadoConexion() === "desconectado" ? RECARGA_SIN_TIEMPO_REAL_MS : false;
+
 export function useAgenda(
   idNegocio: number,
   consulta: FiltrosAgenda & { desde: string; hasta: string; estados: EstadoCita[] },
   habilitada: boolean,
 ) {
+  const recarga = useRecargaSinTiempoReal();
   return useQuery({
     queryKey: queryKeys.citas.agenda(idNegocio, consulta),
     queryFn: () => getAgenda(idNegocio, consulta),
     enabled: habilitada,
+    refetchInterval: recarga,
     placeholderData: (anterior) => anterior,
   });
 }
 
 export function useAtencion(idNegocio: number, filtros: FiltrosAgenda, habilitada = true) {
+  const recarga = useRecargaSinTiempoReal();
   return useQuery({
     queryKey: queryKeys.citas.atencion(idNegocio, filtros),
     queryFn: () => getAtencion(idNegocio, filtros),
     enabled: habilitada,
+    refetchInterval: recarga,
   });
 }
 

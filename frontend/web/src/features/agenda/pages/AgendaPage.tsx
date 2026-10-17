@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { WifiOff, X } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 import type { CitaPanel, FiltrosAgenda } from "@/api/citas";
@@ -13,6 +13,7 @@ import { useSedes } from "@/features/equipo/hooks/useDisponibilidad";
 import { useNegocioActivo, usePuede } from "@/features/negocios/hooks/useNegocio";
 import { aHora, diasDeSemana, fechaHoraCita, sumarDias, tituloDia, tituloRango } from "@/lib/agenda";
 import { hoyISO, minutoActualBogota } from "@/lib/format";
+import { useEstadoConexion } from "@/lib/socket";
 import { useUi } from "@/stores/ui";
 import { BarraAgenda } from "../components/BarraAgenda";
 import { DetalleCita } from "../components/DetalleCita";
@@ -67,6 +68,7 @@ export function AgendaPage() {
   const abrirAccion = useUi((s) => s.abrirAccionCita);
   const [nuevaCita, setNuevaCita] = useState<InicioNuevaCita | null>(null);
   const puedeCrear = puede("citas", "crear");
+  const conexion = useEstadoConexion();
 
   if (!verCitas) {
     return (
@@ -101,11 +103,19 @@ export function AgendaPage() {
 
   return (
     <div>
-      <p className="mb-3 text-body text-muted" aria-live="polite">
-        {[nombreSede, total !== undefined && total !== null && textoTotal(total, filtros.vista)]
-          .filter(Boolean)
-          .join(" · ") || " "}
-      </p>
+      <div className="mb-3 flex items-center gap-4">
+        <p className="text-body text-muted" aria-live="polite">
+          {[nombreSede, total !== undefined && total !== null && textoTotal(total, filtros.vista)]
+            .filter(Boolean)
+            .join(" · ") || " "}
+        </p>
+        {conexion === "desconectado" && (
+          <p role="status" className="ml-auto flex items-center gap-1.5 text-body text-warning-ink">
+            <WifiOff className="size-3.5" aria-hidden />
+            Sin actualización en tiempo real · reintentando
+          </p>
+        )}
+      </div>
       <BarraAgenda
         filtros={filtros}
         cambiar={cambiar}

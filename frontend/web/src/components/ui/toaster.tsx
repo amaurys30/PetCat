@@ -1,4 +1,5 @@
 import { AlertTriangle, Check, X } from "lucide-react";
+import type { ReactNode } from "react";
 import { toast, Toaster as Sonner } from "sonner";
 
 /** Avisos flotantes (S1): éxito oscuro, error rojo suave, advertencia ámbar. */
@@ -16,6 +17,10 @@ export function Toaster() {
           error: "bg-danger-soft text-danger",
           warning: "bg-warning-soft text-warning-ink",
           info: "bg-info-soft text-info",
+          content: "flex min-w-0 flex-1 flex-col gap-0.5",
+          description: "text-body font-normal opacity-80",
+          actionButton:
+            "shrink-0 cursor-pointer rounded-control bg-white/15 px-2.5 py-1 text-body font-semibold hover:bg-white/25 focus-visible:outline-2 focus-visible:outline-white",
         },
       }}
       icons={{
@@ -32,4 +37,16 @@ export const aviso = {
   error: (mensaje: string) => toast.error(mensaje),
   advertencia: (mensaje: string) => toast.warning(mensaje),
   info: (mensaje: string) => toast.info(mensaje),
+  /** Aviso oscuro con una línea de detalle y un botón (p. ej. "Ver" en una reserva nueva). */
+  conAccion: (
+    mensaje: string,
+    { descripcion, etiqueta, onClick, icono }: { descripcion?: string; etiqueta: string; onClick: () => void; icono?: ReactNode },
+  ) =>
+    toast(mensaje, {
+      description: descripcion,
+      icon: icono,
+      className: "bg-ink text-white",
+      duration: 10_000,
+      action: { label: etiqueta, onClick },
+    }),
 };

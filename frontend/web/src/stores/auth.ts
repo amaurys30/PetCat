@@ -11,6 +11,7 @@ import {
 } from "@/api/sesion";
 import type { Me, Sesion } from "@/api/types";
 import { queryClient } from "@/app/queryClient";
+import { cerrarSocket } from "@/lib/socket";
 
 /**
  * Sesión del panel. Los tokens los maneja api/sesion.ts; aquí vive el estado que
@@ -36,6 +37,7 @@ interface AuthState {
 }
 
 const quedarAnonimo = (salida: AuthState["salida"]) => {
+  cerrarSocket();
   queryClient.clear();
   useAuth.setState({ estado: "anonimo", usuario: null, salida });
 };

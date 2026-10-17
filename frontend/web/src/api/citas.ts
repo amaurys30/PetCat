@@ -97,3 +97,23 @@ export type CrearCitaPanelBody = Body<"/negocios/{id_negocio}/citas", "post">;
 /** citas.crear (B5). Queda confirmada. 403 con `errors.plan` si el mes de la cita ya llegó al límite del plan. */
 export const crearCitaPanel = (idNegocio: number, body: CrearCitaPanelBody) =>
   apiPost<Cita>(`/negocios/${idNegocio}/citas`, body);
+
+/**
+ * Evento de Socket.IO `agenda_actualizada` (no está en Swagger: ver el backend,
+ * citas/agenda.tiempoReal.js). Lo recibe el personal con citas.ver del negocio.
+ */
+export const EVENTO_AGENDA = "agenda_actualizada";
+export interface CambioAgenda {
+  id_negocio: number;
+  accion: "reserva_app" | "creada" | "estado" | "cancelada" | "reprogramada" | "editada" | "disponibilidad";
+  id_cita?: number;
+  id_cita_nueva?: number;
+  id_empleado?: number;
+  id_sucursal?: number;
+  estado?: EstadoCita;
+  fechas: string[];
+  /** Quién hizo el cambio (null: el sistema, p. ej. la cancelación automática). */
+  por: number | null;
+  /** Solo en `reserva_app`, para el aviso flotante. */
+  cita?: { mascota: string; servicio: string; fecha: string; hora_inicio: string; estado: EstadoCita };
+}
