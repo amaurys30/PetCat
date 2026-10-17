@@ -29,5 +29,8 @@ export default defineConfig({
     },
     // Todos los archivos comparten la base petcat_test: se ejecutan uno a la vez.
     fileParallelism: false,
+    // Las pruebas van contra MySQL y hacen hash de contraseñas: con el equipo cargado (u otro
+    // proceso pesado en CI) pasaban de los 5 s por defecto y fallaban sin motivo.
+    testTimeout: 15_000,
   },
 });
