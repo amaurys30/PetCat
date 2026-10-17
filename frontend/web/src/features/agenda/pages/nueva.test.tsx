@@ -282,6 +282,37 @@ describe("C3 · Registrar cliente sin app", () => {
     expect(within(nueva).getByRole("radio", { name: "Toby" })).toHaveAttribute("aria-checked", "true");
   });
 
+  it("409 por un teléfono de la familia: Buscarlo vuelve a B5 con ese cliente para agregarle la mascota", async () => {
+    const user = userEvent.setup();
+    servidor.use(...base(nuevoRegistro()));
+    servidor.use(
+      http.post(`${API}/negocios/1/clientes`, () =>
+        fallo(
+          409,
+          "Ya hay un cliente con ese teléfono. Si es de la misma familia, búscalo por teléfono, elígelo y agrégale la mascota.",
+          { telefono: "Ya hay un cliente con este teléfono" },
+        ),
+      ),
+    );
+    renderRuta("/n/1/agenda", { usuario: usuarioDemo() });
+    const d = await abrir(user);
+    await user.click(within(d).getByRole("button", { name: "Registrar cliente sin app" }));
+    const c3 = await screen.findByRole("dialog", { name: "Registrar cliente sin app" });
+    await user.type(within(c3).getAllByLabelText("Nombre *")[0]!, "Jorge");
+    await user.type(within(c3).getByLabelText("Apellido *"), "Gómez");
+    await user.type(within(c3).getByLabelText("Teléfono *"), "300 123 4567");
+    await user.type(within(c3).getAllByLabelText("Nombre *")[1]!, "Toby");
+    await user.click(within(c3).getByRole("checkbox"));
+    await user.click(within(c3).getByRole("button", { name: "Registrar y agendar cita" }));
+    expect(await within(c3).findByText(/Si es de la misma familia, búscalo por teléfono/)).toBeInTheDocument();
+    await user.click(within(c3).getByRole("button", { name: "Buscarlo" }));
+
+    const nueva = await screen.findByRole("dialog", { name: "Nueva cita" });
+    expect(within(nueva).getByLabelText("Buscar cliente")).toHaveValue("300 123 4567");
+    await user.click(await within(nueva).findByRole("button", { name: /Lorena Gómez/ }));
+    expect(within(nueva).getByRole("button", { name: /Nueva mascota/ })).toBeInTheDocument();
+  });
+
   it("con correo anuncia la bienvenida", async () => {
     const user = userEvent.setup();
     servidor.use(...base(nuevoRegistro()));

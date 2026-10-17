@@ -74,6 +74,8 @@ export function NuevaCitaDialog({
 
   const [cliente, setCliente] = useState<ClienteElegido | null>(null);
   const [registrando, setRegistrando] = useState<{ email?: string; telefono?: string } | null>(null);
+  /** Lo que C3 pide buscar tras un 409 (correo o teléfono de un cliente que ya existe). */
+  const [busqueda, setBusqueda] = useState<string>();
   const [agregandoMascota, setAgregandoMascota] = useState(false);
   const [idMascota, setIdMascota] = useState<number | null>(null);
   const [idServicio, setIdServicio] = useState<number | null>(null);
@@ -227,6 +229,8 @@ export function NuevaCitaDialog({
               <section>
                 <Paso n={1} titulo="Cliente" />
                 <BuscarCliente
+                  key={busqueda}
+                  textoInicial={busqueda}
                   puedeNombre={puede("clientes", "ver")}
                   elegido={cliente}
                   onElegir={elegirCliente}
@@ -478,7 +482,10 @@ export function NuevaCitaDialog({
           textoBoton="Registrar y agendar cita"
           onCerrar={() => setRegistrando(null)}
           onRegistrado={registrado}
-          onBuscar={() => setRegistrando(null)}
+          onBuscar={(valor) => {
+            setBusqueda(valor);
+            setRegistrando(null);
+          }}
         />
       )}
       {agregandoMascota && cliente && (

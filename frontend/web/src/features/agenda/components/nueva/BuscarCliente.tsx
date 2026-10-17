@@ -1,5 +1,5 @@
 import { Check, Search, UserPlus } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { Avatar } from "@/components/common/Avatar";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -14,14 +14,18 @@ import { nombreCompleto } from "../../textos";
  * Buscar al cliente en B5: teléfono o correo exactos (la API los compara así y tiene un
  * límite estricto de solicitudes, por eso se busca al confirmar) y, con clientes.ver,
  * también por nombre entre los clientes del negocio. Sin resultados ofrece registrarlo.
+ * Con `textoInicial` busca al abrirse (p. ej. el teléfono del 409 de C3, para elegir a ese
+ * cliente y agregarle la mascota).
  */
 export function BuscarCliente({
   puedeNombre,
   elegido,
   onElegir,
   onRegistrar,
+  textoInicial,
 }: {
   puedeNombre: boolean;
+  textoInicial?: string;
   elegido: ClienteElegido | null;
   onElegir: (cliente: ClienteElegido | null) => void;
   onRegistrar: (inicial: { email?: string; telefono?: string }) => void;
@@ -29,22 +33,30 @@ export function BuscarCliente({
   const negocio = useNegocioActivo();
   const exacta = useBuscarCliente(negocio.id_negocio);
   const porNombre = useBuscarClientePorNombre(negocio.id_negocio);
-  const [texto, setTexto] = useState("");
+  const [texto, setTexto] = useState(textoInicial ?? "");
   const [buscado, setBuscado] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [resultados, setResultados] = useState<ClienteElegido[] | null>(null);
 
+  const fallo = (e: { message: string }) => setAviso(e.message);
+  const listoPara = (t: string) => (lista: ClienteElegido[]) => {
+    setResultados(lista);
+    setBuscado(t);
+  };
+  /** Búsqueda exacta por correo o teléfono; false si `t` no es ninguno de los dos. */
+  const buscarExacta = (t: string) => {
+    if (t.includes("@")) exacta.mutate({ email: t }, { onSuccess: listoPara(t), onError: fallo });
+    else if (esTelefono(t)) exacta.mutate({ telefono: t }, { onSuccess: listoPara(t), onError: fallo });
+    else return false;
+    return true;
+  };
+
   const buscar = () => {
     const t = texto.trim();
+    const listo = listoPara(t);
     setAviso(null);
-    const listo = (lista: ClienteElegido[]) => {
-      setResultados(lista);
-      setBuscado(t);
-    };
-    const fallo = (e: { message: string }) => setAviso(e.message);
-    if (t.includes("@")) exacta.mutate({ email: t }, { onSuccess: listo, onError: fallo });
-    else if (esTelefono(t)) exacta.mutate({ telefono: t }, { onSuccess: listo, onError: fallo });
-    else if (puedeNombre && t.length >= 2)
+    if (buscarExacta(t)) return;
+    if (puedeNombre && t.length >= 2)
       porNombre.mutate(t, {
         onSuccess: (filas) =>
           listo(
@@ -66,6 +78,15 @@ export function BuscarCliente({
           : "Escribe el teléfono o el correo completos.",
       );
   };
+
+  // Una sola vez (StrictMode monta dos veces en desarrollo y la búsqueda tiene un límite estricto).
+  const buscoAlAbrir = useRef(false);
+  const buscarAlAbrir = useEffectEvent(() => {
+    if (buscoAlAbrir.current || !textoInicial || elegido) return;
+    buscoAlAbrir.current = true;
+    buscarExacta(textoInicial.trim());
+  });
+  useEffect(() => buscarAlAbrir(), []);
 
   if (elegido) {
     return (
