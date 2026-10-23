@@ -527,6 +527,9 @@ CREATE TABLE vacunas (
     comprobante_url  VARCHAR(500)    NULL COMMENT 'Foto del carnet de vacunación',
     notas            VARCHAR(300)    NULL,
     fecha_creacion   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    -- Migración 023: última edición (todas quedan en vacunas_ediciones).
+    fecha_edicion    DATETIME        NULL COMMENT 'Última edición',
+    id_usuario_edicion INT UNSIGNED  NULL COMMENT 'Quién hizo la última edición',
     PRIMARY KEY (id_vacuna),
     INDEX idx_vacunas_mascota (id_mascota),
     INDEX idx_vacunas_fecha_proxima (fecha_proxima),
@@ -547,9 +550,31 @@ CREATE TABLE vacunas (
     -- Migración 010.
     CONSTRAINT fk_vacunas_usuario_registro
         FOREIGN KEY (id_usuario_registro) REFERENCES usuarios (id_usuario)
+        ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_vacunas_usuario_edicion
+        FOREIGN KEY (id_usuario_edicion) REFERENCES usuarios (id_usuario)
         ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Registro de vacunas con trazabilidad de lote y laboratorio';
+
+-- Migración 023: cada edición de una vacuna (las vacunas no se borran).
+CREATE TABLE vacunas_ediciones (
+    id_edicion         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    id_vacuna          INT UNSIGNED    NOT NULL,
+    id_usuario         INT UNSIGNED    NULL,
+    campos             JSON            NOT NULL COMMENT 'Campos que cambiaron',
+    valores_anteriores JSON            NOT NULL COMMENT 'Valor de cada campo antes de la edición',
+    fecha              DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id_edicion),
+    INDEX idx_vacunas_ediciones_vacuna (id_vacuna, fecha),
+    CONSTRAINT fk_vacunas_ediciones_vacuna
+        FOREIGN KEY (id_vacuna) REFERENCES vacunas (id_vacuna)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_vacunas_ediciones_usuario
+        FOREIGN KEY (id_usuario) REFERENCES usuarios (id_usuario)
+        ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Cada edición de una vacuna: quién, cuándo, qué campos y sus valores anteriores';
 
 
 -- ═══════════════════════════════════════════════════════════════════════════
@@ -1854,7 +1879,8 @@ INSERT INTO schema_migrations (nombre) VALUES
 ('019_notas_cliente.sql'),
 ('020_autorizaciones_panel_web.sql'),
 ('021_clientes_sin_cuenta.sql'),
-('022_historial_control_y_ediciones.sql');
+('022_historial_control_y_ediciones.sql'),
+('023_vacunas_ediciones.sql');
 
 
 SET FOREIGN_KEY_CHECKS = 1;

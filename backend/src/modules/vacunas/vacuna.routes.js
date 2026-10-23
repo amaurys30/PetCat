@@ -69,6 +69,20 @@ const router = express.Router();
  *           properties: { id_empleado: { type: integer }, nombre: { type: string }, apellido: { type: string } }
  *         id_historial_medico: { type: integer, nullable: true }
  *         fecha_creacion: { type: string }
+ *         edicion:
+ *           type: object
+ *           nullable: true
+ *           description: >
+ *             Última edición (las vacunas no se borran: cada edición queda con quién, cuándo, los campos que
+ *             cambiaron y sus valores anteriores). null si nunca se editó. El comprobante tiene su propio rastro.
+ *           properties:
+ *             fecha: { type: string, example: "2026-10-23 10:15:00" }
+ *             usuario:
+ *               type: object
+ *               nullable: true
+ *               description: null si la cuenta de quien editó ya no existe
+ *               properties: { id_usuario: { type: integer }, nombre: { type: string }, apellido: { type: string } }
+ *         ediciones: { type: integer, description: Cuántas veces se editó }
  *     VacunaRespuesta:
  *       type: object
  *       properties:
@@ -230,7 +244,8 @@ router.post(
  *       La vacuna que registró el dueño solo la edita el dueño; la que registró un negocio, solo ese negocio
  *       (`vacunas.editar`). El dueño no puede enviar `id_empleado` ni `id_historial_medico`. Recalcula el estado
  *       de todas las vacunas de la mascota. Si cambia `fecha_proxima`, los recordatorios al dueño (7 días antes,
- *       el día y 7 días después) vuelven a empezar con la fecha nueva.
+ *       el día y 7 días después) vuelven a empezar con la fecha nueva. Si algo cambia, queda la edición con quién,
+ *       cuándo, los campos y sus valores anteriores (`edicion` y `ediciones`); con los mismos valores no hay edición.
  *     tags: [Vacunas]
  *     parameters:
  *       - { in: path, name: id_vacuna, required: true, schema: { type: integer } }
