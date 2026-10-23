@@ -209,7 +209,7 @@ describe("C4 · Nuevo registro médico", () => {
     expect(within(d).getByRole("button", { name: "Guardar registro" })).toBeEnabled();
   });
 
-  it("un registro de vacunación ofrece registrarla en el carnet (C5 llega en P5.4)", async () => {
+  it("un registro de vacunación ofrece registrarla en el carnet (el botón está activo)", async () => {
     const user = userEvent.setup();
     servidor.use(...base(nuevoRegistro()));
     renderRuta(RUTA, { usuario: usuarioDemo() });
@@ -218,7 +218,7 @@ describe("C4 · Nuevo registro médico", () => {
     expect(within(d).getByText(/podrás registrarla también en el carnet/)).toBeInTheDocument();
     await user.click(within(d).getByRole("button", { name: "Guardar registro" }));
     expect(await within(d).findByText("Registro de vacunación guardado.")).toBeInTheDocument();
-    expect(within(d).getByRole("button", { name: /Registrar también en el carnet/ })).toBeDisabled();
+    expect(within(d).getByRole("button", { name: /Registrar también en el carnet/ })).toBeEnabled();
     await user.click(within(d).getByRole("button", { name: "Ahora no" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });

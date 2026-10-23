@@ -65,14 +65,24 @@ test("desde Clientes: la ficha de Max con historial compartido, nota interna pro
   await expect(page.getByRole("heading", { name: /Max/ })).toBeVisible();
   await expect(page.getByText("Comparte su historial completo")).toBeVisible();
   const historial = page.getByRole("list", { name: "Historial médico" });
+  // Por tipo: registro-medico.spec y vacunas.spec agregan a Max controles y vacunaciones
+  // recientes, que sacarían de la primera página a los registros del seed.
+  const filtrar = async (tipo: string) => {
+    await page.getByRole("combobox", { name: "Tipo de registro" }).click();
+    await page.getByRole("option", { name: tipo, exact: true }).click();
+  };
+  await filtrar("Consulta");
   await expect(historial.getByText(/Nota interna \(solo tu negocio\): Dueña muy puntual/)).toBeVisible();
+  await filtrar("Urgencia");
   const ajeno = historial.getByRole("article").filter({ hasText: "Otro negocio · solo lectura" });
   await expect(ajeno.getByText(/Esguince leve/)).toBeVisible();
   await expect(ajeno.getByText(/Nota interna/)).toHaveCount(0);
 
   const carnet = page.getByRole("region", { name: "Carnet de vacunas" });
-  await expect(carnet.getByRole("cell", { name: "Vencida", exact: true })).toBeVisible();
-  await expect(carnet.getByRole("cell", { name: "Próxima", exact: true })).toBeVisible();
+  // Parvovirus no la toca ninguna otra prueba (vacunas.spec agrega antirrábicas a Max).
+  await expect(
+    carnet.getByRole("row").filter({ hasText: "Parvovirus" }).getByText("Próxima", { exact: true }),
+  ).toBeVisible();
 
   await page.getByRole("tab", { name: "Citas" }).click();
   await expect(page.getByRole("tabpanel", { name: "Citas" }).getByRole("row").nth(1)).toBeVisible();
