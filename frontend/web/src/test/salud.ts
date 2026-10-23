@@ -113,5 +113,7 @@ export const vacunaDemo = (cambios: Partial<Vacuna> = {}): Vacuna => ({
   empleado: null,
   id_historial_medico: null,
   fecha_creacion: "2025-09-13 10:00:00",
+  edicion: null,
+  ediciones: 0,
   ...cambios,
 });

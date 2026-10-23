@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { CitaAfectada } from "@/api/negocios";
-import type { RegistroHistorial } from "@/api/salud";
+import type { RegistroHistorial, Vacuna } from "@/api/salud";
 
 /** Estado de la interfaz que se abre desde fuera de las pantallas o que debe sobrevivir a una navegación. */
 interface UiState {
@@ -35,8 +35,8 @@ interface UiState {
   abrirRegistroMedico: (inicio: InicioRegistroMedico) => void;
   cerrarRegistroMedico: () => void;
   /**
-   * C5 · Nueva vacuna, también vinculada a un registro de vacunación ("Registrar también en
-   * el carnet"). El diálogo llega en P5.4; aquí queda la forma de abrirlo.
+   * C5 · Nueva vacuna o editar una del negocio, también vinculada a un registro de vacunación
+   * ("Registrar también en el carnet"). La pinta VacunaHost en PanelLayout.
    */
   vacuna: InicioVacuna | null;
   abrirVacuna: (inicio: InicioVacuna) => void;
@@ -55,6 +55,8 @@ export interface InicioRegistroMedico {
 
 export interface InicioVacuna {
   idMascota: number;
+  /** Editar esta vacuna (registrada por este negocio); sin ella, una nueva. */
+  vacuna?: Vacuna;
   idHistorialMedico?: number;
   fechaAplicacion?: string;
   idEmpleado?: number | null;

@@ -49,11 +49,15 @@ export function useVacunas(idNegocio: number, idMascota: number, habilitada: boo
   });
 }
 
-/** Citas de la mascota con el negocio (citas.ver o clientes.ver). */
-export function useCitasMascota(idNegocio: number, idMascota: number, habilitada: boolean) {
+/**
+ * Citas de la mascota con el negocio (citas.ver o clientes.ver). Con `estado` ("en_curso,completada")
+ * solo esas: así las futuras y las canceladas no ocupan la primera página.
+ */
+export function useCitasMascota(idNegocio: number, idMascota: number, habilitada: boolean, estado?: string) {
   return useInfiniteQuery({
-    queryKey: queryKeys.citas.mascota(idNegocio, idMascota),
-    queryFn: ({ pageParam }) => api.getCitasMascota(idNegocio, idMascota, { page: pageParam, limit: 20 }),
+    queryKey: [...queryKeys.citas.mascota(idNegocio, idMascota), estado ?? "todas"],
+    queryFn: ({ pageParam }) =>
+      api.getCitasMascota(idNegocio, idMascota, { page: pageParam, limit: 20, ...(estado && { estado }) }),
     initialPageParam: 1,
     getNextPageParam: siguiente,
     enabled: habilitada,
@@ -123,6 +127,51 @@ export function useEliminarArchivo(idNegocio: number) {
   return useMutation({
     mutationFn: ({ idHistorial, idArchivo }: { idHistorial: number; idArchivo: number }) =>
       api.eliminarArchivoRegistro(idHistorial, idArchivo),
+    onSuccess: recargar,
+  });
+}
+
+// ---------- Vacunas (C5) ----------
+
+/** Guardar una vacuna recarga el carnet, el resumen (vencidas y próximas) y el historial. */
+function useRecargarFicha(idNegocio: number) {
+  const queryClient = useQueryClient();
+  return () => queryClient.invalidateQueries({ queryKey: queryKeys.salud.todo(idNegocio) });
+}
+
+export function useCrearVacuna(idNegocio: number) {
+  const recargar = useRecargarFicha(idNegocio);
+  return useMutation({
+    meta,
+    mutationFn: (body: api.NuevaVacuna) => api.crearVacuna(idNegocio, body),
+    onSuccess: recargar,
+  });
+}
+
+export function useEditarVacuna(idNegocio: number) {
+  const recargar = useRecargarFicha(idNegocio);
+  return useMutation({
+    meta,
+    mutationFn: ({ idVacuna, cambios }: { idVacuna: number; cambios: api.CambiosVacuna }) =>
+      api.editarVacuna(idVacuna, cambios),
+    onSuccess: recargar,
+  });
+}
+
+export function useSubirComprobante(idNegocio: number) {
+  const recargar = useRecargarFicha(idNegocio);
+  return useMutation({
+    meta,
+    mutationFn: ({ idVacuna, archivo }: { idVacuna: number; archivo: File }) =>
+      api.subirComprobante(idVacuna, archivo),
+    onSettled: recargar,
+  });
+}
+
+export function useEliminarComprobante(idNegocio: number) {
+  const recargar = useRecargarFicha(idNegocio);
+  return useMutation({
+    mutationFn: (idVacuna: number) => api.eliminarComprobante(idVacuna),
     onSuccess: recargar,
   });
 }

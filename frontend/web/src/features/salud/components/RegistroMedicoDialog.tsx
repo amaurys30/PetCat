@@ -23,7 +23,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { aviso } from "@/components/ui/toaster";
-import { Tooltip } from "@/components/ui/tooltip";
 import { useProfesionales } from "@/features/agenda/hooks/useAgenda";
 import { nombreCompleto } from "@/features/agenda/textos";
 import { diaYHora } from "@/features/clientes/textos";
@@ -156,7 +155,14 @@ function Formulario({
   const puede = usePuede();
   const editando = inicio.registro;
   const verCitas = puede("citas", "ver") || puede("clientes", "ver");
-  const citas = useCitasMascota(negocio.id_negocio, inicio.idMascota, verCitas && !editando);
+  // Solo las atendidas (en curso o completadas): el registro es de una atención, y así las
+  // citas futuras o canceladas no llenan la primera página.
+  const citas = useCitasMascota(
+    negocio.id_negocio,
+    inicio.idMascota,
+    verCitas && !editando,
+    "en_curso,completada",
+  );
   const profesionales = useProfesionales(negocio.id_negocio, puede("citas", "ver"));
   const crear = useCrearRegistro(negocio.id_negocio);
   const editar = useEditarRegistro(negocio.id_negocio);
@@ -192,10 +198,8 @@ function Formulario({
   const { errors } = form.formState;
   const [tipo, idCita] = useWatch({ control: form.control, name: ["tipo", "idCita"] });
 
-  // Citas que se pueden vincular: de este negocio con la mascota, no canceladas ni reprogramadas y no futuras.
-  const vinculables = (citas.data?.pages.flatMap((p) => p.data) ?? []).filter(
-    (c) => !["cancelada", "reprogramada"].includes(c.estado) && c.fecha <= hoyISO(),
-  );
+  // Citas que se pueden vincular: las atendidas de este negocio con la mascota (nunca futuras).
+  const vinculables = (citas.data?.pages.flatMap((p) => p.data) ?? []).filter((c) => c.fecha <= hoyISO());
   const citaElegida: CitaDeMascota | undefined = vinculables.find((c) => String(c.id_cita) === idCita);
   const yaTieneRegistro = !editando ? citaElegida?.registros_medicos[0] : undefined;
   const existentes = actual?.archivos.length ?? 0;
@@ -579,7 +583,7 @@ function Formulario({
   );
 }
 
-/** Tras guardar un registro de vacunación: registrarla también en el carnet (C5, P5.4). */
+/** Tras guardar un registro de vacunación: registrarla también en el carnet (C5, vinculada al registro). */
 function OfrecerCarnet({
   registro,
   puedeVacunas,
@@ -606,24 +610,20 @@ function OfrecerCarnet({
           {puedeVacunas ? "Ahora no" : "Cerrar"}
         </Button>
         {puedeVacunas && (
-          <Tooltip texto="El registro de vacunas (C5) llega en P5.4">
-            <span>
-              <Button
-                disabled
-                onClick={() => {
-                  abrirVacuna({
-                    idMascota: registro.id_mascota,
-                    idHistorialMedico: registro.id_historial,
-                    fechaAplicacion: registro.fecha,
-                    idEmpleado: registro.empleado?.id_empleado ?? null,
-                  });
-                  onCerrar();
-                }}
-              >
-                <Syringe /> Registrar también en el carnet
-              </Button>
-            </span>
-          </Tooltip>
+          <Button
+            onClick={() => {
+              // C5 vinculado a este registro, con su fecha y su profesional (lo pinta VacunaHost).
+              abrirVacuna({
+                idMascota: registro.id_mascota,
+                idHistorialMedico: registro.id_historial,
+                fechaAplicacion: registro.fecha,
+                idEmpleado: registro.empleado?.id_empleado ?? null,
+              });
+              onCerrar();
+            }}
+          >
+            <Syringe /> Registrar también en el carnet
+          </Button>
         )}
       </DialogFooter>
     </div>

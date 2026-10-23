@@ -132,7 +132,7 @@ function Ficha({
         ) : (
           <div />
         )}
-        {verVacunas && <CarnetVacunas idMascota={m.id_mascota} />}
+        {verVacunas && <CarnetVacunas idMascota={m.id_mascota} fallecido={m.fallecido} />}
       </div>
     </div>
   );
@@ -142,6 +142,7 @@ function Cabecera({ resumen }: { resumen: ResumenSalud }) {
   const negocio = useNegocioActivo();
   const puede = usePuede();
   const abrirRegistro = useUi((s) => s.abrirRegistroMedico);
+  const abrirVacuna = useUi((s) => s.abrirVacuna);
   const { mascota: m, dueno } = resumen;
   const verClientes = puede("clientes", "ver");
   const base = `/n/${negocio.id_negocio}/clientes`;
@@ -230,15 +231,20 @@ function Cabecera({ resumen }: { resumen: ResumenSalud }) {
               <Plus /> Registro médico
             </Button>
           )}
-          {puede("vacunas", "crear") && (
-            <Tooltip texto="Llega en P5.4">
-              <span>
-                <Button variant="secondary" disabled>
-                  <Plus /> Vacuna
-                </Button>
-              </span>
-            </Tooltip>
-          )}
+          {puede("vacunas", "crear") &&
+            (m.fallecido ? (
+              <Tooltip texto="No se registran vacunas nuevas a una mascota fallecida">
+                <span>
+                  <Button variant="secondary" disabled>
+                    <Plus /> Vacuna
+                  </Button>
+                </span>
+              </Tooltip>
+            ) : (
+              <Button variant="secondary" onClick={() => abrirVacuna({ idMascota: m.id_mascota })}>
+                <Plus /> Vacuna
+              </Button>
+            ))}
         </div>
       </div>
     </Card>

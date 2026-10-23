@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiGetPagina, apiPatch, apiPost } from "./client";
+import { apiDelete, apiGet, apiGetPagina, apiPatch, apiPost, apiPut } from "./client";
 import type { CitaPanel } from "./citas";
 import type { components } from "./schema";
 import type { Body } from "./types";
@@ -55,7 +55,7 @@ export const getVacunas = (idNegocio: number, idMascota: number) =>
 export const getCitasMascota = (
   idNegocio: number,
   idMascota: number,
-  params: { page: number; limit: number },
+  params: { page: number; limit: number; estado?: string },
 ) => apiGetPagina<CitaDeMascota>(`/negocios/${idNegocio}/mascotas/${idMascota}/citas`, params);
 
 export type RegistroDeCita = Schemas["RegistroDeCita"];
@@ -88,3 +88,27 @@ export const subirArchivosRegistro = (idHistorial: number, archivos: File[]) => 
 
 export const eliminarArchivoRegistro = (idHistorial: number, idArchivo: number) =>
   apiDelete<RegistroHistorial>(`/historial/${idHistorial}/archivos/${idArchivo}`);
+
+export type NuevaVacuna = Body<"/negocios/{id_negocio}/vacunas", "post">;
+export type CambiosVacuna = Body<"/vacunas/{id_vacuna}", "patch">;
+
+/** vacunas.crear y una cita válida con la mascota. 409 si la mascota está fallecida. */
+export const crearVacuna = (idNegocio: number, body: NuevaVacuna) =>
+  apiPost<Vacuna>(`/negocios/${idNegocio}/vacunas`, body);
+
+/**
+ * vacunas.editar, solo las que registró este negocio. Deja constancia de la edición; con otra
+ * fecha_proxima, los recordatorios del dueño vuelven a empezar.
+ */
+export const editarVacuna = (idVacuna: number, body: CambiosVacuna) =>
+  apiPatch<Vacuna>(`/vacunas/${idVacuna}`, body);
+
+/** multipart con el archivo en `comprobante` (foto o PDF); reemplaza el anterior. */
+export const subirComprobante = (idVacuna: number, archivo: File) => {
+  const datos = new FormData();
+  datos.append("comprobante", archivo);
+  return apiPut<Vacuna>(`/vacunas/${idVacuna}/comprobante`, datos);
+};
+
+export const eliminarComprobante = (idVacuna: number) =>
+  apiDelete<Vacuna>(`/vacunas/${idVacuna}/comprobante`);
