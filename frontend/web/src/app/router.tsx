@@ -13,6 +13,7 @@ import { RolesPage } from "@/features/equipo/pages/RolesPage";
 import { MiPerfilPage } from "@/features/perfil/pages/MiPerfilPage";
 import { ServicioFormPage } from "@/features/servicios/pages/ServicioFormPage";
 import { ServiciosPage } from "@/features/servicios/pages/ServiciosPage";
+import { SuscripcionPage } from "@/features/suscripcion/pages/SuscripcionPage";
 import { LoginPage } from "@/features/auth/pages/LoginPage";
 import { PasswordNuevaPage } from "@/features/auth/pages/PasswordNuevaPage";
 import { RecuperarPasswordPage } from "@/features/auth/pages/RecuperarPasswordPage";
@@ -143,12 +144,20 @@ export const rutas: RouteObject[] = [
                 ],
               },
               {
+                path: "suscripcion",
+                element: <SuscripcionPage />,
+                handle: { titulo: "Suscripción" } satisfies HandleRuta,
+              },
+              {
                 path: "mi-perfil",
                 element: <MiPerfilPage />,
                 handle: { titulo: "Mi perfil" } satisfies HandleRuta,
               },
               ...SECCIONES.filter(
-                (s) => !["agenda", "clientes", "configuracion", "equipo", "servicios"].includes(s.ruta),
+                (s) =>
+                  !["agenda", "clientes", "configuracion", "equipo", "servicios", "suscripcion"].includes(
+                    s.ruta,
+                  ),
               ).map((seccion): RouteObject => ({
                 path: `${seccion.ruta}/*`,
                 element: <SeccionPendiente seccion={seccion} />,

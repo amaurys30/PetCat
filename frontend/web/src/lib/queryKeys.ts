@@ -30,6 +30,10 @@ export const queryKeys = {
     mascota: (idNegocio: number, idMascota: number) => ["citas", idNegocio, "mascota", idMascota] as const,
   },
   roles: (idNegocio: number) => ["roles", idNegocio] as const,
+  /** Todas empiezan por ["dashboard", idNegocio]: cambiar de plan las recarga. */
+  dashboard: {
+    todo: (idNegocio: number) => ["dashboard", idNegocio] as const,
+  },
   catalogoPermisos: () => ["permisos"] as const,
   /** Todas empiezan por ["servicios", idNegocio]: Equipo las recarga con ese prefijo. */
   servicios: {

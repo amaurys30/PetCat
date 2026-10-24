@@ -21,6 +21,14 @@ export function puede(
   return negocio.rol?.permisos_json?.[modulo]?.includes(accion) ?? false;
 }
 
+/** La prueba Pro la activa solo el propietario del negocio (o el admin de la plataforma), como en la API. */
+export function puedeActivarPrueba(
+  usuario: Usuario,
+  negocio: Pick<NegocioMio, "relacion"> | null | undefined,
+): boolean {
+  return usuario?.tipo_usuario === "admin" || negocio?.relacion === "propietario";
+}
+
 /** true si cada acción de `permisos` también está en `disponibles` (como `permisosIncluidos` de la API). */
 export function permisosIncluidos(permisos: Permisos, disponibles: Permisos): boolean {
   return Object.entries(permisos).every(([modulo, acciones]) =>

@@ -32,6 +32,10 @@ export const getSuscripcion = (idNegocio: number) =>
 /** Pública. */
 export const getPlanes = () => apiGet<Plan[]>("/planes");
 
+/** Solo el propietario (y el admin). 409 si ya la usó o ya tiene un plan pago. */
+export const iniciarPruebaPro = (idNegocio: number) =>
+  apiPost<Suscripcion>(`/negocios/${idNegocio}/suscripcion/prueba-pro`);
+
 export const crearNegocio = (body: CrearNegocioBody) => apiPost<Negocio>("/negocios", body);
 
 /** Vista del panel (configuracion.ver): datos privados, sedes con horarios y reglas de confirmación. */

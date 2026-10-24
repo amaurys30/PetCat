@@ -13,6 +13,7 @@ import {
 import { Logo } from "@/components/common/Logo";
 import { useAtencion } from "@/features/agenda/hooks/useAgenda";
 import { useNegocioActivo, usePuede, useSuscripcion } from "@/features/negocios/hooks/useNegocio";
+import { puedeActivarPrueba } from "@/lib/permisos";
 import { cn } from "@/lib/utils";
 import { rolEnNegocio } from "@/features/negocios/textos";
 import { useAuth } from "@/stores/auth";
@@ -154,6 +155,7 @@ function SelectorNegocio() {
 
 function TarjetaPlan() {
   const negocio = useNegocioActivo();
+  const usuario = useAuth((s) => s.usuario);
   const puede = usePuede();
   const verSuscripcion = puede("configuracion", "ver");
   const { data } = useSuscripcion(negocio.id_negocio, verSuscripcion);
@@ -193,7 +195,9 @@ function TarjetaPlan() {
           to="suscripcion"
           className="mt-2 inline-block text-label font-semibold text-primary hover:underline"
         >
-          {data?.prueba_disponible ? "Probar Pro 14 días →" : "Ver suscripción →"}
+          {data?.prueba_disponible && puedeActivarPrueba(usuario, negocio)
+            ? "Probar Pro 14 días →"
+            : "Ver suscripción →"}
         </Link>
       )}
     </div>
