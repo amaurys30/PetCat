@@ -5,7 +5,8 @@ import { clearOutbox, outbox } from "../../src/shared/utils/mailer.js";
 import { TIPOS, lineaSoporte } from "../../src/modules/notificaciones/notificacion.tipos.js";
 import { vencerSuscripciones } from "../../src/modules/suscripciones/suscripcion.jobs.js";
 import { correoBienvenida } from "../../src/modules/auth/auth.mail.js";
-import { crearNegocio, sinSilencio } from "../helpers/factories.js";
+import { api } from "../helpers/api.js";
+import { crearNegocio, sinSilencio, tokenDe } from "../helpers/factories.js";
 
 /** Contacto de soporte en los avisos del plan (soporte_email y soporte_whatsapp, migración 016). */
 
@@ -93,5 +94,26 @@ describe("correo de bienvenida", () => {
     const sinSoporte = correoBienvenida({ ...base, soporte: "" });
     expect(sinSoporte.text).toContain("Si no reconoces este registro, comunícate con Clínica Patitas.");
     expect(sinSoporte.html).toContain("comunícate con Clínica Patitas.");
+  });
+});
+
+describe("contacto de soporte en la suscripción del panel", () => {
+  it("GET /suscripcion trae el correo y el WhatsApp configurados; lo vacío llega en null", async () => {
+    const negocio = await crearNegocio();
+    const token = await tokenDe(negocio.propietario);
+    const url = `/negocios/${negocio.id_negocio}/suscripcion`;
+
+    await configurarSoporte("soporte@petcat.com.co", "+57 300 123 4567");
+    expect((await api(token).get(url)).body.data.soporte).toEqual({ email: "soporte@petcat.com.co", whatsapp: "+57 300 123 4567" });
+
+    await configurarSoporte("  ", "");
+    expect((await api(token).get(url)).body.data.soporte).toEqual({ email: null, whatsapp: null });
+  });
+
+  it("también al activar la prueba Pro", async () => {
+    const negocio = await crearNegocio();
+    const res = await api(await tokenDe(negocio.propietario)).post(`/negocios/${negocio.id_negocio}/suscripcion/prueba-pro`);
+    expect(res.status).toBe(201);
+    expect(res.body.data.soporte).toEqual({ email: "soporte@petcat.com.co", whatsapp: null });
   });
 });

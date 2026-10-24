@@ -1,6 +1,7 @@
 import * as suscripcionRepo from "./suscripcion.repository.js";
 import * as negocioRepo from "../negocios/negocio.repository.js";
 import * as configuracionRepo from "../configuracion/configuracion.repository.js";
+import { configSoporte } from "../notificaciones/notificacion.service.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
 import { diasEntre, hoyISO } from "../../shared/utils/fechas.js";
 import { toBool, toNumber } from "../../shared/utils/format.js";
@@ -142,17 +143,21 @@ const usoDe = (usadas, maximo) => ({ usadas, maximo });
 
 export const getPlanes = async () => (await suscripcionRepo.findPlanesActivos()).map(formatPlan);
 
-/** Plan efectivo, suscripción vigente, si puede activar la prueba y uso de cada límite. */
+/** Contacto de soporte para contratar un plan mientras no hay pagos en línea (vacío = null). */
+const soporteDe = ({ email, whatsapp }) => ({ email: email || null, whatsapp: whatsapp || null });
+
+/** Plan efectivo, suscripción vigente, si puede activar la prueba, uso de cada límite y contacto de soporte. */
 export const getSuscripcion = async (id_negocio) => {
   const filas = await suscripcionRepo.findByNegocio(id_negocio);
   const resuelto = resolverPlan(filas, await planesPorId());
   const { plan } = resuelto;
   const hoy = hoyISO();
-  const [sucursales, empleados, citas, productos] = await Promise.all([
+  const [sucursales, empleados, citas, productos, soporte] = await Promise.all([
     suscripcionRepo.countSucursalesActivas(id_negocio),
     suscripcionRepo.countEmpleadosActivos(id_negocio),
     suscripcionRepo.countCitasMes(id_negocio, hoy),
     suscripcionRepo.countProductosActivos(id_negocio),
+    configSoporte(),
   ]);
   return {
     plan: formatPlan(plan),
@@ -164,6 +169,7 @@ export const getSuscripcion = async (id_negocio) => {
       citas_mes: { mes: hoy.slice(0, 7), ...usoDe(citas, plan.max_citas_mes) },
       productos: usoDe(productos, plan.max_productos),
     },
+    soporte: soporteDe(soporte),
   };
 };
 
