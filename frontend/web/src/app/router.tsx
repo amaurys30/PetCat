@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate, type RouteObject } from "react-router";
 import { AgendaPage } from "@/features/agenda/pages/AgendaPage";
+import { DashboardPage } from "@/features/dashboard/pages/DashboardPage";
 import { ClientesPage } from "@/features/clientes/pages/ClientesPage";
 import { FichaMascotaPage } from "@/features/salud/pages/FichaMascotaPage";
 import { ConfiguracionLayout } from "@/features/configuracion/ConfiguracionLayout";
@@ -125,6 +126,11 @@ export const rutas: RouteObject[] = [
                 ],
               },
               {
+                path: "dashboard",
+                element: <DashboardPage />,
+                handle: { titulo: "Dashboard" } satisfies HandleRuta,
+              },
+              {
                 path: "agenda",
                 element: <AgendaPage />,
                 handle: { titulo: "Agenda" } satisfies HandleRuta,
@@ -155,9 +161,15 @@ export const rutas: RouteObject[] = [
               },
               ...SECCIONES.filter(
                 (s) =>
-                  !["agenda", "clientes", "configuracion", "equipo", "servicios", "suscripcion"].includes(
-                    s.ruta,
-                  ),
+                  ![
+                    "agenda",
+                    "clientes",
+                    "configuracion",
+                    "dashboard",
+                    "equipo",
+                    "servicios",
+                    "suscripcion",
+                  ].includes(s.ruta),
               ).map((seccion): RouteObject => ({
                 path: `${seccion.ruta}/*`,
                 element: <SeccionPendiente seccion={seccion} />,

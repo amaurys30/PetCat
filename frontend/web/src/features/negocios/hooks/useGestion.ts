@@ -28,6 +28,8 @@ function useRefrescarNegocio(idNegocio: number) {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: queryKeys.negocios.gestion(idNegocio) }),
       queryClient.invalidateQueries({ queryKey: queryKeys.negocios.suscripcion(idNegocio) }),
+      // La confirmación automática cambia la sugerencia de las citas perdidas.
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.todo(idNegocio) }),
       recargarUsuario(),
     ]);
   };

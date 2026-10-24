@@ -33,6 +33,7 @@ export const queryKeys = {
   /** Todas empiezan por ["dashboard", idNegocio]: cambiar de plan las recarga. */
   dashboard: {
     todo: (idNegocio: number) => ["dashboard", idNegocio] as const,
+    datos: (idNegocio: number, consulta: object) => ["dashboard", idNegocio, consulta] as const,
   },
   catalogoPermisos: () => ["permisos"] as const,
   /** Todas empiezan por ["servicios", idNegocio]: Equipo las recarga con ese prefijo. */
