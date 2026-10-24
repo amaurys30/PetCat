@@ -515,7 +515,10 @@ INSERT INTO vacunas (id_mascota, id_empleado, id_negocio, registrada_por, id_usu
 (@m_rocky,  @e_vale,         @n_salud,    'negocio', @u_vale,         'Antirrábica',   'Zoetis', 'RB-2410', 'Refuerzo anual',
  CURDATE() - INTERVAL 30 DAY,  CURDATE() + INTERVAL 335 DAY, 'al_dia',    NULL),
 (@m_copito, @e_ricardo,      @n_salud,    'negocio', @u_salud,        'Mixomatosis',   'Hipra',  'MX-0033', 'Refuerzo semestral',
- CURDATE() - INTERVAL 175 DAY, CURDATE() + INTERVAL 5 DAY,   'proximo',   NULL);
+ CURDATE() - INTERVAL 175 DAY, CURDATE() + INTERVAL 5 DAY,   'proximo',   NULL),
+-- Panel P6.2: vencida hace 12 días (Camilo es cliente de Patitas): "vacunas vencidas en los últimos 30 días".
+(@m_rocky,  NULL,            NULL,        'dueno',   @u_camilo,       'Moquillo',      NULL,     NULL,      'Refuerzo anual',
+ CURDATE() - INTERVAL 377 DAY, CURDATE() - INTERVAL 12 DAY,  'vencido',   NULL);
 
 -- ---------------------------------------------------------------------------
 -- Reseñas de citas completadas (el trigger actualiza la calificación del negocio)

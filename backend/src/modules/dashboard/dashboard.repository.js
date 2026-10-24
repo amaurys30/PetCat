@@ -202,3 +202,24 @@ export const findRecurrencia = async (filtro) => {
   );
   return row;
 };
+
+/**
+ * Mascotas activas y vivas de clientes del negocio (alguna cita con él o una autorización
+ * registrada por él, la relación de la lista de clientes) con una dosis cuya próxima
+ * aplicación venció entre `desde` y `hasta`. No cuenta las dosis reemplazadas por una más
+ * reciente (`no_aplica`). Es del negocio completo: no se filtra por sucursal.
+ */
+export const countMascotasVacunasVencidas = async ({ id_negocio, desde, hasta }) => {
+  const [[row]] = await db.query(
+    `SELECT COUNT(DISTINCT m.id_mascota) AS total
+     FROM mascotas m
+     JOIN vacunas v ON v.id_mascota = m.id_mascota
+     WHERE m.activo = TRUE AND m.fallecido = FALSE
+       AND v.estado <> 'no_aplica'
+       AND v.fecha_proxima BETWEEN ? AND ?
+       AND (EXISTS (SELECT 1 FROM citas c WHERE c.id_usuario = m.id_usuario AND c.id_negocio = ?)
+            OR EXISTS (SELECT 1 FROM autorizaciones_datos a WHERE a.id_usuario = m.id_usuario AND a.id_negocio = ?))`,
+    [desde, hasta, id_negocio, id_negocio]
+  );
+  return Number(row.total);
+};

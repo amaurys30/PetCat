@@ -117,6 +117,18 @@ const router = express.Router();
  *             resenas_periodo: { type: integer }
  *             promedio_periodo: { type: number, nullable: true }
  *             sin_responder: { type: integer, description: "Reseñas visibles sin respuesta (todas, no solo del periodo)" }
+ *         vacunas_vencidas:
+ *           type: object
+ *           description: >
+ *             Mascotas activas y vivas de clientes del negocio (alguna cita o una autorización registrada
+ *             por él) con una dosis cuya próxima aplicación venció en los últimos 30 días (de `desde` a
+ *             `hasta`, ayer). No cuenta las dosis reemplazadas por una más reciente. No depende del rango ni
+ *             de la sucursal del dashboard.
+ *           properties:
+ *             mascotas: { type: integer, example: 5 }
+ *             dias: { type: integer, example: 30 }
+ *             desde: { type: string, format: date }
+ *             hasta: { type: string, format: date }
  *         citas_perdidas_por_no_confirmar:
  *           type: object
  *           description: Canceladas por el sistema porque nadie las confirmó a tiempo. Nunca cuentan contra los clientes.

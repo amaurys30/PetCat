@@ -17,6 +17,8 @@ import { ApiError } from "../../shared/errors/ApiError.js";
 export const RANGO_BASICO_DIAS = 92;
 export const RANGO_AVANZADO_DIAS = 366;
 const AGRUPAR_POR_DIA_HASTA = 31;
+/** Vacunas vencidas en los últimos 30 días: una ventana móvil, no se reinicia el día 1 de cada mes. */
+export const VACUNAS_VENCIDAS_DIAS = 30;
 
 const NOTA_INGRESOS =
   "Suma del precio final que el negocio registró al completar cada cita. No son pagos verificados: los pagos en línea llegan en la Fase 3.";
@@ -217,13 +219,15 @@ export const getDashboard = async (negocio, { desde, hasta, id_sucursal }) => {
   const hoy = hoyISO();
   const periodo = { desde, hasta, dias };
   const filtro = { id_negocio, desde, hasta, id_sucursal };
-  const [resumenRows, hoyRows, porConfirmar, servicios, clientes_nuevos, calificacion] = await Promise.all([
+  const vencidas = { desde: sumarDias(hoy, -VACUNAS_VENCIDAS_DIAS), hasta: sumarDias(hoy, -1) };
+  const [resumenRows, hoyRows, porConfirmar, servicios, clientes_nuevos, calificacion, mascotasVencidas] = await Promise.all([
     dashboardRepo.findResumenPorEstado(filtro),
     dashboardRepo.findHoyPorEstado({ id_negocio, hoy, id_sucursal }),
     dashboardRepo.countPorConfirmar({ id_negocio, hoy, id_sucursal }),
     dashboardRepo.findServiciosMasPedidos(filtro),
     dashboardRepo.countClientesNuevos(filtro),
     dashboardRepo.findCalificacion(filtro),
+    dashboardRepo.countMascotasVacunasVencidas({ id_negocio, ...vencidas }),
   ]);
   const resumen = resumir(resumenRows);
   const resumenHoy = resumir(hoyRows);
@@ -266,6 +270,7 @@ export const getDashboard = async (negocio, { desde, hasta, id_sucursal }) => {
       promedio_periodo: calificacion.promedio_periodo === null ? null : redondear(Number(calificacion.promedio_periodo)),
       sin_responder: calificacion.sin_responder,
     },
+    vacunas_vencidas: { mascotas: mascotasVencidas, dias: VACUNAS_VENCIDAS_DIAS, ...vencidas },
     citas_perdidas_por_no_confirmar: citasPerdidas(resumen.cancelaciones.por_sistema, Boolean(calificacion.confirmacion_automatica)),
     avanzadas: avanzadas ? await calcularAvanzadas(filtro, periodo, actual) : bloqueadas,
   };
