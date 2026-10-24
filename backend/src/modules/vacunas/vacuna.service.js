@@ -58,6 +58,16 @@ const formatVacuna = (row, estado, archivo) => ({
     : null,
   id_historial_medico: row.id_historial_medico,
   fecha_creacion: row.fecha_creacion,
+  // Las vacunas no se borran: la última edición (quién y cuándo) y cuántas hubo.
+  edicion: row.fecha_edicion
+    ? {
+        fecha: row.fecha_edicion,
+        usuario: row.id_usuario_edicion
+          ? { id_usuario: row.id_usuario_edicion, nombre: row.editor_nombre, apellido: row.editor_apellido }
+          : null,
+      }
+    : null,
+  ediciones: Number(row.ediciones ?? 0),
 });
 
 /**
@@ -201,7 +211,15 @@ const verificarEditable = (vacuna, esDueno) => {
  * solo ese negocio (authorizeDuenoO + resolver de id_vacuna). El dueño no envía los
  * campos del negocio (id_empleado, id_historial_medico).
  */
-export const actualizarVacuna = async (id_vacuna, data, acceso) => {
+/** Valores anteriores de los campos que de verdad cambian: { campo: valor_anterior }. */
+const cambiosDe = (actual, data) =>
+  Object.fromEntries(
+    Object.entries(data)
+      .filter(([campo, valor]) => (actual[campo] ?? null) !== (valor ?? null))
+      .map(([campo]) => [campo, actual[campo] ?? null])
+  );
+
+export const actualizarVacuna = async (id_vacuna, data, acceso, id_usuario) => {
   const esDueno = acceso.relacion === "dueno";
   // Se busca fuera de la transacción: una lectura sin bloqueo dentro fijaría la foto antes de los bloqueos.
   const { id_mascota: idMascota } = await vacunaRepo.findMascotaDeVacuna(id_vacuna);
@@ -221,7 +239,11 @@ export const actualizarVacuna = async (id_vacuna, data, acceso) => {
       fecha_aplicacion: data.fecha_aplicacion ?? actual.fecha_aplicacion,
       fecha_proxima: data.fecha_proxima !== undefined ? data.fecha_proxima : actual.fecha_proxima,
     });
+    // Si nada cambia, no hay edición (ni se recalculan estados).
+    const anteriores = cambiosDe(actual, data);
+    if (Object.keys(anteriores).length === 0) return vacuna.id_mascota;
     await vacunaRepo.update(id_vacuna, data, conn);
+    await vacunaRepo.registrarEdicion(id_vacuna, id_usuario, anteriores, conn);
     // Con otra fecha_proxima, los recordatorios de la vacuna (-7, 0, +7) vuelven a empezar.
     if (data.fecha_proxima !== undefined && data.fecha_proxima !== actual.fecha_proxima) {
       await vacunaRepo.reiniciarHitos(id_vacuna, conn);

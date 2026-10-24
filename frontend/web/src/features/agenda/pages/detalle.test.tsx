@@ -7,8 +7,9 @@ import { __reiniciarSesionParaPruebas } from "@/api/sesion";
 import { sumarDias } from "@/lib/agenda";
 import { hoyISO } from "@/lib/format";
 import { useUi } from "@/stores/ui";
-import { cambioDemo, citaDetalleDemo, horarioPartido, profesionalDemo } from "@/test/agenda";
-import { gestionDemo, renderRuta, sedeDemo, usuarioDemo } from "@/test/render";
+import { cambioDemo, citaDetalleDemo, citaPanelDemo, horarioPartido, profesionalDemo } from "@/test/agenda";
+import { gestionDemo, negocioDemo, renderRuta, sedeDemo, usuarioDemo } from "@/test/render";
+import { resumenDemo } from "@/test/salud";
 import { citaAfectadaDemo } from "@/test/servicios";
 import { API, fallo, http, HttpResponse, ok, servidor } from "@/test/servidor";
 
@@ -345,5 +346,71 @@ describe("Reasignar", () => {
     expect(await screen.findByText("Cita reasignada a Paula Rojas")).toBeInTheDocument();
     expect(cuerpo).toEqual({ id_empleado: 2 });
     expect(useUi.getState().citasAfectadas?.citas.map((c) => c.id_cita)).toEqual([31]);
+  });
+});
+
+describe("B8 · Crear el registro médico al terminar", () => {
+  const enCurso = citaDetalleDemo({ id_cita: 8, fecha: AYER, estado: "en_curso", precio_estimado: 45000 });
+
+  it("al marcarla, completar abre C4 con la cita, su fecha y su profesional", async () => {
+    const user = userEvent.setup();
+    let actual = enCurso;
+    servidor.use(
+      http.patch(`${API}/citas/8/estado`, () => {
+        actual = { ...actual, estado: "completada" };
+        return ok(actual);
+      }),
+      http.get(`${API}/citas/8`, () => ok(actual)),
+      http.get(`${API}/negocios/1/mascotas/4/resumen-salud`, () =>
+        ok(resumenDemo({ mascota: { id_mascota: 4 } })),
+      ),
+      http.get(`${API}/negocios/1/mascotas/4/citas`, () =>
+        HttpResponse.json({
+          success: true,
+          message: "OK",
+          data: [
+            { ...citaPanelDemo({ id_cita: 8, fecha: AYER, estado: "completada" }), registros_medicos: [] },
+          ],
+          meta: { total: 1, page: 1, limit: 20, totalPages: 1, hasNext: false },
+        }),
+      ),
+      ...api([enCurso]),
+    );
+    renderRuta(`/n/1/agenda?cita=8&fecha=${AYER}`, { usuario: usuarioDemo() });
+    const panel = await screen.findByRole("dialog", { name: "Cita #8" });
+    await user.click(await within(panel).findByRole("button", { name: "Completar" }));
+    const dialogo = await screen.findByRole("dialog", { name: "Completar cita" });
+    const casilla = within(dialogo).getByRole("checkbox", { name: /Crear el registro médico al terminar/ });
+    expect(casilla).not.toBeChecked();
+    await user.click(casilla);
+    await user.click(within(dialogo).getByRole("button", { name: "Completar cita" }));
+
+    const c4 = await screen.findByRole("dialog", { name: "Nuevo registro médico · Max" });
+    expect(within(c4).getByLabelText("Fecha *")).toHaveValue(AYER);
+    await waitFor(() =>
+      expect(within(c4).getByRole("combobox", { name: "Vincular a una cita" })).toHaveTextContent(
+        /Consulta general/,
+      ),
+    );
+    expect(within(c4).getByRole("combobox", { name: "Profesional" })).toHaveTextContent("Carlos Pérez");
+  });
+
+  it("sin historial_medico.crear no aparece la casilla", async () => {
+    const user = userEvent.setup();
+    servidor.use(...api([enCurso]));
+    renderRuta(`/n/1/agenda?cita=8&fecha=${AYER}`, {
+      usuario: usuarioDemo({
+        negocios: [
+          negocioDemo({
+            relacion: "empleado",
+            rol: { id_rol: 5, nombre: "Recepción", permisos_json: { citas: ["ver", "editar"] } },
+          }),
+        ],
+      }),
+    });
+    const panel = await screen.findByRole("dialog", { name: "Cita #8" });
+    await user.click(await within(panel).findByRole("button", { name: "Completar" }));
+    const dialogo = await screen.findByRole("dialog", { name: "Completar cita" });
+    expect(within(dialogo).queryByRole("checkbox")).not.toBeInTheDocument();
   });
 });

@@ -228,3 +228,60 @@ describe("PATCH /historial/:id_historial", () => {
     expect((await api(ctx.tokenA).patch(`/historial/${ctx.deA.id_historial}`).send({})).status).toBe(422);
   });
 });
+
+describe("rastro de ediciones y tipo control (022)", () => {
+  it("cada edición queda con quién, cuándo, los campos y sus valores anteriores; sin cambios no hay edición", async () => {
+    const ctx = await contexto();
+    const url = `/historial/${ctx.deA.id_historial}`;
+    const nuevo = await api(ctx.tokenA).get(`/negocios/${ctx.clinicaA.id_negocio}/mascotas/${ctx.mascota.id_mascota}/historial`);
+    expect(nuevo.body.data.find((r) => r.id_historial === ctx.deA.id_historial)).toMatchObject({ edicion: null, ediciones: 0 });
+
+    // Mismos valores: no es una edición.
+    const igual = await api(ctx.tokenVet).patch(url).send({ diagnostico: "Otitis" });
+    expect(igual.body.data).toMatchObject({ edicion: null, ediciones: 0 });
+
+    const res = await api(ctx.tokenVet).patch(url).send({ diagnostico: "Otitis externa", tipo: "control", temperatura: 38.5 });
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({
+      tipo: "control",
+      ediciones: 1,
+      edicion: { fecha: expect.stringMatching(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/), usuario: { id_usuario: ctx.vet.id_usuario } },
+    });
+    const [[edicion]] = await pool.query("SELECT id_usuario, campos, valores_anteriores FROM historial_medico_ediciones WHERE id_historial = ?", [
+      ctx.deA.id_historial,
+    ]);
+    const parse = (v) => (typeof v === "string" ? JSON.parse(v) : v);
+    expect(edicion.id_usuario).toBe(ctx.vet.id_usuario);
+    expect(parse(edicion.campos).sort()).toEqual(["diagnostico", "temperatura", "tipo"]);
+    expect(parse(edicion.valores_anteriores)).toMatchObject({ diagnostico: "Otitis", tipo: "consulta_general", temperatura: null });
+
+    const otra = await api(ctx.tokenA).patch(url).send({ indicaciones: "Reposo" });
+    expect(otra.body.data).toMatchObject({ ediciones: 2, edicion: { usuario: { id_usuario: ctx.clinicaA.propietario.id_usuario } } });
+
+    // La ficha de otro negocio también ve que se editó, sin las notas internas.
+    const enB = await api(ctx.tokenB).get(`/negocios/${ctx.clinicaB.id_negocio}/mascotas/${ctx.mascota.id_mascota}/historial`);
+    expect(enB.body.data.find((r) => r.id_historial === ctx.deA.id_historial)).toMatchObject({ ediciones: 2, es_propio: false });
+  });
+
+  it("crea registros de tipo control", async () => {
+    const ctx = await contexto();
+    const res = await api(ctx.tokenA)
+      .post(`/negocios/${ctx.clinicaA.id_negocio}/historial`)
+      .send({ id_mascota: ctx.mascota.id_mascota, tipo: "control", diagnostico: "Evoluciona bien" });
+    expect(res.status).toBe(201);
+    expect(res.body.data).toMatchObject({ tipo: "control", edicion: null, ediciones: 0 });
+  });
+
+  it("registros_medicos en el detalle de la cita y en las citas de la mascota", async () => {
+    const ctx = await contexto();
+    const conCita = await api(ctx.tokenA)
+      .post(`/negocios/${ctx.clinicaA.id_negocio}/historial`)
+      .send({ id_mascota: ctx.mascota.id_mascota, id_cita: ctx.citaA.id_cita, tipo: "consulta_general", fecha: ctx.citaA.fecha });
+    const esperado = [{ id_historial: conCita.body.data.id_historial, tipo: "consulta_general", fecha: ctx.citaA.fecha }];
+
+    const detalle = await api(ctx.tokenA).get(`/citas/${ctx.citaA.id_cita}`);
+    expect(detalle.body.data.registros_medicos).toEqual(esperado);
+    const citas = await api(ctx.tokenA).get(`/negocios/${ctx.clinicaA.id_negocio}/mascotas/${ctx.mascota.id_mascota}/citas`);
+    expect(citas.body.data.find((c) => c.id_cita === ctx.citaA.id_cita).registros_medicos).toEqual(esperado);
+  });
+});

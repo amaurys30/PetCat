@@ -72,3 +72,9 @@ export const citasClienteQuery = paginationSchema.extend({
     .pipe(z.array(z.enum(ESTADOS_CITA, { error: `Estados válidos: ${ESTADOS_CITA.join(", ")}` })).min(1))
     .optional(),
 });
+
+export const correoClienteBody = z.strictObject({ email });
+
+export const citasMascotaParams = idParam("id_negocio").extend({ id_mascota: z.coerce.number().int().positive() });
+
+export const citasMascotaQuery = citasClienteQuery;

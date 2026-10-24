@@ -155,3 +155,28 @@ describe("evolucionPeso", () => {
     expect(evolucionPeso([r(20, "2026-09-01")], 20, hoy)).toMatchObject({ tendencia: null, variacion_kg: null });
   });
 });
+
+describe("resumen-salud del panel: cabecera de la ficha", () => {
+  it("trae la mascota completa (con compartir_historial) y el dueño", async () => {
+    const ctx = await contexto({ sexo: "macho", microchip: "985000000000421", compartir_historial: false, raza: "Labrador" });
+    const res = await resumenA(ctx);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.mascota).toMatchObject({
+      id_mascota: ctx.mascota.id_mascota,
+      id_usuario: ctx.cliente.id_usuario,
+      raza: "Labrador",
+      sexo: "macho",
+      microchip: "985000000000421",
+      compartir_historial: false,
+      esterilizado: false,
+      foto_miniatura_url: null,
+    });
+    expect(res.body.data.mascota).not.toHaveProperty("activo");
+    expect(res.body.data.dueno).toEqual({
+      id_usuario: ctx.cliente.id_usuario,
+      nombre: ctx.cliente.nombre,
+      apellido: ctx.cliente.apellido,
+    });
+  });
+});

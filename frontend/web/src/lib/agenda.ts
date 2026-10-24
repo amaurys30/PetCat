@@ -1,4 +1,4 @@
-import { addDays, format, startOfWeek } from "date-fns";
+import { addDays, differenceInCalendarDays, format, startOfWeek } from "date-fns";
 import { es } from "date-fns/locale";
 import { parseFecha } from "./format";
 
@@ -29,6 +29,10 @@ export const aHora = (minutos: number) =>
 const iso = (fecha: Date) => format(fecha, "yyyy-MM-dd");
 
 export const sumarDias = (fecha: string, dias: number) => iso(addDays(parseFecha(fecha), dias));
+
+/** Días de `desde` a `hasta` (fechas YYYY-MM-DD): positivo si `hasta` es posterior. */
+export const diasEntre = (desde: string, hasta: string) =>
+  differenceInCalendarDays(parseFecha(hasta), parseFecha(desde));
 
 /** Lunes de la semana de `fecha` (la semana del panel va de lunes a domingo). */
 export const lunesDe = (fecha: string) => iso(startOfWeek(parseFecha(fecha), { weekStartsOn: 1 }));

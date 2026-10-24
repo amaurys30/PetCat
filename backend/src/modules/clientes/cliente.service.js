@@ -9,6 +9,7 @@ import { hashPassword } from "../../shared/utils/hash.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
 import * as citaRepo from "../citas/cita.repository.js";
+import * as historialRepo from "../historial/historial.repository.js";
 import { formatCitasPanel } from "../citas/cita.service.js";
 import { buildMeta } from "../../shared/utils/pagination.js";
 import { castFields } from "../../shared/utils/format.js";
@@ -103,12 +104,71 @@ export const agregarMascota = async (id_negocio, id_usuario, data) => {
 
 const NO_ES_CLIENTE = "Cliente no encontrado en este negocio";
 
+/** Primera fecha de relación con el negocio: la primera cita o la autorización que registró. */
+const clienteDesde = ({ primera_cita, primera_autorizacion }) => [primera_cita, primera_autorizacion].filter(Boolean).sort()[0];
+
+/** La cuenta ya se activó: creó su contraseña (correo verificado) o entró alguna vez. */
+const cuentaActivada = (cuenta) => Boolean(cuenta.email_verificado) || cuenta.ultimo_acceso !== null;
+
+/**
+ * El negocio puede poner el correo de un cliente sin correo, o corregir el de un cliente
+ * que él registró y que aún no activó su cuenta.
+ */
+const correoEditable = (cuenta, registradoPorElNegocio) =>
+  !cuentaActivada(cuenta) && (cuenta.email === null || Boolean(registradoPorElNegocio));
+
 export const listarClientes = async (id_negocio, { page, limit, q, orden }) => {
   const { rows, total } = await clienteRepo.findPageDeNegocio(id_negocio, { q, orden, limit, offset: (page - 1) * limit });
   return {
-    rows: rows.map((r) => ({ ...r, total_citas: Number(r.total_citas), inasistencias: Number(r.inasistencias) })),
+    rows: rows.map(({ primera_cita, primera_autorizacion, ...r }) => ({
+      ...r,
+      total_citas: Number(r.total_citas),
+      inasistencias: Number(r.inasistencias),
+      usa_app: Boolean(r.usa_app),
+      registrado_por_el_negocio: Boolean(r.registrado_por_el_negocio),
+      cliente_desde: clienteDesde({ primera_cita, primera_autorizacion }),
+    })),
     meta: buildMeta(total, page, limit),
   };
+};
+
+/**
+ * Pone o corrige el correo de un cliente desde el panel y le envía la bienvenida para
+ * que active su cuenta (crear su contraseña). 404 si no es cliente del negocio; 409 si ya
+ * activó su cuenta (desde ahí solo él cambia su correo) o si el correo es de otra cuenta;
+ * 403 si ya tiene correo y no lo registró este negocio. Con un correo distinto, el enlace
+ * nuevo reemplaza al anterior, que fue a otra dirección y deja de servir. Con el mismo
+ * correo es un reenvío (429 si el anterior salió hace menos de un minuto).
+ */
+export const asignarCorreo = async (negocio, id_usuario, { email }) => {
+  const cliente = await clienteRepo.findClienteDeNegocio(id_usuario, negocio.id_negocio);
+  if (!cliente) throw ApiError.notFound(NO_ES_CLIENTE);
+
+  const { accion, token } = await withTransaction(async (conn) => {
+    const cuenta = await clienteRepo.lockCuenta(id_usuario, conn);
+    if (cuentaActivada(cuenta)) {
+      throw ApiError.conflict("El cliente ya activó su cuenta: solo él puede cambiar su correo desde la app");
+    }
+    if (!correoEditable(cuenta, cliente.registrado_por_el_negocio)) {
+      throw ApiError.forbidden("Solo el negocio que registró al cliente puede corregir su correo");
+    }
+    if (cuenta.email === email) {
+      const reenvio = await emitirEnlaceBienvenida(id_usuario, conn);
+      if (!reenvio) throw ApiError.tooMany("Le enviamos la bienvenida hace menos de un minuto: espera un momento para reenviarla");
+      return { accion: "reenviado", token: reenvio };
+    }
+    if (await usuarioRepo.findByEmail(email, conn)) {
+      throw ApiError.conflict("Ya existe una cuenta con ese correo", { email: "Ya está registrado" });
+    }
+    await clienteRepo.updateEmail(id_usuario, email, conn);
+    return {
+      accion: cuenta.email === null ? "agregado" : "corregido",
+      token: await emitirEnlaceBienvenida(id_usuario, conn, { esperaMinutos: 0 }),
+    };
+  });
+
+  await enviarBienvenida({ token, email, nombre: cliente.nombre, negocio: negocio.nombre });
+  return { cliente: await clienteRepo.findActivo(id_usuario), accion };
 };
 
 /**
@@ -126,7 +186,6 @@ export const getCliente = async (id_negocio, id_usuario, usuario, acceso) => {
     citaRepo.findPageDeUsuario(id_usuario, { id_negocio, alcance: "pasadas", limit: MAX_CITAS_RECIENTES, offset: 0 }),
     getResumenNotas(id_negocio, id_usuario, usuario, acceso),
   ]);
-  const fechas = [cliente.primera_cita, cliente.primera_autorizacion].filter(Boolean).sort();
 
   return {
     cliente: {
@@ -135,9 +194,10 @@ export const getCliente = async (id_negocio, id_usuario, usuario, acceso) => {
       apellido: cliente.apellido,
       email: cliente.email,
       telefono: cliente.telefono,
-      cliente_desde: fechas[0],
+      cliente_desde: clienteDesde(cliente),
       registrado_por_el_negocio: Boolean(cliente.registrado_por_el_negocio),
       usa_app: cliente.ultimo_acceso !== null,
+      correo_editable: correoEditable(cliente, cliente.registrado_por_el_negocio),
     },
     historial_cumplimiento,
     mascotas: mascotas.map((m) =>
@@ -163,4 +223,32 @@ export const getCitasCliente = async (id_negocio, id_usuario, { page, limit, est
     offset: (page - 1) * limit,
   });
   return { rows: await formatCitasPanel(rows, id_negocio), meta: buildMeta(total, page, limit) };
+};
+
+/**
+ * Citas de una mascota con el negocio (ficha de la mascota y "Vincular a una cita"), de la
+ * más reciente hacia atrás. 404 si la mascota no existe, su dueño la eliminó o no tiene
+ * ninguna cita con el negocio (no se revela que exista).
+ */
+export const getCitasMascota = async (id_negocio, id_mascota, { page, limit, estado }, acceso) => {
+  const mascota = await mascotaRepo.findById(id_mascota);
+  if (!mascota?.activo || !(await clienteRepo.mascotaTieneCitas(id_mascota, id_negocio))) {
+    throw ApiError.notFound("Mascota no encontrada en este negocio");
+  }
+  const { rows, total } = await citaRepo.findPageDeUsuario(mascota.id_usuario, {
+    id_negocio,
+    id_mascota,
+    alcance: "todas",
+    estados: estado,
+    limit,
+    offset: (page - 1) * limit,
+  });
+  const [citas, registros] = await Promise.all([
+    formatCitasPanel(rows, id_negocio, acceso),
+    historialRepo.findRegistrosDeCitas(rows.map((r) => r.id_cita)),
+  ]);
+  return {
+    rows: citas.map((c) => ({ ...c, registros_medicos: registros[c.id_cita] ?? [] })),
+    meta: buildMeta(total, page, limit),
+  };
 };

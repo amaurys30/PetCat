@@ -58,8 +58,18 @@ describe("GET /negocios/:id_negocio/clientes", () => {
       ultima_cita: sumarDias(HOY, -10),
       proxima_cita: sumarDias(HOY, 3),
       inasistencias: 2,
+      usa_app: false,
+      registrado_por_el_negocio: false,
+      cliente_desde: sumarDias(HOY, -30),
     });
-    expect(res.body.data[2]).toMatchObject({ nombre: "Marta", total_citas: 0, ultima_cita: null, inasistencias: 0 });
+    expect(res.body.data[2]).toMatchObject({
+      nombre: "Marta",
+      total_citas: 0,
+      ultima_cita: null,
+      inasistencias: 0,
+      registrado_por_el_negocio: true,
+      cliente_desde: HOY,
+    });
   });
 
   it("busca por nombre, teléfono y mascota; ordena por nombre o inasistencias", async () => {
@@ -100,6 +110,7 @@ describe("GET /negocios/:id_negocio/clientes/:id_usuario", () => {
       cliente_desde: sumarDias(HOY, -30),
       registrado_por_el_negocio: false,
       usa_app: false,
+      correo_editable: false,
     });
     expect(historial_cumplimiento).toEqual({ completadas: 1, inasistencias: 2, cancelaciones_tardias: 1 });
     expect(mascotas).toEqual([
@@ -167,3 +178,50 @@ describe("GET /negocios/:id_negocio/clientes/:id_usuario/citas", () => {
   });
 });
 
+
+describe("GET /negocios/:id_negocio/mascotas/:id_mascota/citas", () => {
+  const citasDe = (ctx, id_mascota, token = ctx.token, query = "") =>
+    api(token).get(`/negocios/${ctx.negocio.id_negocio}/mascotas/${id_mascota}/citas${query}`);
+
+  it("solo las citas de esa mascota con el negocio, de la más reciente hacia atrás", async () => {
+    const ctx = await contexto();
+    await crearCita(ctx.negocio, { cliente: ctx.rosa, mascota: ctx.kira, estado: "completada", fecha: sumarDias(HOY, -3) });
+    const otro = await crearNegocio();
+    await crearCita(otro, { cliente: ctx.rosa, mascota: ctx.max, estado: "completada", fecha: sumarDias(HOY, -1) });
+
+    const res = await citasDe(ctx, ctx.max.id_mascota);
+    expect(res.status).toBe(200);
+    expect(res.body.meta.total).toBe(5);
+    expect(res.body.data.map((c) => c.fecha)).toEqual([
+      sumarDias(HOY, 3),
+      sumarDias(HOY, -5),
+      sumarDias(HOY, -10),
+      sumarDias(HOY, -20),
+      sumarDias(HOY, -30),
+    ]);
+    expect(res.body.data.every((c) => c.mascota.id_mascota === ctx.max.id_mascota)).toBe(true);
+    const completadas = await citasDe(ctx, ctx.max.id_mascota, ctx.token, "?estado=completada");
+    expect(completadas.body.meta.total).toBe(1);
+  });
+
+  it("con citas.ver (veterinario sin clientes.ver) o clientes.ver; con otro permiso -> 403", async () => {
+    const ctx = await contexto();
+    const conRol = async (permisos) => {
+      const usuario = await crearUsuario();
+      await crearEmpleado(ctx.negocio, { usuario, rol: (await crearRol(ctx.negocio, permisos)).id_rol });
+      return tokenDe(usuario);
+    };
+    expect((await citasDe(ctx, ctx.max.id_mascota, await conRol({ citas: ["ver"] }))).status).toBe(200);
+    expect((await citasDe(ctx, ctx.max.id_mascota, await conRol({ clientes: ["ver"] }))).status).toBe(200);
+    expect((await citasDe(ctx, ctx.max.id_mascota, await conRol({ inventario: ["ver"] }))).status).toBe(403);
+  });
+
+  it("mascota sin citas con el negocio, de otro dueño o eliminada -> 404", async () => {
+    const ctx = await contexto();
+    const ajena = await crearMascota(await crearUsuario());
+    expect((await citasDe(ctx, ajena.id_mascota)).status).toBe(404);
+    expect((await citasDe(ctx, 999999)).status).toBe(404);
+    await pool.query("UPDATE mascotas SET activo = FALSE WHERE id_mascota = ?", [ctx.max.id_mascota]);
+    expect((await citasDe(ctx, ctx.max.id_mascota)).status).toBe(404);
+  });
+});

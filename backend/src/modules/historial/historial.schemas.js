@@ -4,6 +4,7 @@ import { conAlMenosUnCampo, fecha, fechaNoFutura, idParam, texto } from "../../s
 
 export const TIPOS_HISTORIAL = [
   "consulta_general",
+  "control",
   "cirugia",
   "vacunacion",
   "examen_laboratorio",

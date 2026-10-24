@@ -438,9 +438,9 @@ CREATE TABLE historial_medico (
     id_empleado      INT UNSIGNED    NULL,
     id_negocio       INT UNSIGNED    NULL,
     -- Datos del registro
-    tipo             ENUM('consulta_general','cirugia','vacunacion','examen_laboratorio',
+    tipo             ENUM('consulta_general','control','cirugia','vacunacion','examen_laboratorio',
                           'radiografia','ecografia','hospitalizacion','urgencia',
-                          'desparasitacion','otro') NOT NULL,
+                          'desparasitacion','otro') NOT NULL COMMENT 'control: migración 022',
     motivo_consulta  TEXT            NULL,
     diagnostico      TEXT            NULL,
     tratamiento      TEXT            NULL,
@@ -457,6 +457,9 @@ CREATE TABLE historial_medico (
     notas_internas   TEXT            NULL,
     fecha            DATE            NOT NULL,
     fecha_creacion   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    -- Migración 022: última edición (todas quedan en historial_medico_ediciones).
+    fecha_edicion    DATETIME        NULL COMMENT 'Última edición',
+    id_usuario_edicion INT UNSIGNED  NULL COMMENT 'Quién hizo la última edición',
     PRIMARY KEY (id_historial),
     INDEX idx_historial_mascota (id_mascota),
     INDEX idx_historial_cita (id_cita),
@@ -475,9 +478,31 @@ CREATE TABLE historial_medico (
         ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT fk_historial_negocio
         FOREIGN KEY (id_negocio) REFERENCES negocios (id_negocio)
+        ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_historial_usuario_edicion
+        FOREIGN KEY (id_usuario_edicion) REFERENCES usuarios (id_usuario)
         ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Historial médico completo de cada mascota';
+
+-- Migración 022: cada edición de un registro médico (los registros no se borran).
+CREATE TABLE historial_medico_ediciones (
+    id_edicion         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    id_historial       BIGINT UNSIGNED NOT NULL,
+    id_usuario         INT UNSIGNED    NULL,
+    campos             JSON            NOT NULL COMMENT 'Campos que cambiaron',
+    valores_anteriores JSON            NOT NULL COMMENT 'Valor de cada campo antes de la edición',
+    fecha              DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id_edicion),
+    INDEX idx_historial_ediciones_registro (id_historial, fecha),
+    CONSTRAINT fk_historial_ediciones_registro
+        FOREIGN KEY (id_historial) REFERENCES historial_medico (id_historial)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_historial_ediciones_usuario
+        FOREIGN KEY (id_usuario) REFERENCES usuarios (id_usuario)
+        ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Cada edición de un registro médico: quién, cuándo, qué campos y sus valores anteriores';
 
 
 CREATE TABLE vacunas (
@@ -502,6 +527,9 @@ CREATE TABLE vacunas (
     comprobante_url  VARCHAR(500)    NULL COMMENT 'Foto del carnet de vacunación',
     notas            VARCHAR(300)    NULL,
     fecha_creacion   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    -- Migración 023: última edición (todas quedan en vacunas_ediciones).
+    fecha_edicion    DATETIME        NULL COMMENT 'Última edición',
+    id_usuario_edicion INT UNSIGNED  NULL COMMENT 'Quién hizo la última edición',
     PRIMARY KEY (id_vacuna),
     INDEX idx_vacunas_mascota (id_mascota),
     INDEX idx_vacunas_fecha_proxima (fecha_proxima),
@@ -522,9 +550,31 @@ CREATE TABLE vacunas (
     -- Migración 010.
     CONSTRAINT fk_vacunas_usuario_registro
         FOREIGN KEY (id_usuario_registro) REFERENCES usuarios (id_usuario)
+        ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_vacunas_usuario_edicion
+        FOREIGN KEY (id_usuario_edicion) REFERENCES usuarios (id_usuario)
         ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Registro de vacunas con trazabilidad de lote y laboratorio';
+
+-- Migración 023: cada edición de una vacuna (las vacunas no se borran).
+CREATE TABLE vacunas_ediciones (
+    id_edicion         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    id_vacuna          INT UNSIGNED    NOT NULL,
+    id_usuario         INT UNSIGNED    NULL,
+    campos             JSON            NOT NULL COMMENT 'Campos que cambiaron',
+    valores_anteriores JSON            NOT NULL COMMENT 'Valor de cada campo antes de la edición',
+    fecha              DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id_edicion),
+    INDEX idx_vacunas_ediciones_vacuna (id_vacuna, fecha),
+    CONSTRAINT fk_vacunas_ediciones_vacuna
+        FOREIGN KEY (id_vacuna) REFERENCES vacunas (id_vacuna)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_vacunas_ediciones_usuario
+        FOREIGN KEY (id_usuario) REFERENCES usuarios (id_usuario)
+        ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Cada edición de una vacuna: quién, cuándo, qué campos y sus valores anteriores';
 
 
 -- ═══════════════════════════════════════════════════════════════════════════
@@ -1828,7 +1878,9 @@ INSERT INTO schema_migrations (nombre) VALUES
 ('018_resenas.sql'),
 ('019_notas_cliente.sql'),
 ('020_autorizaciones_panel_web.sql'),
-('021_clientes_sin_cuenta.sql');
+('021_clientes_sin_cuenta.sql'),
+('022_historial_control_y_ediciones.sql'),
+('023_vacunas_ediciones.sql');
 
 
 SET FOREIGN_KEY_CHECKS = 1;

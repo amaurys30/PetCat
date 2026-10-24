@@ -68,6 +68,7 @@ export const citaDetalleDemo = (cambios: CambiosDetalle = {}): CitaPanelDetalle 
   return {
     ...base,
     notas_internas: base.notas_internas ?? null,
+    registros_medicos: [],
     ...resto,
     mascota: {
       raza: "Criolla",

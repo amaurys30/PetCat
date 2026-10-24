@@ -41,10 +41,18 @@ export function useHorariosLibres(idNegocio: number, consulta: api.ConsultaHorar
 /** Los diálogos muestran sus errores (409 con el motivo, 422 por campo). */
 const meta = { avisarError: false } as const;
 
-/** Toda acción recarga la agenda, la atención, el detalle y el historial del negocio. */
+/**
+ * Toda acción recarga la agenda, la atención, el detalle y el historial del negocio, y los
+ * clientes y la ficha de la mascota (traen las citas, el cumplimiento y la próxima cita).
+ */
 function useRecargar(idNegocio: number) {
   const queryClient = useQueryClient();
-  return () => queryClient.invalidateQueries({ queryKey: queryKeys.citas.todas(idNegocio) });
+  return () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.citas.todas(idNegocio) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.clientes.todos(idNegocio) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.salud.todo(idNegocio) }),
+    ]);
 }
 
 export function useCambiarEstado(idNegocio: number) {

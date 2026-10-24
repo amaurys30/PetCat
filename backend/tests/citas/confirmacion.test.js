@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { pool } from "../../src/config/db.js";
 import { aDatetimeSQL, hoyISO } from "../../src/shared/utils/fechas.js";
 import { calcularPlazoConfirmacion } from "../../src/modules/citas/cita.confirmacion.js";
@@ -72,10 +72,16 @@ const lunesLejano = () => {
 };
 
 describe("plazo en la reserva", () => {
+  afterEach(() => vi.useRealTimers());
+
   it("la cita pendiente de la app trae confirmar_antes_de; confirmada, ya no", async () => {
+    // Reloj fijo al mediodía de Bogotá (antes de emitir los tokens): de noche, 24 horas
+    // después caería en el horario de silencio y el plazo se correría a las 08:00 (esa
+    // regla tiene sus propias pruebas arriba).
+    const mediodia = new Date(`${hoyISO()}T12:00:00-05:00`).getTime();
+    vi.useFakeTimers({ toFake: ["Date"], now: mediodia });
     const ctx = await contexto();
     const fecha = lunesLejano();
-    const antes = Date.now();
     const res = await api(ctx.tokenCliente).post("/citas").send({
       id_servicio: ctx.servicio.id_servicio,
       id_sucursal: ctx.sucursal.id_sucursal,
@@ -84,10 +90,8 @@ describe("plazo en la reserva", () => {
       id_mascota: ctx.mascota.id_mascota,
     });
     expect(res.status).toBe(201);
-    // 24 horas después de reservar (la cita es en más de una semana), con margen por la hora del test.
-    const plazoMs = new Date(res.body.data.confirmar_antes_de.replace(" ", "T")).getTime();
-    expect(plazoMs).toBeGreaterThanOrEqual(antes + 24 * 3_600_000 - 1000);
-    expect(plazoMs).toBeLessThanOrEqual(Date.now() + 25 * 3_600_000);
+    // 24 horas después de reservar (la cita es en más de una semana).
+    expect(res.body.data.confirmar_antes_de).toBe(aDatetimeSQL(new Date(mediodia + 24 * 3_600_000)));
 
     const confirmada = await api(ctx.tokenPropietario).patch(`/citas/${res.body.data.id_cita}/estado`).send({ estado: "confirmada" });
     expect(confirmada.body.data.confirmar_antes_de).toBeNull();

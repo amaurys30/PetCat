@@ -486,6 +486,12 @@ INSERT INTO historial_medico (id_mascota, id_cita, id_empleado, id_negocio, tipo
 SELECT @m_rocky, c.id_cita, @e_vale, @n_salud, 'urgencia', 'Vómito toda la noche', 'Gastroenteritis por intolerancia alimentaria',
        'Fluidoterapia y ayuno de 12 horas', 'Omeprazol 10 mg por 5 días', 12.30, 39.4, 130, 'No siguió la dieta indicada', c.fecha
 FROM citas c WHERE c.id_mascota = @m_rocky AND c.id_negocio = @n_salud AND c.estado = 'completada';
+-- Max sí comparte su historial: Patitas ve también este registro de Salud Animal (sin cita: una
+-- urgencia atendida antes de que la plataforma registrara sus citas), en solo lectura.
+INSERT INTO historial_medico (id_mascota, id_empleado, id_negocio, tipo, motivo_consulta, diagnostico, tratamiento,
+                              peso_registro, temperatura, notas_internas, fecha)
+VALUES (@m_max, @e_vale, @n_salud, 'urgencia', 'Cojera de la pata trasera', 'Esguince leve', 'Reposo y antiinflamatorio por 5 días',
+        26.80, 38.7, 'Nota interna de Salud Animal: Patitas no la ve', CURDATE() - INTERVAL 200 DAY);
 INSERT INTO historial_medico (id_mascota, id_cita, id_empleado, id_negocio, tipo, diagnostico, tratamiento, peso_registro, fecha)
 SELECT @m_copito, c.id_cita, @e_ricardo, @n_salud, 'desparasitacion', 'Sin parásitos visibles', 'Desparasitación preventiva', 1.80, c.fecha
 FROM citas c WHERE c.id_mascota = @m_copito AND c.id_negocio = @n_salud AND c.estado = 'completada';

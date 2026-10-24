@@ -1,5 +1,6 @@
 import { TriangleAlert } from "lucide-react";
 import { useState, type ReactNode } from "react";
+import { Link } from "react-router";
 import type { CitaPanelDetalle } from "@/api/citas";
 import { Avatar } from "@/components/common/Avatar";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
@@ -23,8 +24,9 @@ import { aviso } from "@/components/ui/toaster";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useNegocioActivo, usePuede } from "@/features/negocios/hooks/useNegocio";
 import { encabezadoDia } from "@/lib/agenda";
-import { dinero, fechaHora, hora, hoyISO } from "@/lib/format";
+import { dinero, fechaCorta, fechaHora, hora, hoyISO } from "@/lib/format";
 import { useUi } from "@/stores/ui";
+import { textoTipo } from "@/features/salud/textos";
 import { accionesDe, autorCambio, textoOrigen, tituloCambio } from "../acciones";
 import { mensajeDeError } from "../errores";
 import { useAhora } from "../hooks/useAgenda";
@@ -213,6 +215,15 @@ function Contenido({ cita }: { cita: CitaPanelDetalle }) {
 }
 
 function Mascota({ cita }: { cita: CitaPanelDetalle }) {
+  const negocio = useNegocioActivo();
+  const puede = usePuede();
+  const verFicha = puede("historial_medico", "ver") || puede("vacunas", "ver");
+  const abrirRegistro = useUi((s) => s.abrirRegistroMedico);
+  // Un registro de la atención: con la cita en curso o completada (no de una cita futura).
+  const puedeRegistro =
+    puede("historial_medico", "crear") &&
+    ["en_curso", "completada"].includes(cita.estado) &&
+    cita.fecha <= hoyISO();
   const m = cita.mascota;
   const detalle = [
     ESPECIE[m.especie] ?? m.especie,
@@ -242,9 +253,38 @@ function Mascota({ cita }: { cita: CitaPanelDetalle }) {
         )}
         {m.fallecido && <Badge>Fallecida</Badge>}
       </div>
-      <Tooltip texto="La ficha médica llega con Clientes y salud (P5)">
-        <span className="mt-2 inline-block text-label font-semibold text-subtle">Ver ficha médica →</span>
-      </Tooltip>
+      {cita.registros_medicos.length > 0 && (
+        <p className="mt-2 text-label text-muted">
+          Registro médico:{" "}
+          {cita.registros_medicos.map((r) => `${textoTipo(r.tipo)} (${fechaCorta(r.fecha)})`).join(", ")}
+        </p>
+      )}
+      <div className="mt-2 flex flex-wrap items-center gap-3">
+        {verFicha && (
+          <Link
+            to={`/n/${negocio.id_negocio}/clientes/mascotas/${m.id_mascota}`}
+            className="text-label font-semibold text-primary hover:underline"
+          >
+            Ver ficha médica →
+          </Link>
+        )}
+        {puedeRegistro && (
+          <Button
+            variant="link"
+            size="sm"
+            onClick={() =>
+              abrirRegistro({
+                idMascota: m.id_mascota,
+                idCita: cita.id_cita,
+                fecha: cita.fecha,
+                idEmpleado: cita.empleado?.id_empleado ?? null,
+              })
+            }
+          >
+            {cita.registros_medicos.length > 0 ? "Otro registro médico" : "Crear registro médico"}
+          </Button>
+        )}
+      </div>
     </section>
   );
 }

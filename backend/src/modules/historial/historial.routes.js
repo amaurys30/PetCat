@@ -29,7 +29,7 @@ const router = express.Router();
  *         Campos opcionales con `null` se vacían. `proximo_control` no puede ser anterior a `fecha`.
  *         Los archivos no van aquí (`archivos` da 422): se suben con `POST /historial/{id_historial}/archivos`.
  *       properties:
- *         tipo: { type: string, enum: [consulta_general, cirugia, vacunacion, examen_laboratorio, radiografia, ecografia, hospitalizacion, urgencia, desparasitacion, otro] }
+ *         tipo: { type: string, enum: [consulta_general, control, cirugia, vacunacion, examen_laboratorio, radiografia, ecografia, hospitalizacion, urgencia, desparasitacion, otro] }
  *         fecha: { type: string, format: date, description: Por defecto hoy; no puede ser futura }
  *         motivo_consulta: { type: string, maxLength: 2000, nullable: true }
  *         diagnostico: { type: string, maxLength: 2000, nullable: true }
@@ -73,6 +73,20 @@ const router = express.Router();
  *         es_propio: { type: boolean, x-opcional: true, description: Solo en el panel; lo creó el negocio que consulta }
  *         notas_internas: { type: string, nullable: true, x-opcional: true, description: Solo en los registros del negocio que consulta }
  *         fecha_creacion: { type: string }
+ *         edicion:
+ *           type: object
+ *           nullable: true
+ *           description: >
+ *             Última edición (los registros no se borran: cada edición queda con quién, cuándo, los campos que
+ *             cambiaron y sus valores anteriores). null si nunca se editó. Los archivos tienen su propio rastro.
+ *           properties:
+ *             fecha: { type: string, example: "2026-10-17 10:15:00" }
+ *             usuario:
+ *               type: object
+ *               nullable: true
+ *               description: null si la cuenta de quien editó ya no existe
+ *               properties: { id_usuario: { type: integer }, nombre: { type: string }, apellido: { type: string } }
+ *         ediciones: { type: integer, description: Cuántas veces se editó }
  *     HistorialPagina:
  *       type: object
  *       properties:
@@ -209,7 +223,9 @@ router.post(
  *     summary: Editar un registro del historial médico (panel)
  *     description: >
  *       Requiere `historial_medico.editar` en el negocio que creó el registro (otro negocio: 403). Sin
- *       límite de tiempo. Al menos un campo; la mascota, la cita y el negocio no cambian.
+ *       límite de tiempo. Al menos un campo; la mascota, la cita y el negocio no cambian. Si algo cambia, queda
+ *       la edición con quién, cuándo, los campos y sus valores anteriores (`edicion` y `ediciones` en la respuesta);
+ *       si los valores son los mismos, no hay edición.
  *     tags: [Historial médico]
  *     parameters:
  *       - { in: path, name: id_historial, required: true, schema: { type: integer } }

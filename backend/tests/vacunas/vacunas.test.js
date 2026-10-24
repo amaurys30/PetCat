@@ -207,3 +207,45 @@ describe("PATCH /vacunas/:id_vacuna", () => {
     expect((await api(ctx.tokenA).patch("/vacunas/999999999").send({ lote: "X" })).status).toBe(404);
   });
 });
+
+describe("rastro de ediciones de las vacunas (023)", () => {
+  const parse = (v) => (typeof v === "string" ? JSON.parse(v) : v);
+
+  it("cada edición queda con quién, cuándo, los campos y sus valores anteriores; sin cambios no hay edición", async () => {
+    const ctx = await contexto();
+    const creada = await api(ctx.tokenA).post(`/negocios/${ctx.clinicaA.id_negocio}/vacunas`).send({
+      id_mascota: ctx.mascota.id_mascota,
+      nombre_vacuna: "Antirrábica",
+      fecha_aplicacion: sumarDias(HOY, -5),
+      fecha_proxima: sumarDias(HOY, 360),
+      lote: "RB-1",
+    });
+    expect(creada.body.data).toMatchObject({ edicion: null, ediciones: 0 });
+    const url = `/vacunas/${creada.body.data.id_vacuna}`;
+
+    const igual = await api(ctx.tokenVet).patch(url).send({ lote: "RB-1" });
+    expect(igual.body.data).toMatchObject({ edicion: null, ediciones: 0 });
+
+    const res = await api(ctx.tokenVet).patch(url).send({ lote: "RB-2", fecha_proxima: sumarDias(HOY, 365) });
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({ ediciones: 1, edicion: { usuario: { id_usuario: ctx.vet.id_usuario } } });
+    const [[edicion]] = await pool.query("SELECT id_usuario, campos, valores_anteriores FROM vacunas_ediciones WHERE id_vacuna = ?", [
+      creada.body.data.id_vacuna,
+    ]);
+    expect(parse(edicion.campos).sort()).toEqual(["fecha_proxima", "lote"]);
+    expect(parse(edicion.valores_anteriores)).toEqual({ lote: "RB-1", fecha_proxima: sumarDias(HOY, 360) });
+
+    // Otro negocio ve en el carnet que se editó.
+    const enB = await api(ctx.tokenB).get(`/negocios/${ctx.clinicaB.id_negocio}/mascotas/${ctx.mascota.id_mascota}/vacunas`);
+    expect(enB.body.data.find((v) => v.id_vacuna === creada.body.data.id_vacuna)).toMatchObject({ ediciones: 1 });
+  });
+
+  it("el dueño también deja constancia al editar la suya", async () => {
+    const ctx = await contexto();
+    const creada = await api(ctx.tokenCliente)
+      .post(`/mascotas/${ctx.mascota.id_mascota}/vacunas`)
+      .send({ nombre_vacuna: "Moquillo", fecha_aplicacion: sumarDias(HOY, -20) });
+    const res = await api(ctx.tokenCliente).patch(`/vacunas/${creada.body.data.id_vacuna}`).send({ laboratorio: "Zoetis" });
+    expect(res.body.data).toMatchObject({ ediciones: 1, edicion: { usuario: { id_usuario: ctx.cliente.id_usuario } } });
+  });
+});

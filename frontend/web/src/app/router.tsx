@@ -1,5 +1,7 @@
 import { createBrowserRouter, Navigate, type RouteObject } from "react-router";
 import { AgendaPage } from "@/features/agenda/pages/AgendaPage";
+import { ClientesPage } from "@/features/clientes/pages/ClientesPage";
+import { FichaMascotaPage } from "@/features/salud/pages/FichaMascotaPage";
 import { ConfiguracionLayout } from "@/features/configuracion/ConfiguracionLayout";
 import { PerfilNegocioPage } from "@/features/configuracion/pages/PerfilNegocioPage";
 import { ResumenNegocioPage } from "@/features/configuracion/pages/ResumenNegocioPage";
@@ -127,12 +129,26 @@ export const rutas: RouteObject[] = [
                 handle: { titulo: "Agenda" } satisfies HandleRuta,
               },
               {
+                path: "clientes",
+                handle: { titulo: "Clientes" } satisfies HandleRuta,
+                children: [
+                  { index: true, element: <ClientesPage /> },
+                  // La ficha también se abre desde la agenda (B4): la ven quienes tienen
+                  // historial_medico.ver o vacunas.ver, aunque no tengan Clientes en el menú.
+                  {
+                    path: "mascotas/:idMascota",
+                    element: <FichaMascotaPage />,
+                    handle: { titulo: "Ficha de la mascota" } satisfies HandleRuta,
+                  },
+                ],
+              },
+              {
                 path: "mi-perfil",
                 element: <MiPerfilPage />,
                 handle: { titulo: "Mi perfil" } satisfies HandleRuta,
               },
               ...SECCIONES.filter(
-                (s) => !["agenda", "configuracion", "equipo", "servicios"].includes(s.ruta),
+                (s) => !["agenda", "clientes", "configuracion", "equipo", "servicios"].includes(s.ruta),
               ).map((seccion): RouteObject => ({
                 path: `${seccion.ruta}/*`,
                 element: <SeccionPendiente seccion={seccion} />,

@@ -32,5 +32,6 @@ export const eliminarComprobante = async (req, res) => {
 };
 
 export const actualizarVacuna = async (req, res) => {
-  return ok(res, await service.actualizarVacuna(req.params.id_vacuna, req.body, req.acceso), "Vacuna actualizada");
+  const vacuna = await service.actualizarVacuna(req.params.id_vacuna, req.body, req.acceso, req.user.id_usuario);
+  return ok(res, vacuna, "Vacuna actualizada");
 };

@@ -26,6 +26,8 @@ export const queryKeys = {
     historial: (idNegocio: number, idCita: number) => ["citas", idNegocio, "historial", idCita] as const,
     libres: (idNegocio: number, idCita: number) => ["citas", idNegocio, "libres", idCita] as const,
     horarios: (idNegocio: number, consulta: object) => ["citas", idNegocio, "horarios", consulta] as const,
+    /** Citas de una mascota con el negocio (ficha de la mascota). */
+    mascota: (idNegocio: number, idMascota: number) => ["citas", idNegocio, "mascota", idMascota] as const,
   },
   roles: (idNegocio: number) => ["roles", idNegocio] as const,
   catalogoPermisos: () => ["permisos"] as const,
@@ -42,6 +44,18 @@ export const queryKeys = {
     todos: (idNegocio: number) => ["clientes", idNegocio] as const,
     lista: (idNegocio: number, params: object) => ["clientes", idNegocio, "lista", params] as const,
     detalle: (idNegocio: number, idUsuario: number) => ["clientes", idNegocio, "detalle", idUsuario] as const,
+    citas: (idNegocio: number, idUsuario: number) => ["clientes", idNegocio, "citas", idUsuario] as const,
+    notas: (idNegocio: number, idUsuario: number) => ["clientes", idNegocio, "notas", idUsuario] as const,
+    /** Búsqueda del Topbar (clientes y mascotas por nombre, correo o teléfono). */
+    busqueda: (idNegocio: number, q: string) => ["clientes", idNegocio, "busqueda", q] as const,
+  },
+  /** Ficha de la mascota: todas empiezan por ["salud", idNegocio, idMascota]. */
+  salud: {
+    todo: (idNegocio: number) => ["salud", idNegocio] as const,
+    resumen: (idNegocio: number, idMascota: number) => ["salud", idNegocio, idMascota, "resumen"] as const,
+    historial: (idNegocio: number, idMascota: number, filtros: object) =>
+      ["salud", idNegocio, idMascota, "historial", filtros] as const,
+    vacunas: (idNegocio: number, idMascota: number) => ["salud", idNegocio, idMascota, "vacunas"] as const,
   },
   disponibilidad: {
     todo: (idEmpleado: number) => ["disponibilidad", idEmpleado] as const,

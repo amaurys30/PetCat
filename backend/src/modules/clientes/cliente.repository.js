@@ -64,6 +64,7 @@ export const tieneRelacion = async (id_usuario, id_negocio, conn) => {
 const SQL_ESTADISTICAS = `
   SELECT c.id_usuario,
          COUNT(*) AS total_citas,
+         MIN(c.fecha) AS primera_cita,
          MAX(c.fecha) AS ultima_actividad,
          MAX(CASE WHEN c.estado NOT IN ('cancelada', 'reprogramada')
                    AND (c.fecha < CURDATE() OR (c.fecha = CURDATE() AND c.hora_fin < CURTIME()))
@@ -106,11 +107,16 @@ export const findPageDeNegocio = async (id_negocio, { q, orden = "ultima_cita", 
   const [rows] = await db.query(
     `SELECT u.id_usuario, u.nombre, u.apellido, u.email, u.telefono,
             COALESCE(st.total_citas, 0) AS total_citas, st.ultima_cita, st.proxima_cita,
-            COALESCE(st.inasistencias, 0) AS inasistencias
+            COALESCE(st.inasistencias, 0) AS inasistencias,
+            u.ultimo_acceso IS NOT NULL AS usa_app, st.primera_cita,
+            (SELECT MIN(DATE(a.fecha_autorizacion)) FROM autorizaciones_datos a
+             WHERE a.id_usuario = u.id_usuario AND a.id_negocio = ?) AS primera_autorizacion,
+            EXISTS (SELECT 1 FROM autorizaciones_datos a
+                    WHERE a.id_usuario = u.id_usuario AND a.id_negocio = ? AND a.canal = 'panel') AS registrado_por_el_negocio
      ${from} ${where}
      ORDER BY ${ORDENES[orden]}
      LIMIT ? OFFSET ?`,
-    [id_negocio, ...valores, limit, offset]
+    [id_negocio, id_negocio, id_negocio, ...valores, limit, offset]
   );
   const [[{ total }]] = await db.query(`SELECT COUNT(*) AS total ${from} ${where}`, [id_negocio, ...valores]);
   return { rows, total };
@@ -122,7 +128,7 @@ export const findPageDeNegocio = async (id_negocio, { q, orden = "ultima_cita", 
  */
 export const findClienteDeNegocio = async (id_usuario, id_negocio) => {
   const [rows] = await db.query(
-    `SELECT u.id_usuario, u.nombre, u.apellido, u.email, u.telefono, u.ultimo_acceso,
+    `SELECT u.id_usuario, u.nombre, u.apellido, u.email, u.telefono, u.ultimo_acceso, u.email_verificado,
             (SELECT MIN(c.fecha) FROM citas c WHERE c.id_usuario = u.id_usuario AND c.id_negocio = ?) AS primera_cita,
             (SELECT MIN(DATE(a.fecha_autorizacion)) FROM autorizaciones_datos a
              WHERE a.id_usuario = u.id_usuario AND a.id_negocio = ?) AS primera_autorizacion,
@@ -155,4 +161,26 @@ export const findMascotasDeCliente = async (id_usuario, id_negocio) => {
     [id_negocio, id_negocio, id_usuario]
   );
   return rows;
+};
+
+/**
+ * Bloquea la fila del cliente (FOR UPDATE) y devuelve lo que decide si el negocio
+ * puede ponerle o corregirle el correo.
+ */
+export const lockCuenta = async (id_usuario, conn) => {
+  const [rows] = await conn.query(
+    "SELECT id_usuario, email, email_verificado, ultimo_acceso FROM usuarios WHERE id_usuario = ? FOR UPDATE",
+    [id_usuario]
+  );
+  return rows[0];
+};
+
+export const updateEmail = async (id_usuario, email, conn) => {
+  await conn.query("UPDATE usuarios SET email = ? WHERE id_usuario = ?", [email, id_usuario]);
+};
+
+/** La mascota tiene alguna cita (en cualquier estado) con el negocio. */
+export const mascotaTieneCitas = async (id_mascota, id_negocio) => {
+  const [rows] = await db.query("SELECT 1 FROM citas WHERE id_mascota = ? AND id_negocio = ? LIMIT 1", [id_mascota, id_negocio]);
+  return rows.length > 0;
 };

@@ -1,6 +1,6 @@
 import { WifiOff, X } from "lucide-react";
-import { useState } from "react";
-import { Link } from "react-router";
+import { useEffect, useEffectEvent, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router";
 import type { CitaPanel, FiltrosAgenda } from "@/api/citas";
 import type { Profesional } from "@/api/empleados";
 import { SinPermiso } from "@/components/common/EstadoPantalla";
@@ -66,8 +66,20 @@ export function AgendaPage() {
   const atencion = useAtencion(negocio.id_negocio, filtrosApi, verCitas);
   const confirmar = useCambiarEstado(negocio.id_negocio);
   const abrirAccion = useUi((s) => s.abrirAccionCita);
-  const [nuevaCita, setNuevaCita] = useState<InicioNuevaCita | null>(null);
   const puedeCrear = puede("citas", "crear");
+  // "Agendar cita" desde otra pantalla (C1) llega en el estado de la navegación; se borra
+  // al abrir, para que volver o recargar no abra B5 otra vez.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const recibida = (location.state as { nuevaCita?: InicioNuevaCita } | null)?.nuevaCita;
+  const [nuevaCita, setNuevaCita] = useState<InicioNuevaCita | null>(
+    puedeCrear && recibida ? recibida : null,
+  );
+  const olvidarRecibida = useEffectEvent(() => {
+    if (recibida)
+      void navigate({ pathname: location.pathname, search: location.search }, { replace: true, state: null });
+  });
+  useEffect(() => olvidarRecibida(), []);
   const conexion = useEstadoConexion();
 
   if (!verCitas) {

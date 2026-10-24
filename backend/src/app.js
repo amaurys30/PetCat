@@ -83,6 +83,8 @@ v1.use("/auth/request-verification", strictLimiter());
 v1.use("/invitaciones", strictLimiter());
 // Búsqueda exacta de clientes: sin límite estricto se podrían recorrer teléfonos.
 v1.use("/negocios/:id_negocio/clientes/buscar", strictLimiter());
+// Correo de un cliente sin cuenta: cada solicitud envía un correo de bienvenida.
+v1.use("/negocios/:id_negocio/clientes/:id_usuario/correo", strictLimiter());
 
 v1.use("/auth", authRoutes);
 v1.use(negocioRoutes);

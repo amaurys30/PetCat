@@ -55,3 +55,19 @@ export const getCitasCliente = async (req, res) => {
   const { rows, meta } = await service.getCitasCliente(req.negocio.id_negocio, req.params.id_usuario, req.query);
   return paginated(res, rows, meta);
 };
+
+const MENSAJES_CORREO = {
+  agregado: "Correo agregado. Le enviamos la bienvenida para que active su cuenta",
+  corregido: "Correo corregido. Le enviamos una bienvenida nueva; el enlace anterior ya no sirve",
+  reenviado: "Le reenviamos la bienvenida",
+};
+
+export const asignarCorreo = async (req, res) => {
+  const data = await service.asignarCorreo(req.negocio, req.params.id_usuario, req.body);
+  return ok(res, data, MENSAJES_CORREO[data.accion]);
+};
+
+export const getCitasMascota = async (req, res) => {
+  const { rows, meta } = await service.getCitasMascota(req.negocio.id_negocio, req.params.id_mascota, req.query, req.acceso);
+  return paginated(res, rows, meta);
+};

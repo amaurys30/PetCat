@@ -8,10 +8,13 @@ const SELECT_VACUNA = `
          v.id_empleado, e.nombre AS empleado_nombre, e.apellido AS empleado_apellido,
          v.nombre_vacuna, v.enfermedad_objetivo, v.laboratorio, v.lote, v.dosis, v.via_administracion,
          v.sitio_aplicacion, v.fecha_aplicacion, v.fecha_proxima, v.estado, v.comprobante_url, v.notas,
-         v.fecha_creacion
+         v.fecha_creacion, v.fecha_edicion, v.id_usuario_edicion,
+         ue.nombre AS editor_nombre, ue.apellido AS editor_apellido,
+         (SELECT COUNT(*) FROM vacunas_ediciones ve WHERE ve.id_vacuna = v.id_vacuna) AS ediciones
   FROM vacunas v
   LEFT JOIN negocios n ON n.id_negocio = v.id_negocio
-  LEFT JOIN empleados e ON e.id_empleado = v.id_empleado`;
+  LEFT JOIN empleados e ON e.id_empleado = v.id_empleado
+  LEFT JOIN usuarios ue ON ue.id_usuario = v.id_usuario_edicion`;
 
 export const findById = async (id_vacuna, conn) => {
   const [rows] = await (conn ?? db).query(`${SELECT_VACUNA} WHERE v.id_vacuna = ?`, [id_vacuna]);
@@ -114,4 +117,19 @@ export const historialDelNegocio = async (id_historial, id_negocio, id_mascota, 
 /** Bloquea la mascota: serializa los cambios de sus vacunas (el estado depende de todas). */
 export const lockMascota = async (id_mascota, conn) => {
   await conn.query("SELECT id_mascota FROM mascotas WHERE id_mascota = ? FOR UPDATE", [id_mascota]);
+};
+
+/**
+ * Deja constancia de una edición: la guarda con los campos que cambiaron y sus valores
+ * anteriores, y la marca como la última de la vacuna.
+ */
+export const registrarEdicion = async (id_vacuna, id_usuario, anteriores, conn) => {
+  await conn.query(
+    "INSERT INTO vacunas_ediciones (id_vacuna, id_usuario, campos, valores_anteriores) VALUES (?, ?, ?, ?)",
+    [id_vacuna, id_usuario, JSON.stringify(Object.keys(anteriores)), JSON.stringify(anteriores)]
+  );
+  await conn.query("UPDATE vacunas SET fecha_edicion = NOW(), id_usuario_edicion = ? WHERE id_vacuna = ?", [
+    id_usuario,
+    id_vacuna,
+  ]);
 };

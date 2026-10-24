@@ -2172,7 +2172,7 @@ export interface paths {
         put?: never;
         /**
          * Registrar un cliente sin app (panel)
-         * @description Requiere `citas.crear`. Crea la cuenta del cliente con su primera mascota. Exige `autoriza_tratamiento_datos: true` (Ley 1581 de 2012): se guarda con la fecha, el negocio, quién la registró, la versión de la política y la IP. Con correo, el cliente recibe la bienvenida con el nombre del negocio y el enlace `${FRONTEND_URL}/crear-password/<token>` (vigente 7 días; se usa con `POST /auth/reset-password`). Sin correo queda **sin cuenta** (`sin_cuenta: true`): el teléfono es obligatorio (422), no recibe correos ni recordatorios y no puede iniciar sesión; si ya hay un usuario activo con ese teléfono, 409 (buscarlo con clientes/buscar). Después se agenda con `POST /negocios/{id_negocio}/citas`.
+         * @description Requiere `citas.crear`. Crea la cuenta del cliente con su primera mascota. Exige `autoriza_tratamiento_datos: true` (Ley 1581 de 2012): se guarda con la fecha, el negocio, quién la registró, la versión de la política y la IP. Con correo, el cliente recibe la bienvenida con el nombre del negocio y el enlace `${FRONTEND_URL}/crear-password/<token>` (vigente 7 días; se usa con `POST /auth/reset-password`). Sin correo queda **sin cuenta** (`sin_cuenta: true`): el teléfono es obligatorio (422), no recibe correos ni recordatorios y no puede iniciar sesión; si ya hay un cliente del negocio con ese teléfono, 409 (buscarlo con clientes/buscar y agregarle la mascota). Después se agenda con `POST /negocios/{id_negocio}/citas`.
          */
         post: {
             parameters: {
@@ -2228,7 +2228,7 @@ export interface paths {
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                /** @description Ya existe una cuenta con ese correo o, sin correo, un usuario con ese teléfono (buscarlo con clientes/buscar) */
+                /** @description Ya existe una cuenta con ese correo o, sin correo, un cliente del negocio con ese teléfono. En una familia es común compartir el teléfono: se busca con clientes/buscar y se le agrega la mascota a ese cliente (POST /negocios/{id_negocio}/clientes/{id_usuario}/mascotas). */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -2602,6 +2602,148 @@ export interface paths {
                 422: components["responses"]["ValidationError"];
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/negocios/{id_negocio}/clientes/{id_usuario}/correo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Poner o corregir el correo de un cliente sin cuenta activa (panel)
+         * @description Requiere `citas.crear` o `clientes.editar`. Le envía la bienvenida con el nombre del negocio y el enlace `${FRONTEND_URL}/crear-password/<token>` (vigente 7 días); al crear su contraseña con `POST /auth/reset-password` la cuenta queda activa y puede entrar a la app. Se permite si el cliente no tiene correo, o para corregir el de un cliente que registró este negocio y que aún no activó su cuenta (`correo_editable` del detalle). Al corregirlo, el enlace anterior deja de servir. Con el mismo correo es un reenvío de la bienvenida. Tiene el límite estricto de solicitudes.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id_negocio: number;
+                    id_usuario: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: email */
+                        email: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Correo guardado y bienvenida enviada */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            /** @enum {string} */
+                            message: "Correo agregado. Le enviamos la bienvenida para que active su cuenta" | "Correo corregido. Le enviamos una bienvenida nueva; el enlace anterior ya no sirve" | "Le reenviamos la bienvenida";
+                            data: {
+                                cliente: components["schemas"]["ClienteContacto"];
+                                /** @enum {string} */
+                                accion: "agregado" | "corregido" | "reenviado";
+                            };
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                /** @description Sin permiso, o el cliente ya tiene correo y no lo registró este negocio */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+                /** @description El cliente ya activó su cuenta (solo él cambia su correo) o el correo es de otra cuenta */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                422: components["responses"]["ValidationError"];
+                429: components["responses"]["TooManyRequests"];
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/negocios/{id_negocio}/mascotas/{id_mascota}/citas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Citas de una mascota con el negocio (panel)
+         * @description Requiere `citas.ver` o `clientes.ver` (un veterinario ve en la ficha las citas de la mascota, igual que en la agenda). Solo las citas con este negocio, paginadas, de la más reciente hacia atrás. 404 si la mascota no existe, su dueño la eliminó o no tiene ninguna cita con el negocio.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["page"];
+                    limit?: components["parameters"]["limit"];
+                    /** @example completada,confirmada */
+                    estado?: string;
+                };
+                header?: never;
+                path: {
+                    id_negocio: number;
+                    id_mascota: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Página de citas */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            /** @example OK */
+                            message: string;
+                            data: (components["schemas"]["CitaPanel"] & {
+                                /** @description Registros médicos ligados a la cita (para "Vincular a una cita" de C4) */
+                                registros_medicos: components["schemas"]["RegistroDeCita"][];
+                            })[];
+                            meta: components["schemas"]["PaginationMeta"];
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["ValidationError"];
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3972,7 +4114,7 @@ export interface paths {
         head?: never;
         /**
          * Editar un registro del historial médico (panel)
-         * @description Requiere `historial_medico.editar` en el negocio que creó el registro (otro negocio: 403). Sin límite de tiempo. Al menos un campo; la mascota, la cita y el negocio no cambian.
+         * @description Requiere `historial_medico.editar` en el negocio que creó el registro (otro negocio: 403). Sin límite de tiempo. Al menos un campo; la mascota, la cita y el negocio no cambian. Si algo cambia, queda la edición con quién, cuándo, los campos y sus valores anteriores (`edicion` y `ediciones` en la respuesta); si los valores son los mismos, no hay edición.
          */
         patch: {
             parameters: {
@@ -7479,7 +7621,7 @@ export interface paths {
         head?: never;
         /**
          * Editar una vacuna (dueño o negocio)
-         * @description La vacuna que registró el dueño solo la edita el dueño; la que registró un negocio, solo ese negocio (`vacunas.editar`). El dueño no puede enviar `id_empleado` ni `id_historial_medico`. Recalcula el estado de todas las vacunas de la mascota. Si cambia `fecha_proxima`, los recordatorios al dueño (7 días antes, el día y 7 días después) vuelven a empezar con la fecha nueva.
+         * @description La vacuna que registró el dueño solo la edita el dueño; la que registró un negocio, solo ese negocio (`vacunas.editar`). El dueño no puede enviar `id_empleado` ni `id_historial_medico`. Recalcula el estado de todas las vacunas de la mascota. Si cambia `fecha_proxima`, los recordatorios al dueño (7 días antes, el día y 7 días después) vuelven a empezar con la fecha nueva. Si algo cambia, queda la edición con quién, cuándo, los campos y sus valores anteriores (`edicion` y `ediciones`); con los mismos valores no hay edición.
          */
         patch: {
             parameters: {
@@ -7944,6 +8086,14 @@ export interface components {
                     cancelaciones_tardias: number;
                 };
             };
+            /** @description Registros médicos ligados a la cita (puede haber más de uno, p. ej. consulta y examen) */
+            registros_medicos: components["schemas"]["RegistroDeCita"][];
+        };
+        RegistroDeCita: {
+            id_historial: number;
+            tipo: string;
+            /** Format: date */
+            fecha: string;
         };
         ClienteContacto: {
             id_usuario: number;
@@ -7968,6 +8118,14 @@ export interface components {
             proxima_cita: string | null;
             /** @description Con este negocio */
             inasistencias: number;
+            /** @description Alguna vez inició sesión */
+            usa_app: boolean;
+            registrado_por_el_negocio: boolean;
+            /**
+             * Format: date
+             * @description Primera cita o autorización registrada por el negocio
+             */
+            cliente_desde: string;
         };
         ClienteDetalle: {
             cliente: components["schemas"]["ClienteContacto"] & {
@@ -7979,6 +8137,8 @@ export interface components {
                 registrado_por_el_negocio: boolean;
                 /** @description Alguna vez inició sesión */
                 usa_app: boolean;
+                /** @description El negocio puede ponerle correo (no tiene) o corregirlo (lo registró este negocio y aún no activó su cuenta) con PUT /negocios/{id_negocio}/clientes/{id_usuario}/correo */
+                correo_editable: boolean;
             };
             /** @description Solo las citas del cliente con este negocio */
             historial_cumplimiento: {
@@ -8440,7 +8600,7 @@ export interface components {
         /** @description Campos opcionales con `null` se vacían. `proximo_control` no puede ser anterior a `fecha`. Los archivos no van aquí (`archivos` da 422): se suben con `POST /historial/{id_historial}/archivos`. */
         HistorialInput: {
             /** @enum {string} */
-            tipo?: "consulta_general" | "cirugia" | "vacunacion" | "examen_laboratorio" | "radiografia" | "ecografia" | "hospitalizacion" | "urgencia" | "desparasitacion" | "otro";
+            tipo?: "consulta_general" | "control" | "cirugia" | "vacunacion" | "examen_laboratorio" | "radiografia" | "ecografia" | "hospitalizacion" | "urgencia" | "desparasitacion" | "otro";
             /**
              * Format: date
              * @description Por defecto hoy; no puede ser futura
@@ -8497,6 +8657,19 @@ export interface components {
             /** @description Solo en los registros del negocio que consulta */
             notas_internas?: string | null;
             fecha_creacion: string;
+            /** @description Última edición (los registros no se borran: cada edición queda con quién, cuándo, los campos que cambiaron y sus valores anteriores). null si nunca se editó. Los archivos tienen su propio rastro. */
+            edicion: {
+                /** @example 2026-10-17 10:15:00 */
+                fecha: string;
+                /** @description null si la cuenta de quien editó ya no existe */
+                usuario: {
+                    id_usuario: number;
+                    nombre: string;
+                    apellido: string;
+                } | null;
+            } | null;
+            /** @description Cuántas veces se editó */
+            ediciones: number;
         };
         HistorialPagina: {
             /** @example true */
@@ -9035,36 +9208,68 @@ export interface components {
             dias_restantes?: number;
         };
         ResumenSalud: {
-            /** @description Datos básicos; alergias y condiciones médicas siempre visibles */
-            mascota: {
-                id_mascota: number;
+            /** @description La mascota completa (cabecera de la ficha), con `compartir_historial`. Alergias y condiciones médicas siempre visibles. */
+            mascota: components["schemas"]["Mascota"];
+            /** @description Dueño de la mascota */
+            dueno: {
+                id_usuario: number;
                 nombre: string;
-                especie: string;
-                edad_meses: number | null;
-                peso: number | null;
-                tiene_alergias: boolean;
-                alergias_detalle: string | null;
-                condiciones_medicas: string | null;
-                fallecido: boolean;
+                apellido: string;
             };
             /** @description Dosis vigentes con fecha_proxima anterior a hoy, de la más vencida a la menos */
             vacunas_vencidas: components["schemas"]["VacunaAlerta"][];
             /** @description Dosis vigentes con fecha_proxima entre hoy y hoy + 30 días (dias_aviso_vacuna) */
             vacunas_proximas: components["schemas"]["VacunaAlerta"][];
-            /** @description Registro de historial más reciente (fuente historial) o, si no hay, la última cita completada (fuente cita) */
+            /** @description Registro de historial más reciente (fuente historial: id_historial, tipo y diagnóstico) o, si no hay, la última cita completada (fuente cita: id_cita, hora, estado y servicio). */
             ultimo_control: {
                 /** @enum {string} */
                 fuente: "historial" | "cita";
                 /** Format: date */
                 fecha: string;
+                negocio: {
+                    id_negocio: number;
+                    nombre: string;
+                } | null;
+                id_historial?: number;
+                tipo?: string;
+                diagnostico?: string | null;
+                id_cita?: number;
+                /** @example 08:00 */
+                hora_inicio?: string;
+                estado?: string;
+                servicio?: {
+                    id_servicio: number;
+                    nombre: string;
+                };
             } | null;
             /** @description El proximo_control más cercano (hoy o después) que indicó un veterinario */
             proximo_control: {
                 /** Format: date */
                 fecha: string;
+                id_historial: number;
+                negocio: {
+                    id_negocio: number;
+                    nombre: string;
+                } | null;
             } | null;
             /** @description La cita pendiente o confirmada más cercana que no terminó (para un negocio, solo las suyas) */
-            proxima_cita: Record<string, never> | null;
+            proxima_cita: {
+                id_cita: number;
+                /** Format: date */
+                fecha: string;
+                /** @example 08:00 */
+                hora_inicio: string;
+                /** @enum {string} */
+                estado: "pendiente" | "confirmada";
+                servicio: {
+                    id_servicio: number;
+                    nombre: string;
+                };
+                negocio: {
+                    id_negocio: number;
+                    nombre: string;
+                };
+            } | null;
             evolucion_peso: {
                 peso_actual: number | null;
                 /** @description Pesos del historial de los últimos 24 meses (máximo 24), del más antiguo al más reciente */
@@ -9395,6 +9600,19 @@ export interface components {
             } | null;
             id_historial_medico: number | null;
             fecha_creacion: string;
+            /** @description Última edición (las vacunas no se borran: cada edición queda con quién, cuándo, los campos que cambiaron y sus valores anteriores). null si nunca se editó. El comprobante tiene su propio rastro. */
+            edicion: {
+                /** @example 2026-10-23 10:15:00 */
+                fecha: string;
+                /** @description null si la cuenta de quien editó ya no existe */
+                usuario: {
+                    id_usuario: number;
+                    nombre: string;
+                    apellido: string;
+                } | null;
+            } | null;
+            /** @description Cuántas veces se editó */
+            ediciones: number;
         };
         VacunaRespuesta: {
             /** @example true */

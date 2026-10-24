@@ -38,14 +38,20 @@ export function TiempoRealAgenda() {
   useEffect(() => {
     if (!idUsuario) return;
     const socket = conectarSocket(idUsuario);
-    const recargar = (idNegocio: number) =>
+    // Los clientes y la ficha de la mascota también: traen citas, conteos y la próxima cita.
+    const recargar = (idNegocio: number) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.citas.todas(idNegocio) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.clientes.todos(idNegocio) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.salud.todo(idNegocio) });
+    };
 
     const alCambiar = (cambio: CambioAgenda) => {
       recargar(cambio.id_negocio);
       if (cambio.accion === "disponibilidad") {
         void queryClient.invalidateQueries({ queryKey: ["disponibilidad"] });
-        void queryClient.invalidateQueries({ queryKey: queryKeys.empleados.profesionales(cambio.id_negocio) });
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.empleados.profesionales(cambio.id_negocio),
+        });
       }
       const { idNegocio, avisarReservas, navigate: ir } = actual.current;
       const { cita, id_cita } = cambio;

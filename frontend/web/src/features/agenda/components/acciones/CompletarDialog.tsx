@@ -3,6 +3,7 @@ import type { CitaPanelDetalle } from "@/api/citas";
 import { CampoDinero } from "@/components/common/CampoDinero";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { dinero } from "@/lib/format";
@@ -15,21 +16,27 @@ import { ResumenCita } from "./ResumenCita";
  * B8 · Completar con el precio final (por defecto el estimado). Desde una cita confirmada
  * que ya empezó, pasa por en curso y la completa en dos llamadas seguidas: si la segunda
  * falla, la cita queda en curso y el botón reintenta solo completar. Abajo, "No asistió"
- * (desde la hora de inicio).
+ * (desde la hora de inicio). Con historial_medico.crear, la casilla "Crear el registro médico al
+ * terminar" (desmarcada) abre C4 con la cita al completarla.
  */
 export function CompletarDialog({
   idNegocio,
   cita,
   acciones,
+  ofrecerRegistro = false,
   onCerrar,
   onListo,
 }: {
   idNegocio: number;
   cita: CitaPanelDetalle;
   acciones: Acciones;
+  /** Con historial_medico.crear: casilla "Crear el registro médico al terminar". */
+  ofrecerRegistro?: boolean;
   onCerrar: () => void;
-  onListo: (cita: CitaPanelDetalle, mensaje: string) => void;
+  onListo: (cita: CitaPanelDetalle, mensaje: string, crearRegistro: boolean) => void;
 }) {
+  // Desmarcada: no toda cita es clínica (baño, guardería) y marcada abriría C4 cada vez.
+  const [crearRegistro, setCrearRegistro] = useState(false);
   const [precio, setPrecio] = useState(String(Math.round(cita.precio_estimado)));
   const [intentado, setIntentado] = useState(false);
   const completar = useCompletar(idNegocio);
@@ -46,13 +53,13 @@ export function CompletarDialog({
     if (sinPrecio) return;
     completar.mutate(
       { cita, precioFinal: Number(precio) },
-      { onSuccess: (c) => onListo(c, "Cita completada") },
+      { onSuccess: (c) => onListo(c, "Cita completada", ofrecerRegistro && crearRegistro) },
     );
   };
   const noAsistio = () =>
     estado.mutate(
       { idCita: cita.id_cita, estado: "no_asistio" },
-      { onSuccess: (c) => onListo(c, "Inasistencia registrada") },
+      { onSuccess: (c) => onListo(c, "Inasistencia registrada", false) },
     );
 
   return (
@@ -68,6 +75,23 @@ export function CompletarDialog({
           >
             <CampoDinero value={precio} onChange={setPrecio} />
           </Field>
+          {ofrecerRegistro && (
+            <label className="flex items-start gap-2.5 text-body text-ink">
+              <Checkbox
+                checked={crearRegistro}
+                onCheckedChange={(v) => setCrearRegistro(v === true)}
+                className="mt-0.5"
+              />
+              <span>
+                Crear el registro médico al terminar
+                <span className="block text-label text-muted">
+                  {cita.registros_medicos.length > 0
+                    ? "Esta cita ya tiene un registro; puedes crear otro, por ejemplo para un examen."
+                    : "Se abre con la cita, la fecha y el profesional ya puestos."}
+                </span>
+              </span>
+            </label>
+          )}
           {cita.cliente.usa_app && (
             <Alert tono="exito">
               Unas horas después, {cita.cliente.nombre} recibirá en la app la invitación para reseñar la
