@@ -37,7 +37,7 @@ const router = express.Router();
  *         medicamentos_prescritos: { type: string, maxLength: 2000, nullable: true }
  *         indicaciones: { type: string, maxLength: 2000, nullable: true }
  *         proximo_control: { type: string, format: date, nullable: true }
- *         peso_registro: { type: number, nullable: true, description: En kg; si es el registro más reciente, actualiza el peso de la mascota }
+ *         peso_registro: { type: number, nullable: true, description: "En kg; si es el registro más reciente, actualiza el peso de la mascota" }
  *         temperatura: { type: number, minimum: 25, maximum: 45, nullable: true }
  *         frecuencia_cardiaca: { type: integer, nullable: true }
  *         frecuencia_respiratoria: { type: integer, nullable: true }

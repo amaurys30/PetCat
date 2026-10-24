@@ -235,7 +235,7 @@ router.get("/resenas/mias", authMiddleware, validate({ query: misResenasQuery })
  *                 message: { type: string, example: Reseña actualizada }
  *                 data: { $ref: '#/components/schemas/ResenaDelAutor' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
- *       404: { description: No existe, no es del usuario o la retiró, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+ *       404: { description: "No existe, no es del usuario o la retiró", content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
  *       409: { description: Terminó el plazo para editarla, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
  *       422: { $ref: '#/components/responses/ValidationError' }
  *   delete:
@@ -258,7 +258,7 @@ router.get("/resenas/mias", authMiddleware, validate({ query: misResenasQuery })
  *                 message: { type: string, example: Reseña retirada }
  *                 data: { nullable: true, example: null }
  *       401: { $ref: '#/components/responses/Unauthorized' }
- *       404: { description: No existe, no es del usuario o ya la retiró, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+ *       404: { description: "No existe, no es del usuario o ya la retiró", content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
  */
 router.put(
   "/resenas/:id_resena",

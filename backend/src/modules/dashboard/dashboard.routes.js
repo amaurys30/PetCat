@@ -108,7 +108,7 @@ const router = express.Router();
  *               nombre: { type: string }
  *               completadas: { type: integer }
  *               ingresos: { type: number }
- *         clientes_nuevos: { type: integer, description: Primera cita o registro desde el panel en el periodo (todo el negocio, sin filtro de sucursal) }
+ *         clientes_nuevos: { type: integer, description: "Primera cita o registro desde el panel en el periodo (todo el negocio, sin filtro de sucursal)" }
  *         calificacion:
  *           type: object
  *           properties:
@@ -116,7 +116,7 @@ const router = express.Router();
  *             total_resenas: { type: integer }
  *             resenas_periodo: { type: integer }
  *             promedio_periodo: { type: number, nullable: true }
- *             sin_responder: { type: integer, description: Reseñas visibles sin respuesta (todas, no solo del periodo) }
+ *             sin_responder: { type: integer, description: "Reseñas visibles sin respuesta (todas, no solo del periodo)" }
  *         citas_perdidas_por_no_confirmar:
  *           type: object
  *           description: Canceladas por el sistema porque nadie las confirmó a tiempo. Nunca cuentan contra los clientes.

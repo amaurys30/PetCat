@@ -533,7 +533,7 @@ router.post(
  *               type: object
  *               properties:
  *                 success: { type: boolean, example: true }
- *                 message: { type: string, example: Si el correo está registrado, te enviamos un enlace para restablecer la contraseña }
+ *                 message: { type: string, example: "Si el correo está registrado, te enviamos un enlace para restablecer la contraseña" }
  *                 data: { nullable: true, example: null }
  *       422: { $ref: '#/components/responses/ValidationError' }
  *       429: { $ref: '#/components/responses/TooManyRequests' }
@@ -703,7 +703,7 @@ router.post("/resend-verification", authMiddleware, controller.resendVerificatio
  *               type: object
  *               properties:
  *                 success: { type: boolean, example: true }
- *                 message: { type: string, example: Si el correo está registrado y sin verificar, te enviamos un nuevo enlace de verificación }
+ *                 message: { type: string, example: "Si el correo está registrado y sin verificar, te enviamos un nuevo enlace de verificación" }
  *                 data: { nullable: true, example: null }
  *       422: { $ref: '#/components/responses/ValidationError' }
  *       429: { $ref: '#/components/responses/TooManyRequests' }

@@ -206,9 +206,9 @@ const router = express.Router();
  *               tipo_mascota: { type: array, items: { type: string }, example: [perro, gato] }
  *               en_oferta: { type: boolean }
  *               precio_oferta: { type: number, nullable: true }
- *               precio_actual: { type: number, description: Precio de oferta si está vigente hoy; si no, precio_base }
+ *               precio_actual: { type: number, description: "Precio de oferta si está vigente hoy; si no, precio_base" }
  *               oferta_vigente: { type: boolean }
- *               reservable: { type: boolean, description: No requiere cita, o tiene empleados activos asignados }
+ *               reservable: { type: boolean, description: "No requiere cita, o tiene empleados activos asignados" }
  *               id_categoria: { type: integer }
  *               categoria: { type: string }
  *         resenas_recientes:

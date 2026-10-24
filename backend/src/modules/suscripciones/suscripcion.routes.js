@@ -170,7 +170,7 @@ router.get("/planes", controller.getPlanes);
  *             properties:
  *               id_plan: { type: integer, example: 2 }
  *               tipo_facturacion: { type: string, enum: [mensual, anual], default: mensual }
- *               fecha_fin: { type: string, format: date, description: Futura. Por defecto, un mes o un año }
+ *               fecha_fin: { type: string, format: date, description: "Futura. Por defecto, un mes o un año" }
  *               monto_pagado: { type: number, minimum: 0, default: 0 }
  *               notas: { type: string, maxLength: 300 }
  *     responses:

@@ -62,7 +62,7 @@ const router = express.Router();
  *       - $ref: '#/components/parameters/page'
  *       - $ref: '#/components/parameters/limit'
  *       - $ref: '#/components/parameters/destinoNotificacion'
- *       - { in: query, name: leidas, schema: { type: string, enum: ["true", "false"] }, description: Sin filtro, todas }
+ *       - { in: query, name: leidas, schema: { type: string, enum: ["true", "false"] }, description: "Sin filtro, todas" }
  *     responses:
  *       200:
  *         description: Página de notificaciones
@@ -79,7 +79,7 @@ const router = express.Router();
  *                     - $ref: '#/components/schemas/PaginationMeta'
  *                     - type: object
  *                       properties:
- *                         no_leidas: { type: integer, example: 3, description: Del destino pedido (sin destino, todas) }
+ *                         no_leidas: { type: integer, example: 3, description: "Del destino pedido (sin destino, todas)" }
  *                         no_leidas_por_destino: { $ref: '#/components/schemas/NoLeidasPorDestino' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       422: { $ref: '#/components/responses/ValidationError' }
@@ -107,7 +107,7 @@ router.get("/notificaciones", authMiddleware, validate({ query: listNotificacion
  *                 data:
  *                   type: object
  *                   properties:
- *                     total: { type: integer, example: 3, description: Del destino pedido (sin destino, todas) }
+ *                     total: { type: integer, example: 3, description: "Del destino pedido (sin destino, todas)" }
  *                     por_destino: { $ref: '#/components/schemas/NoLeidasPorDestino' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       422: { $ref: '#/components/responses/ValidationError' }

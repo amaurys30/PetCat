@@ -127,7 +127,7 @@ router.get(
  *             properties:
  *               nombre: { type: string, minLength: 2, maxLength: 80 }
  *               apellido: { type: string, minLength: 2, maxLength: 80 }
- *               email: { type: string, format: email, description: Sin correo, el cliente queda sin cuenta }
+ *               email: { type: string, format: email, description: "Sin correo, el cliente queda sin cuenta" }
  *               telefono: { type: string, description: Obligatorio si no hay correo }
  *               autoriza_tratamiento_datos: { type: boolean, enum: [true], description: El titular autorizó el tratamiento de sus datos }
  *               mascota:
@@ -176,7 +176,7 @@ router.get(
  *         - $ref: '#/components/schemas/ClienteContacto'
  *         - type: object
  *           properties:
- *             total_citas: { type: integer, description: Con este negocio, en cualquier estado }
+ *             total_citas: { type: integer, description: "Con este negocio, en cualquier estado" }
  *             ultima_cita: { type: string, format: date, nullable: true, description: Última cita ya pasada (sin canceladas ni reprogramadas) }
  *             proxima_cita: { type: string, format: date, nullable: true }
  *             inasistencias: { type: integer, description: Con este negocio }

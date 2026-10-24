@@ -56,4 +56,20 @@ describe("app", () => {
     expect(spec.body.paths).toHaveProperty("/auth/login");
     expect(spec.body.components.responses).toHaveProperty("ValidationError");
   });
+
+  it("Swagger sin descripciones cortadas por una coma en un mapeo en línea", async () => {
+    // En `{ type: integer, description: A, B }` YAML corta la descripción en la coma y deja
+    // la clave `B` con valor null: esas descripciones van entre comillas.
+    const spec = (await request(app).get("/api/v1/docs.json")).body;
+    const cortadas = [];
+    const recorrer = (nodo, ruta) => {
+      if (!nodo || typeof nodo !== "object") return;
+      for (const [clave, valor] of Object.entries(nodo)) {
+        if (valor === null && /s/.test(clave)) cortadas.push(`${ruta}.${clave}`);
+        recorrer(valor, `${ruta}.${clave}`);
+      }
+    };
+    recorrer(spec, "");
+    expect(cortadas).toEqual([]);
+  });
 });
