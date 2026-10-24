@@ -577,3 +577,7 @@ Jobs sobre la base de node-cron de la 2.3 (funciones exportadas que los tests ll
 - `?destino=` en `GET /notificaciones`, `GET /notificaciones/no-leidas` y `POST /notificaciones/leer-todas`; sin él, todas (la app actual sigue funcionando igual). `no-leidas` responde `{ total, por_destino }`, el listado agrega `meta.no_leidas_por_destino` y el evento `notificaciones_leidas` pasa a `{ no_leidas, por_destino }`: la app usa `dueno` y el panel `negocio`.
 - `soporte { email, whatsapp }` en la suscripción del negocio, de `soporte_email` y `soporte_whatsapp` (vacío = `null`), para mostrar cómo contratar mientras no hay pagos en línea.
 - Swagger: las descripciones con comas dentro de un mapeo en línea van entre comillas (YAML las cortaba y dejaba claves basura); `tests/app.test.js` recorre la especificación y falla si aparece una.
+
+### Decisiones de la API para el panel P6.2 (octubre 2026)
+- `vacunas_vencidas` en el dashboard (básico): mascotas activas y vivas de los clientes del negocio (alguna cita con él o una autorización registrada por él, la misma relación de la lista de clientes) con una dosis cuya `fecha_proxima` cayó en los últimos 30 días (de hoy − 30 a ayer). Es una ventana móvil y no el mes en curso, para que el número no se reinicie el día 1 ni se pierdan las que vencieron a fin de mes. No cuenta las dosis `no_aplica` (reemplazadas por una más reciente) ni depende del rango o la sede del dashboard. Solo el número; un listado queda pendiente.
+
