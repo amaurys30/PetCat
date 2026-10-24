@@ -8320,6 +8320,17 @@ export interface components {
                 /** @description Reseñas visibles sin respuesta (todas, no solo del periodo) */
                 sin_responder: number;
             };
+            /** @description Mascotas activas y vivas de clientes del negocio (alguna cita o una autorización registrada por él) con una dosis cuya próxima aplicación venció en los últimos 30 días (de `desde` a `hasta`, ayer). No cuenta las dosis reemplazadas por una más reciente. No depende del rango ni de la sucursal del dashboard. */
+            vacunas_vencidas: {
+                /** @example 5 */
+                mascotas: number;
+                /** @example 30 */
+                dias: number;
+                /** Format: date */
+                desde: string;
+                /** Format: date */
+                hasta: string;
+            };
             /** @description Canceladas por el sistema porque nadie las confirmó a tiempo. Nunca cuentan contra los clientes. */
             citas_perdidas_por_no_confirmar: {
                 total: number;
@@ -8355,8 +8366,15 @@ export interface components {
                     };
                     actual: components["schemas"]["MetricasComparables"];
                     anterior: components["schemas"]["MetricasComparables"];
-                    /** @description Por métrica; null si el periodo anterior es 0 */
-                    variacion_pct: Record<string, never>;
+                    /** @description Variación porcentual por métrica; null si el periodo anterior es 0 (o la tasa es null) */
+                    variacion_pct: {
+                        /** @example 18.5 */
+                        citas: number | null;
+                        completadas: number | null;
+                        ingresos: number | null;
+                        clientes_nuevos: number | null;
+                        tasa_inasistencia: number | null;
+                    };
                 };
                 por_empleado: components["schemas"]["SeccionBloqueada"] | ({
                     /** @description null = sin asignar */
