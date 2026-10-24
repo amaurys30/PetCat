@@ -170,7 +170,15 @@ const router = express.Router();
  *                     periodo_anterior: { type: object, properties: { desde: { type: string, format: date }, hasta: { type: string, format: date } } }
  *                     actual: { $ref: '#/components/schemas/MetricasComparables' }
  *                     anterior: { $ref: '#/components/schemas/MetricasComparables' }
- *                     variacion_pct: { type: object, description: "Por métrica; null si el periodo anterior es 0" }
+ *                     variacion_pct:
+ *                       type: object
+ *                       description: "Variación porcentual por métrica; null si el periodo anterior es 0 (o la tasa es null)"
+ *                       properties:
+ *                         citas: { type: number, nullable: true, example: 18.5 }
+ *                         completadas: { type: number, nullable: true }
+ *                         ingresos: { type: number, nullable: true }
+ *                         clientes_nuevos: { type: number, nullable: true }
+ *                         tasa_inasistencia: { type: number, nullable: true }
  *             por_empleado:
  *               oneOf:
  *                 - $ref: '#/components/schemas/SeccionBloqueada'
