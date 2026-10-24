@@ -4,6 +4,7 @@ import * as empleadosApi from "@/api/empleados";
 import * as rolesApi from "@/api/roles";
 import { getServicios } from "@/api/servicios";
 import { useNegocioActivo, usePuede } from "@/features/negocios/hooks/useNegocio";
+import { aviso } from "@/components/ui/toaster";
 import { reglasEscalada } from "@/lib/permisos";
 import { queryKeys } from "@/lib/queryKeys";
 import { useAuth } from "@/stores/auth";
@@ -145,11 +146,24 @@ export function useRegistrarme() {
 }
 
 /** Envía o reenvía según haya una invitación vigente. Los 409 y 503 los muestra el aviso global. */
+/**
+ * Envía o reenvía la invitación. El aviso va aquí y no en la llamada a `mutate`: el hook vive
+ * en la fila, y si la lista se vuelve a pintar mientras tanto (una búsqueda, otra recarga)
+ * la fila se monta de nuevo y TanStack descarta los callbacks de esa llamada.
+ */
 export function useInvitar() {
   const refrescar = useRefrescarEquipo();
   return useMutation({
     mutationFn: ({ idEmpleado, reenviar }: { idEmpleado: number; reenviar: boolean }) =>
       reenviar ? empleadosApi.reenviarInvitacion(idEmpleado) : empleadosApi.enviarInvitacion(idEmpleado),
+    onSuccess: (enviada, { reenviar }) =>
+      aviso.exito(
+        `Invitación ${reenviar ? "reenviada" : "enviada"} a ${enviada.email}. ${
+          enviada.envios_restantes_24h === 0
+            ? "No quedan más envíos por hoy."
+            : `Puedes enviarle ${enviada.envios_restantes_24h} más en 24 horas.`
+        }`,
+      ),
     onSettled: () => refrescar(),
   });
 }

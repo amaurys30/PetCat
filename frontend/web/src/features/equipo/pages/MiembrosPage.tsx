@@ -360,20 +360,7 @@ function AccionesMiembro({
 
   const inv = e.invitacion;
   const reenvio = Boolean(inv?.expiracion);
-  const enviarInvitacion = () =>
-    invitar.mutate(
-      { idEmpleado: e.id_empleado, reenviar: reenvio },
-      {
-        onSuccess: (enviada) =>
-          aviso.exito(
-            `Invitación ${reenvio ? "reenviada" : "enviada"} a ${enviada.email}. ${
-              enviada.envios_restantes_24h === 0
-                ? "No quedan más envíos por hoy."
-                : `Puedes enviarle ${enviada.envios_restantes_24h} más en 24 horas.`
-            }`,
-          ),
-      },
-    );
+  const enviarInvitacion = () => invitar.mutate({ idEmpleado: e.id_empleado, reenviar: reenvio });
 
   // En orden de importancia: la primera va como enlace y el resto en el menú "…".
   const acciones: Accion[] = [];
