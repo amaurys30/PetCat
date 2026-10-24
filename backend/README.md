@@ -640,7 +640,8 @@ Tipos actuales y a quién llegan (`datos` para el deep link):
 
 Del lado del negocio los reciben el propietario (siempre) y los empleados con el permiso indicado, nunca quien hizo la acción.
 
-- **Globo de no leídas:** `GET /notificaciones/no-leidas` al abrir, `meta.no_leidas` en el listado, y luego sumar con cada evento `notificacion`. Marcar con `PATCH /notificaciones/:id_notificacion/leida` o `POST /notificaciones/leer-todas`.
+- **App y panel por separado (`destino`):** cada notificación va al dueño de la mascota (`destino: "dueno"`, la app) o al negocio (`"negocio"`, el panel). Un usuario que es dueño y además personal de un negocio recibe las dos clases en su cuenta, así que cada cliente pide las suyas: la app con `?destino=dueno` y el panel con `?destino=negocio` en `GET /notificaciones`, `GET /notificaciones/no-leidas` y `POST /notificaciones/leer-todas`. Sin `destino`, todas.
+- **Globo de no leídas:** `GET /notificaciones/no-leidas?destino=…` al abrir (`total` del destino y `por_destino`), `meta.no_leidas` en el listado, y luego sumar con cada evento `notificacion` de su destino. Marcar con `PATCH /notificaciones/:id_notificacion/leida` o `POST /notificaciones/leer-todas?destino=…`.
 - **Deep link:** `datos` trae el `tipo` y los ids de la tabla para abrir la pantalla correspondiente (la cita, el carnet de la mascota o la suscripción del negocio). Es lo mismo que llega en el `data` de la push, más `id_notificacion`.
 - **Horario de silencio (21:00 a 07:00):** push y correos esperan hasta las 07:00, salvo la cancelación o reprogramación de una cita cercana y el recordatorio de 2 horas antes de una cita temprana (antes de las 10:00), que salen enseguida con prioridad alta. La notificación en la app y el evento de Socket.IO siempre son inmediatos.
 - **Recordatorio del día anterior:** si el servicio tiene `indicaciones_previas` (ayuno, carnet...), el mensaje en la app y el correo las incluyen; la push no. Una cita agendada después de las 19:00 para el día siguiente no recibe este recordatorio.
@@ -658,10 +659,12 @@ const socket = io("http://localhost:3000", {        // la URL del servidor, sin 
 });
 
 socket.on("notificacion", (n) => {                   // misma forma que un elemento de GET /notificaciones
+  if (n.destino !== "dueno") return;                 // la app; el panel usa "negocio"
   agregarAlListado(n);
   sumarNoLeida();
 });
-socket.on("notificaciones_leidas", ({ no_leidas }) => actualizarGlobo(no_leidas)); // se marcaron desde otra sesión
+// Se marcaron desde otra sesión: { no_leidas (todas), por_destino: { dueno, negocio } }
+socket.on("notificaciones_leidas", ({ por_destino }) => actualizarGlobo(por_destino.dueno));
 
 socket.on("connect_error", async (err) => {
   // "Token expirado": renovar con POST /auth/refresh-token; socket.io reintenta solo con el token nuevo.

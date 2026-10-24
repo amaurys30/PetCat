@@ -2,12 +2,15 @@ import db from "../../config/db.js";
 
 // ---------- Escritura en la transacción del cambio ----------
 
-/** Notificación en la app (canal in_app). `datos_extra_json`: ids del deep link y textos de push y correo. */
-export const createNotificacion = async ({ id_usuario, id_negocio, tipo, titulo, mensaje, datos }, conn) => {
+/**
+ * Notificación en la app (canal in_app). `destino`: "dueno" (app) o "negocio" (panel).
+ * `datos_extra_json`: ids del deep link y textos de push y correo.
+ */
+export const createNotificacion = async ({ id_usuario, id_negocio, destino, tipo, titulo, mensaje, datos }, conn) => {
   const [result] = await conn.query(
-    `INSERT INTO notificaciones (id_usuario, id_negocio, tipo, titulo, mensaje, datos_extra_json, canal, estado)
-     VALUES (?, ?, ?, ?, ?, ?, 'in_app', 'enviada')`,
-    [id_usuario, id_negocio ?? null, tipo, titulo, mensaje, JSON.stringify(datos)]
+    `INSERT INTO notificaciones (id_usuario, id_negocio, destino, tipo, titulo, mensaje, datos_extra_json, canal, estado)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'in_app', 'enviada')`,
+    [id_usuario, id_negocio ?? null, destino, tipo, titulo, mensaje, JSON.stringify(datos)]
   );
   return result.insertId;
 };
@@ -176,12 +179,19 @@ export const desactivarDispositivo = async (id_dispositivo, error) => {
 
 // ---------- Consultas del usuario ----------
 
-const COLUMNAS_NOTIFICACION = "id_notificacion, id_negocio, tipo, titulo, mensaje, datos_extra_json, estado, leida_en, fecha_creacion";
+const COLUMNAS_NOTIFICACION = "id_notificacion, id_negocio, destino, tipo, titulo, mensaje, datos_extra_json, estado, leida_en, fecha_creacion";
 
-/** Página de notificaciones del usuario (sin archivadas), las más recientes primero. `leidas`: true, false o undefined. */
-export const findPage = async (id_usuario, { leidas, limit, offset }) => {
+/**
+ * Página de notificaciones del usuario (sin archivadas), las más recientes primero.
+ * `leidas`: true, false o undefined; `destino`: "dueno", "negocio" o undefined (todas).
+ */
+export const findPage = async (id_usuario, { leidas, destino, limit, offset }) => {
   const filtros = ["id_usuario = ?", "estado <> 'archivada'"];
   const params = [id_usuario];
+  if (destino) {
+    filtros.push("destino = ?");
+    params.push(destino);
+  }
   if (leidas !== undefined) {
     filtros.push("estado = ?");
     params.push(leidas ? "leida" : "enviada");
@@ -196,12 +206,15 @@ export const findPage = async (id_usuario, { leidas, limit, offset }) => {
   return { rows, total };
 };
 
+/** No leídas del usuario por destino: { dueno, negocio }. */
 export const countNoLeidas = async (id_usuario) => {
-  const [[{ total }]] = await db.query(
-    "SELECT COUNT(*) AS total FROM notificaciones WHERE id_usuario = ? AND estado = 'enviada'",
+  const [rows] = await db.query(
+    "SELECT destino, COUNT(*) AS total FROM notificaciones WHERE id_usuario = ? AND estado = 'enviada' GROUP BY destino",
     [id_usuario]
   );
-  return total;
+  const porDestino = { dueno: 0, negocio: 0 };
+  for (const row of rows) porDestino[row.destino] = row.total;
+  return porDestino;
 };
 
 export const findDeUsuario = async (id_notificacion, id_usuario) => {
@@ -219,11 +232,12 @@ export const marcarLeida = async (id_notificacion, id_usuario) => {
   );
 };
 
-/** Marca todas las no leídas del usuario; devuelve cuántas. */
-export const marcarTodasLeidas = async (id_usuario) => {
+/** Marca todas las no leídas del usuario (solo las de `destino` si se indica); devuelve cuántas. */
+export const marcarTodasLeidas = async (id_usuario, destino) => {
   const [result] = await db.query(
-    "UPDATE notificaciones SET estado = 'leida', leida_en = NOW() WHERE id_usuario = ? AND estado = 'enviada'",
-    [id_usuario]
+    `UPDATE notificaciones SET estado = 'leida', leida_en = NOW()
+     WHERE id_usuario = ? AND estado = 'enviada' ${destino ? "AND destino = ?" : ""}`,
+    destino ? [id_usuario, destino] : [id_usuario]
   );
   return result.affectedRows;
 };

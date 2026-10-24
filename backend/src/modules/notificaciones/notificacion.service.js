@@ -106,12 +106,14 @@ export const notificar = async (eventos, conn, { ahora = new Date() } = {}) => {
       const usuario = usuarios[destinatario.id_usuario];
       if (!usuario?.activo) continue;
       const datos = tipo.soporte ? { ...evento.datos, soporte } : evento.datos;
-      const contenido = tipo.contenido(datos, destinatario.rol === "dueno" ? "dueno" : "negocio");
+      const destino = destinatario.rol === "dueno" ? "dueno" : "negocio";
+      const contenido = tipo.contenido(datos, destino);
       const enlace = { tipo: evento.tipo, ...(evento.enlace ?? {}) };
       const id_notificacion = await notificacionRepo.createNotificacion(
         {
           id_usuario: usuario.id_usuario,
           id_negocio: evento.id_negocio,
+          destino,
           tipo: evento.tipo,
           titulo: contenido.titulo,
           mensaje: contenido.mensaje,
@@ -151,6 +153,7 @@ export const notificar = async (eventos, conn, { ahora = new Date() } = {}) => {
         notificacion: {
           id_notificacion,
           id_negocio: evento.id_negocio ?? null,
+          destino,
           tipo: evento.tipo,
           titulo: contenido.titulo,
           mensaje: contenido.mensaje,
@@ -319,6 +322,7 @@ export const darDeBajaCorreos = (id_usuario) => notificacionRepo.desactivarCorre
 export const formatNotificacion = (row) => ({
   id_notificacion: row.id_notificacion,
   id_negocio: row.id_negocio,
+  destino: row.destino,
   tipo: row.tipo,
   titulo: row.titulo,
   mensaje: row.mensaje,
@@ -328,19 +332,32 @@ export const formatNotificacion = (row) => ({
   fecha_creacion: row.fecha_creacion,
 });
 
-export const getNotificaciones = async (id_usuario, { page, limit, leidas }) => {
-  const [{ rows, total }, no_leidas] = await Promise.all([
-    notificacionRepo.findPage(id_usuario, { leidas, limit, offset: (page - 1) * limit }),
-    notificacionRepo.countNoLeidas(id_usuario),
-  ]);
-  return { rows: rows.map(formatNotificacion), meta: { ...buildMeta(total, page, limit), no_leidas } };
+/** No leídas: el total (de un destino, o de los dos) y el desglose por destino. */
+const noLeidas = async (id_usuario, destino) => {
+  const por_destino = await notificacionRepo.countNoLeidas(id_usuario);
+  return { total: destino ? por_destino[destino] : por_destino.dueno + por_destino.negocio, por_destino };
 };
 
-export const getNoLeidas = async (id_usuario) => ({ total: await notificacionRepo.countNoLeidas(id_usuario) });
+export const getNotificaciones = async (id_usuario, { page, limit, leidas, destino }) => {
+  const [{ rows, total }, pendientes] = await Promise.all([
+    notificacionRepo.findPage(id_usuario, { leidas, destino, limit, offset: (page - 1) * limit }),
+    noLeidas(id_usuario, destino),
+  ]);
+  return {
+    rows: rows.map(formatNotificacion),
+    meta: { ...buildMeta(total, page, limit), no_leidas: pendientes.total, no_leidas_por_destino: pendientes.por_destino },
+  };
+};
 
-/** Las otras sesiones del usuario (panel abierto en otra pestaña, la app) actualizan su contador. */
+export const getNoLeidas = (id_usuario, { destino } = {}) => noLeidas(id_usuario, destino);
+
+/**
+ * Las otras sesiones del usuario (panel abierto en otra pestaña, la app) actualizan su
+ * contador: `no_leidas` es el total y `por_destino`, el de la app y el del panel.
+ */
 const avisarLeidas = async (id_usuario) => {
-  emisor(id_usuario, "notificaciones_leidas", { no_leidas: await notificacionRepo.countNoLeidas(id_usuario) });
+  const { total, por_destino } = await noLeidas(id_usuario);
+  emisor(id_usuario, "notificaciones_leidas", { no_leidas: total, por_destino });
 };
 
 /** Marca una como leída (si ya lo estaba, la devuelve igual). 404 si no es del usuario. */
@@ -353,8 +370,8 @@ export const marcarLeida = async (id_usuario, id_notificacion) => {
   return formatNotificacion(await notificacionRepo.findDeUsuario(id_notificacion, id_usuario));
 };
 
-export const marcarTodasLeidas = async (id_usuario) => {
-  const actualizadas = await notificacionRepo.marcarTodasLeidas(id_usuario);
+export const marcarTodasLeidas = async (id_usuario, { destino } = {}) => {
+  const actualizadas = await notificacionRepo.marcarTodasLeidas(id_usuario, destino);
   await avisarLeidas(id_usuario);
   return { actualizadas };
 };

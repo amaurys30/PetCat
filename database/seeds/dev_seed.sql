@@ -696,49 +696,49 @@ INSERT INTO dispositivos (id_usuario, token_expo, plataforma, nombre) VALUES
 -- ---------------------------------------------------------------------------
 -- Notificaciones en la app, leídas y sin leer (datos_extra_json.enlace es el deep link)
 -- ---------------------------------------------------------------------------
-INSERT INTO notificaciones (id_usuario, id_negocio, tipo, titulo, mensaje, datos_extra_json, canal, estado, leida_en, fecha_creacion)
-SELECT @id_cliente, @id_negocio, 'cita_confirmada', 'Cita confirmada',
+INSERT INTO notificaciones (id_usuario, id_negocio, destino, tipo, titulo, mensaje, datos_extra_json, canal, estado, leida_en, fecha_creacion)
+SELECT @id_cliente, @id_negocio, 'dueno', 'cita_confirmada', 'Cita confirmada',
        CONCAT('Clínica Veterinaria Patitas confirmó la cita de Max (Vacuna antirrábica) del ', DATE_FORMAT(c.fecha, '%d/%m/%Y'), ' a las 9:00 a. m.'),
        JSON_OBJECT('enlace', JSON_OBJECT('tipo', 'cita_confirmada', 'id_cita', c.id_cita, 'id_negocio', @id_negocio)),
        'in_app', 'leida', NOW() - INTERVAL 1 DAY, NOW() - INTERVAL 2 DAY
 FROM citas c WHERE c.id_negocio = @id_negocio AND c.id_mascota = @m_max AND c.estado = 'confirmada';
 
-INSERT INTO notificaciones (id_usuario, id_negocio, tipo, titulo, mensaje, datos_extra_json, canal, estado, fecha_creacion)
-SELECT @id_cliente, NULL, 'vacuna_proxima', 'Vacuna próxima',
+INSERT INTO notificaciones (id_usuario, id_negocio, destino, tipo, titulo, mensaje, datos_extra_json, canal, estado, fecha_creacion)
+SELECT @id_cliente, NULL, 'dueno', 'vacuna_proxima', 'Vacuna próxima',
        'La vacuna Parvovirus de Max vence pronto. Agenda la aplicación con tu veterinaria.',
        JSON_OBJECT('enlace', JSON_OBJECT('tipo', 'vacuna_proxima', 'id_mascota', @m_max, 'id_vacuna', v.id_vacuna)),
        'in_app', 'enviada', NOW() - INTERVAL 3 HOUR
 FROM vacunas v WHERE v.id_mascota = @m_max AND v.nombre_vacuna = 'Parvovirus';
 
-INSERT INTO notificaciones (id_usuario, id_negocio, tipo, titulo, mensaje, datos_extra_json, canal, estado, fecha_creacion)
-SELECT @id_propietario, @id_negocio, 'cita_nueva', 'Nueva cita por confirmar',
+INSERT INTO notificaciones (id_usuario, id_negocio, destino, tipo, titulo, mensaje, datos_extra_json, canal, estado, fecha_creacion)
+SELECT @id_propietario, @id_negocio, 'negocio', 'cita_nueva', 'Nueva cita por confirmar',
        'Sofía Gómez reservó Consulta general para Luna. Queda pendiente hasta que la confirmes.',
        JSON_OBJECT('enlace', JSON_OBJECT('tipo', 'cita_nueva', 'id_cita', c.id_cita, 'id_negocio', @id_negocio)),
        'in_app', 'enviada', NOW() - INTERVAL 5 HOUR
 FROM citas c WHERE c.id_negocio = @id_negocio AND c.id_mascota = @m_luna AND c.estado = 'pendiente';
 
-INSERT INTO notificaciones (id_usuario, id_negocio, tipo, titulo, mensaje, datos_extra_json, canal, estado, leida_en, fecha_creacion)
-SELECT @id_propietario, @id_negocio, 'cita_no_confirmada', 'Cita cancelada sin confirmar',
+INSERT INTO notificaciones (id_usuario, id_negocio, destino, tipo, titulo, mensaje, datos_extra_json, canal, estado, leida_en, fecha_creacion)
+SELECT @id_propietario, @id_negocio, 'negocio', 'cita_no_confirmada', 'Cita cancelada sin confirmar',
        'Una cita se canceló porque nadie la confirmó a tiempo. Con la confirmación automática, las citas de la app quedan confirmadas al reservar.',
        JSON_OBJECT('enlace', JSON_OBJECT('tipo', 'cita_no_confirmada', 'id_cita', c.id_cita, 'id_negocio', @id_negocio)),
        'in_app', 'leida', c.fecha_cancelacion + INTERVAL 2 HOUR, c.fecha_cancelacion
 FROM citas c WHERE c.id_negocio = @id_negocio AND c.cancelada_por = 'sistema';
 
-INSERT INTO notificaciones (id_usuario, id_negocio, tipo, titulo, mensaje, datos_extra_json, canal, estado, fecha_creacion)
-VALUES (@u_guarderia, @n_guarderia, 'plan_limite_80', 'Te quedan pocas citas este mes',
+INSERT INTO notificaciones (id_usuario, id_negocio, destino, tipo, titulo, mensaje, datos_extra_json, canal, estado, fecha_creacion)
+VALUES (@u_guarderia, @n_guarderia, 'negocio', 'plan_limite_80', 'Te quedan pocas citas este mes',
         'Tu negocio lleva 24 de las 30 citas del mes que permite el plan Gratuito. Al llegar al límite, la app deja de mostrar horarios.',
         JSON_OBJECT('enlace', JSON_OBJECT('tipo', 'plan_limite_80', 'id_negocio', @n_guarderia, 'mes', DATE_FORMAT(CURDATE(), '%Y-%m'))),
         'in_app', 'enviada', NOW() - INTERVAL 1 DAY);
 
-INSERT INTO notificaciones (id_usuario, id_negocio, tipo, titulo, mensaje, datos_extra_json, canal, estado, leida_en, fecha_creacion)
-SELECT @u_huellitas, @n_huellitas, 'resena_nueva', 'Nueva reseña',
+INSERT INTO notificaciones (id_usuario, id_negocio, destino, tipo, titulo, mensaje, datos_extra_json, canal, estado, leida_en, fecha_creacion)
+SELECT @u_huellitas, @n_huellitas, 'negocio', 'resena_nueva', 'Nueva reseña',
        'Camilo Torres calificó con 4 estrellas Baño básico. "Muy buen baño" Puedes responderla desde el panel.',
        JSON_OBJECT('enlace', JSON_OBJECT('tipo', 'resena_nueva', 'id_cita', r.id_cita, 'id_negocio', @n_huellitas, 'id_resena', r.id_resena)),
        'in_app', 'leida', r.fecha_creacion + INTERVAL 1 HOUR, r.fecha_creacion
 FROM resenas r WHERE r.id_negocio = @n_huellitas;
 
-INSERT INTO notificaciones (id_usuario, id_negocio, tipo, titulo, mensaje, datos_extra_json, canal, estado, fecha_creacion)
-SELECT @u_camilo, @n_huellitas, 'resena_respondida', 'Respondieron tu reseña',
+INSERT INTO notificaciones (id_usuario, id_negocio, destino, tipo, titulo, mensaje, datos_extra_json, canal, estado, fecha_creacion)
+SELECT @u_camilo, @n_huellitas, 'dueno', 'resena_respondida', 'Respondieron tu reseña',
        'Peluquería Canina Huellitas respondió tu reseña de Baño básico. Ábrela para leer la respuesta.',
        JSON_OBJECT('enlace', JSON_OBJECT('tipo', 'resena_respondida', 'id_cita', r.id_cita, 'id_negocio', @n_huellitas, 'id_resena', r.id_resena)),
        'in_app', 'enviada', r.fecha_respuesta

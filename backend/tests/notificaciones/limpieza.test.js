@@ -9,8 +9,8 @@ import { crearUsuario } from "../helpers/factories.js";
 /** Notificación del usuario creada hace `dias` días, con un envío. */
 const notificacion = async (usuario, dias, estado = "enviada") => {
   const [result] = await pool.query(
-    `INSERT INTO notificaciones (id_usuario, tipo, titulo, mensaje, estado, fecha_creacion)
-     VALUES (?, 'cita_confirmada', 't', 'm', ?, NOW() - INTERVAL ? DAY)`,
+    `INSERT INTO notificaciones (id_usuario, destino, tipo, titulo, mensaje, estado, fecha_creacion)
+     VALUES (?, 'dueno', 'cita_confirmada', 't', 'm', ?, NOW() - INTERVAL ? DAY)`,
     [usuario.id_usuario, estado, dias]
   );
   await pool.query(
