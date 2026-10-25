@@ -9091,14 +9091,26 @@ export interface components {
             titulo: string;
             /** @description El detalle (solo se ve con la sesión iniciada) */
             mensaje: string;
-            /**
-             * @description Ids para abrir la pantalla correspondiente (deep link)
-             * @example {
-             *       "tipo": "cita_cancelada",
-             *       "id_cita": 77
-             *     }
-             */
-            datos: Record<string, never>;
+            /** @description Ids para abrir la pantalla correspondiente (deep link). Las de citas traen `id_cita`, `id_negocio` y la `fecha` de la cita; `cita_nueva` también `por_confirmar` (false si nació confirmada por la confirmación automática). `resena_nueva` trae `id_resena`; las del plan, `id_negocio`. */
+            datos: {
+                /** @example cita_nueva */
+                tipo: string;
+                /** @example 77 */
+                id_cita?: number;
+                /** @example 1 */
+                id_negocio?: number;
+                /**
+                 * Format: date
+                 * @example 2026-10-28
+                 */
+                fecha?: string;
+                por_confirmar?: boolean;
+                id_resena?: number;
+                id_mascota?: number;
+                id_vacuna?: number;
+                /** @example 2026-10 */
+                mes?: string;
+            };
             leida: boolean;
             leida_en: string | null;
             /** @example 2026-09-28 10:15:00 */
