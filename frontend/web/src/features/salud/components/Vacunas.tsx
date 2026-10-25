@@ -45,12 +45,10 @@ function Registro({ vacuna: v }: { vacuna: Vacuna }) {
   );
 }
 
-/** Vacunas vigentes primero (las anteriores, "No aplica", al final), por fecha de aplicación. */
-const ordenar = (vacunas: Vacuna[]) =>
+/** Por fecha de aplicación, de la más reciente a la más antigua (con las dosis anteriores entre ellas). */
+const ordenarVacunas = (vacunas: Vacuna[]) =>
   [...vacunas].sort(
-    (a, b) =>
-      Number(a.estado === "no_aplica") - Number(b.estado === "no_aplica") ||
-      b.fecha_aplicacion.localeCompare(a.fecha_aplicacion),
+    (a, b) => b.fecha_aplicacion.localeCompare(a.fecha_aplicacion) || b.id_vacuna - a.id_vacuna,
   );
 
 /**
@@ -73,7 +71,7 @@ export function Vacunas({ idMascota, completo = false }: { idMascota: number; co
   if (vacunas.isPending) return <Skeleton className="h-40" />;
   if (vacunas.isError)
     return <ErrorConsulta error={vacunas.error} reintentar={() => void vacunas.refetch()} />;
-  const todas = ordenar(vacunas.data);
+  const todas = ordenarVacunas(vacunas.data);
   const visibles = completo && anteriores ? todas : todas.filter((v) => v.estado !== "no_aplica");
   const cuantasAnteriores = todas.length - todas.filter((v) => v.estado !== "no_aplica").length;
 
