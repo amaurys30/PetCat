@@ -19,7 +19,8 @@ test("la propietaria entra directo a su negocio, recarga sin perder la sesión y
   const menu = page.getByRole("navigation", { name: "Secciones del negocio" });
   await expect(menu.getByRole("link", { name: "Configuración" })).toBeVisible();
   await expect(page.getByRole("button", { name: /Clínica Veterinaria Patitas/ })).toBeVisible();
-  await expect(page.getByText(/de 30 citas este mes/)).toBeVisible();
+  // La tarjeta del plan del menú (el dashboard también lo dice en su etiqueta).
+  await expect(page.getByText(/^\d+ de 30 citas este mes$/)).toBeVisible();
 
   await page.reload();
   await expect(page).toHaveURL(/\/n\/\d+\/dashboard$/);

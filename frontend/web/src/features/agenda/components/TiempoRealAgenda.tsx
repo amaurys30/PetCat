@@ -38,9 +38,10 @@ export function TiempoRealAgenda() {
   useEffect(() => {
     if (!idUsuario) return;
     const socket = conectarSocket(idUsuario);
-    // Los clientes y la ficha de la mascota también: traen citas, conteos y la próxima cita.
+    // Los clientes, la ficha de la mascota y el dashboard también: traen citas, conteos y la próxima cita.
     const recargar = (idNegocio: number) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.citas.todas(idNegocio) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.todo(idNegocio) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.clientes.todos(idNegocio) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.salud.todo(idNegocio) });
     };

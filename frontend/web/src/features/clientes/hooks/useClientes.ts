@@ -7,6 +7,8 @@ import {
 } from "@tanstack/react-query";
 import * as api from "@/api/clientes";
 import { queryKeys } from "@/lib/queryKeys";
+import { aviso } from "@/components/ui/toaster";
+import { TEXTO_CORREO } from "../textos";
 
 /** Los diálogos muestran sus errores (422 por campo, 409 en línea). */
 const meta = { avisarError: false } as const;
@@ -49,7 +51,14 @@ export function useRegistrarCliente(idNegocio: number) {
   return useMutation({
     meta,
     mutationFn: (body: api.RegistrarClienteBody) => api.registrarCliente(idNegocio, body),
-    onSuccess: recargar,
+    onSuccess: ({ cliente, sin_cuenta }) => {
+      aviso.exito(
+        sin_cuenta
+          ? `${cliente.nombre} quedó registrado sin cuenta: no recibirá correos ni recordatorios.`
+          : `${cliente.nombre} quedó registrado. Le enviamos la bienvenida a ${cliente.email}.`,
+      );
+      return recargar();
+    },
   });
 }
 
@@ -59,7 +68,10 @@ export function useAgregarMascota(idNegocio: number) {
     meta,
     mutationFn: ({ idUsuario, ...body }: api.MascotaNueva & { idUsuario: number }) =>
       api.agregarMascota(idNegocio, idUsuario, body),
-    onSuccess: recargar,
+    onSuccess: (mascota) => {
+      aviso.exito(`${mascota.nombre} quedó registrada`);
+      return recargar();
+    },
   });
 }
 
@@ -131,7 +143,10 @@ export function useBorrarNota(idNegocio: number) {
   const recargar = useRecargarClientes(idNegocio);
   return useMutation({
     mutationFn: (idNota: number) => api.borrarNota(idNota),
-    onSuccess: recargar,
+    onSuccess: () => {
+      aviso.exito("Nota eliminada");
+      return recargar();
+    },
   });
 }
 
@@ -141,7 +156,10 @@ export function useAsignarCorreo(idNegocio: number, idUsuario: number, { avisarE
   return useMutation({
     meta: { avisarError },
     mutationFn: (email: string) => api.asignarCorreo(idNegocio, idUsuario, email),
-    onSuccess: recargar,
+    onSuccess: (r) => {
+      aviso.exito(TEXTO_CORREO[r.accion]);
+      return recargar();
+    },
   });
 }
 

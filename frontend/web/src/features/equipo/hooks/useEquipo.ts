@@ -4,9 +4,11 @@ import * as empleadosApi from "@/api/empleados";
 import * as rolesApi from "@/api/roles";
 import { getServicios } from "@/api/servicios";
 import { useNegocioActivo, usePuede } from "@/features/negocios/hooks/useNegocio";
+import { aviso } from "@/components/ui/toaster";
 import { reglasEscalada } from "@/lib/permisos";
 import { queryKeys } from "@/lib/queryKeys";
 import { useAuth } from "@/stores/auth";
+import { useUi } from "@/stores/ui";
 
 /** Los formularios y diálogos muestran sus errores (422 por campo, 409 en línea). */
 const meta = { avisarError: false } as const;
@@ -115,12 +117,18 @@ export function useActualizarEmpleado() {
   });
 }
 
+/** Avisa y abre el diálogo de sus citas futuras (citas_afectadas), si tiene. */
 export function useDesactivarEmpleado() {
   const refrescar = useRefrescarEquipo();
   return useMutation({
     meta,
-    mutationFn: (idEmpleado: number) => empleadosApi.desactivarEmpleado(idEmpleado),
-    onSuccess: () => refrescar(),
+    mutationFn: ({ idEmpleado }: { idEmpleado: number; nombre: string }) =>
+      empleadosApi.desactivarEmpleado(idEmpleado),
+    onSuccess: ({ citas_afectadas }, { nombre }) => {
+      aviso.exito(`${nombre} quedó inactivo`);
+      useUi.getState().mostrarCitasAfectadas(citas_afectadas, `${nombre} quedó inactivo`);
+      return refrescar();
+    },
   });
 }
 
@@ -129,7 +137,10 @@ export function useReactivarEmpleado() {
   const refrescar = useRefrescarEquipo();
   return useMutation({
     mutationFn: (idEmpleado: number) => empleadosApi.reactivarEmpleado(idEmpleado),
-    onSuccess: () => refrescar(),
+    onSuccess: (e) => {
+      aviso.exito(`${e.nombre} ${e.apellido} está activo de nuevo`);
+      return refrescar();
+    },
   });
 }
 
@@ -145,11 +156,24 @@ export function useRegistrarme() {
 }
 
 /** Envía o reenvía según haya una invitación vigente. Los 409 y 503 los muestra el aviso global. */
+/**
+ * Envía o reenvía la invitación. El aviso va aquí y no en la llamada a `mutate`: el hook vive
+ * en la fila, y si la lista se vuelve a pintar mientras tanto (una búsqueda, otra recarga)
+ * la fila se monta de nuevo y TanStack descarta los callbacks de esa llamada.
+ */
 export function useInvitar() {
   const refrescar = useRefrescarEquipo();
   return useMutation({
     mutationFn: ({ idEmpleado, reenviar }: { idEmpleado: number; reenviar: boolean }) =>
       reenviar ? empleadosApi.reenviarInvitacion(idEmpleado) : empleadosApi.enviarInvitacion(idEmpleado),
+    onSuccess: (enviada, { reenviar }) =>
+      aviso.exito(
+        `Invitación ${reenviar ? "reenviada" : "enviada"} a ${enviada.email}. ${
+          enviada.envios_restantes_24h === 0
+            ? "No quedan más envíos por hoy."
+            : `Puedes enviarle ${enviada.envios_restantes_24h} más en 24 horas.`
+        }`,
+      ),
     onSettled: () => refrescar(),
   });
 }
@@ -181,8 +205,11 @@ export function useGuardarRol() {
       "nuevo" in datos
         ? rolesApi.crearRol(negocio.id_negocio, datos.nuevo)
         : rolesApi.actualizarRol(datos.idRol, datos.cambios),
-    // Los permisos del propio rol también llegan en /auth/me.
-    onSuccess: () => refrescar({ perfil: true }),
+    onSuccess: (_rol, datos) => {
+      aviso.exito("nuevo" in datos ? "Rol creado" : "Rol actualizado");
+      // Los permisos del propio rol también llegan en /auth/me.
+      return refrescar({ perfil: true });
+    },
   });
 }
 
@@ -191,6 +218,9 @@ export function useEliminarRol() {
   return useMutation({
     meta,
     mutationFn: (idRol: number) => rolesApi.eliminarRol(idRol),
-    onSuccess: () => refrescar(),
+    onSuccess: () => {
+      aviso.exito("Rol eliminado");
+      return refrescar();
+    },
   });
 }

@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { aviso } from "@/components/ui/toaster";
 import { AgregarMascotaDialog } from "@/features/clientes/components/AgregarMascotaDialog";
 import { RegistrarClienteDialog } from "@/features/clientes/components/RegistrarClienteDialog";
 import { useClienteDetalle } from "@/features/clientes/hooks/useClientes";
@@ -159,7 +158,7 @@ export function NuevaCitaDialog({
     setIdMascota(c?.mascotas?.length === 1 ? c.mascotas[0]!.id_mascota : null);
     limpiarHora();
   };
-  const registrado = ({ cliente: nuevo, mascota, sin_cuenta }: ClienteRegistrado) => {
+  const registrado = ({ cliente: nuevo, mascota }: ClienteRegistrado) => {
     setRegistrando(null);
     setCliente({
       ...nuevo,
@@ -168,11 +167,6 @@ export function NuevaCitaDialog({
     });
     setIdMascota(mascota.id_mascota);
     limpiarHora();
-    aviso.exito(
-      sin_cuenta
-        ? `${nuevo.nombre} quedó registrado sin cuenta: no recibirá correos ni recordatorios.`
-        : `${nuevo.nombre} quedó registrado. Le enviamos el correo de bienvenida.`,
-    );
   };
 
   const faltante = !cliente

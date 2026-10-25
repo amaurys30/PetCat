@@ -94,6 +94,14 @@ const router = express.Router();
  *                     mes: { type: string, example: "2026-09" }
  *               description: Citas con fecha en el mes actual, excepto canceladas y reprogramadas
  *             productos: { $ref: '#/components/schemas/UsoLimite' }
+ *         soporte:
+ *           type: object
+ *           description: >
+ *             Contacto de PetCat para contratar o cambiar de plan mientras no hay pagos en línea
+ *             (`soporte_email` y `soporte_whatsapp` de la configuración global). Sin configurar, null.
+ *           properties:
+ *             email: { type: string, nullable: true, example: soporte@petcat.com.co }
+ *             whatsapp: { type: string, nullable: true, example: "+57 300 123 4567" }
  */
 
 /**
@@ -162,7 +170,7 @@ router.get("/planes", controller.getPlanes);
  *             properties:
  *               id_plan: { type: integer, example: 2 }
  *               tipo_facturacion: { type: string, enum: [mensual, anual], default: mensual }
- *               fecha_fin: { type: string, format: date, description: Futura. Por defecto, un mes o un año }
+ *               fecha_fin: { type: string, format: date, description: "Futura. Por defecto, un mes o un año" }
  *               monto_pagado: { type: number, minimum: 0, default: 0 }
  *               notas: { type: string, maxLength: 300 }
  *     responses:

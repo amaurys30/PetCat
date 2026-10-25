@@ -573,7 +573,6 @@ function Formulario({
               onSuccess: (registro) => {
                 setActual(registro);
                 setArchivoABorrar(null);
-                aviso.exito("Archivo quitado");
               },
             },
           );

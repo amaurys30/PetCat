@@ -3,7 +3,6 @@ import { useState } from "react";
 import { useSearchParams } from "react-router";
 import { SinPermiso, Vacio } from "@/components/common/EstadoPantalla";
 import { Card } from "@/components/ui/card";
-import { aviso } from "@/components/ui/toaster";
 import { usePuede } from "@/features/negocios/hooks/useNegocio";
 import { DetalleCliente } from "../components/DetalleCliente";
 import { ListaClientes } from "../components/ListaClientes";
@@ -60,15 +59,10 @@ export function ClientesPage() {
       {registrando && (
         <RegistrarClienteDialog
           onCerrar={() => setRegistrando(false)}
-          onRegistrado={({ cliente, sin_cuenta }) => {
+          onRegistrado={({ cliente }) => {
             setRegistrando(false);
             setBusqueda("");
             elegir(cliente.id_usuario);
-            aviso.exito(
-              sin_cuenta
-                ? `${cliente.nombre} quedó registrado sin cuenta`
-                : `${cliente.nombre} quedó registrado. Le enviamos la bienvenida a ${cliente.email}`,
-            );
           }}
           onBuscar={(valor) => {
             setRegistrando(false);

@@ -1,4 +1,4 @@
-import { Check, ChevronsUpDown, LayoutGrid } from "lucide-react";
+import { Check, ChevronsUpDown, LayoutGrid, ShieldCheck } from "lucide-react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router";
 import { GRUPOS_MENU, PROXIMAMENTE } from "@/app/menu";
 import { Avatar } from "@/components/common/Avatar";
@@ -13,6 +13,8 @@ import {
 import { Logo } from "@/components/common/Logo";
 import { useAtencion } from "@/features/agenda/hooks/useAgenda";
 import { useNegocioActivo, usePuede, useSuscripcion } from "@/features/negocios/hooks/useNegocio";
+import { useResumenResenas } from "@/features/resenas/hooks/useResenas";
+import { puedeActivarPrueba } from "@/lib/permisos";
 import { cn } from "@/lib/utils";
 import { rolEnNegocio } from "@/features/negocios/textos";
 import { useAuth } from "@/stores/auth";
@@ -52,6 +54,7 @@ export function Sidebar() {
                       <s.icono className="size-4 shrink-0" aria-hidden />
                       {s.titulo}
                       {s.ruta === "agenda" && <PorConfirmar />}
+                      {s.ruta === "resenas" && <SinResponder />}
                     </NavLink>
                   </li>
                 ))}
@@ -102,9 +105,26 @@ function PorConfirmar() {
   );
 }
 
+/** Reseñas publicadas sin respuesta (el menú solo muestra Reseñas con resenas.ver). */
+function SinResponder() {
+  const negocio = useNegocioActivo();
+  const { data } = useResumenResenas(negocio.id_negocio, true);
+  const n = data?.sin_responder ?? 0;
+  if (n === 0) return null;
+  return (
+    <span
+      className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-warning px-1.5 text-[11px] font-bold text-white"
+      aria-label={`${n} sin responder`}
+    >
+      {n}
+    </span>
+  );
+}
+
 function SelectorNegocio() {
   const negocio = useNegocioActivo();
   const negocios = useAuth((s) => s.usuario?.negocios ?? []);
+  const esAdmin = useAuth((s) => s.usuario?.tipo_usuario === "admin");
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
@@ -142,6 +162,13 @@ function SelectorNegocio() {
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
+        {esAdmin && (
+          <DropdownMenuItem asChild>
+            <Link to="/admin">
+              <ShieldCheck /> Administración PetCat
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem asChild>
           <Link to="/negocios">
             <LayoutGrid /> Ver todos mis negocios
@@ -154,6 +181,7 @@ function SelectorNegocio() {
 
 function TarjetaPlan() {
   const negocio = useNegocioActivo();
+  const usuario = useAuth((s) => s.usuario);
   const puede = usePuede();
   const verSuscripcion = puede("configuracion", "ver");
   const { data } = useSuscripcion(negocio.id_negocio, verSuscripcion);
@@ -193,7 +221,9 @@ function TarjetaPlan() {
           to="suscripcion"
           className="mt-2 inline-block text-label font-semibold text-primary hover:underline"
         >
-          {data?.prueba_disponible ? "Probar Pro 14 días →" : "Ver suscripción →"}
+          {data?.prueba_disponible && puedeActivarPrueba(usuario, negocio)
+            ? "Probar Pro 14 días →"
+            : "Ver suscripción →"}
         </Link>
       )}
     </div>

@@ -4,6 +4,114 @@
  */
 
 export interface paths {
+    "/admin/negocios": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Negocios con su plan y su uso (super admin)
+         * @description Todos los negocios, activos o no, con el propietario, el plan y el estado efectivos (calculados como en la suscripción del negocio), la suscripción vigente y las citas del mes. Ordenados por nombre.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["page"];
+                    limit?: components["parameters"]["limit"];
+                    /** @description Nombre, ciudad o correo del propietario (sin distinguir tildes) */
+                    q?: string;
+                    /** @description Plan efectivo */
+                    id_plan?: number;
+                    estado?: "activa" | "en_prueba" | "vencida";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Negocios */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            /** @example OK */
+                            message: string;
+                            data: components["schemas"]["NegocioAdmin"][];
+                            meta: components["schemas"]["PaginationMeta"];
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["ValidationError"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/negocios/{id_negocio}/suscripciones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Historial de suscripciones de un negocio (super admin)
+         * @description Todas las suscripciones, de la más reciente a la más antigua, con quién creó cada una.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id_negocio: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Historial */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            /** @example OK */
+                            message: string;
+                            data: components["schemas"]["SuscripcionHistorial"][];
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["ValidationError"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/register": {
         parameters: {
             query?: never;
@@ -717,7 +825,7 @@ export interface paths {
                         "application/json": {
                             /** @example true */
                             success: boolean;
-                            /** @example Si el correo está registrado */
+                            /** @example Si el correo está registrado, te enviamos un enlace para restablecer la contraseña */
                             message: string;
                             /** @example null */
                             data: unknown;
@@ -1000,7 +1108,7 @@ export interface paths {
                         "application/json": {
                             /** @example true */
                             success: boolean;
-                            /** @example Si el correo está registrado y sin verificar */
+                            /** @example Si el correo está registrado y sin verificar, te enviamos un nuevo enlace de verificación */
                             message: string;
                             /** @example null */
                             data: unknown;
@@ -1766,7 +1874,7 @@ export interface paths {
                                 fecha_cambio: string;
                                 /** @enum {string} */
                                 campo: "estado" | "empleado" | "notas_internas" | "prioridad" | "precio_final";
-                                /** @description En empleado */
+                                /** @description En empleado, su nombre */
                                 valor_anterior: string | null;
                                 valor_nuevo: string | null;
                                 motivo: string | null;
@@ -2190,7 +2298,7 @@ export interface paths {
                         apellido: string;
                         /**
                          * Format: email
-                         * @description Sin correo
+                         * @description Sin correo, el cliente queda sin cuenta
                          */
                         email?: string;
                         /** @description Obligatorio si no hay correo */
@@ -5360,14 +5468,16 @@ export interface paths {
         };
         /**
          * Mis notificaciones
-         * @description Del usuario autenticado (app y panel), las más recientes primero. `meta.no_leidas` para el globo.
+         * @description Del usuario autenticado, las más recientes primero. La app pide `destino=dueno` y el panel `destino=negocio`; sin `destino`, todas. `meta.no_leidas` (del mismo destino) para el globo.
          */
         get: {
             parameters: {
                 query?: {
                     page?: components["parameters"]["page"];
                     limit?: components["parameters"]["limit"];
-                    /** @description Sin filtro */
+                    /** @description Solo las de la app del dueño o solo las del panel; sin él, todas */
+                    destino?: components["parameters"]["destinoNotificacion"];
+                    /** @description Sin filtro, todas */
                     leidas?: "true" | "false";
                 };
                 header?: never;
@@ -5389,8 +5499,12 @@ export interface paths {
                             message: string;
                             data: components["schemas"]["Notificacion"][];
                             meta: components["schemas"]["PaginationMeta"] & {
-                                /** @example 3 */
+                                /**
+                                 * @description Del destino pedido (sin destino, todas)
+                                 * @example 3
+                                 */
                                 no_leidas: number;
+                                no_leidas_por_destino: components["schemas"]["NoLeidasPorDestino"];
                             };
                         };
                     };
@@ -5417,7 +5531,10 @@ export interface paths {
         /** Cantidad de notificaciones no leídas */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Solo las de la app del dueño o solo las del panel; sin él, todas */
+                    destino?: components["parameters"]["destinoNotificacion"];
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -5436,13 +5553,18 @@ export interface paths {
                             /** @example OK */
                             message: string;
                             data: {
-                                /** @example 3 */
+                                /**
+                                 * @description Del destino pedido (sin destino, todas)
+                                 * @example 3
+                                 */
                                 total: number;
+                                por_destino: components["schemas"]["NoLeidasPorDestino"];
                             };
                         };
                     };
                 };
                 401: components["responses"]["Unauthorized"];
+                422: components["responses"]["ValidationError"];
             };
         };
         put?: never;
@@ -5464,11 +5586,14 @@ export interface paths {
         put?: never;
         /**
          * Marcar todas mis notificaciones como leídas
-         * @description Las demás sesiones conectadas reciben por Socket.IO `notificaciones_leidas` con el nuevo total.
+         * @description Con `destino`, solo las de ese destino (el panel no marca las de la app). Las demás sesiones conectadas reciben por Socket.IO `notificaciones_leidas` con `{ no_leidas, por_destino }`.
          */
         post: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Solo las de la app del dueño o solo las del panel; sin él, todas */
+                    destino?: components["parameters"]["destinoNotificacion"];
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -5494,6 +5619,7 @@ export interface paths {
                     };
                 };
                 401: components["responses"]["Unauthorized"];
+                422: components["responses"]["ValidationError"];
             };
         };
         delete?: never;
@@ -5876,7 +6002,7 @@ export interface paths {
                     };
                 };
                 401: components["responses"]["Unauthorized"];
-                /** @description No existe */
+                /** @description No existe, no es del usuario o la retiró */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -5930,7 +6056,7 @@ export interface paths {
                     };
                 };
                 401: components["responses"]["Unauthorized"];
-                /** @description No existe */
+                /** @description No existe, no es del usuario o ya la retiró */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -5965,6 +6091,8 @@ export interface paths {
                     orden?: "recientes" | "mejores" | "peores";
                     /** @description Solo las de esa calificación */
                     calificacion?: number;
+                    /** @description De 1 hasta esa calificación; no va junto con calificacion */
+                    calificacion_max?: number;
                 };
                 header?: never;
                 path: {
@@ -5992,16 +6120,7 @@ export interface paths {
                                     calificacion_promedio: number;
                                     /** @example 12 */
                                     total_resenas: number;
-                                    /**
-                                     * @example {
-                                     *       "1": 0,
-                                     *       "2": 1,
-                                     *       "3": 1,
-                                     *       "4": 3,
-                                     *       "5": 7
-                                     *     }
-                                     */
-                                    distribucion: Record<string, never>;
+                                    distribucion: components["schemas"]["DistribucionResenas"];
                                 };
                             };
                         };
@@ -6028,7 +6147,7 @@ export interface paths {
         };
         /**
          * Reseñas del negocio (panel)
-         * @description Requiere `resenas.ver`. Incluye las ocultas por la moderación (`visible: false`) y el reporte; no las que retiró su autor. Con el nombre completo del cliente y la cita.
+         * @description Requiere `resenas.ver`. Incluye las publicadas, las ocultas por la moderación y las que retiró su autor (`estado`), con el reporte, el nombre completo del cliente, el autor como se ve en público y la cita. `meta.resumen` trae la calificación, la distribución (de las visibles) y los conteos para los filtros; no depende de los filtros. Nunca incluye `cliente_registrado_por_negocio`, tampoco para el super admin: es un dato de moderación.
          */
         get: {
             parameters: {
@@ -6037,9 +6156,15 @@ export interface paths {
                     limit?: components["parameters"]["limit"];
                     orden?: "recientes" | "mejores" | "peores";
                     calificacion?: number;
+                    /** @description De 1 hasta esa calificación (2 = 1 y 2 estrellas); no va junto con calificacion */
+                    calificacion_max?: number;
+                    estado?: "publicada" | "oculta" | "retirada";
+                    /** @description true: publicadas sin respuesta */
                     sin_responder?: boolean;
                     reportada?: boolean;
                     visible?: boolean;
+                    /** @description Solo esa reseña (el enlace de la notificación resena_nueva) */
+                    id_resena?: number;
                 };
                 header?: never;
                 path: {
@@ -6061,7 +6186,23 @@ export interface paths {
                             /** @example OK */
                             message: string;
                             data: components["schemas"]["ResenaPanel"][];
-                            meta: components["schemas"]["PaginationMeta"];
+                            meta: components["schemas"]["PaginationMeta"] & {
+                                resumen: {
+                                    /** @example 4.7 */
+                                    calificacion_promedio: number;
+                                    /** @example 38 */
+                                    total_resenas: number;
+                                    distribucion: components["schemas"]["DistribucionResenas"];
+                                    /** @description Publicadas sin respuesta */
+                                    sin_responder: number;
+                                    /** @description Reportadas por el negocio (sin las retiradas) */
+                                    reportadas: number;
+                                    /** @description Ocultas por la moderación de PetCat */
+                                    ocultas: number;
+                                    /** @description Retiradas por su autor */
+                                    retiradas: number;
+                                };
+                            };
                         };
                     };
                 };
@@ -7309,7 +7450,7 @@ export interface paths {
                         tipo_facturacion?: "mensual" | "anual";
                         /**
                          * Format: date
-                         * @description Futura. Por defecto
+                         * @description Futura. Por defecto, un mes o un año
                          */
                         fecha_fin?: string;
                         /** @default 0 */
@@ -7781,6 +7922,87 @@ export interface components {
             /** @example true */
             hasNext: boolean;
         };
+        NegocioAdmin: {
+            id_negocio: number;
+            /** @example Clínica Veterinaria Patitas */
+            nombre: string;
+            /** @example veterinaria */
+            tipo: string;
+            ciudad: string | null;
+            activo: boolean;
+            fecha_registro: string;
+            propietario: {
+                id_usuario: number;
+                nombre: string;
+                apellido: string;
+                email: string | null;
+            };
+            /** @description Plan efectivo (el Gratuito si la prueba o el plan pago vencieron) */
+            plan: {
+                id_plan: number;
+                /** @example Pro */
+                nombre: string;
+            };
+            /**
+             * @description vencida: la prueba o el plan pago terminaron y el negocio volvió al Gratuito
+             * @enum {string}
+             */
+            estado: "activa" | "en_prueba" | "vencida";
+            /** @description Suscripción vigente (la más reciente activa o en prueba) */
+            suscripcion: {
+                id_suscripcion: number;
+                plan: {
+                    id_plan: number;
+                    nombre: string;
+                };
+                /** @enum {string} */
+                estado: "activa" | "en_prueba" | "vencida";
+                /** @enum {string} */
+                tipo_facturacion: "mensual" | "anual";
+                /** Format: date */
+                fecha_inicio: string;
+                /** @description 9999-12-31 = sin vencimiento */
+                fecha_fin: string;
+                fecha_prueba_fin: string | null;
+            } | null;
+            citas_mes: {
+                /** @example 2026-10 */
+                mes: string;
+                /** @example 26 */
+                usadas: number;
+                /**
+                 * @description -1 = ilimitado
+                 * @example 30
+                 */
+                maximo: number;
+            };
+        };
+        SuscripcionHistorial: {
+            id_suscripcion: number;
+            plan: {
+                id_plan: number;
+                nombre: string;
+            };
+            /** @enum {string} */
+            estado: "activa" | "vencida" | "cancelada" | "en_prueba" | "pendiente";
+            /** @enum {string} */
+            tipo_facturacion: "mensual" | "anual";
+            /** Format: date */
+            fecha_inicio: string;
+            fecha_fin: string;
+            fecha_prueba_fin: string | null;
+            monto_pagado: number;
+            notas: string | null;
+            fecha_creacion: string;
+            /** @description Quién la creó: el admin que asignó el plan o el propietario que activó la prueba. Null en la Gratuita que se crea con el negocio y en las anteriores a la migración 025. */
+            registrada_por: {
+                id_usuario: number;
+                nombre: string;
+                apellido: string;
+                email: string | null;
+                es_admin: boolean;
+            } | null;
+        };
         Usuario: {
             /** @example 12 */
             id_usuario: number;
@@ -7864,7 +8086,7 @@ export interface components {
             id_servicio: number;
             nombre: string;
             descripcion: string | null;
-            /** @description Preparación antes de la cita (ayuno */
+            /** @description Preparación antes de la cita (ayuno, carnet...) */
             indicaciones_previas: string | null;
             categoria: {
                 id_categoria: number;
@@ -7883,7 +8105,7 @@ export interface components {
             precio_base: number;
             precio_maximo: number | null;
             tipo_precio: string;
-            /** @description Precio de oferta si está vigente hoy; si no */
+            /** @description Precio de oferta si está vigente hoy; si no, precio_base */
             precio_actual: number;
             oferta_vigente: boolean;
             /**
@@ -7989,7 +8211,7 @@ export interface components {
                  * @example 2026-10-20 15:42:10
                  */
                 resenar_antes_de: string | null;
-                /** @description Sin reseña */
+                /** @description Sin reseña, dentro del plazo y sin ser personal del negocio */
                 puede_resenar: boolean;
                 puede_editar: boolean;
             } | null;
@@ -8107,7 +8329,7 @@ export interface components {
             telefono: string | null;
         };
         ClienteFila: components["schemas"]["ClienteContacto"] & {
-            /** @description Con este negocio */
+            /** @description Con este negocio, en cualquier estado */
             total_citas: number;
             /**
              * Format: date
@@ -8292,15 +8514,26 @@ export interface components {
                 completadas: number;
                 ingresos: number;
             }[];
-            /** @description Primera cita o registro desde el panel en el periodo (todo el negocio */
+            /** @description Primera cita o registro desde el panel en el periodo (todo el negocio, sin filtro de sucursal) */
             clientes_nuevos: number;
             calificacion: {
                 promedio: number;
                 total_resenas: number;
                 resenas_periodo: number;
                 promedio_periodo: number | null;
-                /** @description Reseñas visibles sin respuesta (todas */
+                /** @description Reseñas visibles sin respuesta (todas, no solo del periodo) */
                 sin_responder: number;
+            };
+            /** @description Mascotas activas y vivas de clientes del negocio (alguna cita o una autorización registrada por él) con una dosis cuya próxima aplicación venció en los últimos 30 días (de `desde` a `hasta`, ayer). No cuenta las dosis reemplazadas por una más reciente. No depende del rango ni de la sucursal del dashboard. */
+            vacunas_vencidas: {
+                /** @example 5 */
+                mascotas: number;
+                /** @example 30 */
+                dias: number;
+                /** Format: date */
+                desde: string;
+                /** Format: date */
+                hasta: string;
             };
             /** @description Canceladas por el sistema porque nadie las confirmó a tiempo. Nunca cuentan contra los clientes. */
             citas_perdidas_por_no_confirmar: {
@@ -8337,8 +8570,15 @@ export interface components {
                     };
                     actual: components["schemas"]["MetricasComparables"];
                     anterior: components["schemas"]["MetricasComparables"];
-                    /** @description Por métrica; null si el periodo anterior es 0 */
-                    variacion_pct: Record<string, never>;
+                    /** @description Variación porcentual por métrica; null si el periodo anterior es 0 (o la tasa es null) */
+                    variacion_pct: {
+                        /** @example 18.5 */
+                        citas: number | null;
+                        completadas: number | null;
+                        ingresos: number | null;
+                        clientes_nuevos: number | null;
+                        tasa_inasistencia: number | null;
+                    };
                 };
                 por_empleado: components["schemas"]["SeccionBloqueada"] | ({
                     /** @description null = sin asignar */
@@ -8509,7 +8749,7 @@ export interface components {
             notas?: string | null;
             /**
              * Format: date
-             * @description Por defecto
+             * @description Por defecto, hoy
              * @example 2026-09-01
              */
             fecha_vinculacion?: string;
@@ -8565,7 +8805,7 @@ export interface components {
                  */
                 envios_restantes_24h: number;
                 /**
-                 * @description Solo si no quedan envíos
+                 * @description Solo si no quedan envíos, desde cuándo se puede volver a enviar
                  * @example 2026-09-26 10:00
                  */
                 libre_desde: string | null;
@@ -8613,7 +8853,7 @@ export interface components {
             indicaciones?: string | null;
             /** Format: date */
             proximo_control?: string | null;
-            /** @description En kg; si es el registro más reciente */
+            /** @description En kg; si es el registro más reciente, actualiza el peso de la mascota */
             peso_registro?: number | null;
             temperatura?: number | null;
             frecuencia_cardiaca?: number | null;
@@ -9013,10 +9253,10 @@ export interface components {
                 tipo_mascota: string[];
                 en_oferta: boolean;
                 precio_oferta: number | null;
-                /** @description Precio de oferta si está vigente hoy; si no */
+                /** @description Precio de oferta si está vigente hoy; si no, precio_base */
                 precio_actual: number;
                 oferta_vigente: boolean;
-                /** @description No requiere cita */
+                /** @description No requiere cita, o tiene empleados activos asignados */
                 reservable: boolean;
                 id_categoria: number;
                 categoria: string;
@@ -9029,24 +9269,53 @@ export interface components {
             /** @example 120 */
             id_notificacion: number;
             id_negocio: number | null;
+            /**
+             * @description A quién va: `dueno` (la app del dueño de la mascota) o `negocio` (el panel). Un usuario que es dueño y personal de un negocio recibe las dos; cada cliente pide las suyas con `?destino=`.
+             * @enum {string}
+             */
+            destino: "dueno" | "negocio";
             /** @enum {string} */
-            tipo: "cita_nueva" | "cita_agendada" | "cita_confirmada" | "cita_cancelada" | "cita_reprogramada" | "cita_dia_anterior" | "cita_recordatorio" | "cita_por_confirmar" | "cita_no_confirmada" | "vacuna_proxima" | "vacuna_vence_hoy" | "vacuna_vencida" | "plan_limite_alcanzado" | "plan_limite_80" | "plan_prueba_por_vencer" | "plan_vencido";
+            tipo: "cita_nueva" | "cita_agendada" | "cita_confirmada" | "cita_cancelada" | "cita_reprogramada" | "cita_por_confirmar" | "cita_no_confirmada" | "cita_dia_anterior" | "cita_recordatorio" | "resena_invitacion" | "resena_nueva" | "resena_respondida" | "vacuna_proxima" | "vacuna_vence_hoy" | "vacuna_vencida" | "plan_prueba_por_vencer" | "plan_vencido" | "plan_limite_alcanzado" | "plan_limite_80";
             /** @example Cita cancelada */
             titulo: string;
             /** @description El detalle (solo se ve con la sesión iniciada) */
             mensaje: string;
-            /**
-             * @description Ids para abrir la pantalla correspondiente (deep link)
-             * @example {
-             *       "tipo": "cita_cancelada",
-             *       "id_cita": 77
-             *     }
-             */
-            datos: Record<string, never>;
+            /** @description Ids para abrir la pantalla correspondiente (deep link). Las de citas traen `id_cita`, `id_negocio` y la `fecha` de la cita; `cita_nueva` también `por_confirmar` (false si nació confirmada por la confirmación automática). `resena_nueva` trae `id_resena`; las del plan, `id_negocio`. */
+            datos: {
+                /** @example cita_nueva */
+                tipo: string;
+                /** @example 77 */
+                id_cita?: number;
+                /** @example 1 */
+                id_negocio?: number;
+                /**
+                 * Format: date
+                 * @example 2026-10-28
+                 */
+                fecha?: string;
+                por_confirmar?: boolean;
+                id_resena?: number;
+                id_mascota?: number;
+                id_vacuna?: number;
+                /** @example 2026-10 */
+                mes?: string;
+            };
             leida: boolean;
             leida_en: string | null;
             /** @example 2026-09-28 10:15:00 */
             fecha_creacion: string;
+        };
+        NoLeidasPorDestino: {
+            /**
+             * @description De la app del dueño
+             * @example 1
+             */
+            dueno: number;
+            /**
+             * @description Del panel
+             * @example 2
+             */
+            negocio: number;
         };
         ResenaInput: {
             calificacion: number;
@@ -9113,7 +9382,25 @@ export interface components {
             editar_antes_de: string | null;
             puede_editar: boolean;
         };
+        /** @description Cuántas reseñas visibles hay de cada calificación */
+        DistribucionResenas: {
+            /** @example 0 */
+            1: number;
+            /** @example 1 */
+            2: number;
+            /** @example 1 */
+            3: number;
+            /** @example 3 */
+            4: number;
+            /** @example 7 */
+            5: number;
+        };
         ResenaPanel: components["schemas"]["ResenaBase"] & {
+            /**
+             * @description Como se muestra en la app y en el perfil público (nombre e inicial del apellido)
+             * @example Sofía G.
+             */
+            autor: string;
             cliente: {
                 id_usuario: number;
                 nombre: string;
@@ -9128,8 +9415,18 @@ export interface components {
                     nombre: string;
                 } | null;
             } | null;
-            /** @description false si la ocultó la moderación de PetCat */
+            /** @description false si la ocultó la moderación de PetCat o si la retiró su autor (ver estado) */
             visible: boolean;
+            /**
+             * @description publicada; oculta por la moderación de PetCat; retirada por su autor (retirada_en)
+             * @enum {string}
+             */
+            estado: "publicada" | "oculta" | "retirada";
+            /**
+             * @description Cuándo la retiró su autor
+             * @example 2026-10-02 18:40:00
+             */
+            retirada_en: string | null;
             reporte: {
                 /** @enum {string} */
                 motivo: "lenguaje_ofensivo" | "datos_personales" | "no_relacionada" | "spam" | "otro";
@@ -9141,8 +9438,6 @@ export interface components {
                     apellido: string;
                 } | null;
             } | null;
-            /** @description Solo para el super admin (moderación). El cliente fue registrado desde el panel de este negocio. */
-            cliente_registrado_por_negocio?: boolean;
         };
         /**
          * @description `{ modulo: [acciones] }`. Solo módulos y acciones del catálogo (GET /permisos).
@@ -9381,7 +9676,7 @@ export interface components {
             precio_base: number;
             precio_maximo: number | null;
             tipo_precio: string;
-            /** @description Precio de oferta si está vigente hoy; si no */
+            /** @description Precio de oferta si está vigente hoy; si no, precio_base */
             precio_actual: number;
             oferta_vigente: boolean;
             duracion_minutos: number;
@@ -9536,6 +9831,13 @@ export interface components {
                     mes: string;
                 };
                 productos: components["schemas"]["UsoLimite"];
+            };
+            /** @description Contacto de PetCat para contratar o cambiar de plan mientras no hay pagos en línea (`soporte_email` y `soporte_whatsapp` de la configuración global). Sin configurar, null. */
+            soporte: {
+                /** @example soporte@petcat.com.co */
+                email: string | null;
+                /** @example +57 300 123 4567 */
+                whatsapp: string | null;
             };
         };
         /** @description Campos opcionales con `null` se vacían. `fecha_proxima` debe ser posterior a `fecha_aplicacion`. El comprobante no va aquí: se sube con `PUT /vacunas/{id_vacuna}/comprobante` (`comprobante_url` da 422). */
@@ -9953,6 +10255,8 @@ export interface components {
         historialTipo: string;
         historialDesde: string;
         historialHasta: string;
+        /** @description Solo las de la app del dueño o solo las del panel; sin él, todas */
+        destinoNotificacion: "dueno" | "negocio";
     };
     requestBodies: {
         /** @description Imagen JPEG, PNG o WebP de hasta 5 MB (HEIC no: convertir a JPEG antes). Se validan los bytes, no la extensión; se quitan los metadatos (EXIF, GPS) y se reduce a 2048 px como máximo. */

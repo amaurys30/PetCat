@@ -51,7 +51,8 @@ export class SocketFalso {
   /** El servidor emite `evento` (dentro de act: actualiza la interfaz). */
   recibir(evento: string, ...datos: unknown[]) {
     act(() => {
-      for (const oyente of [...(this.oyentes.get(evento) ?? [])]) (oyente as (...a: unknown[]) => void)(...datos);
+      for (const oyente of [...(this.oyentes.get(evento) ?? [])])
+        (oyente as (...a: unknown[]) => void)(...datos);
     });
   }
 

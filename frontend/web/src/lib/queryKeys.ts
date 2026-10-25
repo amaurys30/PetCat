@@ -30,6 +30,31 @@ export const queryKeys = {
     mascota: (idNegocio: number, idMascota: number) => ["citas", idNegocio, "mascota", idMascota] as const,
   },
   roles: (idNegocio: number) => ["roles", idNegocio] as const,
+  /** Administración de la plataforma (super admin). Empiezan por ["admin"]. */
+  admin: {
+    todo: () => ["admin"] as const,
+    negocios: (params: object) => ["admin", "negocios", params] as const,
+    historial: (idNegocio: number) => ["admin", "historial", idNegocio] as const,
+  },
+  /** Del usuario (no de un negocio): las del panel de todos sus negocios. Empiezan por ["notificaciones"]. */
+  notificaciones: {
+    todas: () => ["notificaciones"] as const,
+    noLeidas: () => ["notificaciones", "no-leidas"] as const,
+    /** Prefijo de las listas (la campana y la página "Todas"), sin el contador. */
+    listas: () => ["notificaciones", "lista"] as const,
+    lista: (params: object) => ["notificaciones", "lista", params] as const,
+  },
+  /** Todas empiezan por ["resenas", idNegocio]: responder o reportar recarga la lista y el resumen. */
+  resenas: {
+    todas: (idNegocio: number) => ["resenas", idNegocio] as const,
+    lista: (idNegocio: number, filtros: object) => ["resenas", idNegocio, "lista", filtros] as const,
+    resumen: (idNegocio: number) => ["resenas", idNegocio, "resumen"] as const,
+  },
+  /** Todas empiezan por ["dashboard", idNegocio]: cambiar de plan las recarga. */
+  dashboard: {
+    todo: (idNegocio: number) => ["dashboard", idNegocio] as const,
+    datos: (idNegocio: number, consulta: object) => ["dashboard", idNegocio, consulta] as const,
+  },
   catalogoPermisos: () => ["permisos"] as const,
   /** Todas empiezan por ["servicios", idNegocio]: Equipo las recarga con ese prefijo. */
   servicios: {

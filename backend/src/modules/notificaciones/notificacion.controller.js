@@ -8,7 +8,7 @@ export const getNotificaciones = async (req, res) => {
 };
 
 export const getNoLeidas = async (req, res) => {
-  return ok(res, await service.getNoLeidas(req.user.id_usuario));
+  return ok(res, await service.getNoLeidas(req.user.id_usuario, req.query));
 };
 
 export const marcarLeida = async (req, res) => {
@@ -16,7 +16,7 @@ export const marcarLeida = async (req, res) => {
 };
 
 export const marcarTodasLeidas = async (req, res) => {
-  return ok(res, await service.marcarTodasLeidas(req.user.id_usuario), "Notificaciones leídas");
+  return ok(res, await service.marcarTodasLeidas(req.user.id_usuario, req.query), "Notificaciones leídas");
 };
 
 // La baja de correos se abre desde un correo en el navegador: responde HTML, no JSON.

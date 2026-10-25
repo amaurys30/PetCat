@@ -304,7 +304,9 @@ describe("C3 · Registrar cliente sin app", () => {
     await user.type(within(c3).getAllByLabelText("Nombre *")[1]!, "Toby");
     await user.click(within(c3).getByRole("checkbox"));
     await user.click(within(c3).getByRole("button", { name: "Registrar y agendar cita" }));
-    expect(await within(c3).findByText(/Si es de la misma familia, búscalo por teléfono/)).toBeInTheDocument();
+    expect(
+      await within(c3).findByText(/Si es de la misma familia, búscalo por teléfono/),
+    ).toBeInTheDocument();
     await user.click(within(c3).getByRole("button", { name: "Buscarlo" }));
 
     const nueva = await screen.findByRole("dialog", { name: "Nueva cita" });

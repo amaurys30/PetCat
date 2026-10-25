@@ -118,7 +118,7 @@ test("registra un cliente con correo: recibe la bienvenida con el enlace para cr
     await c3.getByRole("radio", { name: "Gato" }).click();
     await c3.getByRole("checkbox").check();
     await c3.getByRole("button", { name: "Registrar y agendar cita" }).click();
-    await expect(page.getByText(/Marta quedó registrado. Le enviamos el correo de bienvenida/)).toBeVisible();
+    await expect(page.getByText(/Marta quedó registrado. Le enviamos la bienvenida a /)).toBeVisible();
 
     const enlace = await leerDeCorreo(request, correo, /(\/crear-password\/[0-9a-f]{64})/);
     expect(enlace).toMatch(/^\/crear-password\//);

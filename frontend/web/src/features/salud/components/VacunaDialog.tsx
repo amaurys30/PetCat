@@ -427,7 +427,6 @@ function Formulario({
             onSuccess: (vacuna) => {
               setActual(vacuna);
               setQuitando(false);
-              aviso.exito("Comprobante quitado");
             },
           })
         }

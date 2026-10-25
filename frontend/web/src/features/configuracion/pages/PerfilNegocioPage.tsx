@@ -126,10 +126,7 @@ function DatosNegocio({
     const cambios = soloCambios(normalizados, iniciales) as ActualizarNegocioBody;
     if (Object.keys(cambios).length === 0) return;
     actualizar.mutate(cambios, {
-      onSuccess: () => {
-        form.reset(normalizados);
-        aviso.exito("Datos del negocio guardados");
-      },
+      onSuccess: () => form.reset(normalizados),
       onError: (e) => {
         if (!aplicarErroresApi(form.setError, e, CAMPOS_PERFIL_NEGOCIO)) aviso.error(e.message);
       },
@@ -204,8 +201,6 @@ function ConfirmacionCitas({ negocio, puedeEditar }: { negocio: NegocioGestion; 
     actualizar.mutate(
       { confirmacion_automatica: valor },
       {
-        onSuccess: () =>
-          aviso.exito(valor ? "Confirmación automática activada" : "Confirmación automática desactivada"),
         onError: (e) => {
           setAutomatica(!valor);
           aviso.error(e.message);

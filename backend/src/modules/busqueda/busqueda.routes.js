@@ -59,7 +59,7 @@ const router = express.Router();
  *         id_servicio: { type: integer }
  *         nombre: { type: string }
  *         descripcion: { type: string, nullable: true }
- *         indicaciones_previas: { type: string, nullable: true, description: Preparación antes de la cita (ayuno, carnet...) }
+ *         indicaciones_previas: { type: string, nullable: true, description: "Preparación antes de la cita (ayuno, carnet...)" }
  *         categoria:
  *           type: object
  *           properties:
@@ -79,7 +79,7 @@ const router = express.Router();
  *         precio_base: { type: number }
  *         precio_maximo: { type: number, nullable: true }
  *         tipo_precio: { type: string }
- *         precio_actual: { type: number, description: Precio de oferta si está vigente hoy; si no, precio_base }
+ *         precio_actual: { type: number, description: "Precio de oferta si está vigente hoy; si no, precio_base" }
  *         oferta_vigente: { type: boolean }
  *         oferta_hasta: { type: string, format: date, nullable: true, description: Último día de la oferta vigente }
  *         duracion_minutos: { type: integer }

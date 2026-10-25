@@ -1,29 +1,10 @@
 import { ChartColumn } from "lucide-react";
-import { Link } from "react-router";
-import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { useNegocioStore } from "@/stores/negocio";
+import { BotonesPlan } from "@/features/suscripcion/components/PruebaPro";
 import { useUi } from "@/stores/ui";
 
-/**
- * Botones de la invitación a Pro. Llevan a Suscripción (E4), donde se activa la
- * prueba o se ven los planes.
- */
-export function PlanLimitAcciones({ alElegir }: { alElegir?: () => void }) {
-  const idNegocio = useNegocioStore((s) => s.idNegocio);
-  if (!idNegocio) return null;
-  const destino = `/n/${idNegocio}/suscripcion`;
-  return (
-    <>
-      <Button asChild onClick={alElegir}>
-        <Link to={destino}>Probar Pro 14 días</Link>
-      </Button>
-      <Button asChild variant="secondary" onClick={alElegir}>
-        <Link to={destino}>Ver planes</Link>
-      </Button>
-    </>
-  );
-}
+/** Botones de la invitación a Pro: activar la prueba aquí mismo o ir a Suscripción (E4). */
+export const PlanLimitAcciones = BotonesPlan;
 
 /** Se abre solo con cualquier 403 que traiga `errors.plan` (ver app/queryClient.ts). */
 export function PlanLimitDialog() {

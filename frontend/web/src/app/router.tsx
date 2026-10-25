@@ -1,5 +1,8 @@
 import { createBrowserRouter, Navigate, type RouteObject } from "react-router";
+import { AdminLayout } from "@/features/admin/AdminLayout";
+import { AdminNegociosPage } from "@/features/admin/pages/AdminNegociosPage";
 import { AgendaPage } from "@/features/agenda/pages/AgendaPage";
+import { DashboardPage } from "@/features/dashboard/pages/DashboardPage";
 import { ClientesPage } from "@/features/clientes/pages/ClientesPage";
 import { FichaMascotaPage } from "@/features/salud/pages/FichaMascotaPage";
 import { ConfiguracionLayout } from "@/features/configuracion/ConfiguracionLayout";
@@ -11,8 +14,11 @@ import { DisponibilidadPage } from "@/features/equipo/pages/DisponibilidadPage";
 import { MiembrosPage } from "@/features/equipo/pages/MiembrosPage";
 import { RolesPage } from "@/features/equipo/pages/RolesPage";
 import { MiPerfilPage } from "@/features/perfil/pages/MiPerfilPage";
+import { NotificacionesPage } from "@/features/notificaciones/pages/NotificacionesPage";
+import { ResenasPage } from "@/features/resenas/pages/ResenasPage";
 import { ServicioFormPage } from "@/features/servicios/pages/ServicioFormPage";
 import { ServiciosPage } from "@/features/servicios/pages/ServiciosPage";
+import { SuscripcionPage } from "@/features/suscripcion/pages/SuscripcionPage";
 import { LoginPage } from "@/features/auth/pages/LoginPage";
 import { PasswordNuevaPage } from "@/features/auth/pages/PasswordNuevaPage";
 import { RecuperarPasswordPage } from "@/features/auth/pages/RecuperarPasswordPage";
@@ -77,6 +83,12 @@ export const rutas: RouteObject[] = [
             ],
           },
           {
+            // Solo el super admin; para los demás, "No encontrado".
+            path: "admin",
+            element: <AdminLayout />,
+            children: [{ index: true, element: <AdminNegociosPage /> }],
+          },
+          {
             path: "n/:idNegocio",
             element: <PanelLayout />,
             children: [
@@ -124,6 +136,11 @@ export const rutas: RouteObject[] = [
                 ],
               },
               {
+                path: "dashboard",
+                element: <DashboardPage />,
+                handle: { titulo: "Dashboard" } satisfies HandleRuta,
+              },
+              {
                 path: "agenda",
                 element: <AgendaPage />,
                 handle: { titulo: "Agenda" } satisfies HandleRuta,
@@ -143,12 +160,37 @@ export const rutas: RouteObject[] = [
                 ],
               },
               {
+                path: "notificaciones",
+                element: <NotificacionesPage />,
+                handle: { titulo: "Notificaciones" } satisfies HandleRuta,
+              },
+              {
+                path: "resenas",
+                element: <ResenasPage />,
+                handle: { titulo: "Reseñas" } satisfies HandleRuta,
+              },
+              {
+                path: "suscripcion",
+                element: <SuscripcionPage />,
+                handle: { titulo: "Suscripción" } satisfies HandleRuta,
+              },
+              {
                 path: "mi-perfil",
                 element: <MiPerfilPage />,
                 handle: { titulo: "Mi perfil" } satisfies HandleRuta,
               },
               ...SECCIONES.filter(
-                (s) => !["agenda", "clientes", "configuracion", "equipo", "servicios"].includes(s.ruta),
+                (s) =>
+                  ![
+                    "agenda",
+                    "clientes",
+                    "configuracion",
+                    "dashboard",
+                    "equipo",
+                    "resenas",
+                    "servicios",
+                    "suscripcion",
+                  ].includes(s.ruta),
               ).map((seccion): RouteObject => ({
                 path: `${seccion.ruta}/*`,
                 element: <SeccionPendiente seccion={seccion} />,

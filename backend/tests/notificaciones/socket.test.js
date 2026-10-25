@@ -165,13 +165,70 @@ describe("GET|PATCH /notificaciones", () => {
     const leida = await api(token).patch(`/notificaciones/${id}/leida`);
     expect(leida.status).toBe(200);
     expect(leida.body.data).toMatchObject({ id_notificacion: id, leida: true, leida_en: expect.any(String) });
-    expect(await aviso).toEqual({ no_leidas: 2 });
+    expect(await aviso).toEqual({ no_leidas: 2, por_destino: { dueno: 0, negocio: 2 } });
 
     // Marcar otra vez devuelve lo mismo.
     expect((await api(token).patch(`/notificaciones/${id}/leida`)).status).toBe(200);
     expect((await api(token).get("/notificaciones?leidas=true")).body.meta.total).toBe(1);
     expect((await api(token).get("/notificaciones?leidas=false")).body.meta.total).toBe(2);
-    expect((await api(token).get("/notificaciones/no-leidas")).body.data).toEqual({ total: 2 });
+    expect((await api(token).get("/notificaciones/no-leidas")).body.data).toEqual({ total: 2, por_destino: { dueno: 0, negocio: 2 } });
+  });
+
+  it("destino separa las de la app del dueño de las del panel: lista, contador y leer-todas", async () => {
+    const usuario = await crearUsuario();
+    const token = await tokenDe(usuario);
+    await crearAvisos(usuario, 2);
+    // El mismo usuario recibe un aviso como dueño de una mascota.
+    await conNotificaciones((conn, notificar) =>
+      notificar([
+        {
+          tipo: "vacuna_proxima",
+          datos: { mascota: "Max", vacuna: "Rabia", fecha_proxima: "2026-11-01" },
+          enlace: { id_mascota: 1, id_vacuna: 1 },
+          destinatarios: [{ id_usuario: usuario.id_usuario, rol: "dueno" }],
+        },
+      ])
+    );
+
+    const todas = await api(token).get("/notificaciones");
+    expect(todas.body.meta).toMatchObject({ total: 3, no_leidas: 3, no_leidas_por_destino: { dueno: 1, negocio: 2 } });
+    const panel = await api(token).get("/notificaciones?destino=negocio");
+    expect(panel.body.data.map((n) => n.destino)).toEqual(["negocio", "negocio"]);
+    expect(panel.body.meta).toMatchObject({ total: 2, no_leidas: 2 });
+    const app = await api(token).get("/notificaciones?destino=dueno");
+    expect(app.body.data).toMatchObject([{ tipo: "vacuna_proxima", destino: "dueno" }]);
+    expect((await api(token).get("/notificaciones/no-leidas?destino=negocio")).body.data).toEqual({
+      total: 2,
+      por_destino: { dueno: 1, negocio: 2 },
+    });
+
+    // Marcar todas desde el panel no toca las de la app.
+    const otraSesion = await conectar(await tokenDe(usuario));
+    const aviso = siguiente(otraSesion, "notificaciones_leidas");
+    expect((await api(token).post("/notificaciones/leer-todas?destino=negocio")).body.data).toEqual({ actualizadas: 2 });
+    expect(await aviso).toEqual({ no_leidas: 1, por_destino: { dueno: 1, negocio: 0 } });
+    expect((await api(token).get("/notificaciones/no-leidas?destino=dueno")).body.data.total).toBe(1);
+
+    expect((await api(token).get("/notificaciones?destino=panel")).status).toBe(422);
+    expect((await api(token).post("/notificaciones/leer-todas?destino=x")).status).toBe(422);
+  });
+
+  it("el socket también trae el destino; un propietario que además es dueño recibe la del negocio", async () => {
+    const usuario = await crearUsuario();
+    const socket = await conectar(await tokenDe(usuario));
+    const esperada = siguiente(socket, "notificacion");
+    await conNotificaciones((conn, notificar) =>
+      notificar([
+        {
+          ...avisoPara(usuario),
+          destinatarios: [
+            { id_usuario: usuario.id_usuario, rol: "dueno" },
+            { id_usuario: usuario.id_usuario, rol: "propietario" },
+          ],
+        },
+      ])
+    );
+    expect(await esperada).toMatchObject({ tipo: "plan_limite_80", destino: "negocio" });
   });
 
   it("leer-todas marca las no leídas; una notificación ajena da 404; sin token 401", async () => {
@@ -188,5 +245,13 @@ describe("GET|PATCH /notificaciones", () => {
     expect((await api(token).patch(`/notificaciones/${id_notificacion}/leida`)).status).toBe(404);
     expect((await api().get("/notificaciones")).status).toBe(401);
     expect((await api(token).get("/notificaciones?leidas=quizas")).status).toBe(422);
+  });
+});
+
+describe("Swagger de las notificaciones", () => {
+  it("el enum de tipos es el catálogo completo", async () => {
+    const { TIPOS_NOTIFICACION } = await import("../../src/modules/notificaciones/notificacion.tipos.js");
+    const { default: swaggerSpec } = await import("../../src/docs/swagger.js");
+    expect([...swaggerSpec.components.schemas.Notificacion.properties.tipo.enum].sort()).toEqual([...TIPOS_NOTIFICACION].sort());
   });
 });

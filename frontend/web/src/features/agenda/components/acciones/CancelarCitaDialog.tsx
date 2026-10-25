@@ -39,7 +39,7 @@ export function CancelarCitaDialog({
   const enviar = () => {
     setIntentado(true);
     if (vacio) return;
-    cancelar.mutate({ idCita: cita.id_cita, motivo: motivo.trim() }, { onSuccess: onListo });
+    cancelar.mutate({ idCita: cita.id_cita, motivo: motivo.trim(), rechazar }, { onSuccess: onListo });
   };
 
   return (

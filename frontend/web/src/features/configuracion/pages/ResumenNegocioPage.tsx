@@ -4,17 +4,20 @@ import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { getEmpleados, type Empleado } from "@/api/empleados";
 import type { NegocioGestion } from "@/api/negocios";
-import type { Suscripcion, UsoLimite } from "@/api/types";
+import type { Suscripcion } from "@/api/types";
 import { Avatar } from "@/components/common/Avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { usePuede, useSuscripcion } from "@/features/negocios/hooks/useNegocio";
+import { useNegocioActivo, usePuede, useSuscripcion } from "@/features/negocios/hooks/useNegocio";
 import { TIPOS_NEGOCIO } from "@/features/negocios/textos";
+import { BarraUso } from "@/features/suscripcion/components/BarraUso";
 import { agruparDias, semanaDesdeApi } from "@/lib/horarios";
+import { puedeActivarPrueba } from "@/lib/permisos";
 import { queryKeys } from "@/lib/queryKeys";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/stores/auth";
 import { useConfiguracion } from "../contexto";
 
 /** E0 · Resumen del negocio: perfil, sedes con horario, plan, equipo y reglas de agenda. */
@@ -163,33 +166,11 @@ function Sedes({ negocio, puedeEditar }: { negocio: NegocioGestion; puedeEditar:
   );
 }
 
-function BarraUso({ etiqueta, uso }: { etiqueta: string; uso: UsoLimite }) {
-  const ilimitado = uso.maximo === -1;
-  const porcentaje = ilimitado ? 0 : Math.min(100, Math.round((uso.usadas / Math.max(uso.maximo, 1)) * 100));
-  const alto = !ilimitado && porcentaje >= 80;
-  return (
-    <div>
-      <div className="flex justify-between text-body">
-        <span className="text-muted">{etiqueta}</span>
-        <span className={cn("font-semibold", alto ? "text-warning-ink" : "text-ink")}>
-          {ilimitado ? `${uso.usadas} · ilimitado` : `${uso.usadas} de ${uso.maximo}`}
-        </span>
-      </div>
-      {!ilimitado && (
-        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-track">
-          <div
-            className={cn("h-full", alto ? "bg-warning" : "bg-primary")}
-            style={{ width: `${porcentaje}%` }}
-          />
-        </div>
-      )}
-    </div>
-  );
-}
-
 const ESTADO_SUSCRIPCION = { activa: "Activo", en_prueba: "En prueba", vencida: "Vencido" } as const;
 
 function PlanActual({ suscripcion }: { suscripcion: Suscripcion | undefined }) {
+  const usuario = useAuth((s) => s.usuario);
+  const negocio = useNegocioActivo();
   return (
     <Card className="p-5">
       <Encabezado titulo="Plan actual" enlace={{ a: "../../suscripcion", texto: "Ver planes" }} />
@@ -205,7 +186,7 @@ function PlanActual({ suscripcion }: { suscripcion: Suscripcion | undefined }) {
           </p>
           <BarraUso etiqueta="Citas este mes" uso={suscripcion.uso.citas_mes} />
           <BarraUso etiqueta="Empleados" uso={suscripcion.uso.empleados} />
-          {suscripcion.prueba_disponible && (
+          {suscripcion.prueba_disponible && puedeActivarPrueba(usuario, negocio) && (
             <Button asChild className="self-start">
               <Link to="../../suscripcion">Probar Pro 14 días</Link>
             </Button>

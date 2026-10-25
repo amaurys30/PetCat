@@ -114,7 +114,7 @@ const esDuenoDeLaCita = (req) => citaRepo.esDelUsuario(req.params.id_cita, req.u
  *             id_resena: { type: integer, nullable: true }
  *             retirada: { type: boolean, description: El dueño retiró su reseña; no puede reseñar otra vez }
  *             resenar_antes_de: { type: string, nullable: true, example: "2026-10-20 15:42:10", description: fecha_completada + 30 días }
- *             puede_resenar: { type: boolean, description: Sin reseña, dentro del plazo y sin ser personal del negocio }
+ *             puede_resenar: { type: boolean, description: "Sin reseña, dentro del plazo y sin ser personal del negocio" }
  *             puede_editar: { type: boolean }
  *         cancelacion:
  *           type: object
@@ -705,7 +705,7 @@ router.get(
  *                     properties:
  *                       fecha_cambio: { type: string }
  *                       campo: { type: string, enum: [estado, empleado, notas_internas, prioridad, precio_final] }
- *                       valor_anterior: { type: string, nullable: true, description: En empleado, su nombre }
+ *                       valor_anterior: { type: string, nullable: true, description: "En empleado, su nombre" }
  *                       valor_nuevo: { type: string, nullable: true }
  *                       motivo: { type: string, nullable: true }
  *                       realizado_por: { type: string, enum: [dueno, negocio, sistema] }

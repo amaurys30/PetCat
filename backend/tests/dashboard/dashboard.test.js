@@ -10,6 +10,7 @@ import {
   crearServicio,
   crearSucursal,
   crearUsuario,
+  crearVacuna,
   tokenDe,
 } from "../helpers/factories.js";
 
@@ -226,5 +227,56 @@ describe("dashboard avanzado", () => {
     expect(vencida.plan).toMatchObject({ nombre: "Gratuito", rango_maximo_dias: 92 });
     expect(vencida.prueba_disponible).toBe(false); // la prueba se usa una sola vez
     expect(vencida.avanzadas.tendencia.bloqueado).toBe(true);
+  });
+});
+
+describe("vacunas vencidas en los últimos 30 días", () => {
+  it("cuenta mascotas activas y vivas de clientes del negocio, sin dosis reemplazadas ni otros negocios", async () => {
+    const negocio = await crearNegocio();
+    const panel = api(await tokenDe(negocio.propietario));
+    const url = `/negocios/${negocio.id_negocio}/dashboard`;
+    const servicio = await crearServicio(negocio);
+    const vencida = (mascota, dias, extra = {}) => crearVacuna(mascota, { fecha_proxima: dia(dias), estado: "vencido", ...extra });
+
+    // Cliente con cita: dos vacunas vencidas en la misma mascota cuentan una vez.
+    const conCita = await crearUsuario();
+    const max = await crearMascota(conCita);
+    await crearCita(negocio, { cliente: conCita, mascota: max, servicio, fecha: dia(-60), estado: "completada" });
+    await vencida(max, -1);
+    await vencida(max, -30, { nombre_vacuna: "Parvovirus" });
+    // Otra mascota del mismo cliente, sin citas con el negocio: cuenta (relación de la lista de clientes).
+    await vencida(await crearMascota(conCita), -10);
+    // Fuera de la ventana: hace 31 días, hoy (vence hoy) y una dosis reemplazada.
+    const luna = await crearMascota(conCita);
+    await vencida(luna, -31);
+    await crearVacuna(luna, { fecha_proxima: dia(0), estado: "proximo" });
+    await vencida(luna, -5, { estado: "no_aplica" });
+    // Mascotas fallecidas o eliminadas no cuentan.
+    await vencida(await crearMascota(conCita, { fallecido: true }), -3);
+    await vencida(await crearMascota(conCita, { activo: false }), -3);
+
+    // Cliente registrado desde el panel (autorización del negocio), sin citas: cuenta.
+    const registrado = await crearUsuario();
+    await pool.query(
+      "INSERT INTO autorizaciones_datos (id_usuario, canal, id_negocio, id_usuario_registro, version_politica) VALUES (?, 'panel', ?, ?, '1.0')",
+      [registrado.id_usuario, negocio.id_negocio, negocio.propietario.id_usuario]
+    );
+    await vencida(await crearMascota(registrado), -20);
+
+    // Cliente de otro negocio: no cuenta.
+    const otro = await crearNegocio();
+    const ajeno = await crearUsuario();
+    const rocky = await crearMascota(ajeno);
+    await crearCita(otro, { cliente: ajeno, mascota: rocky, servicio: await crearServicio(otro), fecha: dia(-2) });
+    await vencida(rocky, -2);
+
+    const res = await panel.get(url);
+    expect(res.status).toBe(200);
+    expect(res.body.data.vacunas_vencidas).toEqual({ mascotas: 3, dias: 30, desde: dia(-30), hasta: dia(-1) });
+
+    // No depende del rango ni de la sede del dashboard.
+    const sede = await crearSucursal(negocio);
+    const filtrado = await panel.get(`${url}?desde=${dia(-7)}&hasta=${dia(0)}&id_sucursal=${sede.id_sucursal}`);
+    expect(filtrado.body.data.vacunas_vencidas.mascotas).toBe(3);
   });
 });

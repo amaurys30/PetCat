@@ -108,7 +108,7 @@ const router = express.Router();
  *               nombre: { type: string }
  *               completadas: { type: integer }
  *               ingresos: { type: number }
- *         clientes_nuevos: { type: integer, description: Primera cita o registro desde el panel en el periodo (todo el negocio, sin filtro de sucursal) }
+ *         clientes_nuevos: { type: integer, description: "Primera cita o registro desde el panel en el periodo (todo el negocio, sin filtro de sucursal)" }
  *         calificacion:
  *           type: object
  *           properties:
@@ -116,7 +116,19 @@ const router = express.Router();
  *             total_resenas: { type: integer }
  *             resenas_periodo: { type: integer }
  *             promedio_periodo: { type: number, nullable: true }
- *             sin_responder: { type: integer, description: Reseñas visibles sin respuesta (todas, no solo del periodo) }
+ *             sin_responder: { type: integer, description: "Reseñas visibles sin respuesta (todas, no solo del periodo)" }
+ *         vacunas_vencidas:
+ *           type: object
+ *           description: >
+ *             Mascotas activas y vivas de clientes del negocio (alguna cita o una autorización registrada
+ *             por él) con una dosis cuya próxima aplicación venció en los últimos 30 días (de `desde` a
+ *             `hasta`, ayer). No cuenta las dosis reemplazadas por una más reciente. No depende del rango ni
+ *             de la sucursal del dashboard.
+ *           properties:
+ *             mascotas: { type: integer, example: 5 }
+ *             dias: { type: integer, example: 30 }
+ *             desde: { type: string, format: date }
+ *             hasta: { type: string, format: date }
  *         citas_perdidas_por_no_confirmar:
  *           type: object
  *           description: Canceladas por el sistema porque nadie las confirmó a tiempo. Nunca cuentan contra los clientes.
@@ -158,7 +170,15 @@ const router = express.Router();
  *                     periodo_anterior: { type: object, properties: { desde: { type: string, format: date }, hasta: { type: string, format: date } } }
  *                     actual: { $ref: '#/components/schemas/MetricasComparables' }
  *                     anterior: { $ref: '#/components/schemas/MetricasComparables' }
- *                     variacion_pct: { type: object, description: "Por métrica; null si el periodo anterior es 0" }
+ *                     variacion_pct:
+ *                       type: object
+ *                       description: "Variación porcentual por métrica; null si el periodo anterior es 0 (o la tasa es null)"
+ *                       properties:
+ *                         citas: { type: number, nullable: true, example: 18.5 }
+ *                         completadas: { type: number, nullable: true }
+ *                         ingresos: { type: number, nullable: true }
+ *                         clientes_nuevos: { type: number, nullable: true }
+ *                         tasa_inasistencia: { type: number, nullable: true }
  *             por_empleado:
  *               oneOf:
  *                 - $ref: '#/components/schemas/SeccionBloqueada'

@@ -73,17 +73,24 @@ const formatDelAutor = (row, dias, ahora = new Date()) => {
   };
 };
 
+/** Retirar pone visible = FALSE: la retirada se mira primero y "oculta" es solo la moderación. */
+const estadoPanel = (row) => (row.retirada_en ? "retirada" : row.visible ? "publicada" : "oculta");
+
 /**
- * Vista del panel: cliente, cita y reporte. `cliente_registrado_por_negocio` solo para el
- * super admin (señal para la moderación de la Fase 4), nunca para el negocio.
+ * Vista del panel: cliente (con el autor como se muestra en público), cita, estado y reporte.
+ * `cliente_registrado_por_negocio` no sale nunca del panel, tampoco para el super admin:
+ * es una señal de moderación y vivirá en su endpoint de la Fase 4.
  */
-const formatPanel = (row, acceso) => ({
+const formatPanel = (row) => ({
   ...formatBase(row),
+  autor: autorPublico(row.autor_nombre, row.autor_apellido),
   cliente: { id_usuario: row.id_usuario, nombre: row.autor_nombre, apellido: row.autor_apellido },
   cita: row.id_cita
     ? { id_cita: row.id_cita, fecha: row.cita_fecha, servicio: row.id_servicio ? { id_servicio: row.id_servicio, nombre: row.servicio_nombre } : null }
     : null,
   visible: Boolean(row.visible),
+  estado: estadoPanel(row),
+  retirada_en: row.retirada_en,
   reporte: row.reportada
     ? {
         motivo: row.motivo_reporte,
@@ -94,7 +101,6 @@ const formatPanel = (row, acceso) => ({
           : null,
       }
     : null,
-  ...(acceso?.relacion === "admin" && { cliente_registrado_por_negocio: Boolean(row.cliente_registrado_por_negocio) }),
 });
 
 /** Aspectos del body -> columnas (lo que no viene queda NULL). */
@@ -207,11 +213,11 @@ export const getMisResenas = async (id_usuario, { page, limit }) => {
 // ---------- Público ----------
 
 /** Reseñas visibles de un negocio activo, con la distribución de calificaciones. */
-export const getResenasPublicas = async (id_negocio, { page, limit, orden, calificacion }) => {
+export const getResenasPublicas = async (id_negocio, { page, limit, orden, calificacion, calificacion_max }) => {
   const negocio = await negocioRepo.findPublicoById(id_negocio);
   if (!negocio) throw ApiError.notFound("Negocio no encontrado");
   const [{ rows, total }, distribucion] = await Promise.all([
-    resenaRepo.findPublicas(id_negocio, { orden, calificacion, limit, offset: (page - 1) * limit }),
+    resenaRepo.findPublicas(id_negocio, { orden, calificacion, calificacion_max, limit, offset: (page - 1) * limit }),
     resenaRepo.findDistribucion(id_negocio),
   ]);
   return {
@@ -235,16 +241,36 @@ export const getRecientesPublicas = async (id_negocio, limit = 5) => {
 
 // ---------- Panel ----------
 
-export const getResenasGestion = async (id_negocio, acceso, { page, limit, ...filtros }) => {
-  const { rows, total } = await resenaRepo.findGestion(id_negocio, { ...filtros, limit, offset: (page - 1) * limit });
-  return { rows: rows.map((row) => formatPanel(row, acceso)), meta: buildMeta(total, page, limit) };
+/**
+ * Reseñas del panel con `meta.resumen`: calificación y distribución (de las visibles, como lo
+ * público) y los conteos para los filtros. El resumen no depende de los filtros.
+ */
+export const getResenasGestion = async (id_negocio, { page, limit, ...filtros }) => {
+  const [{ rows, total }, negocio, distribucion, conteos] = await Promise.all([
+    resenaRepo.findGestion(id_negocio, { ...filtros, limit, offset: (page - 1) * limit }),
+    negocioRepo.findById(id_negocio),
+    resenaRepo.findDistribucion(id_negocio),
+    resenaRepo.findConteosGestion(id_negocio),
+  ]);
+  return {
+    rows: rows.map(formatPanel),
+    meta: {
+      ...buildMeta(total, page, limit),
+      resumen: {
+        calificacion_promedio: Number(negocio.calificacion_promedio),
+        total_resenas: negocio.total_resenas,
+        distribucion,
+        ...conteos,
+      },
+    },
+  };
 };
 
 /**
  * Crea o reemplaza la respuesta del negocio (authorize ya comprobó resenas.responder y que
  * la reseña no está retirada). El dueño recibe `resena_respondida` solo con la primera.
  */
-export const responderResena = async (id_resena, { respuesta }, actor, acceso) => {
+export const responderResena = async (id_resena, { respuesta }, actor) => {
   await conNotificaciones(async (conn, notificar) => {
     const resena = await resenaRepo.lockResena(id_resena, conn);
     if (!resena || resena.retirada_en) throw noEncontrada();
@@ -256,26 +282,26 @@ export const responderResena = async (id_resena, { respuesta }, actor, acceso) =
       ]);
     }
   });
-  return formatPanel(await resenaRepo.findById(id_resena), acceso);
+  return formatPanel(await resenaRepo.findById(id_resena));
 };
 
-export const borrarRespuesta = async (id_resena, acceso) => {
+export const borrarRespuesta = async (id_resena) => {
   await withTransaction(async (conn) => {
     const resena = await resenaRepo.lockResena(id_resena, conn);
     if (!resena || resena.retirada_en) throw noEncontrada();
     if (!resena.respuesta_negocio) throw ApiError.conflict("La reseña no tiene respuesta");
     await resenaRepo.borrarRespuesta(id_resena, conn);
   });
-  return formatPanel(await resenaRepo.findById(id_resena), acceso);
+  return formatPanel(await resenaRepo.findById(id_resena));
 };
 
 /** Reporte para la moderación: una vez por reseña; la reseña sigue visible y cuenta en el promedio. */
-export const reportarResena = async (id_resena, { motivo, detalle }, actor, acceso) => {
+export const reportarResena = async (id_resena, { motivo, detalle }, actor) => {
   await withTransaction(async (conn) => {
     const resena = await resenaRepo.lockResena(id_resena, conn);
     if (!resena || resena.retirada_en) throw noEncontrada();
     if (resena.reportada) throw ApiError.conflict("Esta reseña ya fue reportada: PetCat la revisará");
     await resenaRepo.reportar(id_resena, { motivo, detalle: detalle ?? null, id_usuario: actor.id_usuario }, conn);
   });
-  return formatPanel(await resenaRepo.findById(id_resena), acceso);
+  return formatPanel(await resenaRepo.findById(id_resena));
 };

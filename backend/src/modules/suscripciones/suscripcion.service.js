@@ -1,6 +1,8 @@
 import * as suscripcionRepo from "./suscripcion.repository.js";
 import * as negocioRepo from "../negocios/negocio.repository.js";
 import * as configuracionRepo from "../configuracion/configuracion.repository.js";
+import * as auditoriaRepo from "../auditoria/auditoria.repository.js";
+import { configSoporte } from "../notificaciones/notificacion.service.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
 import { diasEntre, hoyISO } from "../../shared/utils/fechas.js";
 import { toBool, toNumber } from "../../shared/utils/format.js";
@@ -142,17 +144,21 @@ const usoDe = (usadas, maximo) => ({ usadas, maximo });
 
 export const getPlanes = async () => (await suscripcionRepo.findPlanesActivos()).map(formatPlan);
 
-/** Plan efectivo, suscripción vigente, si puede activar la prueba y uso de cada límite. */
+/** Contacto de soporte para contratar un plan mientras no hay pagos en línea (vacío = null). */
+const soporteDe = ({ email, whatsapp }) => ({ email: email || null, whatsapp: whatsapp || null });
+
+/** Plan efectivo, suscripción vigente, si puede activar la prueba, uso de cada límite y contacto de soporte. */
 export const getSuscripcion = async (id_negocio) => {
   const filas = await suscripcionRepo.findByNegocio(id_negocio);
   const resuelto = resolverPlan(filas, await planesPorId());
   const { plan } = resuelto;
   const hoy = hoyISO();
-  const [sucursales, empleados, citas, productos] = await Promise.all([
+  const [sucursales, empleados, citas, productos, soporte] = await Promise.all([
     suscripcionRepo.countSucursalesActivas(id_negocio),
     suscripcionRepo.countEmpleadosActivos(id_negocio),
     suscripcionRepo.countCitasMes(id_negocio, hoy),
     suscripcionRepo.countProductosActivos(id_negocio),
+    configSoporte(),
   ]);
   return {
     plan: formatPlan(plan),
@@ -164,6 +170,7 @@ export const getSuscripcion = async (id_negocio) => {
       citas_mes: { mes: hoy.slice(0, 7), ...usoDe(citas, plan.max_citas_mes) },
       productos: usoDe(productos, plan.max_productos),
     },
+    soporte: soporteDe(soporte),
   };
 };
 
@@ -178,7 +185,7 @@ export const puedeProbar = (suscripciones, plan) => plan.nombre === PLAN_POR_DEF
  * Gratuito. Solo el propietario (y el admin de plataforma). Cierra la suscripción
  * vigente e inserta la de prueba, con las suscripciones del negocio bloqueadas.
  */
-export const iniciarPrueba = async (id_negocio, acceso) => {
+export const iniciarPrueba = async (id_negocio, acceso, id_usuario) => {
   if (acceso.relacion !== "propietario" && acceso.relacion !== "admin") {
     throw ApiError.forbidden("Solo el propietario del negocio puede activar la prueba del plan Pro");
   }
@@ -194,17 +201,33 @@ export const iniciarPrueba = async (id_negocio, acceso) => {
     const pro = await suscripcionRepo.findPlanByNombre("Pro", conn);
     if (!pro?.activo) throw ApiError.internal("No existe el plan Pro");
     if (resuelto.suscripcion) await suscripcionRepo.cerrar(resuelto.suscripcion, resuelto.vencida, conn);
-    await suscripcionRepo.createPrueba(id_negocio, pro.id_plan, dias, conn);
+    await suscripcionRepo.createPrueba(id_negocio, pro.id_plan, dias, id_usuario, conn);
   });
   return getSuscripcion(id_negocio);
 };
 
+/** Lo que guarda la auditoría de una suscripción (sin columnas internas). */
+const resumenAuditoria = (s) =>
+  s && {
+    id_suscripcion: s.id_suscripcion,
+    id_plan: s.id_plan,
+    estado: s.estado,
+    tipo_facturacion: s.tipo_facturacion,
+    fecha_inicio: s.fecha_inicio,
+    fecha_fin: s.fecha_fin,
+    fecha_prueba_fin: s.fecha_prueba_fin,
+    monto_pagado: toNumber(s.monto_pagado),
+    notas: s.notas,
+  };
+
 /**
  * Asignación manual del admin de plataforma (sin pasarela hasta la Fase 3): cierra la
  * vigente e inserta una `activa` desde hoy. Sin `fecha_fin`, un mes o un año según la
- * facturación; el Gratuito no vence.
+ * facturación; el Gratuito no vence. La fila nueva guarda qué admin la creó y la operación
+ * queda en `auditoria_global` (antes y después, IP y navegador), en la misma transacción.
+ * @param {{ id_usuario: number, ip?: string, user_agent?: string }} actor
  */
-export const asignarPlan = async (id_negocio, data) => {
+export const asignarPlan = async (id_negocio, data, actor) => {
   if (!(await negocioRepo.findById(id_negocio))) throw ApiError.notFound("Negocio no encontrado");
   const plan = await suscripcionRepo.findPlanById(data.id_plan);
   if (!plan?.activo) throw ApiError.unprocessable("Datos inválidos", { id_plan: "El plan no existe" });
@@ -216,7 +239,25 @@ export const asignarPlan = async (id_negocio, data) => {
     const suscripciones = await suscripcionRepo.lockByNegocio(id_negocio, conn);
     const resuelto = await getPlanEfectivo(id_negocio, { conn, suscripciones });
     if (resuelto.suscripcion) await suscripcionRepo.cerrar(resuelto.suscripcion, resuelto.vencida, conn);
-    await suscripcionRepo.createAsignada(id_negocio, { ...data, plan }, conn);
+    const id = await suscripcionRepo.createAsignada(
+      id_negocio,
+      { ...data, plan, id_usuario_registro: actor.id_usuario },
+      conn
+    );
+    const nueva = (await suscripcionRepo.lockByNegocio(id_negocio, conn)).find((s) => s.id_suscripcion === id);
+    await auditoriaRepo.registrar(
+      {
+        id_usuario: actor.id_usuario,
+        tabla: "suscripciones",
+        operacion: "INSERT",
+        registro_id: id,
+        antes: resumenAuditoria(resuelto.suscripcion),
+        despues: { id_negocio, plan: plan.nombre, ...resumenAuditoria(nueva) },
+        ip: actor.ip,
+        user_agent: actor.user_agent,
+      },
+      conn
+    );
   });
   return getSuscripcion(id_negocio);
 };

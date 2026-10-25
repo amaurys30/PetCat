@@ -27,22 +27,22 @@ export const getResenasPublicas = async (req, res) => {
 };
 
 export const getResenasGestion = async (req, res) => {
-  const { rows, meta } = await service.getResenasGestion(req.negocio.id_negocio, req.acceso, req.query);
+  const { rows, meta } = await service.getResenasGestion(req.negocio.id_negocio, req.query);
   return paginated(res, rows, meta);
 };
 
 export const responderResena = async (req, res) => {
-  return ok(res, await service.responderResena(req.params.id_resena, req.body, usuarioDe(req), req.acceso), "Respuesta publicada");
+  return ok(res, await service.responderResena(req.params.id_resena, req.body, usuarioDe(req)), "Respuesta publicada");
 };
 
 export const borrarRespuesta = async (req, res) => {
-  return ok(res, await service.borrarRespuesta(req.params.id_resena, req.acceso), "Respuesta eliminada");
+  return ok(res, await service.borrarRespuesta(req.params.id_resena), "Respuesta eliminada");
 };
 
 export const reportarResena = async (req, res) => {
   return ok(
     res,
-    await service.reportarResena(req.params.id_resena, req.body, usuarioDe(req), req.acceso),
+    await service.reportarResena(req.params.id_resena, req.body, usuarioDe(req)),
     "Reseña reportada: PetCat la revisará"
   );
 };

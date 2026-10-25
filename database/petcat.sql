@@ -346,6 +346,8 @@ CREATE TABLE suscripciones (
     monto_pagado     DECIMAL(12,2)   NOT NULL DEFAULT 0.00,
     descuento_pct    DECIMAL(5,2)    NOT NULL DEFAULT 0.00,
     notas            VARCHAR(300)    NULL,
+    -- Migración 025: el admin que asignó el plan o el propietario que activó la prueba.
+    id_usuario_registro INT UNSIGNED NULL COMMENT 'Quién la creó: el admin que asignó el plan o el propietario que activó la prueba',
     fecha_creacion   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
     fecha_actualizacion DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id_suscripcion),
@@ -358,7 +360,10 @@ CREATE TABLE suscripciones (
         ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT fk_suscripciones_plan
         FOREIGN KEY (id_plan) REFERENCES planes_suscripcion (id_plan)
-        ON DELETE RESTRICT ON UPDATE CASCADE
+        ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_suscripciones_usuario_registro
+        FOREIGN KEY (id_usuario_registro) REFERENCES usuarios (id_usuario)
+        ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Suscripciones activas de negocios a los planes de PetCat';
 
@@ -1072,6 +1077,8 @@ CREATE TABLE notificaciones (
     id_notificacion  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     id_usuario       INT UNSIGNED    NOT NULL,
     id_negocio       INT UNSIGNED    NULL,
+    -- Migración 024: la app muestra las del dueño y el panel las del negocio.
+    destino          ENUM('dueno','negocio') NOT NULL COMMENT 'dueno = app del dueño de la mascota; negocio = panel',
     tipo             VARCHAR(60)     NOT NULL COMMENT 'Ej: nueva_cita, pago_aprobado, stock_bajo',
     titulo           VARCHAR(200)    NOT NULL,
     mensaje          TEXT            NOT NULL,
@@ -1088,6 +1095,8 @@ CREATE TABLE notificaciones (
     INDEX idx_notif_fecha (fecha_creacion),
     -- Migración 013: listar las de un usuario y contar las no leídas.
     INDEX idx_notif_usuario_estado (id_usuario, estado, fecha_creacion),
+    -- Migración 024: listar y contar las no leídas de un destino (la campana del panel).
+    INDEX idx_notif_usuario_destino (id_usuario, destino, estado, fecha_creacion),
     CONSTRAINT fk_notif_usuario
         FOREIGN KEY (id_usuario) REFERENCES usuarios (id_usuario)
         ON DELETE CASCADE ON UPDATE CASCADE,
@@ -1880,7 +1889,9 @@ INSERT INTO schema_migrations (nombre) VALUES
 ('020_autorizaciones_panel_web.sql'),
 ('021_clientes_sin_cuenta.sql'),
 ('022_historial_control_y_ediciones.sql'),
-('023_vacunas_ediciones.sql');
+('023_vacunas_ediciones.sql'),
+('024_notificaciones_destino.sql'),
+('025_suscripciones_usuario_registro.sql');
 
 
 SET FOREIGN_KEY_CHECKS = 1;

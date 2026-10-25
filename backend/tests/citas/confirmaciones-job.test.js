@@ -140,6 +140,7 @@ describe("cancelación automática", () => {
       tipo: "cita_no_confirmada",
       id_cita: cita.id_cita,
       id_negocio: ctx.negocio.id_negocio,
+      fecha: cita.fecha,
       id_sucursal: ctx.sucursal.id_sucursal,
       id_servicio: ctx.servicio.id_servicio,
       id_mascota: ctx.mascota.id_mascota,

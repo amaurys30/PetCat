@@ -38,7 +38,8 @@ export const eventoCita = async (tipo, id_cita, { para, actor, extra = {}, enlac
     tipo,
     id_negocio: row.id_negocio,
     datos: { ...datosDeCita(row), ...extra },
-    enlace: { id_cita, id_negocio: row.id_negocio, ...enlace },
+    // La fecha deja abrir la cita en su semana de la agenda (panel) sin pedirla antes.
+    enlace: { id_cita, id_negocio: row.id_negocio, fecha: row.fecha, ...enlace },
     destinatarios:
       para === "dueno"
         ? [{ id_usuario: row.id_usuario, rol: "dueno" }]

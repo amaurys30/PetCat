@@ -28,11 +28,8 @@ export function useEstadoServicio(rutaEdicion: (s: Servicio) => string) {
   const mostrarCitasAfectadas = useUi((s) => s.mostrarCitasAfectadas);
 
   const confirmarDesactivar = (s: Servicio) =>
-    desactivar.mutate(s.id_servicio, {
-      onSuccess: () => {
-        setDesactivando(null);
-        aviso.exito(`«${s.nombre}» quedó inactivo. Ya no aparece en la app ni en la agenda.`);
-      },
+    desactivar.mutate(s, {
+      onSuccess: () => setDesactivando(null),
       onError: (e) => {
         const error = toApiError(e);
         const citas = citasDelConflicto(error.data);
@@ -53,7 +50,6 @@ export function useEstadoServicio(rutaEdicion: (s: Servicio) => string) {
 
   const pedirReactivar = (s: Servicio) =>
     reactivar.mutate(s.id_servicio, {
-      onSuccess: () => aviso.exito(`«${s.nombre}» está activo de nuevo`),
       onError: (e) => {
         const error = toApiError(e);
         if (error.status === 409 && error.errors.nombre) setNombreOcupado(s);

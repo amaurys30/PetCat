@@ -104,7 +104,7 @@ const router = express.Router();
  *         precio_base: { type: number }
  *         precio_maximo: { type: number, nullable: true }
  *         tipo_precio: { type: string }
- *         precio_actual: { type: number, description: Precio de oferta si está vigente hoy; si no, precio_base }
+ *         precio_actual: { type: number, description: "Precio de oferta si está vigente hoy; si no, precio_base" }
  *         oferta_vigente: { type: boolean }
  *         duracion_minutos: { type: integer }
  *         margen_minutos: { type: integer }

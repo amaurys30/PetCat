@@ -39,7 +39,7 @@ const router = express.Router();
  *         titulo_profesional: { type: string, maxLength: 150, nullable: true }
  *         registro_profesional: { type: string, maxLength: 60, nullable: true }
  *         notas: { type: string, maxLength: 2000, nullable: true }
- *         fecha_vinculacion: { type: string, format: date, example: "2026-09-01", description: Por defecto, hoy }
+ *         fecha_vinculacion: { type: string, format: date, example: "2026-09-01", description: "Por defecto, hoy" }
  *         servicios:
  *           type: array
  *           maxItems: 200
@@ -84,7 +84,7 @@ const router = express.Router();
  *           properties:
  *             expiracion: { type: string, nullable: true, example: "2026-09-28 10:00:00", description: Vencimiento de la invitación vigente (null si no tiene) }
  *             envios_restantes_24h: { type: integer, example: 3, description: Correos que aún se pueden enviar a su email en 24 horas (máximo 4) }
- *             libre_desde: { type: string, nullable: true, example: "2026-09-26 10:00", description: Solo si no quedan envíos, desde cuándo se puede volver a enviar }
+ *             libre_desde: { type: string, nullable: true, example: "2026-09-26 10:00", description: "Solo si no quedan envíos, desde cuándo se puede volver a enviar" }
  *         rol:
  *           type: object
  *           properties:

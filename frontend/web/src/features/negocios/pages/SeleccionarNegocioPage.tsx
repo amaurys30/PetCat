@@ -1,4 +1,4 @@
-import { ArrowRight, Plus } from "lucide-react";
+import { ArrowRight, Plus, ShieldCheck } from "lucide-react";
 import { Link } from "react-router";
 import { AuthCard, AuthTitulo } from "@/app/layouts/AuthLayout";
 import { Avatar } from "@/components/common/Avatar";
@@ -28,6 +28,23 @@ export function SeleccionarNegocioPage() {
         }
       />
       <ul className="flex flex-col gap-3">
+        {usuario.tipo_usuario === "admin" && (
+          <li>
+            <Link
+              to="/admin"
+              className="flex items-center gap-3 rounded-card border p-3.5 transition-colors hover:border-primary hover:bg-selected"
+            >
+              <span className="flex size-12 items-center justify-center rounded-full bg-primary-soft text-primary-dark">
+                <ShieldCheck className="size-6" aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-card font-semibold text-ink">Administración PetCat</span>
+                <span className="block text-body text-muted">Super admin · negocios y planes</span>
+              </span>
+              <ArrowRight className="size-4 text-muted" aria-hidden />
+            </Link>
+          </li>
+        )}
         {negocios.map((n) => {
           // Al propietario con el negocio a medias, la tarjeta lo lleva a retomar el asistente.
           const aMedias = n.relacion === "propietario" && n.configuracion_pendiente !== null;
