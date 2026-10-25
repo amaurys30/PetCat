@@ -1,4 +1,4 @@
-import { Bell, LayoutGrid, LogOut, UserRound } from "lucide-react";
+import { LayoutGrid, LogOut, UserRound } from "lucide-react";
 import { Link, useMatches } from "react-router";
 import { Avatar } from "@/components/common/Avatar";
 import {
@@ -9,8 +9,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Tooltip } from "@/components/ui/tooltip";
 import { useNegocioActivo } from "@/features/negocios/hooks/useNegocio";
+import { Campana } from "@/features/notificaciones/components/Campana";
 import { fechaLargaTitulo, hoyISO } from "@/lib/format";
 import { useAuth } from "@/stores/auth";
 import { BuscadorClientes } from "./BuscadorClientes";
@@ -35,18 +35,7 @@ export function Topbar() {
         </p>
       </div>
       <BuscadorClientes />
-      <Tooltip texto="Las notificaciones llegan en P6">
-        <span>
-          <button
-            type="button"
-            disabled
-            aria-label="Notificaciones"
-            className="flex size-9 items-center justify-center rounded-control text-muted disabled:opacity-60"
-          >
-            <Bell className="size-5" />
-          </button>
-        </span>
-      </Tooltip>
+      <Campana />
       <MenuUsuario />
     </header>
   );

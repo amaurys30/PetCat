@@ -10,6 +10,7 @@ import { AccionesCita } from "@/features/agenda/components/acciones/AccionesCita
 import { RegistroMedicoHost } from "@/features/salud/components/RegistroMedicoDialog";
 import { VacunaHost } from "@/features/salud/components/VacunaDialog";
 import { TiempoRealAgenda } from "@/features/agenda/components/TiempoRealAgenda";
+import { TiempoRealNotificaciones } from "@/features/notificaciones/components/TiempoRealNotificaciones";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
@@ -59,6 +60,7 @@ export function PanelLayout() {
         <RegistroMedicoHost />
         <VacunaHost />
         <TiempoRealAgenda />
+        <TiempoRealNotificaciones />
       </div>
     </div>
   );

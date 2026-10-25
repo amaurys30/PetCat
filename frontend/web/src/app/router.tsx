@@ -12,6 +12,7 @@ import { DisponibilidadPage } from "@/features/equipo/pages/DisponibilidadPage";
 import { MiembrosPage } from "@/features/equipo/pages/MiembrosPage";
 import { RolesPage } from "@/features/equipo/pages/RolesPage";
 import { MiPerfilPage } from "@/features/perfil/pages/MiPerfilPage";
+import { NotificacionesPage } from "@/features/notificaciones/pages/NotificacionesPage";
 import { ResenasPage } from "@/features/resenas/pages/ResenasPage";
 import { ServicioFormPage } from "@/features/servicios/pages/ServicioFormPage";
 import { ServiciosPage } from "@/features/servicios/pages/ServiciosPage";
@@ -149,6 +150,11 @@ export const rutas: RouteObject[] = [
                     handle: { titulo: "Ficha de la mascota" } satisfies HandleRuta,
                   },
                 ],
+              },
+              {
+                path: "notificaciones",
+                element: <NotificacionesPage />,
+                handle: { titulo: "Notificaciones" } satisfies HandleRuta,
               },
               {
                 path: "resenas",
