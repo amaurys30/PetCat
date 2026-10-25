@@ -5983,6 +5983,8 @@ export interface paths {
                     orden?: "recientes" | "mejores" | "peores";
                     /** @description Solo las de esa calificación */
                     calificacion?: number;
+                    /** @description De 1 hasta esa calificación; no va junto con calificacion */
+                    calificacion_max?: number;
                 };
                 header?: never;
                 path: {
@@ -6010,16 +6012,7 @@ export interface paths {
                                     calificacion_promedio: number;
                                     /** @example 12 */
                                     total_resenas: number;
-                                    /**
-                                     * @example {
-                                     *       "1": 0,
-                                     *       "2": 1,
-                                     *       "3": 1,
-                                     *       "4": 3,
-                                     *       "5": 7
-                                     *     }
-                                     */
-                                    distribucion: Record<string, never>;
+                                    distribucion: components["schemas"]["DistribucionResenas"];
                                 };
                             };
                         };
@@ -6046,7 +6039,7 @@ export interface paths {
         };
         /**
          * Reseñas del negocio (panel)
-         * @description Requiere `resenas.ver`. Incluye las ocultas por la moderación (`visible: false`) y el reporte; no las que retiró su autor. Con el nombre completo del cliente y la cita.
+         * @description Requiere `resenas.ver`. Incluye las publicadas, las ocultas por la moderación y las que retiró su autor (`estado`), con el reporte, el nombre completo del cliente, el autor como se ve en público y la cita. `meta.resumen` trae la calificación, la distribución (de las visibles) y los conteos para los filtros; no depende de los filtros. Nunca incluye `cliente_registrado_por_negocio`, tampoco para el super admin: es un dato de moderación.
          */
         get: {
             parameters: {
@@ -6055,9 +6048,15 @@ export interface paths {
                     limit?: components["parameters"]["limit"];
                     orden?: "recientes" | "mejores" | "peores";
                     calificacion?: number;
+                    /** @description De 1 hasta esa calificación (2 = 1 y 2 estrellas); no va junto con calificacion */
+                    calificacion_max?: number;
+                    estado?: "publicada" | "oculta" | "retirada";
+                    /** @description true: publicadas sin respuesta */
                     sin_responder?: boolean;
                     reportada?: boolean;
                     visible?: boolean;
+                    /** @description Solo esa reseña (el enlace de la notificación resena_nueva) */
+                    id_resena?: number;
                 };
                 header?: never;
                 path: {
@@ -6079,7 +6078,23 @@ export interface paths {
                             /** @example OK */
                             message: string;
                             data: components["schemas"]["ResenaPanel"][];
-                            meta: components["schemas"]["PaginationMeta"];
+                            meta: components["schemas"]["PaginationMeta"] & {
+                                resumen: {
+                                    /** @example 4.7 */
+                                    calificacion_promedio: number;
+                                    /** @example 38 */
+                                    total_resenas: number;
+                                    distribucion: components["schemas"]["DistribucionResenas"];
+                                    /** @description Publicadas sin respuesta */
+                                    sin_responder: number;
+                                    /** @description Reportadas por el negocio (sin las retiradas) */
+                                    reportadas: number;
+                                    /** @description Ocultas por la moderación de PetCat */
+                                    ocultas: number;
+                                    /** @description Retiradas por su autor */
+                                    retiradas: number;
+                                };
+                            };
                         };
                     };
                 };
@@ -9166,7 +9181,25 @@ export interface components {
             editar_antes_de: string | null;
             puede_editar: boolean;
         };
+        /** @description Cuántas reseñas visibles hay de cada calificación */
+        DistribucionResenas: {
+            /** @example 0 */
+            1: number;
+            /** @example 1 */
+            2: number;
+            /** @example 1 */
+            3: number;
+            /** @example 3 */
+            4: number;
+            /** @example 7 */
+            5: number;
+        };
         ResenaPanel: components["schemas"]["ResenaBase"] & {
+            /**
+             * @description Como se muestra en la app y en el perfil público (nombre e inicial del apellido)
+             * @example Sofía G.
+             */
+            autor: string;
             cliente: {
                 id_usuario: number;
                 nombre: string;
@@ -9181,8 +9214,18 @@ export interface components {
                     nombre: string;
                 } | null;
             } | null;
-            /** @description false si la ocultó la moderación de PetCat */
+            /** @description false si la ocultó la moderación de PetCat o si la retiró su autor (ver estado) */
             visible: boolean;
+            /**
+             * @description publicada; oculta por la moderación de PetCat; retirada por su autor (retirada_en)
+             * @enum {string}
+             */
+            estado: "publicada" | "oculta" | "retirada";
+            /**
+             * @description Cuándo la retiró su autor
+             * @example 2026-10-02 18:40:00
+             */
+            retirada_en: string | null;
             reporte: {
                 /** @enum {string} */
                 motivo: "lenguaje_ofensivo" | "datos_personales" | "no_relacionada" | "spam" | "otro";
@@ -9194,8 +9237,6 @@ export interface components {
                     apellido: string;
                 } | null;
             } | null;
-            /** @description Solo para el super admin (moderación). El cliente fue registrado desde el panel de este negocio. */
-            cliente_registrado_por_negocio?: boolean;
         };
         /**
          * @description `{ modulo: [acciones] }`. Solo módulos y acciones del catálogo (GET /permisos).
