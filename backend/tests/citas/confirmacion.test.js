@@ -155,7 +155,7 @@ describe("confirmación automática al reservar", () => {
     ...extra,
   });
   const notificacionesDe = async (usuario) => {
-    const [rows] = await pool.query("SELECT tipo, titulo, mensaje FROM notificaciones WHERE id_usuario = ? ORDER BY id_notificacion", [usuario.id_usuario]);
+    const [rows] = await pool.query("SELECT tipo, titulo, mensaje, datos_extra_json FROM notificaciones WHERE id_usuario = ? ORDER BY id_notificacion", [usuario.id_usuario]);
     return rows;
   };
   const conAutomatica = async () => {
@@ -183,6 +183,7 @@ describe("confirmación automática al reservar", () => {
     const [aviso] = await notificacionesDe(ctx.negocio.propietario);
     expect(aviso).toMatchObject({ tipo: "cita_nueva", titulo: "Nueva cita confirmada" });
     expect(aviso.mensaje).toMatch(/Quedó confirmada automáticamente\.$/);
+    expect(aviso.datos_extra_json.enlace.por_confirmar).toBe(false);
     expect(await notificacionesDe(ctx.cliente)).toEqual([]); // la respuesta ya dice que quedó confirmada
   });
 

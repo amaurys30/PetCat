@@ -119,6 +119,7 @@ describe("avisos de citas", () => {
       id_cita: cita.id_cita,
       id_negocio: ctx.negocio.id_negocio,
       fecha: cita.fecha,
+      por_confirmar: true,
     });
 
     // Push a la recepcionista (tiene dispositivo), sin nombres.

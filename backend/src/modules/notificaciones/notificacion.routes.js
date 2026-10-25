@@ -31,8 +31,11 @@ const router = express.Router();
  *         mensaje: { type: string, description: El detalle (solo se ve con la sesión iniciada) }
  *         datos:
  *           type: object
- *           description: Ids para abrir la pantalla correspondiente (deep link)
- *           example: { tipo: cita_cancelada, id_cita: 77 }
+ *           description: >
+ *             Ids para abrir la pantalla correspondiente (deep link). Las de citas traen `id_cita`, `id_negocio`
+ *             y la `fecha` de la cita; `cita_nueva` también `por_confirmar` (false si nació confirmada por la
+ *             confirmación automática). `resena_nueva` trae `id_resena`; las del plan, `id_negocio`.
+ *           example: { tipo: cita_nueva, id_cita: 77, id_negocio: 1, fecha: "2026-10-28", por_confirmar: true }
  *         leida: { type: boolean }
  *         leida_en: { type: string, nullable: true }
  *         fecha_creacion: { type: string, example: "2026-09-28 10:15:00" }

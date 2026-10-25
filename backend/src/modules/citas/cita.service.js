@@ -313,7 +313,8 @@ const eventoCreacion = (id_cita, canal, actor, reprogramacion, autoConfirmada, c
     }, conn);
   }
   return canal === "app"
-    ? eventoCita("cita_nueva", id_cita, { para: "negocio", actor, extra }, conn)
+    ? // `por_confirmar` en el enlace: el panel avisa en el navegador solo las que esperan confirmación.
+      eventoCita("cita_nueva", id_cita, { para: "negocio", actor, extra, enlace: { por_confirmar: !autoConfirmada } }, conn)
     : eventoCita("cita_agendada", id_cita, { para: "dueno", actor }, conn);
 };
 
