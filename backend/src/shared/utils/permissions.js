@@ -8,7 +8,8 @@ import { z } from "zod";
  * Si cambia, revisar los roles del sistema en database/petcat.sql.
  */
 export const CATALOGO_PERMISOS = Object.freeze({
-  citas: ["ver", "crear", "editar", "cancelar"],
+  // Sin ver_todas, citas.ver solo alcanza las citas propias (migración 026).
+  citas: ["ver", "ver_todas", "crear", "editar", "cancelar"],
   servicios: ["ver", "crear", "editar", "eliminar"],
   inventario: ["ver", "crear", "editar", "eliminar", "editar_stock"],
   clientes: ["ver", "editar"],
@@ -17,7 +18,8 @@ export const CATALOGO_PERMISOS = Object.freeze({
   roles: ["ver", "crear", "editar", "eliminar"],
   reportes: ["ver", "exportar"],
   configuracion: ["ver", "editar"],
-  historial_medico: ["ver", "crear", "editar"],
+  // asignar_profesional: registrar a nombre de otro profesional (migración 026).
+  historial_medico: ["ver", "crear", "editar", "asignar_profesional"],
   vacunas: ["ver", "crear", "editar"],
   // Responder es hablar en público en nombre del negocio (migración 018).
   resenas: ["ver", "responder", "reportar"],
@@ -68,6 +70,12 @@ export const accesoPermite = (acceso, modulo, accion) =>
   acceso?.relacion === "admin" ||
   acceso?.relacion === "propietario" ||
   (acceso?.relacion === "empleado" && hasPermission(acceso.permisos, modulo, accion));
+
+/**
+ * El acceso ve y gestiona las citas de todos los profesionales (citas.ver_todas). Sin el
+ * permiso, solo las de su perfil de empleado (`acceso.id_empleado`).
+ */
+export const veTodasLasCitas = (acceso) => accesoPermite(acceso, "citas", "ver_todas");
 
 /** true si cada acción de `permisos` también está en `disponibles`. */
 export const permisosIncluidos = (permisos, disponibles) =>

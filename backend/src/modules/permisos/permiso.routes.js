@@ -28,7 +28,7 @@ const router = express.Router();
  *                   type: object
  *                   additionalProperties: { type: array, items: { type: string } }
  *                   example:
- *                     citas: [ver, crear, editar, cancelar]
+ *                     citas: [ver, ver_todas, crear, editar, cancelar]
  *                     configuracion: [ver, editar]
  *       401: { $ref: '#/components/responses/Unauthorized' }
  */

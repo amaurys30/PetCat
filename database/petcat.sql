@@ -462,6 +462,8 @@ CREATE TABLE historial_medico (
     notas_internas   TEXT            NULL,
     fecha            DATE            NOT NULL,
     fecha_creacion   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    -- Migración 026: quién creó el registro, separado del profesional que atendió.
+    id_usuario_registro INT UNSIGNED NULL COMMENT 'Quién creó el registro (el profesional que atendió es id_empleado)',
     -- Migración 022: última edición (todas quedan en historial_medico_ediciones).
     fecha_edicion    DATETIME        NULL COMMENT 'Última edición',
     id_usuario_edicion INT UNSIGNED  NULL COMMENT 'Quién hizo la última edición',
@@ -486,6 +488,9 @@ CREATE TABLE historial_medico (
         ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT fk_historial_usuario_edicion
         FOREIGN KEY (id_usuario_edicion) REFERENCES usuarios (id_usuario)
+        ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_historial_usuario_registro
+        FOREIGN KEY (id_usuario_registro) REFERENCES usuarios (id_usuario)
         ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Historial médico completo de cada mascota';
@@ -1646,7 +1651,7 @@ VALUES
 INSERT INTO roles (nombre, descripcion, permisos_json, es_sistema) VALUES
 ('Administrador',
  'Acceso total al panel del negocio. Puede editar todo.',
- '{"citas":["ver","crear","editar","cancelar"],"servicios":["ver","crear","editar","eliminar"],"inventario":["ver","crear","editar","eliminar","editar_stock"],"clientes":["ver","editar"],"empleados":["ver","crear","editar","eliminar"],"pagos":["ver","ver_basico","reembolsar"],"roles":["ver","crear","editar","eliminar"],"reportes":["ver","exportar"],"configuracion":["ver","editar"],"historial_medico":["ver","crear","editar"],"vacunas":["ver","crear","editar"],"resenas":["ver","responder","reportar"]}',
+ '{"citas":["ver","ver_todas","crear","editar","cancelar"],"servicios":["ver","crear","editar","eliminar"],"inventario":["ver","crear","editar","eliminar","editar_stock"],"clientes":["ver","editar"],"empleados":["ver","crear","editar","eliminar"],"pagos":["ver","ver_basico","reembolsar"],"roles":["ver","crear","editar","eliminar"],"reportes":["ver","exportar"],"configuracion":["ver","editar"],"historial_medico":["ver","crear","editar","asignar_profesional"],"vacunas":["ver","crear","editar"],"resenas":["ver","responder","reportar"]}',
  TRUE),
 
 ('Veterinario',
@@ -1656,7 +1661,7 @@ INSERT INTO roles (nombre, descripcion, permisos_json, es_sistema) VALUES
 
 ('Recepcionista',
  'Solo gestiona citas y clientes. No accede a reportes financieros.',
- '{"citas":["ver","crear","editar","cancelar"],"servicios":["ver"],"clientes":["ver"],"pagos":["ver_basico"],"resenas":["ver"]}',
+ '{"citas":["ver","ver_todas","crear","editar","cancelar"],"servicios":["ver"],"clientes":["ver"],"pagos":["ver_basico"],"resenas":["ver"]}',
  TRUE);
 
 
@@ -1891,7 +1896,8 @@ INSERT INTO schema_migrations (nombre) VALUES
 ('022_historial_control_y_ediciones.sql'),
 ('023_vacunas_ediciones.sql'),
 ('024_notificaciones_destino.sql'),
-('025_suscripciones_usuario_registro.sql');
+('025_suscripciones_usuario_registro.sql'),
+('026_citas_ver_todas_y_creador_historial.sql');
 
 
 SET FOREIGN_KEY_CHECKS = 1;

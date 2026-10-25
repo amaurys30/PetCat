@@ -212,7 +212,7 @@ FROM (SELECT 1 AS d UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 
 
 INSERT INTO roles (id_negocio, nombre, descripcion, permisos_json)
 VALUES (@n_huellitas, 'Estilista', 'Atiende baños y cortes; ve la agenda y los clientes.',
-        '{"citas":["ver","editar"],"servicios":["ver"],"clientes":["ver"]}');
+        '{"citas":["ver","ver_todas","editar"],"servicios":["ver"],"clientes":["ver"]}');
 SET @rol_estilista = LAST_INSERT_ID();
 -- Empleada sin cuenta en PetCat.
 INSERT INTO empleados (id_negocio, id_rol, nombre, apellido, email, telefono, especialidad, fecha_vinculacion)
