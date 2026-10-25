@@ -222,6 +222,8 @@ Jobs sobre la base de node-cron de la 2.3 (funciones exportadas que los tests ll
 - [ ] SMTP real con un proveedor transaccional y el dominio verificado (SPF, DKIM y DMARC): `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS` y `MAIL_FROM` en el servidor. En desarrollo los correos van a Mailpit (ver backend/README.md, "Correo").
 - [ ] Google Maps en el panel: activar la facturación de Google Cloud (prepago de COP 100.000) para que funcionen el mapa y el buscador de direcciones de las sedes (Maps JavaScript API y Places API), con la clave restringida al dominio del panel y a esas dos API y una alerta de presupuesto. Después, `VITE_GOOGLE_MAPS_API_KEY` (y `VITE_GOOGLE_MAPS_MAP_ID`) en el build del panel. Mientras tanto, el panel funciona con latitud y longitud manuales.
 
+- [ ] Cuentas de super admin: verificación en dos pasos (por ejemplo, TOTP con una app de autenticación) para todo usuario con `tipo_usuario = admin`, y una sesión de admin más corta que la normal (access y refresh con vencimiento menor y cierre por inactividad). Desde P6.5 el admin asigna planes a mano desde `/admin` del panel; cada asignación queda con su autor en `suscripciones.id_usuario_registro` y en `auditoria_global`.
+
 ## Fase 3 — Inventario, compras y pagos
 - [ ] Productos y categorías; movimientos de inventario (el trigger actualiza el stock); alertas de stock bajo y de vencimiento.
 - [ ] Compras desde la app (carrito → pedido) y gestión de pedidos en el panel.
@@ -589,4 +591,8 @@ Jobs sobre la base de node-cron de la 2.3 (funciones exportadas que los tests ll
 ### Decisiones de la API para el panel P6.4 (octubre 2026)
 - El enlace de las notificaciones de citas trae también la `fecha` de la cita, para abrirla en su semana de la agenda sin pedirla antes. `cita_nueva` trae `por_confirmar` (false si nació confirmada por la confirmación automática): el panel avisa en el navegador solo las reservas que esperan confirmación. Las notificaciones guardadas antes no tienen estos campos (el panel abre igual el detalle).
 - Swagger declara los campos de `datos` (todos `x-opcional`: cada tipo trae los suyos).
+
+### Decisiones de la API para el panel P6.5 (octubre 2026)
+- Quién asignó cada plan (migración 025): `suscripciones.id_usuario_registro` (el admin que asignó el plan o el propietario que activó la prueba; NULL en la Gratuita que se crea con el negocio y en las anteriores a la migración). Cada asignación deja además una fila en `auditoria_global` (tabla `suscripciones`, operación INSERT, la vigente que se cerró en `datos_antes_json`, la nueva en `datos_despues_json`, IP y navegador), en la misma transacción. Es la primera operación que escribe en `auditoria_global`.
+- Módulo `admin` (solo `soloAdmin`): `GET /admin/negocios` (todos, activos o no, con el propietario, el plan y el estado efectivos calculados con `resolverPlan` como la suscripción del negocio, la suscripción vigente y las citas del mes; `q` por nombre, ciudad o correo del propietario sin distinguir tildes; `id_plan` y `estado` efectivos). Como el plan efectivo se calcula al leer, se filtra y pagina después de calcularlo: sirve para los negocios del MVP; con miles convendrá guardar el plan efectivo o calcularlo en SQL. `GET /admin/negocios/:id/suscripciones`: el historial con `registrada_por`.
 
