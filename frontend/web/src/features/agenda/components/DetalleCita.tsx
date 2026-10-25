@@ -90,7 +90,11 @@ function Contenido({ cita }: { cita: CitaPanelDetalle }) {
   const [confirmarNoAsistio, setConfirmarNoAsistio] = useState(false);
   const acciones = accionesDe(
     cita,
-    { editar: puede("citas", "editar"), cancelar: puede("citas", "cancelar") },
+    {
+      editar: puede("citas", "editar"),
+      cancelar: puede("citas", "cancelar"),
+      verTodas: puede("citas", "ver_todas"),
+    },
     ahora,
   );
   const hoy = hoyISO(ahora);

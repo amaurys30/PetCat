@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSedes } from "@/features/equipo/hooks/useDisponibilidad";
-import { useNegocioActivo } from "@/features/negocios/hooks/useNegocio";
+import { useNegocioActivo, usePuede } from "@/features/negocios/hooks/useNegocio";
 import { encabezadoDia, fechaHoraCita, sumarDias } from "@/lib/agenda";
 import { dinero, hoyISO } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -41,6 +41,9 @@ export function ReprogramarDialog({
   const { sedes } = useSedes();
   const profesionales = useProfesionales(negocio.id_negocio);
   const reprogramar = useReprogramarCita(negocio.id_negocio);
+  // Sin citas.ver_todas se reprograma a nombre de quien lo hace (la API lo exige).
+  const puede = usePuede();
+  const verTodas = puede("citas", "ver_todas");
   const hoy = hoyISO();
 
   const [idSucursal, setIdSucursal] = useState<number | undefined>(cita.sucursal?.id_sucursal);
@@ -54,7 +57,9 @@ export function ReprogramarDialog({
     return dias;
   }, [hoy, sede]);
   const [fecha, setFecha] = useState(cita.fecha >= hoy ? cita.fecha : hoy);
-  const [empleado, setEmpleado] = useState(CUALQUIERA);
+  const [empleado, setEmpleado] = useState(
+    verTodas || negocio.id_empleado === null ? CUALQUIERA : String(negocio.id_empleado),
+  );
   const [horaElegida, setHoraElegida] = useState<string | null>(null);
   const [motivo, setMotivo] = useState("");
 
@@ -178,17 +183,23 @@ export function ReprogramarDialog({
               </Select>
             </Field>
             <Field label="Profesional">
-              <Select value={empleado} onValueChange={(v) => cambiar(() => setEmpleado(v))}>
+              <Select
+                value={empleado}
+                onValueChange={(v) => cambiar(() => setEmpleado(v))}
+                disabled={!verTodas}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={CUALQUIERA}>Cualquier profesional</SelectItem>
-                  {quienes.map((p) => (
-                    <SelectItem key={p.id_empleado} value={String(p.id_empleado)}>
-                      {nombreCompleto(p)}
-                    </SelectItem>
-                  ))}
+                  {verTodas && <SelectItem value={CUALQUIERA}>Cualquier profesional</SelectItem>}
+                  {quienes
+                    .filter((p) => verTodas || p.id_empleado === negocio.id_empleado)
+                    .map((p) => (
+                      <SelectItem key={p.id_empleado} value={String(p.id_empleado)}>
+                        {nombreCompleto(p)}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </Field>

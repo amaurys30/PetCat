@@ -33,7 +33,8 @@ export function PanelAtencion({
   ahora: Date;
   idSeleccionada?: number;
   onAbrir: (cita: CitaPanel) => void;
-  permisos: { editar: boolean; cancelar: boolean };
+  /** reasignar: citas.editar y citas.ver_todas. */
+  permisos: { editar: boolean; cancelar: boolean; reasignar: boolean };
   onConfirmar: (cita: CitaPanel) => void;
   /** Cita que se está confirmando (su botón muestra que espera). */
   confirmando?: number;
@@ -126,9 +127,11 @@ export function PanelAtencion({
                   acciones={
                     permisos.editar && (
                       <>
-                        <Button size="sm" variant="secondary" onClick={() => onAccion("reasignar", c)}>
-                          Reasignar
-                        </Button>
+                        {permisos.reasignar && (
+                          <Button size="sm" variant="secondary" onClick={() => onAccion("reasignar", c)}>
+                            Reasignar
+                          </Button>
+                        )}
                         <Button size="sm" variant="secondary" onClick={() => onAccion("reprogramar", c)}>
                           Reprogramar
                         </Button>

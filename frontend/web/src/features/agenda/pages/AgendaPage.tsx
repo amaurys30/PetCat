@@ -38,23 +38,27 @@ const profesionalDeCita = (e: NonNullable<CitaPanel["empleado"]>): Profesional =
 /**
  * B3 · B9 · B10 · Agenda: Semana, Día por profesional y Lista, con los filtros en la URL y
  * el panel "Por confirmar" / "Fuera de disponibilidad". Requiere citas.ver. Al elegir una
- * cita queda en la URL (`?cita=`) y se abre su detalle (B4) en un panel lateral.
+ * cita queda en la URL (`?cita=`) y se abre su detalle (B4) en un panel lateral. Sin
+ * citas.ver_todas, solo las citas propias: la API las limita y aquí no hay filtro de profesional.
  */
 export function AgendaPage() {
   const negocio = useNegocioActivo();
   const puede = usePuede();
   const verCitas = puede("citas", "ver");
+  const verTodas = puede("citas", "ver_todas");
   const [filtros, cambiar] = useFiltrosUrl();
   const ahora = useAhora();
   const hoy = hoyISO(ahora);
   const { sedes } = useSedes();
   const profesionales = useProfesionales(negocio.id_negocio, verCitas);
 
+  // Sin ver_todas no se envía profesional: la API devuelve solo las propias (otro daría 403).
   const filtrosApi: FiltrosAgenda = {
     id_sucursal: filtros.idSucursal,
-    id_empleado: filtros.mias ? undefined : filtros.idEmpleado,
-    solo_mias: filtros.mias || undefined,
+    id_empleado: verTodas && !filtros.mias ? filtros.idEmpleado : undefined,
+    solo_mias: (verTodas && filtros.mias) || undefined,
   };
+  const idProfesional = !verTodas || filtros.mias ? negocio.id_empleado : filtros.idEmpleado;
   const dias = diasDeSemana(filtros.fecha);
   const [desde, hasta] = filtros.vista === "dia" ? [filtros.fecha, filtros.fecha] : [dias[0]!, dias[6]!];
   const soloFuera = filtros.vista === "lista" && filtros.fuera;
@@ -135,6 +139,7 @@ export function AgendaPage() {
         profesionales={profesionales.data ?? []}
         sedes={sedes ?? []}
         conPerfilPropio={negocio.id_empleado !== null}
+        verTodas={verTodas}
         puedeCrear={puedeCrear}
         onNuevaCita={() => setNuevaCita({ fecha: filtros.vista === "dia" ? filtros.fecha : undefined })}
         onAnterior={() => cambiar({ fecha: sumarDias(filtros.fecha, -paso), idCita: undefined })}
@@ -176,11 +181,7 @@ export function AgendaPage() {
             <VistaDia
               fecha={filtros.fecha}
               citas={citas}
-              profesionales={columnasDelDia(
-                profesionales.data ?? [],
-                citas,
-                filtros.mias ? negocio.id_empleado : filtros.idEmpleado,
-              )}
+              profesionales={columnasDelDia(profesionales.data ?? [], citas, idProfesional)}
               idSucursal={filtros.idSucursal}
               sedes={sedesVisibles}
               hoy={hoy}
@@ -217,7 +218,11 @@ export function AgendaPage() {
             ahora={ahora}
             idSeleccionada={filtros.idCita}
             onAbrir={abrir}
-            permisos={{ editar: puede("citas", "editar"), cancelar: puede("citas", "cancelar") }}
+            permisos={{
+              editar: puede("citas", "editar"),
+              cancelar: puede("citas", "cancelar"),
+              reasignar: puede("citas", "editar") && verTodas,
+            }}
             confirmando={confirmar.isPending ? confirmar.variables.idCita : undefined}
             onConfirmar={(c) =>
               confirmar.mutate(
@@ -261,7 +266,8 @@ function textoTotal(total: number, vista: string) {
 }
 
 /**
- * Columnas de la vista Día: el profesional elegido (o el propio con "Solo mis citas") o
+ * Columnas de la vista Día: el profesional elegido (o el propio con "Solo mis citas" o sin
+ * citas.ver_todas) o
  * todos los que atienden servicios, más quien tenga citas ese día aunque ya no esté.
  */
 function columnasDelDia(

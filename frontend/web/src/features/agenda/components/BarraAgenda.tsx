@@ -35,6 +35,7 @@ export function BarraAgenda({
   profesionales,
   sedes,
   conPerfilPropio,
+  verTodas,
   puedeCrear,
   onNuevaCita,
   onAnterior,
@@ -48,6 +49,8 @@ export function BarraAgenda({
   sedes: { id_sucursal: number; nombre: string }[];
   /** El usuario es profesional de este negocio ("Solo mis citas"). */
   conPerfilPropio: boolean;
+  /** citas.ver_todas: sin ella solo hay citas propias, sin filtro de profesional. */
+  verTodas: boolean;
   puedeCrear: boolean;
   onNuevaCita: () => void;
   onAnterior: () => void;
@@ -118,23 +121,27 @@ export function BarraAgenda({
           </Select>
         )}
 
-        <Select
-          value={filtros.idEmpleado?.toString() ?? "todos"}
-          onValueChange={(v) => cambiar({ idEmpleado: v === "todos" ? undefined : Number(v) })}
-          disabled={filtros.mias}
-        >
-          <SelectTrigger className="w-52" aria-label="Profesional">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Todos los profesionales</SelectItem>
-            {profesionales.map((p) => (
-              <SelectItem key={p.id_empleado} value={String(p.id_empleado)}>
-                {nombreCompleto(p)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {verTodas ? (
+          <Select
+            value={filtros.idEmpleado?.toString() ?? "todos"}
+            onValueChange={(v) => cambiar({ idEmpleado: v === "todos" ? undefined : Number(v) })}
+            disabled={filtros.mias}
+          >
+            <SelectTrigger className="w-52" aria-label="Profesional">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos los profesionales</SelectItem>
+              {profesionales.map((p) => (
+                <SelectItem key={p.id_empleado} value={String(p.id_empleado)}>
+                  {nombreCompleto(p)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <p className="px-1 text-body text-muted">Solo tus citas</p>
+        )}
 
         <FiltroEstados
           estados={filtros.estados}
@@ -142,7 +149,7 @@ export function BarraAgenda({
           deshabilitado={filtros.vista === "lista" && filtros.fuera}
         />
 
-        {conPerfilPropio && (
+        {verTodas && conPerfilPropio && (
           <label className="flex items-center gap-2 px-1 text-body text-muted">
             <Switch
               checked={filtros.mias}

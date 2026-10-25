@@ -33,6 +33,10 @@ describe("D4 · Roles y permisos", () => {
     expect(screen.queryByRole("button", { name: "Guardar cambios" })).not.toBeInTheDocument();
     // Acciones que no están en las columnas fijas van en "otras acciones".
     expect(screen.getByRole("checkbox", { name: "Pagos: ver básico" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Citas: ver citas de todos" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("checkbox", { name: "Historial médico: registrar a nombre de otro profesional" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Reseñas: responder" })).toBeInTheDocument();
   });
 

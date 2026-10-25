@@ -76,6 +76,11 @@ export function NuevaCitaDialog({
   const catalogo = useCatalogoServicios(negocio.id_negocio);
   const profesionales = useProfesionales(negocio.id_negocio);
   const crear = useCrearCita(negocio.id_negocio);
+  // Sin citas.ver_todas la cita es de quien la agenda (la API lo exige): solo sus servicios.
+  const verTodas = puede("citas", "ver_todas");
+  const propio = verTodas
+    ? null
+    : (profesionales.data?.find((p) => p.id_empleado === negocio.id_empleado) ?? null);
 
   const [cliente, setCliente] = useState<ClienteElegido | null>(inicio.cliente ?? null);
   const [registrando, setRegistrando] = useState<{ email?: string; telefono?: string } | null>(null);
@@ -106,8 +111,15 @@ export function NuevaCitaDialog({
       .map((m) => ({ id_mascota: m.id_mascota, nombre: m.nombre, especie: m.especie }));
 
   const servicios = useMemo(
-    () => (catalogo.data ?? []).filter((s) => s.activo && s.requiere_cita && !s.sin_empleados),
-    [catalogo.data],
+    () =>
+      (catalogo.data ?? []).filter(
+        (s) =>
+          s.activo &&
+          s.requiere_cita &&
+          !s.sin_empleados &&
+          (verTodas || (propio?.servicios.some((x) => x.id_servicio === s.id_servicio) ?? false)),
+      ),
+    [catalogo.data, verTodas, propio],
   );
   const servicio = servicios.find((s) => s.id_servicio === idServicio) ?? null;
   const sede =
@@ -115,8 +127,9 @@ export function NuevaCitaDialog({
   const quienes = (profesionales.data ?? []).filter((p) =>
     p.servicios.some((s) => s.id_servicio === idServicio),
   );
-  const idEmpleado =
-    empleado !== CUALQUIERA && quienes.some((p) => String(p.id_empleado) === empleado)
+  const idEmpleado = !verTodas
+    ? (propio?.id_empleado ?? undefined)
+    : empleado !== CUALQUIERA && quienes.some((p) => String(p.id_empleado) === empleado)
       ? Number(empleado)
       : undefined;
 
@@ -396,14 +409,18 @@ export function NuevaCitaDialog({
                     setEmpleado(v);
                     limpiarHora();
                   }}
-                  disabled={!servicio}
+                  disabled={!servicio || !verTodas}
                 >
                   <SelectTrigger aria-label="Profesional">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={CUALQUIERA}>Cualquier profesional (asignación automática)</SelectItem>
-                    {quienes.map((p) => (
+                    {verTodas && (
+                      <SelectItem value={CUALQUIERA}>
+                        Cualquier profesional (asignación automática)
+                      </SelectItem>
+                    )}
+                    {(propio ? [propio] : quienes).map((p) => (
                       <SelectItem key={p.id_empleado} value={String(p.id_empleado)}>
                         {nombreCompleto(p)}
                       </SelectItem>

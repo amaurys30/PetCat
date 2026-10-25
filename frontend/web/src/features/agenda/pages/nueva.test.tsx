@@ -178,6 +178,57 @@ describe("B5 · Nueva cita", () => {
     await waitFor(() => expect(router.state.location.search).toContain("cita=900"));
   });
 
+  it("sin citas.ver_todas la cita queda a nombre de quien la agenda y solo ofrece sus servicios", async () => {
+    const user = userEvent.setup();
+    const registro = nuevoRegistro();
+    servidor.use(
+      ...base(registro),
+      // Sin configuracion.ver, las sedes salen del perfil público.
+      http.get(`${API}/negocios/1`, () => ok({ sucursales: [sedeDemo({ horarios: todosLosDias })] })),
+      http.get(`${API}/negocios/1/profesionales`, () =>
+        ok([
+          profesionalDemo(),
+          profesionalDemo({
+            id_empleado: 2,
+            nombre: "Paula",
+            apellido: "Rojas",
+            servicios: [{ id_servicio: 3, nombre: "Cirugía" }],
+          }),
+        ]),
+      ),
+      http.get(`${API}/negocios/1/servicios`, () =>
+        pagina([servicioDemo(), servicioDemo({ id_servicio: 3, nombre: "Cirugía" })]),
+      ),
+    );
+    renderRuta("/n/1/agenda", {
+      usuario: usuarioDemo({
+        negocios: [
+          negocioDemo({
+            relacion: "empleado",
+            id_empleado: 1,
+            rol: { id_rol: 2, nombre: "Veterinario", permisos_json: { citas: ["ver", "crear", "editar"] } },
+          }),
+        ],
+      }),
+    });
+    const d = await abrir(user);
+
+    await user.click(within(d).getByRole("combobox", { name: "Servicio" }));
+    expect(await screen.findByRole("option", { name: /Consulta general/ })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /Cirugía/ })).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+
+    await elegirHasta(user, d);
+    const profesional = within(d).getByRole("combobox", { name: "Profesional" });
+    expect(profesional).toBeDisabled();
+    expect(profesional).toHaveTextContent("Carlos Pérez");
+    await user.click(await within(d).findByRole("radio", { name: "09:00" }));
+    expect(registro.horarios.at(-1)!.searchParams.get("id_empleado")).toBe("1");
+    await user.click(within(d).getByRole("button", { name: "Agendar cita (queda confirmada)" }));
+    await waitFor(() => expect(registro.crear).toHaveLength(1));
+    expect(registro.crear[0]).toMatchObject({ id_empleado: 1 });
+  });
+
   it("sin cliente ni horario dice qué falta; el 409 lo muestra y recarga los horarios", async () => {
     const user = userEvent.setup();
     const registro = nuevoRegistro();

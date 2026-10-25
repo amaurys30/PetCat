@@ -252,6 +252,51 @@ describe("B9 · Día por profesional", () => {
   });
 });
 
+describe("Sin citas.ver_todas (Veterinario)", () => {
+  // Carlos (id_empleado 1) con el rol Veterinario del sistema: solo sus citas.
+  const veterinario = () =>
+    usuarioDemo({
+      negocios: [
+        negocioDemo({
+          relacion: "empleado",
+          id_empleado: 1,
+          rol: { id_rol: 2, nombre: "Veterinario", permisos_json: { citas: ["ver", "crear", "editar"] } },
+        }),
+      ],
+    });
+
+  it("sin filtro de profesional ni columnas de otros; no envía otro profesional a la API", async () => {
+    const peticiones: URL[] = [];
+    servidor.use(
+      ...base({ agenda: [max], peticiones }),
+      // Sin configuracion.ver, las sedes salen del perfil público.
+      http.get(`${API}/negocios/1`, () => ok({ sucursales: [sedeDemo({ horarios: horarioPartido })] })),
+      http.get(`${API}/empleados/:id/disponibilidad-efectiva`, () =>
+        ok({ fecha: LUNES, dia_semana: 1, sigue_horario_sucursal: true, sucursales: [] }),
+      ),
+      http.get(`${API}/empleados/:id/disponibilidad`, () =>
+        ok({ horario_semanal: [], sigue_horario_sucursal: true, excepciones: [] }),
+      ),
+    );
+    // Un enlace con el profesional de otra persona no cambia nada.
+    renderRuta(`/n/1/agenda?vista=dia&fecha=${LUNES}&profesional=2`, { usuario: veterinario() });
+
+    expect(await screen.findByRole("group", { name: "Carlos Pérez" })).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Paula Rojas" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Profesional" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Todos los profesionales")).not.toBeInTheDocument();
+    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+    expect(screen.getByText("Solo tus citas")).toBeInTheDocument();
+    expect(peticiones.at(-1)!.searchParams.get("id_empleado")).toBeNull();
+    expect(peticiones.at(-1)!.searchParams.get("solo_mias")).toBeNull();
+
+    // Fuera de disponibilidad: puede reprogramar, pero no reasignar a otro profesional.
+    const lista = screen.getByRole("list", { name: "Citas fuera de disponibilidad" });
+    expect(within(lista).getByRole("button", { name: "Reprogramar" })).toBeInTheDocument();
+    expect(within(lista).queryByRole("button", { name: "Reasignar" })).not.toBeInTheDocument();
+  });
+});
+
 describe("B10 · Lista", () => {
   it("agrupa por día con hoy primero y muestra el plazo de las pendientes", async () => {
     const hoyCita = citaPanelDemo({ id_cita: 10, fecha: HOY, hora_inicio: "10:00", hora_fin: "10:30" });
