@@ -35,7 +35,16 @@ const router = express.Router();
  *             Ids para abrir la pantalla correspondiente (deep link). Las de citas traen `id_cita`, `id_negocio`
  *             y la `fecha` de la cita; `cita_nueva` también `por_confirmar` (false si nació confirmada por la
  *             confirmación automática). `resena_nueva` trae `id_resena`; las del plan, `id_negocio`.
- *           example: { tipo: cita_nueva, id_cita: 77, id_negocio: 1, fecha: "2026-10-28", por_confirmar: true }
+ *           properties:
+ *             tipo: { type: string, example: cita_nueva }
+ *             id_cita: { type: integer, x-opcional: true, example: 77 }
+ *             id_negocio: { type: integer, x-opcional: true, example: 1 }
+ *             fecha: { type: string, format: date, x-opcional: true, example: "2026-10-28" }
+ *             por_confirmar: { type: boolean, x-opcional: true }
+ *             id_resena: { type: integer, x-opcional: true }
+ *             id_mascota: { type: integer, x-opcional: true }
+ *             id_vacuna: { type: integer, x-opcional: true }
+ *             mes: { type: string, x-opcional: true, example: "2026-10" }
  *         leida: { type: boolean }
  *         leida_en: { type: string, nullable: true }
  *         fecha_creacion: { type: string, example: "2026-09-28 10:15:00" }
