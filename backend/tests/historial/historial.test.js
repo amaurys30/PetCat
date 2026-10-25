@@ -8,6 +8,7 @@ import {
   crearHistorial,
   crearMascota,
   crearNegocio,
+  crearRol,
   crearUsuario,
   tokenDe,
 } from "../helpers/factories.js";
@@ -283,5 +284,88 @@ describe("rastro de ediciones y tipo control (022)", () => {
     expect(detalle.body.data.registros_medicos).toEqual(esperado);
     const citas = await api(ctx.tokenA).get(`/negocios/${ctx.clinicaA.id_negocio}/mascotas/${ctx.mascota.id_mascota}/citas`);
     expect(citas.body.data.find((c) => c.id_cita === ctx.citaA.id_cita).registros_medicos).toEqual(esperado);
+  });
+});
+
+describe("profesional del registro y quién lo creó (026)", () => {
+  const crear = (ctx, token, body = {}) =>
+    api(token)
+      .post(`/negocios/${ctx.clinicaA.id_negocio}/historial`)
+      .send({ id_mascota: ctx.mascota.id_mascota, tipo: "consulta_general", diagnostico: "Sano", ...body });
+
+  /** Otra veterinaria de la clínica A (sin cuenta), a cuyo nombre se transcribe. */
+  const conOtra = async () => {
+    const ctx = await contexto();
+    const otra = await crearEmpleado(ctx.clinicaA, { nombre: "Olga" });
+    return { ...ctx, otra };
+  };
+
+  it("sin asignar_profesional (Veterinario), el registro queda a su nombre; otro profesional da 403", async () => {
+    const ctx = await conOtra();
+    const ajeno = await crear(ctx, ctx.tokenVet, { id_empleado: ctx.otra.id_empleado });
+    expect(ajeno.status).toBe(403);
+    expect(ajeno.body.message).toMatch(/asignar profesional/);
+    expect((await crear(ctx, ctx.tokenVet, { id_empleado: null })).status).toBe(403);
+
+    for (const body of [{}, { id_empleado: ctx.vet.id_empleado }]) {
+      const res = await crear(ctx, ctx.tokenVet, body);
+      expect(res.status).toBe(201);
+      expect(res.body.data.empleado.id_empleado).toBe(ctx.vet.id_empleado);
+      expect(res.body.data.registrado_por).toMatchObject({ id_usuario: ctx.vet.id_usuario });
+    }
+  });
+
+  it("el propietario, el Administrador y un rol propio con asignar_profesional eligen a otro; queda quién lo creó", async () => {
+    const ctx = await conOtra();
+    const usuarioAdmin = await crearUsuario();
+    await crearEmpleado(ctx.clinicaA, { usuario: usuarioAdmin, rol: "Administrador" });
+    const usuarioPropio = await crearUsuario();
+    const rolPropio = await crearRol(ctx.clinicaA, { historial_medico: ["ver", "crear", "asignar_profesional"] });
+    await crearEmpleado(ctx.clinicaA, { usuario: usuarioPropio, rol: rolPropio.id_rol });
+
+    for (const usuario of [ctx.clinicaA.propietario, usuarioAdmin, usuarioPropio]) {
+      const res = await crear(ctx, await tokenDe(usuario), { id_empleado: ctx.otra.id_empleado });
+      expect(res.status).toBe(201);
+      expect(res.body.data.empleado).toMatchObject({ id_empleado: ctx.otra.id_empleado, nombre: "Olga" });
+      expect(res.body.data.registrado_por).toEqual({
+        id_usuario: usuario.id_usuario,
+        nombre: usuario.nombre,
+        apellido: usuario.apellido,
+      });
+      const [[fila]] = await pool.query("SELECT id_usuario_registro FROM historial_medico WHERE id_historial = ?", [
+        res.body.data.id_historial,
+      ]);
+      expect(fila.id_usuario_registro).toBe(usuario.id_usuario);
+    }
+  });
+
+  it("al editar, solo quien tiene asignar_profesional cambia el profesional", async () => {
+    const ctx = await conOtra();
+    const { body } = await crear(ctx, ctx.tokenVet);
+    const id = body.data.id_historial;
+    const editar = (token, cambios) => api(token).patch(`/historial/${id}`).send(cambios);
+
+    expect((await editar(ctx.tokenVet, { id_empleado: ctx.otra.id_empleado })).status).toBe(403);
+    // Enviar el mismo profesional no es un cambio.
+    expect((await editar(ctx.tokenVet, { id_empleado: ctx.vet.id_empleado, diagnostico: "Otitis" })).status).toBe(200);
+    const res = await editar(ctx.tokenA, { id_empleado: ctx.otra.id_empleado });
+    expect(res.status).toBe(200);
+    expect(res.body.data.empleado.id_empleado).toBe(ctx.otra.id_empleado);
+    // Quién lo creó no cambia al editar.
+    expect(res.body.data.registrado_por.id_usuario).toBe(ctx.vet.id_usuario);
+  });
+
+  it("registrado_por solo sale en los registros del negocio que consulta, no al dueño ni a otros negocios", async () => {
+    const ctx = await contexto();
+    await crear(ctx, ctx.tokenVet);
+    const propios = await panel(ctx, ctx.clinicaA, ctx.tokenA);
+    expect(propios.body.data.find((r) => r.es_propio && r.diagnostico === "Sano")).toHaveProperty("registrado_por");
+    // Los registros anteriores a la migración no tienen quién los creó.
+    expect(propios.body.data.find((r) => r.id_historial === ctx.deA.id_historial).registrado_por).toBeNull();
+
+    const delDueno = await api(ctx.tokenCliente).get(`/mascotas/${ctx.mascota.id_mascota}/historial`);
+    expect(delDueno.body.data.every((r) => !("registrado_por" in r))).toBe(true);
+    const deB = await panel(ctx, ctx.clinicaB, ctx.tokenB);
+    expect(deB.body.data.filter((r) => !r.es_propio).every((r) => !("registrado_por" in r))).toBe(true);
   });
 });

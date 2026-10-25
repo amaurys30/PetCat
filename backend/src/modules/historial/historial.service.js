@@ -7,6 +7,7 @@ import { hoyISO } from "../../shared/utils/fechas.js";
 import { toNumber } from "../../shared/utils/format.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
 import { procesarArchivo } from "../../shared/utils/uploads.js";
+import { accesoPermite } from "../../shared/utils/permissions.js";
 import {
   archivosActivos,
   archivosActivosDe,
@@ -55,6 +56,12 @@ export const formatRegistro = (row, contexto, archivos = []) => {
       : null,
     ...(contexto.tipo === "negocio" && { es_propio: propio }),
     ...(propio && { notas_internas: row.notas_internas }),
+    // Quién lo creó (puede no ser el profesional que atendió). NULL antes de la migración 026.
+    ...(propio && {
+      registrado_por: row.id_usuario_registro
+        ? { id_usuario: row.id_usuario_registro, nombre: row.registro_nombre, apellido: row.registro_apellido }
+        : null,
+    }),
     fecha_creacion: row.fecha_creacion,
     // Los registros no se borran: la última edición (quién y cuándo) y cuántas hubo.
     edicion: row.fecha_edicion
@@ -121,9 +128,19 @@ const actualizarPesoSiEsElUltimo = async (id_mascota, id_historial, fecha, peso,
 };
 
 /**
+ * Registrar a nombre de otro profesional (historial_medico.asignar_profesional; el propietario
+ * y el admin de plataforma siempre). Sin el permiso, el profesional es quien registra.
+ */
+const asignaProfesional = (acceso) => accesoPermite(acceso, "historial_medico", "asignar_profesional");
+
+const SIN_ASIGNAR = "Para registrar a nombre de otro profesional necesitas el permiso de asignar profesional";
+
+/**
  * Crea un registro del negocio para una mascota con cita válida. `id_cita` debe ser
  * del negocio, de esa mascota y no estar cancelada ni reprogramada. `id_empleado`
- * por defecto es el perfil de empleado de quien registra (si lo tiene). Fecha por defecto hoy.
+ * por defecto es el perfil de empleado de quien registra (si lo tiene); sin
+ * asignar_profesional es siempre ese perfil (403 con otro). Guarda quién lo creó.
+ * Fecha por defecto hoy.
  */
 export const crearRegistro = async (negocio, { id_usuario, acceso }, data) => {
   const fecha = data.fecha ?? hoyISO();
@@ -140,7 +157,10 @@ export const crearRegistro = async (negocio, { id_usuario, acceso }, data) => {
       }
     }
     let id_empleado = data.id_empleado;
-    if (id_empleado === undefined) {
+    if (!asignaProfesional(acceso)) {
+      if (id_empleado !== undefined && id_empleado !== acceso.id_empleado) throw ApiError.forbidden(SIN_ASIGNAR);
+      id_empleado = acceso.id_empleado;
+    } else if (id_empleado === undefined) {
       id_empleado =
         acceso.id_empleado ??
         (await empleadoRepo.findAccesoByUsuarioAndNegocio(id_usuario, negocio.id_negocio, conn))?.id_empleado ??
@@ -150,7 +170,10 @@ export const crearRegistro = async (negocio, { id_usuario, acceso }, data) => {
     }
     if (Object.keys(errors).length > 0) throw invalido(errors);
 
-    const id = await historialRepo.create({ ...data, fecha, id_empleado, id_negocio: negocio.id_negocio }, conn);
+    const id = await historialRepo.create(
+      { ...data, fecha, id_empleado, id_negocio: negocio.id_negocio, id_usuario_registro: id_usuario },
+      conn
+    );
     await actualizarPesoSiEsElUltimo(data.id_mascota, id, fecha, data.peso_registro, conn);
     return id;
   });
@@ -173,9 +196,9 @@ const cambiosDe = (actual, data) =>
  * Edita un registro. Solo el negocio que lo creó (authorize lo resuelve por
  * id_historial). Las fechas se validan contra los valores actuales. Si algo cambia, deja
  * constancia de quién, cuándo, qué campos y sus valores anteriores (los registros no se
- * borran); si nada cambia, no hay edición.
+ * borran); si nada cambia, no hay edición. Cambiar el profesional exige asignar_profesional.
  */
-export const actualizarRegistro = async (id_historial, negocio, id_usuario, data) => {
+export const actualizarRegistro = async (id_historial, negocio, { id_usuario, acceso }, data) => {
   // La mascota de un registro no cambia: se busca fuera de la transacción para no fijar su foto.
   const { id_mascota } = await historialRepo.findById(id_historial);
   await withTransaction(async (conn) => {
@@ -185,6 +208,9 @@ export const actualizarRegistro = async (id_historial, negocio, id_usuario, data
     const actual = await historialRepo.findById(id_historial, conn);
     const fecha = data.fecha ?? actual.fecha;
     verificarFechas({ fecha, proximo_control: data.proximo_control !== undefined ? data.proximo_control : actual.proximo_control });
+    if (data.id_empleado !== undefined && data.id_empleado !== actual.id_empleado && !asignaProfesional(acceso)) {
+      throw ApiError.forbidden(SIN_ASIGNAR);
+    }
     if (data.id_empleado && !(await historialRepo.empleadoActivoDelNegocio(data.id_empleado, negocio.id_negocio, conn))) {
       throw invalido({ id_empleado: "No es un empleado activo del negocio" });
     }
