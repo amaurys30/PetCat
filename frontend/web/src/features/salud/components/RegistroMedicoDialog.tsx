@@ -29,6 +29,7 @@ import { diaYHora } from "@/features/clientes/textos";
 import { useNegocioActivo, usePuede } from "@/features/negocios/hooks/useNegocio";
 import { fechaCorta, hoyISO } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/stores/auth";
 import { useUi, type InicioRegistroMedico } from "@/stores/ui";
 import {
   useCitasMascota,
@@ -164,6 +165,11 @@ function Formulario({
     "en_curso,completada",
   );
   const profesionales = useProfesionales(negocio.id_negocio, puede("citas", "ver"));
+  const usuario = useAuth((s) => s.usuario);
+  // Sin historial_medico.asignar_profesional, quien tiene perfil de empleado registra a su
+  // nombre y no cambia el profesional al editar (la API lo exige).
+  const idPropio = negocio.id_empleado;
+  const fijo = !puede("historial_medico", "asignar_profesional") && idPropio !== null;
   const crear = useCrearRegistro(negocio.id_negocio);
   const editar = useEditarRegistro(negocio.id_negocio);
   const subir = useSubirArchivos(negocio.id_negocio);
@@ -181,7 +187,7 @@ function Formulario({
         tipo: "consulta_general",
         idCita: inicio.idCita ? String(inicio.idCita) : "",
         fecha: inicio.fecha && inicio.fecha <= hoyISO() ? inicio.fecha : hoyISO(),
-        idEmpleado: inicio.idEmpleado ? String(inicio.idEmpleado) : "",
+        idEmpleado: fijo ? String(idPropio) : inicio.idEmpleado ? String(inicio.idEmpleado) : "",
         motivo: "",
         diagnostico: "",
         tratamiento: "",
@@ -381,7 +387,8 @@ function Formulario({
                     // La cita trae su fecha y su profesional.
                     if (cita) {
                       form.setValue("fecha", cita.fecha, { shouldValidate: true });
-                      if (cita.empleado) form.setValue("idEmpleado", String(cita.empleado.id_empleado));
+                      if (cita.empleado && !fijo)
+                        form.setValue("idEmpleado", String(cita.empleado.id_empleado));
                     }
                   }}
                 >
@@ -411,7 +418,17 @@ function Formulario({
         <Field label="Fecha *" error={errors.fecha?.message}>
           <Input type="date" max={hoyISO()} {...form.register("fecha")} />
         </Field>
-        <Field label="Profesional" error={errors.idEmpleado?.message}>
+        <Field
+          label="Profesional"
+          error={errors.idEmpleado?.message}
+          ayuda={
+            fijo
+              ? editando
+                ? "Tu rol no cambia el profesional del registro."
+                : "Queda a tu nombre: tu rol no registra a nombre de otro profesional."
+              : undefined
+          }
+        >
           <Controller
             control={form.control}
             name="idEmpleado"
@@ -419,6 +436,7 @@ function Formulario({
               <Select
                 value={field.value || SIN_PROFESIONAL}
                 onValueChange={(v) => field.onChange(v === SIN_PROFESIONAL ? "" : v)}
+                disabled={fijo}
               >
                 <SelectTrigger aria-label="Profesional">
                   <SelectValue />
@@ -438,7 +456,9 @@ function Formulario({
                       <SelectItem value={field.value}>
                         {editando?.empleado && String(editando.empleado.id_empleado) === field.value
                           ? nombreCompleto(editando.empleado)
-                          : "Profesional de la cita"}
+                          : field.value === String(idPropio) && usuario
+                            ? nombreCompleto(usuario)
+                            : "Profesional de la cita"}
                       </SelectItem>
                     )}
                 </SelectContent>

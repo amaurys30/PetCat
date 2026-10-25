@@ -6,7 +6,7 @@ import { __reiniciarSesionParaPruebas } from "@/api/sesion";
 import { sumarDias } from "@/lib/agenda";
 import { hoyISO } from "@/lib/format";
 import { citaPanelDemo, profesionalDemo } from "@/test/agenda";
-import { renderRuta, usuarioDemo } from "@/test/render";
+import { negocioDemo, renderRuta, usuarioDemo } from "@/test/render";
 import { registroDemo, resumenDemo } from "@/test/salud";
 import { API, fallo, http, HttpResponse, ok, servidor } from "@/test/servidor";
 
@@ -297,5 +297,82 @@ describe("C4 · Editar un registro propio", () => {
     const lista = await screen.findByRole("list", { name: "Historial médico" });
     expect(within(lista).queryByRole("button", { name: /Editar/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Registro médico" })).toBeEnabled();
+  });
+});
+
+describe("C4 · Profesional del registro (asignar_profesional)", () => {
+  // Paula (id_empleado 2) con un rol de veterinaria, sin historial_medico.asignar_profesional.
+  const paula = () =>
+    usuarioDemo({
+      nombre: "Paula",
+      apellido: "Rojas",
+      negocios: [
+        negocioDemo({
+          relacion: "empleado",
+          id_empleado: 2,
+          rol: {
+            id_rol: 2,
+            nombre: "Veterinario",
+            permisos_json: { citas: ["ver"], historial_medico: ["ver", "crear", "editar"], vacunas: ["ver"] },
+          },
+        }),
+      ],
+    });
+
+  it("sin el permiso, el campo queda deshabilitado a su nombre, aunque la cita sea de otro profesional", async () => {
+    const user = userEvent.setup();
+    const registro = nuevoRegistro();
+    servidor.use(...base(registro));
+    renderRuta(RUTA, { usuario: paula() });
+    const d = await abrirNuevo(user);
+
+    const profesional = within(d).getByRole("combobox", { name: "Profesional" });
+    expect(profesional).toBeDisabled();
+    expect(profesional).toHaveTextContent("Paula Rojas");
+    expect(within(d).getByText(/Queda a tu nombre/)).toBeInTheDocument();
+
+    // La cita es de Carlos: el profesional sigue siendo Paula.
+    await user.click(within(d).getByRole("combobox", { name: "Vincular a una cita" }));
+    await user.click(screen.getByRole("option", { name: /Consulta general/ }));
+    expect(profesional).toHaveTextContent("Paula Rojas");
+
+    await user.type(within(d).getByLabelText("Diagnóstico"), "Sano");
+    await user.click(within(d).getByRole("button", { name: "Guardar registro" }));
+    expect(await screen.findByText("Registro médico guardado")).toBeInTheDocument();
+    expect(registro.creados[0]).toMatchObject({ id_cita: 400, id_empleado: 2 });
+  });
+
+  it("con el permiso (rol propio) elige a otro profesional", async () => {
+    const user = userEvent.setup();
+    const registro = nuevoRegistro();
+    servidor.use(...base(registro));
+    const usuario = paula();
+    usuario.negocios[0]!.rol!.permisos_json.historial_medico!.push("asignar_profesional");
+    renderRuta(RUTA, { usuario });
+    const d = await abrirNuevo(user);
+
+    const profesional = within(d).getByRole("combobox", { name: "Profesional" });
+    expect(profesional).toBeEnabled();
+    await user.click(profesional);
+    await user.click(await screen.findByRole("option", { name: "Carlos Pérez" }));
+    await user.click(within(d).getByRole("button", { name: "Guardar registro" }));
+    await waitFor(() => expect(registro.creados).toHaveLength(1));
+    expect(registro.creados[0]).toMatchObject({ id_empleado: 1 });
+  });
+
+  it("la tarjeta dice quién lo registró si no es el profesional que atendió", async () => {
+    const transcrito = registroDemo({
+      registrado_por: { id_usuario: 2, nombre: "Laura", apellido: "Gómez" },
+    });
+    const propio = registroDemo({
+      id_historial: 11,
+      registrado_por: { id_usuario: 3, nombre: "Carlos", apellido: "Martínez" },
+    });
+    servidor.use(...base(nuevoRegistro(), { historial: [transcrito, propio] }));
+    renderRuta(RUTA, { usuario: usuarioDemo() });
+    const lista = await screen.findByRole("list", { name: "Historial médico" });
+    const [primera, segunda] = within(lista).getAllByRole("article");
+    expect(within(primera!).getByText("Registrado por Laura Gómez")).toBeInTheDocument();
+    expect(within(segunda!).queryByText(/Registrado por/)).not.toBeInTheDocument();
   });
 });
