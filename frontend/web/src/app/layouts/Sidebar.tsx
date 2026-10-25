@@ -1,4 +1,4 @@
-import { Check, ChevronsUpDown, LayoutGrid } from "lucide-react";
+import { Check, ChevronsUpDown, LayoutGrid, ShieldCheck } from "lucide-react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router";
 import { GRUPOS_MENU, PROXIMAMENTE } from "@/app/menu";
 import { Avatar } from "@/components/common/Avatar";
@@ -124,6 +124,7 @@ function SinResponder() {
 function SelectorNegocio() {
   const negocio = useNegocioActivo();
   const negocios = useAuth((s) => s.usuario?.negocios ?? []);
+  const esAdmin = useAuth((s) => s.usuario?.tipo_usuario === "admin");
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
@@ -161,6 +162,13 @@ function SelectorNegocio() {
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
+        {esAdmin && (
+          <DropdownMenuItem asChild>
+            <Link to="/admin">
+              <ShieldCheck /> Administración PetCat
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem asChild>
           <Link to="/negocios">
             <LayoutGrid /> Ver todos mis negocios

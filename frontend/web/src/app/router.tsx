@@ -1,4 +1,6 @@
 import { createBrowserRouter, Navigate, type RouteObject } from "react-router";
+import { AdminLayout } from "@/features/admin/AdminLayout";
+import { AdminNegociosPage } from "@/features/admin/pages/AdminNegociosPage";
 import { AgendaPage } from "@/features/agenda/pages/AgendaPage";
 import { DashboardPage } from "@/features/dashboard/pages/DashboardPage";
 import { ClientesPage } from "@/features/clientes/pages/ClientesPage";
@@ -79,6 +81,12 @@ export const rutas: RouteObject[] = [
               { path: "negocios/nuevo", element: <CrearNegocioPage /> },
               { path: "negocios/:idNegocio/configurar", element: <AsistenteNegocioPage /> },
             ],
+          },
+          {
+            // Solo el super admin; para los demás, "No encontrado".
+            path: "admin",
+            element: <AdminLayout />,
+            children: [{ index: true, element: <AdminNegociosPage /> }],
           },
           {
             path: "n/:idNegocio",

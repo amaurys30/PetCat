@@ -30,6 +30,12 @@ export const queryKeys = {
     mascota: (idNegocio: number, idMascota: number) => ["citas", idNegocio, "mascota", idMascota] as const,
   },
   roles: (idNegocio: number) => ["roles", idNegocio] as const,
+  /** Administración de la plataforma (super admin). Empiezan por ["admin"]. */
+  admin: {
+    todo: () => ["admin"] as const,
+    negocios: (params: object) => ["admin", "negocios", params] as const,
+    historial: (idNegocio: number) => ["admin", "historial", idNegocio] as const,
+  },
   /** Del usuario (no de un negocio): las del panel de todos sus negocios. Empiezan por ["notificaciones"]. */
   notificaciones: {
     todas: () => ["notificaciones"] as const,
