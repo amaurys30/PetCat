@@ -149,8 +149,10 @@ describe("POST /citas/:id_cita/resena", () => {
     expect(panel.body.data[0]).not.toHaveProperty("cliente_registrado_por_negocio");
     expect((await api().get(url)).body.data[0]).not.toHaveProperty("cliente_registrado_por_negocio");
 
+    // Tampoco para el super admin: es un dato de moderación (su endpoint llega en la Fase 4).
     const admin = await api(await tokenDe(await crearAdmin())).get(`${url}/gestion`);
-    expect(admin.body.data[0].cliente_registrado_por_negocio).toBe(true);
+    expect(admin.status).toBe(200);
+    expect(admin.body.data[0]).not.toHaveProperty("cliente_registrado_por_negocio");
   });
 });
 
@@ -183,7 +185,7 @@ describe("editar y retirar la reseña", () => {
     expect(tarde.body.message).toBe("Terminó el plazo de 30 días para editar la reseña después de la cita");
   });
 
-  it("retirarla: deja de verse y de contar, no se reseña otra vez y el negocio ya no la encuentra", async () => {
+  it("retirarla: deja de verse y de contar, no se reseña otra vez y el panel la ve como retirada, sin acciones", async () => {
     const ctx = await citaCompletada();
     const { id_resena } = (await resenar(ctx)).body.data;
 
@@ -200,7 +202,13 @@ describe("editar y retirar la reseña", () => {
 
     const negocio = api(await tokenDe(ctx.negocio.propietario));
     expect((await negocio.put(`/resenas/${id_resena}/respuesta`).send({ respuesta: "Hola" })).status).toBe(404);
-    expect((await negocio.get(`/negocios/${ctx.negocio.id_negocio}/resenas/gestion`)).body.data).toEqual([]);
+    const gestion = `/negocios/${ctx.negocio.id_negocio}/resenas/gestion`;
+    expect((await negocio.get(gestion)).body.data).toMatchObject([
+      { id_resena, estado: "retirada", visible: false, retirada_en: expect.any(String) },
+    ]);
+    expect((await negocio.get(`${gestion}?estado=publicada`)).body.data).toEqual([]);
+    expect((await negocio.get(`${gestion}?sin_responder=true`)).body.data).toEqual([]);
+    expect((await negocio.post(`/resenas/${id_resena}/reportar`).send({ motivo: "spam" })).status).toBe(404);
 
     const cita = await api(ctx.token).get(`/citas/${ctx.cita.id_cita}`);
     expect(cita.body.data).toMatchObject({ id_resena: null, resena: { retirada: true, puede_resenar: false, puede_editar: false } });
@@ -302,6 +310,56 @@ describe("panel", () => {
     expect((await propietario.get(`${url}?reportada=true`)).body.data.map((r) => r.id_resena)).toEqual([id_resena]);
     expect((await propietario.get(`${url}?sin_responder=true`)).body.data.map((r) => r.id_resena)).toEqual([id_resena]);
     expect((await propietario.get(`${url}?visible=false`)).body.data.map((r) => r.id_resena)).toEqual([moderada.id_resena]);
+  });
+
+  it("gestión: autor como en público, estado (publicada, oculta, retirada), resumen y filtros nuevos", async () => {
+    const ctx = await citaCompletada();
+    const negocio = ctx.negocio;
+    const otra = await citaCompletada({ negocio, cliente: await crearUsuario({ nombre: "Julián", apellido: "mora" }) });
+    const tercera = await citaCompletada({ negocio });
+    const publicada = (await resenar(ctx, { calificacion: 5 })).body.data;
+    const oculta = (await resenar(otra, { calificacion: 1 })).body.data;
+    const retirada = (await resenar(tercera, { calificacion: 2 })).body.data;
+    await pool.query("UPDATE resenas SET visible = FALSE WHERE id_resena = ?", [oculta.id_resena]);
+    expect((await api(tercera.token).delete(`/resenas/${retirada.id_resena}`)).status).toBe(200);
+    const panel = api(await tokenDe(negocio.propietario));
+    await panel.post(`/resenas/${publicada.id_resena}/reportar`).send({ motivo: "spam" });
+    const url = `/negocios/${negocio.id_negocio}/resenas/gestion`;
+
+    const res = await panel.get(url);
+    expect(res.status).toBe(200);
+    const porId = Object.fromEntries(res.body.data.map((r) => [r.id_resena, r]));
+    expect(porId[publicada.id_resena]).toMatchObject({ autor: "Sofía G.", estado: "publicada", retirada_en: null });
+    expect(porId[oculta.id_resena]).toMatchObject({ autor: "Julián M.", estado: "oculta", visible: false, retirada_en: null });
+    expect(porId[retirada.id_resena]).toMatchObject({ estado: "retirada", visible: false });
+    expect(res.body.meta.resumen).toEqual({
+      calificacion_promedio: 5,
+      total_resenas: 1,
+      distribucion: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 1 },
+      sin_responder: 1,
+      reportadas: 1,
+      ocultas: 1,
+      retiradas: 1,
+    });
+
+    const ids = async (query) => (await panel.get(`${url}?${query}`)).body.data.map((r) => r.id_resena);
+    expect(await ids("estado=oculta")).toEqual([oculta.id_resena]);
+    expect(await ids("estado=retirada")).toEqual([retirada.id_resena]);
+    expect(await ids("calificacion_max=2")).toEqual(expect.arrayContaining([oculta.id_resena, retirada.id_resena]));
+    expect(await ids("calificacion_max=2")).toHaveLength(2);
+    expect(await ids(`id_resena=${oculta.id_resena}`)).toEqual([oculta.id_resena]);
+    // El resumen no depende de los filtros.
+    expect((await panel.get(`${url}?estado=oculta`)).body.meta.resumen.sin_responder).toBe(1);
+
+    const doble = await panel.get(`${url}?calificacion=1&calificacion_max=2`);
+    expect(doble.status).toBe(422);
+    expect(doble.body.errors).toHaveProperty("calificacion_max");
+    expect((await panel.get(`${url}?estado=borrada`)).status).toBe(422);
+
+    // Lo público también filtra por calificacion_max (solo visibles).
+    const publico = await api().get(`/negocios/${negocio.id_negocio}/resenas?calificacion_max=4`);
+    expect(publico.body.data).toEqual([]);
+    expect((await api().get(`/negocios/${negocio.id_negocio}/resenas?calificacion=5&calificacion_max=5`)).status).toBe(422);
   });
 
   it("responder: requiere resenas.responder; la primera avisa al dueño, las ediciones no; se puede borrar", async () => {

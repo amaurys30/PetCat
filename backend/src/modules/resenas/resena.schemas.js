@@ -44,15 +44,33 @@ const booleano = z
 
 export const ORDENES = ["recientes", "mejores", "peores"];
 
-export const publicasQuery = paginationSchema.extend({
+const calificacionQuery = z.coerce.number().int().min(1, "Mínimo 1").max(5, "Máximo 5");
+
+/** `calificacion` (exacta) y `calificacion_max` (de 1 hasta ese valor) no van juntas. */
+const unaCalificacion = (q, ctx) => {
+  if (q.calificacion !== undefined && q.calificacion_max !== undefined) {
+    ctx.addIssue({ code: "custom", path: ["calificacion_max"], message: "Usa calificacion o calificacion_max, no las dos" });
+  }
+};
+
+const publicasBase = paginationSchema.extend({
   orden: z.enum(ORDENES, { error: `Debe ser ${ORDENES.join(", ")}` }).default("recientes"),
-  calificacion: z.coerce.number().int().min(1).max(5).optional(),
+  calificacion: calificacionQuery.optional(),
+  calificacion_max: calificacionQuery.optional(),
 });
 
-export const gestionQuery = publicasQuery.extend({
-  sin_responder: booleano.optional(),
-  reportada: booleano.optional(),
-  visible: booleano.optional(),
-});
+export const publicasQuery = publicasBase.superRefine(unaCalificacion);
+
+export const ESTADOS_PANEL = ["publicada", "oculta", "retirada"];
+
+export const gestionQuery = publicasBase
+  .extend({
+    estado: z.enum(ESTADOS_PANEL, { error: `Debe ser ${ESTADOS_PANEL.join(", ")}` }).optional(),
+    sin_responder: booleano.optional(),
+    reportada: booleano.optional(),
+    visible: booleano.optional(),
+    id_resena: z.coerce.number().int().positive().optional(),
+  })
+  .superRefine(unaCalificacion);
 
 export const misResenasQuery = paginationSchema;

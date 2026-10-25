@@ -97,6 +97,7 @@ const router = express.Router();
  *         - $ref: '#/components/schemas/ResenaBase'
  *         - type: object
  *           properties:
+ *             autor: { type: string, example: Sofía G., description: "Como se muestra en la app y en el perfil público (nombre e inicial del apellido)" }
  *             cliente:
  *               type: object
  *               properties: { id_usuario: { type: integer }, nombre: { type: string }, apellido: { type: string } }
@@ -110,7 +111,12 @@ const router = express.Router();
  *                   type: object
  *                   nullable: true
  *                   properties: { id_servicio: { type: integer }, nombre: { type: string } }
- *             visible: { type: boolean, description: false si la ocultó la moderación de PetCat }
+ *             visible: { type: boolean, description: "false si la ocultó la moderación de PetCat o si la retiró su autor (ver estado)" }
+ *             estado:
+ *               type: string
+ *               enum: [publicada, oculta, retirada]
+ *               description: "publicada; oculta por la moderación de PetCat; retirada por su autor (retirada_en)"
+ *             retirada_en: { type: string, nullable: true, example: "2026-10-02 18:40:00", description: Cuándo la retiró su autor }
  *             reporte:
  *               type: object
  *               nullable: true
@@ -122,10 +128,6 @@ const router = express.Router();
  *                   type: object
  *                   nullable: true
  *                   properties: { id_usuario: { type: integer }, nombre: { type: string }, apellido: { type: string } }
- *             cliente_registrado_por_negocio:
- *               x-opcional: true
- *               type: boolean
- *               description: Solo para el super admin (moderación). El cliente fue registrado desde el panel de este negocio.
  */
 
 /**
@@ -287,6 +289,7 @@ router.delete("/resenas/:id_resena", authMiddleware, validate({ params: idResena
  *       - $ref: '#/components/parameters/limit'
  *       - { in: query, name: orden, schema: { type: string, enum: [recientes, mejores, peores], default: recientes } }
  *       - { in: query, name: calificacion, schema: { type: integer, minimum: 1, maximum: 5 }, description: Solo las de esa calificación }
+ *       - { in: query, name: calificacion_max, schema: { type: integer, minimum: 1, maximum: 5 }, description: "De 1 hasta esa calificación; no va junto con calificacion" }
  *     responses:
  *       200:
  *         description: Reseñas
@@ -326,8 +329,11 @@ router.get(
  *   get:
  *     summary: Reseñas del negocio (panel)
  *     description: >
- *       Requiere `resenas.ver`. Incluye las ocultas por la moderación (`visible: false`) y el reporte; no las
- *       que retiró su autor. Con el nombre completo del cliente y la cita.
+ *       Requiere `resenas.ver`. Incluye las publicadas, las ocultas por la moderación y las que retiró su
+ *       autor (`estado`), con el reporte, el nombre completo del cliente, el autor como se ve en público y
+ *       la cita. `meta.resumen` trae la calificación, la distribución (de las visibles) y los conteos para
+ *       los filtros; no depende de los filtros. Nunca incluye `cliente_registrado_por_negocio`, tampoco
+ *       para el super admin: es un dato de moderación.
  *     tags: [Reseñas]
  *     parameters:
  *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
@@ -335,9 +341,12 @@ router.get(
  *       - $ref: '#/components/parameters/limit'
  *       - { in: query, name: orden, schema: { type: string, enum: [recientes, mejores, peores], default: recientes } }
  *       - { in: query, name: calificacion, schema: { type: integer, minimum: 1, maximum: 5 } }
- *       - { in: query, name: sin_responder, schema: { type: boolean } }
+ *       - { in: query, name: calificacion_max, schema: { type: integer, minimum: 1, maximum: 5 }, description: "De 1 hasta esa calificación (2 = 1 y 2 estrellas); no va junto con calificacion" }
+ *       - { in: query, name: estado, schema: { type: string, enum: [publicada, oculta, retirada] } }
+ *       - { in: query, name: sin_responder, schema: { type: boolean }, description: "true: publicadas sin respuesta" }
  *       - { in: query, name: reportada, schema: { type: boolean } }
  *       - { in: query, name: visible, schema: { type: boolean } }
+ *       - { in: query, name: id_resena, schema: { type: integer }, description: "Solo esa reseña (el enlace de la notificación resena_nueva)" }
  *     responses:
  *       200:
  *         description: Reseñas
@@ -349,7 +358,21 @@ router.get(
  *                 success: { type: boolean, example: true }
  *                 message: { type: string, example: OK }
  *                 data: { type: array, items: { $ref: '#/components/schemas/ResenaPanel' } }
- *                 meta: { $ref: '#/components/schemas/PaginationMeta' }
+ *                 meta:
+ *                   allOf:
+ *                     - $ref: '#/components/schemas/PaginationMeta'
+ *                     - type: object
+ *                       properties:
+ *                         resumen:
+ *                           type: object
+ *                           properties:
+ *                             calificacion_promedio: { type: number, example: 4.7 }
+ *                             total_resenas: { type: integer, example: 38 }
+ *                             distribucion: { type: object, example: { "1": 1, "2": 1, "3": 2, "4": 6, "5": 28 }, description: "De las visibles, por estrellas" }
+ *                             sin_responder: { type: integer, description: Publicadas sin respuesta }
+ *                             reportadas: { type: integer, description: "Reportadas por el negocio (sin las retiradas)" }
+ *                             ocultas: { type: integer, description: Ocultas por la moderación de PetCat }
+ *                             retiradas: { type: integer, description: Retiradas por su autor }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       403: { $ref: '#/components/responses/Forbidden' }
  *       404: { $ref: '#/components/responses/NotFound' }

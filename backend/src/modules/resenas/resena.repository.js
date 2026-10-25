@@ -216,14 +216,23 @@ const pagina = async (condiciones, valores, { orden = "recientes", limit, offset
   return { rows, total };
 };
 
-/** Reseñas visibles del negocio (lo público). */
-export const findPublicas = (id_negocio, { calificacion, ...opciones }) => {
-  const condiciones = ["r.id_negocio = ?", "r.visible = TRUE"];
-  const valores = [id_negocio];
+/** Filtro por calificación exacta o "hasta" (`calificacion_max`: 2 = de 1 a 2 estrellas). */
+const filtroCalificacion = (condiciones, valores, { calificacion, calificacion_max }) => {
   if (calificacion !== undefined) {
     condiciones.push("r.calificacion = ?");
     valores.push(calificacion);
   }
+  if (calificacion_max !== undefined) {
+    condiciones.push("r.calificacion <= ?");
+    valores.push(calificacion_max);
+  }
+};
+
+/** Reseñas visibles del negocio (lo público). */
+export const findPublicas = (id_negocio, { calificacion, calificacion_max, ...opciones }) => {
+  const condiciones = ["r.id_negocio = ?", "r.visible = TRUE"];
+  const valores = [id_negocio];
+  filtroCalificacion(condiciones, valores, { calificacion, calificacion_max });
   return pagina(condiciones, valores, opciones);
 };
 
@@ -238,25 +247,54 @@ export const findDistribucion = async (id_negocio) => {
   return distribucion;
 };
 
+// Estado de una reseña en el panel. Retirar también pone visible = FALSE, así que la
+// retirada se mira primero: "oculta" es solo la que ocultó la moderación.
+const ESTADOS = {
+  publicada: "r.retirada_en IS NULL AND r.visible = TRUE",
+  oculta: "r.retirada_en IS NULL AND r.visible = FALSE",
+  retirada: "r.retirada_en IS NOT NULL",
+};
+
 /**
- * Reseñas del negocio para el panel: visibles y ocultas por moderación; nunca las que
- * retiró su autor. Filtros: calificacion, reportada, sin_responder, visible.
+ * Reseñas del negocio para el panel: publicadas, ocultas por la moderación y retiradas por
+ * su autor. Filtros: estado, calificacion, calificacion_max, reportada, visible, id_resena y
+ * sin_responder (publicadas sin respuesta, las que el negocio puede atender).
  */
-export const findGestion = (id_negocio, { calificacion, reportada, sin_responder, visible, ...opciones }) => {
-  const condiciones = ["r.id_negocio = ?", "r.retirada_en IS NULL"];
+export const findGestion = (
+  id_negocio,
+  { estado, calificacion, calificacion_max, reportada, sin_responder, visible, id_resena, ...opciones }
+) => {
+  const condiciones = ["r.id_negocio = ?"];
   const valores = [id_negocio];
+  if (estado) condiciones.push(ESTADOS[estado]);
+  filtroCalificacion(condiciones, valores, { calificacion, calificacion_max });
   for (const [columna, valor] of [
-    ["r.calificacion", calificacion],
     ["r.reportada", reportada],
     ["r.visible", visible],
+    ["r.id_resena", id_resena],
   ]) {
     if (valor !== undefined) {
       condiciones.push(`${columna} = ?`);
       valores.push(valor);
     }
   }
-  if (sin_responder !== undefined) condiciones.push(sin_responder ? "r.respuesta_negocio IS NULL" : "r.respuesta_negocio IS NOT NULL");
+  if (sin_responder !== undefined) {
+    condiciones.push(sin_responder ? `${ESTADOS.publicada} AND r.respuesta_negocio IS NULL` : "r.respuesta_negocio IS NOT NULL");
+  }
   return pagina(condiciones, valores, opciones);
+};
+
+/** Conteos del panel, sin filtros: sin responder (publicadas), reportadas, ocultas y retiradas. */
+export const findConteosGestion = async (id_negocio) => {
+  const [[row]] = await db.query(
+    `SELECT COALESCE(SUM(${ESTADOS.publicada} AND r.respuesta_negocio IS NULL), 0) AS sin_responder,
+            COALESCE(SUM(r.retirada_en IS NULL AND r.reportada = TRUE), 0) AS reportadas,
+            COALESCE(SUM(${ESTADOS.oculta}), 0) AS ocultas,
+            COALESCE(SUM(${ESTADOS.retirada}), 0) AS retiradas
+     FROM resenas r WHERE r.id_negocio = ?`,
+    [id_negocio]
+  );
+  return Object.fromEntries(Object.entries(row).map(([k, v]) => [k, Number(v)]));
 };
 
 /** Reseñas del usuario (sin las que retiró), las más recientes primero. */

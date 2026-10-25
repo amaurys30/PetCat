@@ -314,7 +314,7 @@ describe("seed de desarrollo: datos realistas", () => {
 
   // ---------- Fase 2 ----------
 
-  it("reseñas: respuesta, editada después de la respuesta, reportada visible y la señal solo para el super admin", async () => {
+  it("reseñas: respuesta, editada después de la respuesta, reportada visible y la señal de moderación guardada sin salir", async () => {
     const publicas = async (nombre) => (await api().get(`/negocios/${await idNegocio(nombre)}/resenas`)).body;
     const patitas = await publicas(NEGOCIOS[0]);
     expect(patitas.data[0]).toMatchObject({ autor: "Sofía G.", respuesta: { editada: false }, editada_despues_de_respuesta: false });
@@ -331,8 +331,14 @@ describe("seed de desarrollo: datos realistas", () => {
     const panel = (await api(await login("saludanimal@petcat.test")).get(url)).body.data;
     expect(panel.find((r) => r.reporte)).toMatchObject({ calificacion: 2, reporte: { motivo: "otro" } });
     expect(panel.every((r) => !("cliente_registrado_por_negocio" in r))).toBe(true);
+    // La señal sigue en la tabla para la moderación (Fase 4), pero ni el super admin la recibe aquí.
     const admin = (await api(await login("admin@petcat.test")).get(url)).body.data;
-    expect(admin.filter((r) => r.cliente_registrado_por_negocio).map((r) => r.cliente.nombre)).toEqual(["Jorge"]);
+    expect(admin.every((r) => !("cliente_registrado_por_negocio" in r))).toBe(true);
+    const [señaladas] = await pool.query(
+      "SELECT u.nombre FROM resenas r JOIN usuarios u USING (id_usuario) WHERE r.id_negocio = ? AND r.cliente_registrado_por_negocio = TRUE",
+      [await idNegocio(NEGOCIOS[3])]
+    );
+    expect(señaladas.map((r) => r.nombre)).toEqual(["Jorge"]);
   });
 
   it("la guardería (Gratuito) está cerca de sus límites: 3 de 3 empleados, 24 o más de 30 citas del mes y el aviso del 80 %", async () => {
