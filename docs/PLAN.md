@@ -586,3 +586,7 @@ Jobs sobre la base de node-cron de la 2.3 (funciones exportadas que los tests ll
 - `meta.resumen` de la gestión: calificación y distribución de las visibles (como lo público) y los conteos `sin_responder`, `reportadas` (sin las retiradas), `ocultas` y `retiradas`; no depende de los filtros. `calificacion_max` (de 1 hasta ese valor) en la gestión y en lo público; con `calificacion` a la vez, 422. `id_resena` para abrir una reseña desde su notificación.
 - `cliente_registrado_por_negocio` deja de salir en `/resenas/gestion`, también para el super admin: es una señal de moderación y vivirá solo en el endpoint de moderación de la Fase 4. La columna se sigue calculando al crear la reseña.
 
+### Decisiones de la API para el panel P6.4 (octubre 2026)
+- El enlace de las notificaciones de citas trae también la `fecha` de la cita, para abrirla en su semana de la agenda sin pedirla antes. `cita_nueva` trae `por_confirmar` (false si nació confirmada por la confirmación automática): el panel avisa en el navegador solo las reservas que esperan confirmación. Las notificaciones guardadas antes no tienen estos campos (el panel abre igual el detalle).
+- Swagger declara los campos de `datos` (todos `x-opcional`: cada tipo trae los suyos).
+
