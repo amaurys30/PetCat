@@ -127,13 +127,7 @@ export function CitasPerdidas({
   const actualizar = useActualizarNegocio(idNegocio);
   if (!perdidas.sugerencia) return null;
   const activar = () =>
-    actualizar.mutate(
-      { confirmacion_automatica: true },
-      {
-        onSuccess: () => aviso.exito("Confirmación automática activada"),
-        onError: (e) => aviso.error(e.message),
-      },
-    );
+    actualizar.mutate({ confirmacion_automatica: true }, { onError: (e) => aviso.error(e.message) });
   return (
     <Card className="border-warning/40 bg-warning-soft p-5">
       <h2 className="flex items-center gap-2 text-card font-semibold text-warning-ink">

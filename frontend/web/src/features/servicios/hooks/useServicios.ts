@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as serviciosApi from "@/api/servicios";
 import { useNegocioActivo } from "@/features/negocios/hooks/useNegocio";
 import { queryKeys } from "@/lib/queryKeys";
+import { aviso } from "@/components/ui/toaster";
 
 /** Los formularios y diálogos muestran sus errores (422 por campo, 409 en línea o con sus citas). */
 const meta = { avisarError: false } as const;
@@ -59,7 +60,10 @@ export function useGuardarServicio() {
       "nuevo" in datos
         ? serviciosApi.crearServicio(negocio.id_negocio, datos.nuevo)
         : serviciosApi.actualizarServicio(datos.idServicio, datos.cambios),
-    onSuccess: () => refrescar(),
+    onSuccess: (s, datos) => {
+      aviso.exito("nuevo" in datos ? `«${s.nombre}» quedó creado` : "Cambios guardados");
+      return refrescar();
+    },
   });
 }
 
@@ -69,7 +73,12 @@ export function useVisibilidadServicio() {
   return useMutation({
     mutationFn: ({ idServicio, visible }: { idServicio: number; visible: boolean }) =>
       serviciosApi.actualizarServicio(idServicio, { visible_app: visible }),
-    onSuccess: () => refrescar(),
+    onSuccess: (s) => {
+      aviso.exito(
+        s.visible_app ? `«${s.nombre}» aparece en la app` : `«${s.nombre}» ya no aparece en la app`,
+      );
+      return refrescar();
+    },
   });
 }
 
@@ -77,8 +86,12 @@ export function useDesactivarServicio() {
   const refrescar = useRefrescarServicios();
   return useMutation({
     meta,
-    mutationFn: (idServicio: number) => serviciosApi.desactivarServicio(idServicio),
-    onSuccess: () => refrescar(),
+    mutationFn: (s: Pick<serviciosApi.Servicio, "id_servicio" | "nombre">) =>
+      serviciosApi.desactivarServicio(s.id_servicio),
+    onSuccess: (_r, s) => {
+      aviso.exito(`«${s.nombre}» quedó inactivo. Ya no aparece en la app ni en la agenda.`);
+      return refrescar();
+    },
   });
 }
 
@@ -87,6 +100,7 @@ export function useReactivarServicio() {
   return useMutation({
     meta,
     mutationFn: (idServicio: number) => serviciosApi.reactivarServicio(idServicio),
+    onSuccess: (s) => aviso.exito(`«${s.nombre}» está activo de nuevo`),
     // También con error: un 409 "ya está activo" significa que el catálogo estaba viejo.
     onSettled: () => refrescar(),
   });

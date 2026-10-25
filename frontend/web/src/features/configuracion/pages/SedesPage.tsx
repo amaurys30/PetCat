@@ -14,7 +14,6 @@ import { Card } from "@/components/ui/card";
 import { Field, Label } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { aviso } from "@/components/ui/toaster";
 import { EditorHorarioSemanal } from "@/features/negocios/components/EditorHorarioSemanal";
 import { UbicacionSede } from "@/features/negocios/components/UbicacionSede";
 import { useEliminarSede, useGuardarHorarios, useGuardarSede } from "@/features/negocios/hooks/useGestion";
@@ -201,7 +200,6 @@ function DatosSede({
         if (Object.keys(cambios).length > 0)
           await guardar.mutateAsync({ idSucursal: sede.id_sucursal, cambios });
         form.reset(valores);
-        aviso.exito("Sede actualizada");
       } else {
         const creada = await guardar.mutateAsync({
           nueva: {
@@ -215,7 +213,6 @@ function DatosSede({
         });
         form.reset(valores);
         onSucio(false);
-        aviso.exito("Sede creada. Ahora agrégale su horario.");
         onCreada(creada.id_sucursal);
       }
     } catch (e) {
@@ -307,7 +304,6 @@ function DatosSede({
             eliminar.mutate(sede.id_sucursal, {
               onSuccess: () => {
                 setConfirmarDesactivar(false);
-                aviso.exito("Sede desactivada");
                 onDesactivada();
               },
             })
@@ -352,7 +348,6 @@ function HorarioSede({
         onSuccess: () => {
           setErrores({});
           setMensaje(null);
-          aviso.exito("Horario guardado");
         },
         onError: (e) => {
           // horarios.N del 422 -> la ficha del día y rango que se envió en la posición N.

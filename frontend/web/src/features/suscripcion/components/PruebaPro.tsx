@@ -2,12 +2,10 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Button } from "@/components/ui/button";
-import { aviso } from "@/components/ui/toaster";
 import { useNegocioGlobal, useSuscripcion } from "@/features/negocios/hooks/useNegocio";
 import { puedeActivarPrueba } from "@/lib/permisos";
 import { useAuth } from "@/stores/auth";
 import { usePruebaPro } from "../hooks/usePruebaPro";
-import { diasRestantes } from "../textos";
 
 /** Confirmación de la prueba Pro: qué incluye, que se usa una vez y qué pasa al terminar. */
 export function ConfirmarPruebaPro({
@@ -24,9 +22,7 @@ export function ConfirmarPruebaPro({
   const prueba = usePruebaPro(idNegocio);
   const activar = () =>
     prueba.mutate(undefined, {
-      onSuccess: (suscripcion) => {
-        const dias = suscripcion.suscripcion?.dias_prueba_restantes;
-        aviso.exito(`Prueba del plan Pro activada${dias != null ? `: ${diasRestantes(dias)}` : ""}`);
+      onSuccess: () => {
         onAbiertoChange(false);
         onActivada?.();
       },

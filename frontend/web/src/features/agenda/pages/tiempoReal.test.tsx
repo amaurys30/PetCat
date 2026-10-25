@@ -24,7 +24,9 @@ const base = (contador = { agenda: 0, atencion: 0 }) => [
     return ok({ por_confirmar: [], fuera_de_disponibilidad: [] });
   }),
   http.get(`${API}/negocios/1/profesionales`, () => ok([profesionalDemo()])),
-  http.get(`${API}/negocios/1/gestion`, () => ok(gestionDemo({ sucursales: [sedeDemo({ horarios: horarioPartido })] }))),
+  http.get(`${API}/negocios/1/gestion`, () =>
+    ok(gestionDemo({ sucursales: [sedeDemo({ horarios: horarioPartido })] })),
+  ),
   // Sin configuracion.ver, las sedes salen del perfil público.
   http.get(`${API}/negocios/1`, () => ok({ sucursales: [sedeDemo({ horarios: horarioPartido })] })),
   http.get(`${API}/citas/10`, () => ok(citaDetalleDemo({ id_cita: 10, fecha: LUNES, estado: "pendiente" }))),
@@ -37,7 +39,13 @@ const reserva = (cambios: Partial<CambioAgenda> = {}): CambioAgenda => ({
   id_cita: 10,
   fechas: [LUNES],
   por: 99,
-  cita: { mascota: "Toby", servicio: "Consulta general", fecha: LUNES, hora_inicio: "10:00", estado: "pendiente" },
+  cita: {
+    mascota: "Toby",
+    servicio: "Consulta general",
+    fecha: LUNES,
+    hora_inicio: "10:00",
+    estado: "pendiente",
+  },
   ...cambios,
 });
 
@@ -66,12 +74,25 @@ describe("Agenda en tiempo real", () => {
     const { socket, contador } = await abrirAgenda();
     const antes = { ...contador };
 
-    socket.recibir("agenda_actualizada", { id_negocio: 1, accion: "estado", id_cita: 1, estado: "confirmada", fechas: [LUNES], por: 2 });
+    socket.recibir("agenda_actualizada", {
+      id_negocio: 1,
+      accion: "estado",
+      id_cita: 1,
+      estado: "confirmada",
+      fechas: [LUNES],
+      por: 2,
+    });
     await waitFor(() => expect(contador.agenda).toBe(antes.agenda + 1));
     expect(contador.atencion).toBeGreaterThan(antes.atencion);
 
     const despues = contador.agenda;
-    socket.recibir("agenda_actualizada", { id_negocio: 7, accion: "estado", id_cita: 50, fechas: [LUNES], por: 3 });
+    socket.recibir("agenda_actualizada", {
+      id_negocio: 7,
+      accion: "estado",
+      id_cita: 50,
+      fechas: [LUNES],
+      por: 3,
+    });
     await new Promise((r) => setTimeout(r, 100));
     expect(contador.agenda).toBe(despues);
     // El cambio que hizo el mismo usuario recarga igual, pero no avisa.
@@ -131,11 +152,15 @@ describe("Agenda en tiempo real", () => {
     expect(screen.queryByText(/Sin actualización en tiempo real/)).not.toBeInTheDocument();
 
     socket.perderConexion();
-    expect(await screen.findByRole("status")).toHaveTextContent("Sin actualización en tiempo real · reintentando");
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Sin actualización en tiempo real · reintentando",
+    );
 
     const antes = contador.agenda;
     socket.conectar();
-    await waitFor(() => expect(screen.queryByText(/Sin actualización en tiempo real/)).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByText(/Sin actualización en tiempo real/)).not.toBeInTheDocument(),
+    );
     await waitFor(() => expect(contador.agenda).toBe(antes + 1));
   });
 });

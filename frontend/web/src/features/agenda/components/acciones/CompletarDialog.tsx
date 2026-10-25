@@ -33,7 +33,8 @@ export function CompletarDialog({
   /** Con historial_medico.crear: casilla "Crear el registro médico al terminar". */
   ofrecerRegistro?: boolean;
   onCerrar: () => void;
-  onListo: (cita: CitaPanelDetalle, mensaje: string, crearRegistro: boolean) => void;
+  /** El aviso lo muestra el hook; `crearRegistro`: abrir C4 con la cita. */
+  onListo: (cita: CitaPanelDetalle, crearRegistro: boolean) => void;
 }) {
   // Desmarcada: no toda cita es clínica (baño, guardería) y marcada abriría C4 cada vez.
   const [crearRegistro, setCrearRegistro] = useState(false);
@@ -53,14 +54,11 @@ export function CompletarDialog({
     if (sinPrecio) return;
     completar.mutate(
       { cita, precioFinal: Number(precio) },
-      { onSuccess: (c) => onListo(c, "Cita completada", ofrecerRegistro && crearRegistro) },
+      { onSuccess: (c) => onListo(c, ofrecerRegistro && crearRegistro) },
     );
   };
   const noAsistio = () =>
-    estado.mutate(
-      { idCita: cita.id_cita, estado: "no_asistio" },
-      { onSuccess: (c) => onListo(c, "Inasistencia registrada", false) },
-    );
+    estado.mutate({ idCita: cita.id_cita, estado: "no_asistio" }, { onSuccess: (c) => onListo(c, false) });
 
   return (
     <Dialog open onOpenChange={(abierto) => !abierto && onCerrar()}>

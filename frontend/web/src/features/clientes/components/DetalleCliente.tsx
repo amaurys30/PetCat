@@ -12,7 +12,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { aviso } from "@/components/ui/toaster";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { InicioNuevaCita } from "@/features/agenda/components/nueva/NuevaCitaDialog";
 import { nombreCompleto } from "@/features/agenda/textos";
@@ -20,7 +19,7 @@ import { useNegocioActivo, usePuede } from "@/features/negocios/hooks/useNegocio
 import { parseFecha } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useAsignarCorreo, useClienteDetalle } from "../hooks/useClientes";
-import { diaYHora, lineaMascota, TEXTO_CORREO, TEXTO_SIN_CUENTA } from "../textos";
+import { diaYHora, lineaMascota, TEXTO_SIN_CUENTA } from "../textos";
 import { AgregarMascotaDialog } from "./AgregarMascotaDialog";
 import { CitasClienteDialog } from "./CitasClienteDialog";
 import { CorreoClienteDialog } from "./CorreoClienteDialog";
@@ -195,9 +194,7 @@ function Cabecera({ detalle }: { detalle: ClienteDetalle }) {
             size="sm"
             variant="secondary"
             disabled={reenviar.isPending}
-            onClick={() =>
-              reenviar.mutate(cliente.email!, { onSuccess: (r) => aviso.exito(TEXTO_CORREO[r.accion]) })
-            }
+            onClick={() => reenviar.mutate(cliente.email!)}
           >
             Reenviar bienvenida
           </Button>
@@ -210,10 +207,7 @@ function Cabecera({ detalle }: { detalle: ClienteDetalle }) {
           nombre={cliente.nombre}
           correoActual={cliente.email}
           onCerrar={() => setCorreo(false)}
-          onGuardado={(r) => {
-            setCorreo(false);
-            aviso.exito(TEXTO_CORREO[r.accion]);
-          }}
+          onGuardado={() => setCorreo(false)}
         />
       )}
     </div>
@@ -250,10 +244,7 @@ function Mascotas({ detalle }: { detalle: ClienteDetalle }) {
           idUsuario={cliente.id_usuario}
           nombreCliente={nombreCompleto(cliente)}
           onCerrar={() => setAgregando(false)}
-          onAgregada={(m) => {
-            setAgregando(false);
-            aviso.exito(`${m.nombre} quedó registrada a nombre de ${cliente.nombre}`);
-          }}
+          onAgregada={() => setAgregando(false)}
         />
       )}
     </Card>

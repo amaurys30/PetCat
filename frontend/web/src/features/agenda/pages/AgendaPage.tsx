@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { aviso } from "@/components/ui/toaster";
 import { useSedes } from "@/features/equipo/hooks/useDisponibilidad";
 import { useNegocioActivo, usePuede } from "@/features/negocios/hooks/useNegocio";
-import { aHora, diasDeSemana, fechaHoraCita, sumarDias, tituloDia, tituloRango } from "@/lib/agenda";
+import { aHora, diasDeSemana, sumarDias, tituloDia, tituloRango } from "@/lib/agenda";
 import { hoyISO, minutoActualBogota } from "@/lib/format";
 import { useEstadoConexion } from "@/lib/socket";
 import { useUi } from "@/stores/ui";
@@ -222,10 +222,7 @@ export function AgendaPage() {
             onConfirmar={(c) =>
               confirmar.mutate(
                 { idCita: c.id_cita, estado: "confirmada" },
-                {
-                  onSuccess: () => aviso.exito(`Cita de ${c.mascota.nombre} confirmada`),
-                  onError: (e) => aviso.advertencia(e.message),
-                },
+                { onError: (e) => aviso.advertencia(e.message) },
               )
             }
             onAccion={(tipo, c) => abrirAccion(tipo, c.id_cita)}
@@ -250,9 +247,6 @@ export function AgendaPage() {
           onCerrar={() => setNuevaCita(null)}
           onCreada={(cita) => {
             setNuevaCita(null);
-            aviso.exito(
-              `Cita agendada y confirmada: ${cita.mascota.nombre}, ${fechaHoraCita(cita.fecha, cita.hora_inicio)}`,
-            );
             cambiar({ fecha: cita.fecha, idCita: cita.id_cita });
           }}
         />

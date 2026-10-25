@@ -2,6 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import * as authApi from "@/api/auth";
 import { avisarPerfilCambiado } from "@/api/sesion";
 import { useAuth } from "@/stores/auth";
+import { aviso } from "@/components/ui/toaster";
 
 /** Recarga el perfil en esta pestaña y avisa a las demás (avatar y nombre del menú). */
 function useAlCambiarPerfil() {
@@ -16,7 +17,14 @@ const meta = { avisarError: false } as const;
 
 export function useActualizarPerfil() {
   const alCambiar = useAlCambiarPerfil();
-  return useMutation({ meta, mutationFn: authApi.actualizarPerfil, onSuccess: alCambiar });
+  return useMutation({
+    meta,
+    mutationFn: authApi.actualizarPerfil,
+    onSuccess: () => {
+      aviso.exito("Datos guardados");
+      return alCambiar();
+    },
+  });
 }
 
 export function useFotoPerfil() {
@@ -32,5 +40,9 @@ export function useFotoPerfil() {
 }
 
 export function useCambiarPassword() {
-  return useMutation({ meta, mutationFn: authApi.cambiarPassword });
+  return useMutation({
+    meta,
+    mutationFn: authApi.cambiarPassword,
+    onSuccess: () => aviso.exito("Contraseña actualizada. Se cerraron tus sesiones en otros dispositivos."),
+  });
 }

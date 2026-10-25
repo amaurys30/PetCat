@@ -2,7 +2,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as api from "@/api/citas";
 import { toApiError, type ApiError } from "@/api/errors";
 import { queryKeys } from "@/lib/queryKeys";
+import { aviso } from "@/components/ui/toaster";
+import { fechaHoraCita } from "@/lib/agenda";
 import { abrirLimitePlanSiAplica } from "../errores";
+import { nombreProfesional } from "../textos";
 
 export function useCita(idNegocio: number, idCita: number | undefined) {
   return useQuery({
@@ -55,12 +58,23 @@ function useRecargar(idNegocio: number) {
     ]);
 }
 
+/** Aviso de cada cambio de estado (completar tiene su propio hook). */
+const AVISO_ESTADO: Partial<Record<api.EstadoCita, (c: api.CitaPanelDetalle) => string>> = {
+  confirmada: (c) => `Cita de ${c.mascota.nombre} confirmada`,
+  en_curso: () => "Cita en curso",
+  no_asistio: () => "Inasistencia registrada",
+};
+
 export function useCambiarEstado(idNegocio: number) {
   const recargar = useRecargar(idNegocio);
   return useMutation({
     meta,
     mutationFn: ({ idCita, ...body }: api.CambiarEstadoBody & { idCita: number }) =>
       api.cambiarEstadoCita(idCita, body),
+    onSuccess: (cita, { estado }) => {
+      const texto = AVISO_ESTADO[estado]?.(cita);
+      if (texto) aviso.exito(texto);
+    },
     onError: abrirLimitePlanSiAplica,
     onSettled: recargar,
   });
@@ -100,6 +114,7 @@ export function useCompletar(idNegocio: number) {
       }
       return api.cambiarEstadoCita(cita.id_cita, { estado: "completada", precio_final: precioFinal });
     },
+    onSuccess: () => aviso.exito("Cita completada"),
     onError: abrirLimitePlanSiAplica,
     onSettled: recargar,
   });
@@ -109,7 +124,9 @@ export function useCancelarCita(idNegocio: number) {
   const recargar = useRecargar(idNegocio);
   return useMutation({
     meta,
-    mutationFn: ({ idCita, motivo }: { idCita: number; motivo: string }) => api.cancelarCita(idCita, motivo),
+    mutationFn: ({ idCita, motivo }: { idCita: number; motivo: string; rechazar?: boolean }) =>
+      api.cancelarCita(idCita, motivo),
+    onSuccess: (_cita, { rechazar }) => aviso.exito(rechazar ? "Cita rechazada" : "Cita cancelada"),
     onError: abrirLimitePlanSiAplica,
     onSettled: recargar,
   });
@@ -121,6 +138,7 @@ export function useReprogramarCita(idNegocio: number) {
     meta,
     mutationFn: ({ idCita, ...body }: api.ReprogramarBody & { idCita: number }) =>
       api.reprogramarCita(idCita, body),
+    onSuccess: (nueva) => aviso.exito(`Cita reprogramada: ${fechaHoraCita(nueva.fecha, nueva.hora_inicio)}`),
     onError: abrirLimitePlanSiAplica,
     onSettled: recargar,
   });
@@ -132,6 +150,11 @@ export function useActualizarCita(idNegocio: number) {
     meta,
     mutationFn: ({ idCita, ...body }: api.ActualizarCitaBody & { idCita: number }) =>
       api.actualizarCita(idCita, body),
+    // Reasignar (B4) o guardar las notas internas.
+    onSuccess: (cita, cambios) =>
+      aviso.exito(
+        "id_empleado" in cambios ? `Cita reasignada a ${nombreProfesional(cita)}` : "Notas guardadas",
+      ),
     onError: abrirLimitePlanSiAplica,
     onSettled: recargar,
   });
@@ -143,6 +166,10 @@ export function useCrearCita(idNegocio: number) {
   return useMutation({
     meta,
     mutationFn: (body: api.CrearCitaPanelBody) => api.crearCitaPanel(idNegocio, body),
+    onSuccess: (cita) =>
+      aviso.exito(
+        `Cita agendada y confirmada: ${cita.mascota.nombre}, ${fechaHoraCita(cita.fecha, cita.hora_inicio)}`,
+      ),
     onError: abrirLimitePlanSiAplica,
     onSettled: recargar,
   });

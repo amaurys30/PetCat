@@ -17,7 +17,6 @@ import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { aviso } from "@/components/ui/toaster";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useNegocioActivo, usePuede } from "@/features/negocios/hooks/useNegocio";
 import { aplicarErroresApi } from "@/lib/forms";
@@ -210,7 +209,6 @@ function EditorRol({
         await guardar.mutateAsync({ idRol: rol.id_rol, cambios });
         form.reset(valores);
         onSucio(false);
-        aviso.exito("Rol actualizado");
       } else {
         const creado = await guardar.mutateAsync({
           nuevo: {
@@ -220,7 +218,6 @@ function EditorRol({
           },
         });
         onSucio(false);
-        aviso.exito("Rol creado");
         onCreado(creado.id_rol);
       }
     } catch (e) {
@@ -396,7 +393,6 @@ function EditorRol({
               onSuccess: () => {
                 setConfirmarEliminar(false);
                 onSucio(false);
-                aviso.exito("Rol eliminado");
                 onEliminado();
               },
             })

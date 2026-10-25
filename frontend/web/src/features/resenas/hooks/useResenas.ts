@@ -83,6 +83,7 @@ export function useReportar(idNegocio: number) {
   return useMutation({
     mutationFn: ({ idResena, ...body }: api.ReporteBody & { idResena: number }) =>
       api.reportarResena(idResena, body),
+    onSuccess: () => aviso.exito("Reseña reportada: PetCat la revisará"),
     onSettled: recargar,
   });
 }

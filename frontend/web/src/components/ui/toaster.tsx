@@ -40,7 +40,12 @@ export const aviso = {
   /** Aviso oscuro con una línea de detalle y un botón (p. ej. "Ver" en una reserva nueva). */
   conAccion: (
     mensaje: string,
-    { descripcion, etiqueta, onClick, icono }: { descripcion?: string; etiqueta: string; onClick: () => void; icono?: ReactNode },
+    {
+      descripcion,
+      etiqueta,
+      onClick,
+      icono,
+    }: { descripcion?: string; etiqueta: string; onClick: () => void; icono?: ReactNode },
   ) =>
     toast(mensaje, {
       description: descripcion,

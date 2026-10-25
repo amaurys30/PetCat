@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { aviso } from "@/components/ui/toaster";
 import { nombreCompleto } from "@/features/agenda/textos";
 import { useNegocioActivo, usePuede } from "@/features/negocios/hooks/useNegocio";
 import { fechaHora } from "@/lib/format";
@@ -193,14 +192,7 @@ function Nota({ nota }: { nota: NotaCliente }) {
         confirmar="Borrar nota"
         peligro
         cargando={borrar.isPending}
-        onConfirmar={() =>
-          borrar.mutate(nota.id_nota, {
-            onSuccess: () => {
-              setBorrando(false);
-              aviso.exito("Nota eliminada");
-            },
-          })
-        }
+        onConfirmar={() => borrar.mutate(nota.id_nota, { onSuccess: () => setBorrando(false) })}
       />
     </div>
   );

@@ -9,7 +9,6 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { aviso } from "@/components/ui/toaster";
 import { useNegocioActivo, usePuede } from "@/features/negocios/hooks/useNegocio";
 import { ServicioCard } from "../components/ServicioCard";
 import { useEstadoServicio } from "../components/EstadoServicio";
@@ -89,15 +88,7 @@ export function ServiciosPage() {
   }
 
   const cambiarVisibilidad = (s: Servicio) =>
-    visibilidad.mutate(
-      { idServicio: s.id_servicio, visible: !s.visible_app },
-      {
-        onSuccess: () =>
-          aviso.exito(
-            s.visible_app ? `«${s.nombre}» ya no aparece en la app` : `«${s.nombre}» aparece en la app`,
-          ),
-      },
-    );
+    visibilidad.mutate({ idServicio: s.id_servicio, visible: !s.visible_app });
 
   return (
     <div>

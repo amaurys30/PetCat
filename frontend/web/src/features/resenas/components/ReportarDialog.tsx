@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
-import { aviso } from "@/components/ui/toaster";
 import { useNegocioActivo } from "@/features/negocios/hooks/useNegocio";
 import { aplicarErroresApi } from "@/lib/forms";
 import { cn } from "@/lib/utils";
@@ -33,10 +32,7 @@ export function ReportarDialog({ resena, onCerrar }: { resena: ResenaPanel | nul
     reportar.mutate(
       { idResena: resena.id_resena, motivo, ...(detalle && { detalle }) },
       {
-        onSuccess: () => {
-          aviso.exito("Reseña reportada: PetCat la revisará");
-          cerrar();
-        },
+        onSuccess: cerrar,
         // Un 409 (ya reportada) lo avisa el manejo global; el diálogo se cierra.
         onError: (e) => {
           if (!aplicarErroresApi(form.setError, e, ["motivo", "detalle"])) cerrar();

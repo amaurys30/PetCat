@@ -95,14 +95,11 @@ function Contenido({ cita }: { cita: CitaPanelDetalle }) {
   );
   const hoy = hoyISO(ahora);
 
-  const cambiarEstado = (nuevo: "confirmada" | "en_curso" | "no_asistio", mensaje: string) =>
+  const cambiarEstado = (nuevo: "confirmada" | "en_curso" | "no_asistio") =>
     estado.mutate(
       { idCita: cita.id_cita, estado: nuevo },
       {
-        onSuccess: () => {
-          aviso.exito(mensaje);
-          setConfirmarNoAsistio(false);
-        },
+        onSuccess: () => setConfirmarNoAsistio(false),
         onError: (e) => aviso.advertencia(e.message),
       },
     );
@@ -154,11 +151,7 @@ function Contenido({ cita }: { cita: CitaPanelDetalle }) {
 
       <SheetFooter className="flex-wrap">
         {acciones.confirmar && (
-          <Button
-            className="flex-1"
-            cargando={estado.isPending}
-            onClick={() => cambiarEstado("confirmada", "Cita confirmada")}
-          >
+          <Button className="flex-1" cargando={estado.isPending} onClick={() => cambiarEstado("confirmada")}>
             Confirmar
           </Button>
         )}
@@ -171,13 +164,13 @@ function Contenido({ cita }: { cita: CitaPanelDetalle }) {
           <Button
             variant={acciones.completar ? "secondary" : "primary"}
             cargando={estado.isPending}
-            onClick={() => cambiarEstado("en_curso", "Cita en curso")}
+            onClick={() => cambiarEstado("en_curso")}
           >
             Iniciar atención
           </Button>
         )}
         {acciones.llegoTarde && (
-          <Button cargando={estado.isPending} onClick={() => cambiarEstado("en_curso", "Cita en curso")}>
+          <Button cargando={estado.isPending} onClick={() => cambiarEstado("en_curso")}>
             Llegó tarde: pasar a en curso
           </Button>
         )}
@@ -208,7 +201,7 @@ function Contenido({ cita }: { cita: CitaPanelDetalle }) {
         descripcion="Cuenta en el historial del cliente con este negocio. Si llega tarde hoy, podrás pasarla a “En curso”."
         confirmar="Marcar como no asistió"
         cargando={estado.isPending}
-        onConfirmar={() => cambiarEstado("no_asistio", "Inasistencia registrada")}
+        onConfirmar={() => cambiarEstado("no_asistio")}
       />
     </>
   );
@@ -410,12 +403,7 @@ function NotasInternas({ cita, editable }: { cita: CitaPanelDetalle; editable: b
           <Button
             size="sm"
             cargando={guardar.isPending}
-            onClick={() =>
-              guardar.mutate(
-                { idCita: cita.id_cita, notas_internas: texto.trim() || null },
-                { onSuccess: () => aviso.exito("Notas guardadas") },
-              )
-            }
+            onClick={() => guardar.mutate({ idCita: cita.id_cita, notas_internas: texto.trim() || null })}
           >
             Guardar notas
           </Button>

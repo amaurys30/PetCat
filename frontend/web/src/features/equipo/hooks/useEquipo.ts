@@ -8,6 +8,7 @@ import { aviso } from "@/components/ui/toaster";
 import { reglasEscalada } from "@/lib/permisos";
 import { queryKeys } from "@/lib/queryKeys";
 import { useAuth } from "@/stores/auth";
+import { useUi } from "@/stores/ui";
 
 /** Los formularios y diálogos muestran sus errores (422 por campo, 409 en línea). */
 const meta = { avisarError: false } as const;
@@ -116,12 +117,18 @@ export function useActualizarEmpleado() {
   });
 }
 
+/** Avisa y abre el diálogo de sus citas futuras (citas_afectadas), si tiene. */
 export function useDesactivarEmpleado() {
   const refrescar = useRefrescarEquipo();
   return useMutation({
     meta,
-    mutationFn: (idEmpleado: number) => empleadosApi.desactivarEmpleado(idEmpleado),
-    onSuccess: () => refrescar(),
+    mutationFn: ({ idEmpleado }: { idEmpleado: number; nombre: string }) =>
+      empleadosApi.desactivarEmpleado(idEmpleado),
+    onSuccess: ({ citas_afectadas }, { nombre }) => {
+      aviso.exito(`${nombre} quedó inactivo`);
+      useUi.getState().mostrarCitasAfectadas(citas_afectadas, `${nombre} quedó inactivo`);
+      return refrescar();
+    },
   });
 }
 
@@ -130,7 +137,10 @@ export function useReactivarEmpleado() {
   const refrescar = useRefrescarEquipo();
   return useMutation({
     mutationFn: (idEmpleado: number) => empleadosApi.reactivarEmpleado(idEmpleado),
-    onSuccess: () => refrescar(),
+    onSuccess: (e) => {
+      aviso.exito(`${e.nombre} ${e.apellido} está activo de nuevo`);
+      return refrescar();
+    },
   });
 }
 
@@ -195,8 +205,11 @@ export function useGuardarRol() {
       "nuevo" in datos
         ? rolesApi.crearRol(negocio.id_negocio, datos.nuevo)
         : rolesApi.actualizarRol(datos.idRol, datos.cambios),
-    // Los permisos del propio rol también llegan en /auth/me.
-    onSuccess: () => refrescar({ perfil: true }),
+    onSuccess: (_rol, datos) => {
+      aviso.exito("nuevo" in datos ? "Rol creado" : "Rol actualizado");
+      // Los permisos del propio rol también llegan en /auth/me.
+      return refrescar({ perfil: true });
+    },
   });
 }
 
@@ -205,6 +218,9 @@ export function useEliminarRol() {
   return useMutation({
     meta,
     mutationFn: (idRol: number) => rolesApi.eliminarRol(idRol),
-    onSuccess: () => refrescar(),
+    onSuccess: () => {
+      aviso.exito("Rol eliminado");
+      return refrescar();
+    },
   });
 }

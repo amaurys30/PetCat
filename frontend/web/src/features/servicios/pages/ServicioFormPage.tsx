@@ -16,7 +16,6 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { aviso } from "@/components/ui/toaster";
 import { useNegocioActivo, usePuede } from "@/features/negocios/hooks/useNegocio";
 import { aplicarErroresApi } from "@/lib/forms";
 import { fechaCorta, hoyISO } from "@/lib/format";
@@ -130,16 +129,14 @@ function FormularioServicio({ servicio }: { servicio: Servicio | null }) {
     const cuerpo = cuerpoDe(valores, { conEmpleados });
     try {
       if (!servicio) {
-        const creado = await guardar.mutateAsync({ nuevo: cuerpo });
+        await guardar.mutateAsync({ nuevo: cuerpo });
         sucio.current = false;
-        aviso.exito(`«${creado.nombre}» quedó creado`);
         navigate("..");
         return;
       }
       const cambios = cambiosDe(cuerpo, cuerpoDe(iniciales, { conEmpleados }));
       if (Object.keys(cambios).length > 0) {
         const actualizado = await guardar.mutateAsync({ idServicio: servicio.id_servicio, cambios });
-        aviso.exito("Cambios guardados");
         if (!actualizado.activo) {
           // Inactivo: se queda para poder reactivarlo (por ejemplo, después de cambiarle el nombre).
           form.reset(valoresDe(actualizado));

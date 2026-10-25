@@ -75,10 +75,7 @@ function DatosPersonales({ usuario }: { usuario: Me }) {
     const cambios = soloCambios(valores, iniciales) as Parameters<typeof actualizar.mutate>[0];
     if (Object.keys(cambios).length === 0) return;
     actualizar.mutate(cambios, {
-      onSuccess: () => {
-        form.reset(valores);
-        aviso.exito("Datos guardados");
-      },
+      onSuccess: () => form.reset(valores),
       onError: (e) => {
         if (!aplicarErroresApi(form.setError, e, ["nombre", "apellido", "telefono", "idioma"]))
           aviso.error(e.message);
@@ -153,10 +150,7 @@ function Seguridad() {
     cambiar.mutate(
       { password_actual, password_nueva },
       {
-        onSuccess: () => {
-          form.reset();
-          aviso.exito("Contraseña actualizada. Se cerraron tus sesiones en otros dispositivos.");
-        },
+        onSuccess: () => form.reset(),
         onError: (e) => aplicarErroresApi(form.setError, e, ["password_actual", "password_nueva"]),
       },
     ),

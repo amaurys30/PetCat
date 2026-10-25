@@ -225,14 +225,7 @@ export function MiembroDialog({ empleado, onCerrar }: { empleado: Empleado | nul
                   size="sm"
                   variant="secondary"
                   cargando={reactivar.isPending}
-                  onClick={() =>
-                    reactivar.mutate(idInactivo, {
-                      onSuccess: (e) => {
-                        aviso.exito(`${e.nombre} ${e.apellido} está activo de nuevo`);
-                        onCerrar();
-                      },
-                    })
-                  }
+                  onClick={() => reactivar.mutate(idInactivo, { onSuccess: onCerrar })}
                 >
                   Reactivarlo
                 </Button>

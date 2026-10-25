@@ -1,14 +1,12 @@
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
-import type { Cita, CitaPanelDetalle } from "@/api/citas";
+import type { Cita } from "@/api/citas";
 import { aviso } from "@/components/ui/toaster";
 import { useNegocioActivo, usePuede } from "@/features/negocios/hooks/useNegocio";
-import { fechaHoraCita } from "@/lib/agenda";
 import { hoyISO } from "@/lib/format";
 import { useUi } from "@/stores/ui";
 import { accionesDe } from "../../acciones";
 import { useCita } from "../../hooks/useCita";
-import { nombreProfesional } from "../../textos";
 import { CancelarCitaDialog } from "./CancelarCitaDialog";
 import { CompletarDialog } from "./CompletarDialog";
 import { ReasignarDialog } from "./ReasignarDialog";
@@ -40,14 +38,14 @@ export function AccionesCita() {
 
   if (!accion || !cita.data || cita.data.id_cita !== accion.idCita) return null;
 
-  const resuelta = (mensaje: string) => {
+  // El aviso de cada acción lo muestra su hook (useCita.ts).
+  const resuelta = () => {
     quitarCitaAfectada(accion.idCita);
-    aviso.exito(mensaje);
     cerrar();
   };
   // En la agenda, la cita nueva queda abierta en su fecha.
   const reprogramada = (nueva: Cita) => {
-    resuelta(`Cita reprogramada: ${fechaHoraCita(nueva.fecha, nueva.hora_inicio)}`);
+    resuelta();
     if (pathname.endsWith("/agenda")) {
       const params = new URLSearchParams(search);
       params.set("cita", String(nueva.id_cita));
@@ -61,20 +59,9 @@ export function AccionesCita() {
   switch (accion.tipo) {
     case "cancelar":
     case "rechazar":
-      return (
-        <CancelarCitaDialog
-          {...props}
-          rechazar={accion.tipo === "rechazar"}
-          onListo={() => resuelta(accion.tipo === "rechazar" ? "Cita rechazada" : "Cita cancelada")}
-        />
-      );
+      return <CancelarCitaDialog {...props} rechazar={accion.tipo === "rechazar"} onListo={resuelta} />;
     case "reasignar":
-      return (
-        <ReasignarDialog
-          {...props}
-          onListo={(c: CitaPanelDetalle) => resuelta(`Cita reasignada a ${nombreProfesional(c)}`)}
-        />
-      );
+      return <ReasignarDialog {...props} onListo={resuelta} />;
     case "reprogramar":
       return <ReprogramarDialog cita={cita.data} onCerrar={cerrar} onListo={reprogramada} />;
     case "completar":
@@ -86,8 +73,8 @@ export function AccionesCita() {
             cancelar: puede("citas", "cancelar"),
           })}
           ofrecerRegistro={puede("historial_medico", "crear")}
-          onListo={(c, mensaje, crearRegistro) => {
-            resuelta(mensaje);
+          onListo={(c, crearRegistro) => {
+            resuelta();
             // C4 con la cita, su fecha y su profesional (lo pinta RegistroMedicoHost).
             if (crearRegistro)
               abrirRegistroMedico({

@@ -92,7 +92,7 @@ const irA = (paso: Paso) => `?paso=${paso}`;
 
 function PasoNegocio({ negocio }: { negocio: NegocioGestion }) {
   const navigate = useNavigate();
-  const actualizar = useActualizarNegocio(negocio.id_negocio);
+  const actualizar = useActualizarNegocio(negocio.id_negocio, { avisar: false });
   const iniciales = {
     nombre: negocio.nombre,
     tipo: negocio.tipo,
@@ -126,7 +126,7 @@ function PasoNegocio({ negocio }: { negocio: NegocioGestion }) {
 
 function PasoSede({ negocio }: { negocio: NegocioGestion }) {
   const navigate = useNavigate();
-  const guardar = useGuardarSede(negocio.id_negocio);
+  const guardar = useGuardarSede(negocio.id_negocio, { avisar: false });
   const sede = negocio.sucursales[0];
   const iniciales: SedeValores = {
     nombre: sede?.nombre ?? "Sede principal",
@@ -213,7 +213,7 @@ function PasoSede({ negocio }: { negocio: NegocioGestion }) {
 
 function PasoHorarios({ negocio }: { negocio: NegocioGestion }) {
   const navigate = useNavigate();
-  const guardar = useGuardarHorarios(negocio.id_negocio);
+  const guardar = useGuardarHorarios(negocio.id_negocio, { avisar: false });
   const sede = negocio.sucursales[0];
   const [semana, setSemana] = useState<Semana>(() =>
     sede && sede.horarios.length > 0 ? semanaDesdeApi(sede.horarios) : PLANTILLAS[0]!.semana(),

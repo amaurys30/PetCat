@@ -19,7 +19,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { aviso } from "@/components/ui/toaster";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useNegocioActivo, usePuede, useSuscripcion } from "@/features/negocios/hooks/useNegocio";
 import { textoLimite } from "@/features/negocios/textos";
@@ -345,11 +344,7 @@ function AccionesMiembro({
           cargando={reactivar.isPending}
           onClick={() =>
             // El propietario registrado como empleado no ocupa cupo.
-            enLimite && !e.es_propietario
-              ? abrirLimitePlan(mensajeLimite)
-              : reactivar.mutate(e.id_empleado, {
-                  onSuccess: () => aviso.exito(`${nombre} está activo de nuevo`),
-                })
+            enLimite && !e.es_propietario ? abrirLimitePlan(mensajeLimite) : reactivar.mutate(e.id_empleado)
           }
         >
           Reactivar
@@ -459,7 +454,6 @@ interface Accion {
 
 function DesactivarDialog({ empleado, onCerrar }: { empleado: Empleado | null; onCerrar: () => void }) {
   const desactivar = useDesactivarEmpleado();
-  const mostrarCitasAfectadas = useUi((s) => s.mostrarCitasAfectadas);
   if (!empleado) return null;
   const nombre = `${empleado.nombre} ${empleado.apellido}`;
   return (
@@ -477,13 +471,7 @@ function DesactivarDialog({ empleado, onCerrar }: { empleado: Empleado | null; o
       peligro
       cargando={desactivar.isPending}
       onConfirmar={() =>
-        desactivar.mutate(empleado.id_empleado, {
-          onSuccess: ({ citas_afectadas }) => {
-            onCerrar();
-            aviso.exito(`${nombre} quedó inactivo`);
-            mostrarCitasAfectadas(citas_afectadas, `${nombre} quedó inactivo`);
-          },
-        })
+        desactivar.mutate({ idEmpleado: empleado.id_empleado, nombre }, { onSuccess: onCerrar })
       }
     >
       {desactivar.error && <Alert tono="error">{desactivar.error.message}</Alert>}

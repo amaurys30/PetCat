@@ -3,6 +3,7 @@ import * as negociosApi from "@/api/negocios";
 import { queryKeys } from "@/lib/queryKeys";
 import { useAuth } from "@/stores/auth";
 import { useUi } from "@/stores/ui";
+import { aviso } from "@/components/ui/toaster";
 
 /** Negocio del panel con sus sedes, horarios y reglas de confirmación (configuracion.ver). */
 export function useGestion(idNegocio: number, habilitada = true) {
@@ -50,12 +51,28 @@ export function useCrearNegocio() {
   });
 }
 
-export function useActualizarNegocio(idNegocio: number) {
+/**
+ * `avisar: false` en el asistente, que avanza de paso en lugar de avisar. La confirmación
+ * automática se cambia sola (E1 y el dashboard) y tiene su propio aviso.
+ */
+export function useActualizarNegocio(idNegocio: number, { avisar = true } = {}) {
   const refrescar = useRefrescarNegocio(idNegocio);
   return useMutation({
     meta,
     mutationFn: (body: negociosApi.ActualizarNegocioBody) => negociosApi.actualizarNegocio(idNegocio, body),
-    onSuccess: refrescar,
+    onSuccess: (_negocio, body) => {
+      if (avisar) {
+        const soloConfirmacion = Object.keys(body).length === 1 && body.confirmacion_automatica !== undefined;
+        aviso.exito(
+          soloConfirmacion
+            ? body.confirmacion_automatica
+              ? "Confirmación automática activada"
+              : "Confirmación automática desactivada"
+            : "Datos del negocio guardados",
+        );
+      }
+      return refrescar();
+    },
   });
 }
 
@@ -64,14 +81,19 @@ export type GuardarSede =
   | { idSucursal: number; cambios: negociosApi.ActualizarSucursalBody };
 
 /** Crea una sede o actualiza una existente. El 403 del límite del plan abre su diálogo. */
-export function useGuardarSede(idNegocio: number) {
+/** `avisar: false` en el asistente (avanza de paso). */
+export function useGuardarSede(idNegocio: number, { avisar = true } = {}) {
   const refrescar = useRefrescarNegocio(idNegocio);
   return useMutation({
     mutationFn: (datos: GuardarSede) =>
       "nueva" in datos
         ? negociosApi.crearSucursal(idNegocio, datos.nueva)
         : negociosApi.actualizarSucursal(datos.idSucursal, datos.cambios),
-    onSuccess: refrescar,
+    onSuccess: (_sede, datos) => {
+      if (avisar)
+        aviso.exito("nueva" in datos ? "Sede creada. Ahora agrégale su horario." : "Sede actualizada");
+      return refrescar();
+    },
   });
 }
 
@@ -80,7 +102,10 @@ export function useEliminarSede(idNegocio: number) {
   return useMutation({
     meta,
     mutationFn: (idSucursal: number) => negociosApi.eliminarSucursal(idSucursal),
-    onSuccess: refrescar,
+    onSuccess: () => {
+      aviso.exito("Sede desactivada");
+      return refrescar();
+    },
   });
 }
 
@@ -89,7 +114,8 @@ export function useEliminarSede(idNegocio: number) {
  * recargar el perfil: si la semana queda sin horario, el propietario vuelve al asistente
  * y la pantalla que guardó ya no existe para mostrarlas.
  */
-export function useGuardarHorarios(idNegocio: number) {
+/** `avisar: false` en el asistente (avanza de paso). */
+export function useGuardarHorarios(idNegocio: number, { avisar = true } = {}) {
   const refrescar = useRefrescarNegocio(idNegocio);
   return useMutation({
     meta,
@@ -101,6 +127,7 @@ export function useGuardarHorarios(idNegocio: number) {
       horarios: negociosApi.HorariosBody["horarios"];
     }) => negociosApi.guardarHorarios(idSucursal, { horarios }),
     onSuccess: ({ citas_afectadas }) => {
+      if (avisar) aviso.exito("Horario guardado");
       useUi.getState().mostrarCitasAfectadas(citas_afectadas, "El horario se guardó");
       return refrescar();
     },

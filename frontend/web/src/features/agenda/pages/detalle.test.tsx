@@ -123,7 +123,7 @@ describe("B4 · Detalle de la cita", () => {
     expect(within(historial).getByText(/^Plazo para confirmar:/)).toBeInTheDocument();
 
     await user.click(within(panel).getByRole("button", { name: "Confirmar" }));
-    expect(await screen.findByText("Cita confirmada")).toBeInTheDocument();
+    expect(await screen.findByText(/^Cita de .+ confirmada$/)).toBeInTheDocument();
   });
 
   it("guarda las notas internas solo si cambiaron", async () => {
