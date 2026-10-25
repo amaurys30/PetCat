@@ -92,6 +92,15 @@ const router = express.Router();
  *             visible: { type: boolean, description: false si la ocultó la moderación de PetCat }
  *             editar_antes_de: { type: string, nullable: true, example: "2026-10-20 18:30:00" }
  *             puede_editar: { type: boolean }
+ *     DistribucionResenas:
+ *       type: object
+ *       description: Cuántas reseñas visibles hay de cada calificación
+ *       properties:
+ *         "1": { type: integer, example: 0 }
+ *         "2": { type: integer, example: 1 }
+ *         "3": { type: integer, example: 1 }
+ *         "4": { type: integer, example: 3 }
+ *         "5": { type: integer, example: 7 }
  *     ResenaPanel:
  *       allOf:
  *         - $ref: '#/components/schemas/ResenaBase'
@@ -311,9 +320,7 @@ router.delete("/resenas/:id_resena", authMiddleware, validate({ params: idResena
  *                           properties:
  *                             calificacion_promedio: { type: number, example: 4.5 }
  *                             total_resenas: { type: integer, example: 12 }
- *                             distribucion:
- *                               type: object
- *                               example: { "1": 0, "2": 1, "3": 1, "4": 3, "5": 7 }
+ *                             distribucion: { $ref: '#/components/schemas/DistribucionResenas' }
  *       404: { $ref: '#/components/responses/NotFound' }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
@@ -368,7 +375,7 @@ router.get(
  *                           properties:
  *                             calificacion_promedio: { type: number, example: 4.7 }
  *                             total_resenas: { type: integer, example: 38 }
- *                             distribucion: { type: object, example: { "1": 1, "2": 1, "3": 2, "4": 6, "5": 28 }, description: "De las visibles, por estrellas" }
+ *                             distribucion: { $ref: '#/components/schemas/DistribucionResenas' }
  *                             sin_responder: { type: integer, description: Publicadas sin respuesta }
  *                             reportadas: { type: integer, description: "Reportadas por el negocio (sin las retiradas)" }
  *                             ocultas: { type: integer, description: Ocultas por la moderación de PetCat }
