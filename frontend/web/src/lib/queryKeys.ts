@@ -30,6 +30,12 @@ export const queryKeys = {
     mascota: (idNegocio: number, idMascota: number) => ["citas", idNegocio, "mascota", idMascota] as const,
   },
   roles: (idNegocio: number) => ["roles", idNegocio] as const,
+  /** Todas empiezan por ["resenas", idNegocio]: responder o reportar recarga la lista y el resumen. */
+  resenas: {
+    todas: (idNegocio: number) => ["resenas", idNegocio] as const,
+    lista: (idNegocio: number, filtros: object) => ["resenas", idNegocio, "lista", filtros] as const,
+    resumen: (idNegocio: number) => ["resenas", idNegocio, "resumen"] as const,
+  },
   /** Todas empiezan por ["dashboard", idNegocio]: cambiar de plan las recarga. */
   dashboard: {
     todo: (idNegocio: number) => ["dashboard", idNegocio] as const,

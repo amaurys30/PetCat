@@ -12,6 +12,7 @@ import { DisponibilidadPage } from "@/features/equipo/pages/DisponibilidadPage";
 import { MiembrosPage } from "@/features/equipo/pages/MiembrosPage";
 import { RolesPage } from "@/features/equipo/pages/RolesPage";
 import { MiPerfilPage } from "@/features/perfil/pages/MiPerfilPage";
+import { ResenasPage } from "@/features/resenas/pages/ResenasPage";
 import { ServicioFormPage } from "@/features/servicios/pages/ServicioFormPage";
 import { ServiciosPage } from "@/features/servicios/pages/ServiciosPage";
 import { SuscripcionPage } from "@/features/suscripcion/pages/SuscripcionPage";
@@ -150,6 +151,11 @@ export const rutas: RouteObject[] = [
                 ],
               },
               {
+                path: "resenas",
+                element: <ResenasPage />,
+                handle: { titulo: "Reseñas" } satisfies HandleRuta,
+              },
+              {
                 path: "suscripcion",
                 element: <SuscripcionPage />,
                 handle: { titulo: "Suscripción" } satisfies HandleRuta,
@@ -167,6 +173,7 @@ export const rutas: RouteObject[] = [
                     "configuracion",
                     "dashboard",
                     "equipo",
+                    "resenas",
                     "servicios",
                     "suscripcion",
                   ].includes(s.ruta),

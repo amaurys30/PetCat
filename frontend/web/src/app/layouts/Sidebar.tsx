@@ -13,6 +13,7 @@ import {
 import { Logo } from "@/components/common/Logo";
 import { useAtencion } from "@/features/agenda/hooks/useAgenda";
 import { useNegocioActivo, usePuede, useSuscripcion } from "@/features/negocios/hooks/useNegocio";
+import { useResumenResenas } from "@/features/resenas/hooks/useResenas";
 import { puedeActivarPrueba } from "@/lib/permisos";
 import { cn } from "@/lib/utils";
 import { rolEnNegocio } from "@/features/negocios/textos";
@@ -53,6 +54,7 @@ export function Sidebar() {
                       <s.icono className="size-4 shrink-0" aria-hidden />
                       {s.titulo}
                       {s.ruta === "agenda" && <PorConfirmar />}
+                      {s.ruta === "resenas" && <SinResponder />}
                     </NavLink>
                   </li>
                 ))}
@@ -97,6 +99,22 @@ function PorConfirmar() {
     <span
       className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-warning px-1.5 text-[11px] font-bold text-white"
       aria-label={`${n} por confirmar`}
+    >
+      {n}
+    </span>
+  );
+}
+
+/** Reseñas publicadas sin respuesta (el menú solo muestra Reseñas con resenas.ver). */
+function SinResponder() {
+  const negocio = useNegocioActivo();
+  const { data } = useResumenResenas(negocio.id_negocio, true);
+  const n = data?.sin_responder ?? 0;
+  if (n === 0) return null;
+  return (
+    <span
+      className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-warning px-1.5 text-[11px] font-bold text-white"
+      aria-label={`${n} sin responder`}
     >
       {n}
     </span>
