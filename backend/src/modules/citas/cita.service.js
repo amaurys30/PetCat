@@ -16,7 +16,7 @@ import { estadosResenaDueno } from "../resenas/resena.plazo.js";
 import { aDatetimeSQL, hoyISO } from "../../shared/utils/fechas.js";
 import { toNumber } from "../../shared/utils/format.js";
 import { buildMeta } from "../../shared/utils/pagination.js";
-import { accesoPermite } from "../../shared/utils/permissions.js";
+import { accesoPermite, veTodasLasCitas } from "../../shared/utils/permissions.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
 import * as historialRepo from "../historial/historial.repository.js";
 
@@ -27,6 +27,17 @@ const DIAS_TEXTO = ["domingos", "lunes", "martes", "miércoles", "jueves", "vier
 const invalido = (campo, mensaje) => ApiError.unprocessable("Datos inválidos", { [campo]: mensaje });
 
 const SIN_HORARIOS = "No hay horarios disponibles para esa fecha";
+
+/**
+ * Profesional de una reserva o una consulta del panel. Con citas.ver_todas, el pedido (o
+ * ninguno: la API elige). Sin el permiso, siempre el perfil de empleado de quien la hace; 403
+ * si pide a otro.
+ */
+export const profesionalDelPanel = (acceso, id_empleado, mensaje = "Solo puedes gestionar tus propias citas") => {
+  if (veTodasLasCitas(acceso)) return id_empleado;
+  if (id_empleado !== undefined && id_empleado !== acceso.id_empleado) throw ApiError.forbidden(mensaje);
+  return acceso.id_empleado;
+};
 
 /** Parámetros de la agenda (configuracion_global), con valores por defecto. */
 export const configAgenda = async () => {
@@ -189,6 +200,7 @@ export const getHorariosLibres = async (canal, { id_negocio, id_cita_excluir, id
  * negocio (422) y quien consulta debe poder editar citas (403): quien solo agenda no la toca.
  */
 export const getHorariosLibresPanel = async (id_negocio, query, acceso) => {
+  query.id_empleado = profesionalDelPanel(acceso, query.id_empleado, "Solo puedes ver los horarios de tu propia agenda");
   if (query.id_cita_excluir !== undefined) {
     const cita = await citaRepo.findCita(query.id_cita_excluir);
     if (!cita || cita.id_negocio !== id_negocio) throw invalido("id_cita_excluir", "La cita no es de este negocio");
@@ -309,6 +321,7 @@ const eventoCreacion = (id_cita, canal, actor, reprogramacion, autoConfirmada, c
     return eventoCita("cita_reprogramada", id_cita, {
       para: canal === "app" ? "negocio" : "dueno",
       actor,
+      otrosEmpleados: [reprogramacion.id_empleado_anterior],
       extra: { ...reprogramacion.aviso, ...extra },
     }, conn);
   }
@@ -441,7 +454,8 @@ const reservar = async (canal, datos, actor, id_negocio, reprogramacion) => {
               estado: cita.estado,
             },
           }),
-        }
+        },
+    { empleados: [cita.empleado?.id_empleado ?? null, ...(reprogramacion ? [reprogramacion.id_empleado_anterior] : [])] }
   );
   return cita;
 };
@@ -449,10 +463,11 @@ const reservar = async (canal, datos, actor, id_negocio, reprogramacion) => {
 export const crearCitaApp = (datos, usuario) =>
   crearCita("app", { ...datos, id_usuario: usuario.id_usuario }, { id_usuario: usuario.id_usuario, ip: usuario.ip });
 
-/** Desde el panel: el cliente debe existir y estar activo. */
-export const crearCitaPanel = async (id_negocio, datos, actor) => {
+/** Desde el panel: el cliente debe existir y estar activo. Sin citas.ver_todas, a nombre de quien la crea. */
+export const crearCitaPanel = async (id_negocio, datos, actor, acceso) => {
+  const id_empleado = profesionalDelPanel(acceso, datos.id_empleado, "Solo puedes agendar citas a tu nombre");
   if (!(await citaRepo.usuarioActivo(datos.id_usuario))) throw invalido("id_usuario", "El cliente no existe");
-  return crearCita("panel", datos, actor, id_negocio);
+  return crearCita("panel", { ...datos, id_empleado }, actor, id_negocio);
 };
 
 // ---------- Consultas ----------
@@ -539,10 +554,11 @@ const verificarFiltros = async (id_negocio, filtros) => {
 /**
  * Agenda del negocio (sin paginar: el rango es de máximo 31 días). `solo_mias`
  * limita a las citas del perfil de empleado de quien consulta en este negocio
- * (también el propietario registrado como empleado); sin perfil, 422.
+ * (también el propietario registrado como empleado); sin perfil, 422. Sin citas.ver_todas,
+ * solo las citas propias (403 si pide las de otro profesional).
  */
 export const getAgenda = async (negocio, acceso, id_usuario, { solo_mias, fuera_de_disponibilidad, estado, ...filtros }) => {
-  await prepararFiltros(negocio, id_usuario, solo_mias, filtros);
+  await prepararFiltros(negocio, acceso, id_usuario, solo_mias, filtros);
   const rows = await citaRepo.findAgenda({ id_negocio: negocio.id_negocio, estados: estado, ...filtros });
   let citas = await conDisponibilidad(rows, negocio.id_negocio, filtros.desde, filtros.hasta, acceso);
   if (fuera_de_disponibilidad !== undefined) citas = citas.filter((c) => c.fuera_de_disponibilidad === fuera_de_disponibilidad);
@@ -551,10 +567,13 @@ export const getAgenda = async (negocio, acceso, id_usuario, { solo_mias, fuera_
 
 /**
  * `solo_mias` limita al perfil de empleado de quien consulta (422 sin perfil activo o
- * con otro `id_empleado`); después, los filtros deben ser del negocio. Modifica `filtros`.
+ * con otro `id_empleado`); sin citas.ver_todas el límite es obligatorio (403 con otro
+ * `id_empleado`). Después, los filtros deben ser del negocio. Modifica `filtros`.
  */
-const prepararFiltros = async (negocio, id_usuario, solo_mias, filtros) => {
-  if (solo_mias) {
+const prepararFiltros = async (negocio, acceso, id_usuario, solo_mias, filtros) => {
+  if (!veTodasLasCitas(acceso)) {
+    filtros.id_empleado = profesionalDelPanel(acceso, filtros.id_empleado, "Solo puedes ver tus propias citas");
+  } else if (solo_mias) {
     const empleado = await empleadoRepo.findAccesoByUsuarioAndNegocio(id_usuario, negocio.id_negocio);
     if (!empleado?.activo) {
       throw invalido("solo_mias", "No tienes un perfil de empleado activo en este negocio");
@@ -575,7 +594,7 @@ const plazoOrden = (cita) => cita.confirmar_antes_de ?? "9999-12-31 23:59:59";
  * disponibilidad de su empleado (por fecha y hora). Mismos filtros que la agenda.
  */
 export const getAtencion = async (negocio, acceso, id_usuario, { solo_mias, ...filtros }) => {
-  await prepararFiltros(negocio, id_usuario, solo_mias, filtros);
+  await prepararFiltros(negocio, acceso, id_usuario, solo_mias, filtros);
   const hoy = hoyISO();
   const rows = await citaRepo.findAgenda({
     id_negocio: negocio.id_negocio,

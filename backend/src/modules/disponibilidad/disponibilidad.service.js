@@ -65,7 +65,11 @@ export const mensajeConAfectadas = (mensaje, citas_afectadas, fueraDe = "de la d
 /** Empleado bloqueado (FOR UPDATE) y activo; 409 si está inactivo. */
 /** Tras el commit: la agenda del negocio se recarga (pudo cambiar qué citas quedan fuera). */
 const avisarDisponibilidad = (empleado, por) =>
-  avisarAgenda(empleado.id_negocio, { accion: "disponibilidad", id_empleado: empleado.id_empleado, por });
+  avisarAgenda(
+    empleado.id_negocio,
+    { accion: "disponibilidad", id_empleado: empleado.id_empleado, por },
+    { empleados: [empleado.id_empleado] }
+  );
 
 const lockEmpleadoActivo = async (id_empleado, conn) => {
   const empleado = await disponibilidadRepo.lockEmpleado(id_empleado, conn);

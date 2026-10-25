@@ -205,13 +205,16 @@ export const conNotificaciones = async (fn, { ahora = new Date() } = {}) => {
 /**
  * Destinatarios de un aviso al negocio: el propietario (siempre) y los empleados activos
  * con cuenta cuyo rol tiene `permiso` ([modulo, accion]), p. ej. ["citas", "ver"].
+ * `deCitas`: ids de empleado de las citas del aviso. Un empleado sin citas.ver_todas lo
+ * recibe solo si es uno de ellos (sus propias citas). Sin `deCitas`, no se filtra.
  */
-export const destinatariosDelNegocio = async (id_negocio, [modulo, accion], conn) => {
+export const destinatariosDelNegocio = async (id_negocio, [modulo, accion], conn, { deCitas } = {}) => {
   const { id_propietario, empleados } = await notificacionRepo.findPersonalDelNegocio(id_negocio, conn);
+  const alcanza = (e) => !deCitas || hasPermission(e.permisos_json, "citas", "ver_todas") || deCitas.includes(e.id_empleado);
   return [
     ...(id_propietario ? [{ id_usuario: id_propietario, rol: "propietario" }] : []),
     ...empleados
-      .filter((e) => hasPermission(e.permisos_json, modulo, accion))
+      .filter((e) => hasPermission(e.permisos_json, modulo, accion) && alcanza(e))
       .map((e) => ({ id_usuario: e.id_usuario, rol: "personal" })),
   ];
 };

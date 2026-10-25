@@ -225,14 +225,21 @@ describe("GET /negocios/:id_negocio/citas (agenda)", () => {
     const base = `desde=${LUNES}&hasta=${LUNES}`;
 
     expect(ids(await agenda(ctx, `${base}&solo_mias=true`, ctx.tokenAna))).toEqual([deAna.id_cita]);
-    expect(ids(await agenda(ctx, base, ctx.tokenAna))).toHaveLength(2);
+    // Ana es Veterinario (sin citas.ver_todas): sin solo_mias también ve solo las suyas.
+    expect(ids(await agenda(ctx, base, ctx.tokenAna))).toEqual([deAna.id_cita]);
+    expect(ids(await agenda(ctx, base))).toHaveLength(2);
 
     const sinPerfil = await agenda(ctx, `${base}&solo_mias=true`);
     expect(sinPerfil.status).toBe(422);
     expect(sinPerfil.body.errors).toEqual({ solo_mias: "No tienes un perfil de empleado activo en este negocio" });
 
-    const mezcla = await agenda(ctx, `${base}&solo_mias=true&id_empleado=${ctx.luis.id_empleado}`, ctx.tokenAna);
+    // Con citas.ver_todas (Recepcionista), solo_mias no se combina con otro empleado; sin él, 403.
+    const usuarioRecepcion = await crearUsuario();
+    await crearEmpleado(ctx.negocio, { usuario: usuarioRecepcion, rol: "Recepcionista" });
+    const filtro = `${base}&solo_mias=true&id_empleado=${ctx.luis.id_empleado}`;
+    const mezcla = await agenda(ctx, filtro, await tokenDe(usuarioRecepcion));
     expect(mezcla.body.errors).toEqual({ id_empleado: "No se combina con solo_mias" });
+    expect((await agenda(ctx, filtro, ctx.tokenAna)).status).toBe(403);
   });
 
   it("solo_mias funciona para el propietario registrado como empleado", async () => {
@@ -316,8 +323,8 @@ describe("motivo_fuera", () => {
     const ctx = await contexto();
     const c = await cita(ctx);
     await excepcion(ctx.ana, { tipo: "bloqueo", fecha: LUNES, motivo: "Cita médica personal" });
-    const conConfiguracion = await tokenConPermisos(ctx, { citas: ["ver"], configuracion: ["ver"] });
-    const soloCitas = await tokenConPermisos(ctx, { citas: ["ver"] });
+    const conConfiguracion = await tokenConPermisos(ctx, { citas: ["ver", "ver_todas"], configuracion: ["ver"] });
+    const soloCitas = await tokenConPermisos(ctx, { citas: ["ver", "ver_todas"] });
 
     // Ana (Veterinario, sin configuracion.ver) ve el motivo de su propia cita.
     for (const token of [ctx.tokenPropietario, conConfiguracion, ctx.tokenAna]) {

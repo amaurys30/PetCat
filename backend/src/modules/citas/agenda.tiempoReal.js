@@ -4,7 +4,9 @@ import { destinatariosDelNegocio, emitirAUsuario } from "../notificaciones/notif
  * Tiempo real de la agenda: `agenda_actualizada` por Socket.IO, después del commit, a cada
  * usuario con `citas.ver` del negocio y al propietario, incluido quien hizo el cambio (para
  * sus otras pestañas). No se guarda: el panel vuelve a pedir lo que muestra. Los permisos se
- * calculan al emitir, así que un cambio de rol aplica de inmediato.
+ * calculan al emitir, así que un cambio de rol aplica de inmediato. `empleados`: profesionales
+ * afectados (los de la cita, antes y después del cambio, o el de la disponibilidad); quien no
+ * tiene citas.ver_todas solo recibe los suyos. Sin `empleados` (horario de una sucursal), todos.
  *
  * Datos: { id_negocio, accion, id_cita?, id_cita_nueva?, id_empleado?, id_sucursal?, fechas,
  * por, cita? }.
@@ -16,9 +18,9 @@ import { destinatariosDelNegocio, emitirAUsuario } from "../notificaciones/notif
 export const EVENTO_AGENDA = "agenda_actualizada";
 
 /** Nunca lanza: el cambio ya se guardó y el aviso es solo para refrescar pantallas. */
-export const avisarAgenda = async (id_negocio, cambio) => {
+export const avisarAgenda = async (id_negocio, cambio, { empleados } = {}) => {
   try {
-    const destinatarios = await destinatariosDelNegocio(id_negocio, ["citas", "ver"]);
+    const destinatarios = await destinatariosDelNegocio(id_negocio, ["citas", "ver"], undefined, { deCitas: empleados });
     const datos = { id_negocio, fechas: [], por: null, ...cambio };
     for (const id_usuario of new Set(destinatarios.map((d) => d.id_usuario))) {
       emitirAUsuario(id_usuario, EVENTO_AGENDA, datos);

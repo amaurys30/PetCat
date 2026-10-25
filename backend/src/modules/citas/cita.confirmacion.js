@@ -117,7 +117,11 @@ const cancelarSinConfirmar = async (id_cita, { ahora }) => {
     { ahora }
   );
   if (!cancelada) return false;
-  await avisarAgenda(cancelada.id_negocio, { accion: "cancelada", id_cita, fechas: [cancelada.fecha], por: null });
+  await avisarAgenda(
+    cancelada.id_negocio,
+    { accion: "cancelada", id_cita, fechas: [cancelada.fecha], por: null },
+    { empleados: [cancelada.id_empleado] }
+  );
   return true;
 };
 

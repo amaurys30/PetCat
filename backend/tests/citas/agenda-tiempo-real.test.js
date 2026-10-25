@@ -182,4 +182,31 @@ describe("agenda_actualizada", () => {
     });
     esperarSoloElPersonal(r);
   });
+
+  it("sin citas.ver_todas, cada profesional recibe solo los cambios de sus citas y de su disponibilidad", async () => {
+    const ctx = await contexto();
+    const usuarioVet = await crearUsuario();
+    const vet = await crearEmpleado(ctx.negocio, { usuario: usuarioVet });
+    const usuarioOtro = await crearUsuario();
+    await crearEmpleado(ctx.negocio, { usuario: usuarioOtro });
+    const cita = await crearCita(ctx.negocio, { servicio: ctx.servicio, id_sucursal: ctx.sucursal.id_sucursal, id_empleado: vet.id_empleado });
+    const socketVet = await conectar(usuarioVet);
+    const socketOtro = await conectar(usuarioOtro);
+
+    let deVet = siguiente(socketVet);
+    let deOtro = siguiente(socketOtro, 400);
+    const res = await api(await tokenDe(ctx.recepcion)).patch(`/citas/${cita.id_cita}/estado`).send({ estado: "confirmada" });
+    expect(res.status).toBe(200);
+    expect(await deVet).toMatchObject({ accion: "estado", id_cita: cita.id_cita });
+    expect(await deOtro).toBeNull();
+
+    deVet = siguiente(socketVet);
+    deOtro = siguiente(socketOtro, 400);
+    const bloqueo = await api(await tokenDe(ctx.negocio.propietario))
+      .post(`/empleados/${vet.id_empleado}/disponibilidad`)
+      .send({ tipo: "bloqueo", fecha_especifica: lunesLejano(), hora_inicio: "10:00", hora_fin: "11:00" });
+    expect(bloqueo.status).toBe(201);
+    expect(await deVet).toMatchObject({ accion: "disponibilidad", id_empleado: vet.id_empleado });
+    expect(await deOtro).toBeNull();
+  });
 });

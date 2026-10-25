@@ -19,11 +19,33 @@ import { idNegocioParams } from "../negocios/negocio.schemas.js";
 import { authMiddleware } from "../../shared/middlewares/auth.middleware.js";
 import { authorize, authorizeAny, authorizeDuenoO } from "../../shared/middlewares/authorize.middleware.js";
 import { validate } from "../../shared/middlewares/validate.js";
+import { veTodasLasCitas } from "../../shared/utils/permissions.js";
+import { ApiError } from "../../shared/errors/ApiError.js";
 
 const router = express.Router();
 
 // La cita es del usuario autenticado (vista del dueño en authorizeDuenoO).
 const esDuenoDeLaCita = (req) => citaRepo.esDelUsuario(req.params.id_cita, req.user.id_usuario);
+
+/**
+ * Sin citas.ver_todas, el personal solo accede a las citas de su perfil de empleado: la de
+ * otro profesional (o sin profesional) da 403. Va después de authorize o authorizeDuenoO; con
+ * `esDueno`, quien además es el dueño de la cita pasa con la vista del dueño.
+ */
+const soloCitaPropia =
+  ({ esDueno } = {}) =>
+  // eslint-disable-next-line no-unused-vars
+  async (req, res, next) => {
+    if (req.acceso.relacion === "dueno" || veTodasLasCitas(req.acceso)) return next();
+    const cita = await citaRepo.findCita(req.params.id_cita);
+    if (cita.id_empleado === req.acceso.id_empleado) return next();
+    if (esDueno && (await esDueno(req))) {
+      delete req.negocio;
+      req.acceso = { relacion: "dueno" };
+      return next();
+    }
+    throw ApiError.forbidden("Esta cita es de otro profesional");
+  };
 
 /**
  * @swagger
@@ -380,6 +402,8 @@ router.get("/citas/mias", authMiddleware, validate({ query: misCitasQuery }), co
  *       completa, con notas internas y `fuera_de_disponibilidad`. El dueño de la cita recibe la vista sin
  *       notas internas. Si es personal y además dueño, recibe la del personal. Cualquier otro, incluido el
  *       personal de otros negocios: 403.
+ *       Sin `citas.ver_todas`, el personal solo accede a las citas de su perfil de empleado: la de otro
+ *       profesional da 403.
  *     tags: [Citas]
  *     parameters:
  *       - { in: path, name: id_cita, required: true, schema: { type: integer } }
@@ -407,6 +431,7 @@ router.get(
   authMiddleware,
   validate({ params: idCitaParams }),
   authorizeDuenoO("citas", "ver", { esDueno: esDuenoDeLaCita }),
+  soloCitaPropia({ esDueno: esDuenoDeLaCita }),
   controller.getCita
 );
 
@@ -449,6 +474,8 @@ router.get(
  *       10:00 si cae entre las 20:00 y las 10:00); no_asistio → en_curso solo el mismo día (el cliente llegó tarde). completada, cancelada y
  *       reprogramada son finales. Para cancelar o reprogramar hay endpoints propios. Queda en el historial.
  *       Al confirmar se avisa al dueño (`cita_confirmada`).
+ *       Sin `citas.ver_todas`, el personal solo accede a las citas de su perfil de empleado: la de otro
+ *       profesional da 403.
  *     tags: [Citas]
  *     parameters:
  *       - { in: path, name: id_cita, required: true, schema: { type: integer } }
@@ -477,6 +504,7 @@ router.patch(
   authMiddleware,
   validate({ params: idCitaParams, body: cambiarEstadoBody }),
   authorize("citas", "editar"),
+  soloCitaPropia(),
   controller.cambiarEstado
 );
 
@@ -491,6 +519,8 @@ router.patch(
  *       tardía, que el panel ve. El negocio (`citas.cancelar`) exige motivo. Se guarda quién canceló y
  *       cuándo, y se cancelan los recordatorios pendientes. Aviso `cita_cancelada` a la otra parte: al
  *       personal con `citas.ver` y al propietario si cancela el dueño; al dueño si cancela el negocio.
+ *       Sin `citas.ver_todas`, el personal solo accede a las citas de su perfil de empleado: la de otro
+ *       profesional da 403.
  *     tags: [Citas]
  *     parameters:
  *       - { in: path, name: id_cita, required: true, schema: { type: integer } }
@@ -515,6 +545,7 @@ router.post(
   authMiddleware,
   validate({ params: idCitaParams, body: cancelarCitaBody }),
   authorizeDuenoO("citas", "cancelar", { esDueno: esDuenoDeLaCita }),
+  soloCitaPropia({ esDueno: esDuenoDeLaCita }),
   controller.cancelarCita
 );
 
@@ -527,7 +558,8 @@ router.post(
  *       Solo citas pendientes o confirmadas. Crea una cita nueva (con `id_cita_origen`) con el mismo cálculo
  *       de horarios libres y la misma protección contra reservas simultáneas, y marca la original como
  *       `reprogramada`, en una transacción: si el horario nuevo no está libre (409) la original no cambia.
- *       El dueño lo hace con las reglas de la app y hasta 2 horas antes de la cita original; la nueva queda
+ *       Sin `citas.ver_todas`, el personal solo reprograma sus propias citas y a su nombre (403 con otro
+ *       `id_empleado`). El dueño lo hace con las reglas de la app y hasta 2 horas antes de la cita original; la nueva queda
  *       `pendiente` (o `confirmada` si el negocio tiene `confirmacion_automatica`). El negocio (`citas.editar`), en cualquier momento y con las reglas del panel; la nueva queda
  *       `confirmada`. Conserva servicio, mascota, precio estimado, origen, notas y prioridad; por defecto la
  *       misma sucursal. Una mascota fallecida no se reprograma (409). La nueva cita cuenta para el límite de
@@ -573,6 +605,7 @@ router.post(
   authMiddleware,
   validate({ params: idCitaParams, body: reprogramarCitaBody }),
   authorizeDuenoO("citas", "editar", { esDueno: esDuenoDeLaCita }),
+  soloCitaPropia({ esDueno: esDuenoDeLaCita }),
   controller.reprogramarCita
 );
 
@@ -585,7 +618,8 @@ router.post(
  *       Requiere `citas.editar`. Al menos un campo. `precio_final` solo en citas en curso o completadas.
  *       `id_empleado` (reasignar) solo en pendientes o confirmadas: el empleado debe atender el servicio y
  *       estar libre a esa hora (disponibilidad y otras citas, con el mismo cálculo de la reserva); si no, 409.
- *       Cada campo que cambia queda en el historial.
+ *       Cada campo que cambia queda en el historial. Sin `citas.ver_todas`, solo las citas propias y sin
+ *       reasignarlas a otro profesional (403).
  *     tags: [Citas]
  *     parameters:
  *       - { in: path, name: id_cita, required: true, schema: { type: integer } }
@@ -615,6 +649,7 @@ router.patch(
   authMiddleware,
   validate({ params: idCitaParams, body: actualizarCitaBody }),
   authorize("citas", "editar"),
+  soloCitaPropia(),
   controller.actualizarCita
 );
 
@@ -628,6 +663,8 @@ router.patch(
  *       la cita a su hora (disponibilidad y otras citas, con el mismo cálculo de la reserva y sin contar esta
  *       cita) y, si no, el motivo. `actual` marca a quien la tiene ahora. Solo citas pendientes o confirmadas
  *       (409). Para reasignar: `PATCH /citas/{id_cita}` con `id_empleado`.
+ *       Sin `citas.ver_todas`, el personal solo accede a las citas de su perfil de empleado: la de otro
+ *       profesional da 403.
  *     tags: [Citas]
  *     parameters:
  *       - { in: path, name: id_cita, required: true, schema: { type: integer } }
@@ -673,6 +710,7 @@ router.get(
   authMiddleware,
   validate({ params: idCitaParams }),
   authorize("citas", "editar"),
+  soloCitaPropia(),
   controller.getProfesionalesLibres
 );
 
@@ -685,6 +723,8 @@ router.get(
  *       Del más antiguo al más reciente. El personal del negocio con `citas.ver` ve todos los cambios con
  *       el usuario y el empleado que los hizo. El dueño ve solo los cambios de estado y de empleado, con su
  *       motivo, y `realizado_por` (dueno, negocio o sistema: la cancelación automática), sin nombres del personal.
+ *       Sin `citas.ver_todas`, el personal solo accede a las citas de su perfil de empleado: la de otro
+ *       profesional da 403.
  *     tags: [Citas]
  *     parameters:
  *       - { in: path, name: id_cita, required: true, schema: { type: integer } }
@@ -730,6 +770,7 @@ router.get(
   authMiddleware,
   validate({ params: idCitaParams }),
   authorizeDuenoO("citas", "ver", { esDueno: esDuenoDeLaCita }),
+  soloCitaPropia({ esDueno: esDuenoDeLaCita }),
   controller.getHistorial
 );
 
@@ -745,7 +786,8 @@ router.get(
  *       en el límite del plan; debe ser de este negocio (422) y exige `citas.editar` (403). Con `id_mascota`, no
  *       ofrece las horas en que la mascota ya tiene otra cita (el cruce daría 409 al reservar). Si el negocio
  *       alcanzó el límite de citas del mes de su plan, no hay horarios y `motivo_sin_horarios` lo dice
- *       ("El negocio alcanzó las 30 citas de su plan Gratuito en octubre de 2026").
+ *       ("El negocio alcanzó las 30 citas de su plan Gratuito en octubre de 2026"). Sin `citas.ver_todas`,
+ *       solo los horarios de quien consulta (`id_empleado` es el suyo; otro da 403).
  *     tags: [Citas]
  *     parameters:
  *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
@@ -797,6 +839,7 @@ router.get(
  *       por fecha y hora, sin paginar (`meta.total`). Filtros: estados, sucursal, empleado y servicio (deben
  *       ser del negocio: 422 si no), `q` (nombre del cliente o de la mascota), `solo_mias` (las del perfil de
  *       empleado de quien consulta en este negocio; 422 si no tiene) y `fuera_de_disponibilidad`.
+ *       Sin `citas.ver_todas`, solo las citas propias, como con `solo_mias` (`id_empleado` de otro: 403).
  *     tags: [Citas]
  *     parameters:
  *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
@@ -838,7 +881,8 @@ router.get(
  *       ocultos, sin antelación mínima). La cita queda `confirmada` y se programa su recordatorio.
  *       403 con `errors.plan` si el negocio alcanzó el límite de citas del mes de la cita en su plan.
  *       Avisa al dueño (`cita_agendada`, por correo si no tiene la app) y, como la reserva de la app,
- *       `plan_limite_80` y `plan_limite_alcanzado` al negocio.
+ *       `plan_limite_80` y `plan_limite_alcanzado` al negocio. Sin `citas.ver_todas`, la cita queda a nombre
+ *       de quien la agenda (`id_empleado` de otro: 403).
  *     tags: [Citas]
  *     parameters:
  *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
@@ -883,7 +927,7 @@ router.get(
  *       ordenadas por `confirmar_antes_de` (las que se cancelan solas primero) y `fuera_de_disponibilidad`
  *       las pendientes o confirmadas futuras que ya no caben en la disponibilidad de su empleado, por fecha
  *       y hora, con `motivo_fuera`. Una cita pendiente fuera de disponibilidad está en las dos listas.
- *       Filtros: sucursal, empleado y `solo_mias`, como en la agenda.
+ *       Filtros: sucursal, empleado y `solo_mias`, como en la agenda. Sin `citas.ver_todas`, solo las propias.
  *     tags: [Citas]
  *     parameters:
  *       - { in: path, name: id_negocio, required: true, schema: { type: integer } }
