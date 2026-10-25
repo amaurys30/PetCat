@@ -258,6 +258,9 @@ describe("C3 · Registrar cliente sin app", () => {
     await user.type(within(c3).getAllByLabelText("Nombre *")[0]!, "Jorge");
     await user.type(within(c3).getByLabelText("Apellido *"), "Pérez");
     await user.type(within(c3).getAllByLabelText("Nombre *")[1]!, "Toby");
+    const sexo = within(c3).getByRole("radiogroup", { name: "Sexo" });
+    expect(within(sexo).getByRole("radio", { name: "No sé" })).toHaveAttribute("aria-checked", "true");
+    await user.click(within(sexo).getByRole("radio", { name: "Macho" }));
     await user.click(within(c3).getByRole("button", { name: "Registrar y agendar cita" }));
     expect(
       await within(c3).findByText("Necesitamos la autorización del cliente para registrar sus datos"),
@@ -273,7 +276,7 @@ describe("C3 · Registrar cliente sin app", () => {
         apellido: "Pérez",
         telefono: "301 222 3344",
         autoriza_tratamiento_datos: true,
-        mascota: { nombre: "Toby", especie: "perro" },
+        mascota: { nombre: "Toby", especie: "perro", sexo: "macho" },
       },
     ]);
     const nueva = await screen.findByRole("dialog", { name: "Nueva cita" });

@@ -49,7 +49,14 @@ export function AgregarMascotaDialog({
             return;
           }
           if (
-            !aplicarErroresApi(form.setError, e, ["nombre", "especie", "raza", "fecha_nacimiento", "peso"])
+            !aplicarErroresApi(form.setError, e, [
+              "nombre",
+              "especie",
+              "raza",
+              "sexo",
+              "fecha_nacimiento",
+              "peso",
+            ])
           ) {
             setError(e.message);
           }

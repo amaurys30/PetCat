@@ -22,10 +22,17 @@ export const ESPECIES = [
   { valor: "otro", texto: "Otro" },
 ] as const;
 
+export const SEXOS = [
+  { valor: "macho", texto: "Macho" },
+  { valor: "hembra", texto: "Hembra" },
+  { valor: "desconocido", texto: "No sé" },
+] as const;
+
 export const mascotaSchema = z.object({
   nombre: z.string().trim().min(1, "Escribe el nombre").max(80, "Máximo 80 caracteres"),
   especie: z.enum(["perro", "gato", "conejo", "ave", "otro"], { error: "Elige la especie" }),
   raza: opcional(80),
+  sexo: z.enum(["macho", "hembra", "desconocido"]),
   fecha_nacimiento: fecha,
   peso,
 });
@@ -65,6 +72,7 @@ export const CAMPOS_REGISTRO = [
   "mascota.nombre",
   "mascota.especie",
   "mascota.raza",
+  "mascota.sexo",
   "mascota.fecha_nacimiento",
   "mascota.peso",
 ] as const;
@@ -73,6 +81,8 @@ export const mascotaAApi = (m: MascotaValores): MascotaNueva => ({
   nombre: m.nombre.trim(),
   especie: m.especie,
   ...(m.raza.trim() && { raza: m.raza.trim() }),
+  // "No sé" es el valor por defecto de la API: no se envía.
+  ...(m.sexo !== "desconocido" && { sexo: m.sexo }),
   ...(m.fecha_nacimiento && { fecha_nacimiento: m.fecha_nacimiento }),
   ...(m.peso.trim() && { peso: Number(m.peso.replace(",", ".")) }),
 });
@@ -90,6 +100,7 @@ export const mascotaVacia = (): MascotaValores => ({
   nombre: "",
   especie: "perro",
   raza: "",
+  sexo: "desconocido",
   fecha_nacimiento: "",
   peso: "",
 });

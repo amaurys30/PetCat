@@ -309,7 +309,9 @@ describe("C1 · Correo de un cliente sin cuenta", () => {
     ).toBeInTheDocument();
     expect(registro.correos).toEqual([{ email: "ocupado@petcat.test" }, { email: "jorge@petcat.test" }]);
     // El aviso sale del hook al guardar; el diálogo se cierra cuando se recarga el cliente.
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Agregar correo" })).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Agregar correo" })).not.toBeInTheDocument(),
+    );
   });
 
   it("registrado aquí sin activar: corrige el correo o reenvía la bienvenida al mismo", async () => {
