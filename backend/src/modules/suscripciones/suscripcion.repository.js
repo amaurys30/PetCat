@@ -2,7 +2,7 @@ import pool from "../../config/db.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
 
 const COLUMNAS_SUSCRIPCION = `id_suscripcion, id_negocio, id_plan, tipo_facturacion, estado, fecha_inicio,
-  fecha_fin, fecha_prueba_fin, auto_renovar, monto_pagado, notas, fecha_creacion`;
+  fecha_fin, fecha_prueba_fin, auto_renovar, monto_pagado, notas, id_usuario_registro, fecha_creacion`;
 
 /** Suscripción al plan Gratuito sin vencimiento (fecha_fin 9999-12-31). */
 export const createGratuita = async (id_negocio, conn) => {
@@ -102,13 +102,14 @@ export const cerrar = async (suscripcion, vencida, conn) => {
 };
 
 /** Prueba Pro: `en_prueba` desde hoy, con fin de prueba y de suscripción a los `dias` días. */
-export const createPrueba = async (id_negocio, id_plan, dias, conn) => {
+/** `id_usuario_registro`: quien activó la prueba (el propietario o el admin). */
+export const createPrueba = async (id_negocio, id_plan, dias, id_usuario_registro, conn) => {
   const [result] = await conn.query(
     `INSERT INTO suscripciones (id_negocio, id_plan, tipo_facturacion, estado, fecha_inicio, fecha_fin,
-                                fecha_prueba_fin, auto_renovar, notas)
+                                fecha_prueba_fin, auto_renovar, notas, id_usuario_registro)
      VALUES (?, ?, 'mensual', 'en_prueba', CURDATE(), CURDATE() + INTERVAL ? DAY, CURDATE() + INTERVAL ? DAY,
-             FALSE, ?)`,
-    [id_negocio, id_plan, dias, dias, `Prueba gratuita de ${dias} días`]
+             FALSE, ?, ?)`,
+    [id_negocio, id_plan, dias, dias, `Prueba gratuita de ${dias} días`, id_usuario_registro]
   );
   return result.insertId;
 };
@@ -117,16 +118,20 @@ export const createPrueba = async (id_negocio, id_plan, dias, conn) => {
  * Plan asignado por el admin, `activa` desde hoy. Sin `fecha_fin`, dura un mes o un
  * año según la facturación; el Gratuito no vence (9999-12-31).
  */
-export const createAsignada = async (id_negocio, { plan, tipo_facturacion, fecha_fin, monto_pagado, notas }, conn) => {
+export const createAsignada = async (
+  id_negocio,
+  { plan, tipo_facturacion, fecha_fin, monto_pagado, notas, id_usuario_registro },
+  conn
+) => {
   const [result] = await conn.query(
     `INSERT INTO suscripciones (id_negocio, id_plan, tipo_facturacion, estado, fecha_inicio, fecha_fin,
-                                auto_renovar, monto_pagado, notas)
+                                auto_renovar, monto_pagado, notas, id_usuario_registro)
      VALUES (?, ?, ?, 'activa', CURDATE(),
              CASE WHEN ? THEN '9999-12-31'
                   WHEN ? IS NOT NULL THEN ?
                   WHEN ? = 'anual' THEN CURDATE() + INTERVAL 1 YEAR
                   ELSE CURDATE() + INTERVAL 1 MONTH END,
-             FALSE, ?, ?)`,
+             FALSE, ?, ?, ?)`,
     [
       id_negocio,
       plan.id_plan,
@@ -137,6 +142,7 @@ export const createAsignada = async (id_negocio, { plan, tipo_facturacion, fecha
       tipo_facturacion,
       monto_pagado,
       notas ?? null,
+      id_usuario_registro,
     ]
   );
   return result.insertId;
@@ -184,4 +190,25 @@ export const countProductosActivos = async (id_negocio, conn) => {
     [id_negocio]
   );
   return row.total;
+};
+
+/**
+ * Historial de suscripciones del negocio, de la más reciente a la más antigua, con el plan
+ * y quién la creó (admin o propietario; null en la Gratuita automática).
+ */
+export const findHistorial = async (id_negocio) => {
+  const [rows] = await pool.query(
+    `SELECT s.id_suscripcion, s.estado, s.tipo_facturacion, s.fecha_inicio, s.fecha_fin, s.fecha_prueba_fin,
+            s.monto_pagado, s.notas, s.fecha_creacion,
+            p.id_plan, p.nombre AS plan_nombre,
+            u.id_usuario AS registro_id, u.nombre AS registro_nombre, u.apellido AS registro_apellido,
+            u.email AS registro_email, u.tipo_usuario AS registro_tipo
+     FROM suscripciones s
+     JOIN planes_suscripcion p ON p.id_plan = s.id_plan
+     LEFT JOIN usuarios u ON u.id_usuario = s.id_usuario_registro
+     WHERE s.id_negocio = ?
+     ORDER BY s.id_suscripcion DESC`,
+    [id_negocio]
+  );
+  return rows;
 };

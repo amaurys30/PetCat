@@ -346,6 +346,8 @@ CREATE TABLE suscripciones (
     monto_pagado     DECIMAL(12,2)   NOT NULL DEFAULT 0.00,
     descuento_pct    DECIMAL(5,2)    NOT NULL DEFAULT 0.00,
     notas            VARCHAR(300)    NULL,
+    -- Migración 025: el admin que asignó el plan o el propietario que activó la prueba.
+    id_usuario_registro INT UNSIGNED NULL COMMENT 'Quién la creó: el admin que asignó el plan o el propietario que activó la prueba',
     fecha_creacion   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
     fecha_actualizacion DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id_suscripcion),
@@ -358,7 +360,10 @@ CREATE TABLE suscripciones (
         ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT fk_suscripciones_plan
         FOREIGN KEY (id_plan) REFERENCES planes_suscripcion (id_plan)
-        ON DELETE RESTRICT ON UPDATE CASCADE
+        ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_suscripciones_usuario_registro
+        FOREIGN KEY (id_usuario_registro) REFERENCES usuarios (id_usuario)
+        ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Suscripciones activas de negocios a los planes de PetCat';
 
@@ -1885,7 +1890,8 @@ INSERT INTO schema_migrations (nombre) VALUES
 ('021_clientes_sin_cuenta.sql'),
 ('022_historial_control_y_ediciones.sql'),
 ('023_vacunas_ediciones.sql'),
-('024_notificaciones_destino.sql');
+('024_notificaciones_destino.sql'),
+('025_suscripciones_usuario_registro.sql');
 
 
 SET FOREIGN_KEY_CHECKS = 1;
