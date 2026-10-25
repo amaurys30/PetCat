@@ -4,6 +4,114 @@
  */
 
 export interface paths {
+    "/admin/negocios": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Negocios con su plan y su uso (super admin)
+         * @description Todos los negocios, activos o no, con el propietario, el plan y el estado efectivos (calculados como en la suscripción del negocio), la suscripción vigente y las citas del mes. Ordenados por nombre.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["page"];
+                    limit?: components["parameters"]["limit"];
+                    /** @description Nombre, ciudad o correo del propietario (sin distinguir tildes) */
+                    q?: string;
+                    /** @description Plan efectivo */
+                    id_plan?: number;
+                    estado?: "activa" | "en_prueba" | "vencida";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Negocios */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            /** @example OK */
+                            message: string;
+                            data: components["schemas"]["NegocioAdmin"][];
+                            meta: components["schemas"]["PaginationMeta"];
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["ValidationError"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/negocios/{id_negocio}/suscripciones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Historial de suscripciones de un negocio (super admin)
+         * @description Todas las suscripciones, de la más reciente a la más antigua, con quién creó cada una.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id_negocio: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Historial */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            /** @example OK */
+                            message: string;
+                            data: components["schemas"]["SuscripcionHistorial"][];
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["ValidationError"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/register": {
         parameters: {
             query?: never;
@@ -7813,6 +7921,87 @@ export interface components {
             totalPages: number;
             /** @example true */
             hasNext: boolean;
+        };
+        NegocioAdmin: {
+            id_negocio: number;
+            /** @example Clínica Veterinaria Patitas */
+            nombre: string;
+            /** @example veterinaria */
+            tipo: string;
+            ciudad: string | null;
+            activo: boolean;
+            fecha_registro: string;
+            propietario: {
+                id_usuario: number;
+                nombre: string;
+                apellido: string;
+                email: string | null;
+            };
+            /** @description Plan efectivo (el Gratuito si la prueba o el plan pago vencieron) */
+            plan: {
+                id_plan: number;
+                /** @example Pro */
+                nombre: string;
+            };
+            /**
+             * @description vencida: la prueba o el plan pago terminaron y el negocio volvió al Gratuito
+             * @enum {string}
+             */
+            estado: "activa" | "en_prueba" | "vencida";
+            /** @description Suscripción vigente (la más reciente activa o en prueba) */
+            suscripcion: {
+                id_suscripcion: number;
+                plan: {
+                    id_plan: number;
+                    nombre: string;
+                };
+                /** @enum {string} */
+                estado: "activa" | "en_prueba" | "vencida";
+                /** @enum {string} */
+                tipo_facturacion: "mensual" | "anual";
+                /** Format: date */
+                fecha_inicio: string;
+                /** @description 9999-12-31 = sin vencimiento */
+                fecha_fin: string;
+                fecha_prueba_fin: string | null;
+            } | null;
+            citas_mes: {
+                /** @example 2026-10 */
+                mes: string;
+                /** @example 26 */
+                usadas: number;
+                /**
+                 * @description -1 = ilimitado
+                 * @example 30
+                 */
+                maximo: number;
+            };
+        };
+        SuscripcionHistorial: {
+            id_suscripcion: number;
+            plan: {
+                id_plan: number;
+                nombre: string;
+            };
+            /** @enum {string} */
+            estado: "activa" | "vencida" | "cancelada" | "en_prueba" | "pendiente";
+            /** @enum {string} */
+            tipo_facturacion: "mensual" | "anual";
+            /** Format: date */
+            fecha_inicio: string;
+            fecha_fin: string;
+            fecha_prueba_fin: string | null;
+            monto_pagado: number;
+            notas: string | null;
+            fecha_creacion: string;
+            /** @description Quién la creó: el admin que asignó el plan o el propietario que activó la prueba. Null en la Gratuita que se crea con el negocio y en las anteriores a la migración 025. */
+            registrada_por: {
+                id_usuario: number;
+                nombre: string;
+                apellido: string;
+                email: string | null;
+                es_admin: boolean;
+            } | null;
         };
         Usuario: {
             /** @example 12 */
