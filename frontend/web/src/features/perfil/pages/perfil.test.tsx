@@ -34,7 +34,7 @@ describe("E6 · Mi perfil", () => {
     servidor.use(suscripcion);
     const { router } = renderRuta("/n/1/dashboard", { usuario });
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "Menú de usuario" }));
+    await user.click(await screen.findByRole("button", { name: "Menú de usuario" }));
     await user.click(await screen.findByRole("menuitem", { name: "Mi perfil" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/n/1/mi-perfil"));
 

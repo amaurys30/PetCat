@@ -82,8 +82,11 @@ describe("E5 · Campana", () => {
     expect(router.state.location.search).toBe("?fecha=2026-10-28&cita=77");
     expect(registro.leidas).toEqual([1]);
 
-    // Una ya leída no se vuelve a marcar. (El detalle de la cita es modal: se cierra antes.)
+    // Una ya leída no se vuelve a marcar. (El detalle de la cita es modal: se cierra antes; la
+    // agenda se carga aparte, así que se espera a que el detalle esté abierto.)
+    await screen.findByRole("dialog");
     await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     await user.click(campana());
     await user.click(await screen.findByRole("button", { name: /Nueva reseña/ }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/n/1/resenas"));

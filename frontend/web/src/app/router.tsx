@@ -1,10 +1,6 @@
 import { createBrowserRouter, Navigate, type RouteObject } from "react-router";
 import { AdminLayout } from "@/features/admin/AdminLayout";
-import { AdminNegociosPage } from "@/features/admin/pages/AdminNegociosPage";
-import { AgendaPage } from "@/features/agenda/pages/AgendaPage";
-import { DashboardPage } from "@/features/dashboard/pages/DashboardPage";
 import { ClientesPage } from "@/features/clientes/pages/ClientesPage";
-import { FichaMascotaPage } from "@/features/salud/pages/FichaMascotaPage";
 import { ConfiguracionLayout } from "@/features/configuracion/ConfiguracionLayout";
 import { PerfilNegocioPage } from "@/features/configuracion/pages/PerfilNegocioPage";
 import { ResumenNegocioPage } from "@/features/configuracion/pages/ResumenNegocioPage";
@@ -12,7 +8,6 @@ import { SedesPage } from "@/features/configuracion/pages/SedesPage";
 import { EquipoLayout } from "@/features/equipo/EquipoLayout";
 import { DisponibilidadPage } from "@/features/equipo/pages/DisponibilidadPage";
 import { MiembrosPage } from "@/features/equipo/pages/MiembrosPage";
-import { RolesPage } from "@/features/equipo/pages/RolesPage";
 import { MiPerfilPage } from "@/features/perfil/pages/MiPerfilPage";
 import { NotificacionesPage } from "@/features/notificaciones/pages/NotificacionesPage";
 import { ResenasPage } from "@/features/resenas/pages/ResenasPage";
@@ -36,6 +31,22 @@ import type { HandleRuta } from "./layouts/Topbar";
 import { SECCIONES } from "./menu";
 import { ErrorDeRuta, PaginaNoEncontrada } from "./pages/PaginasGenerales";
 import { SeccionPendiente } from "./pages/SeccionPendiente";
+
+/**
+ * Pantallas pesadas (calendario, gráficos, la ficha con su historial, la matriz de roles y la
+ * administración) en archivos aparte: se descargan al entrar a su ruta, no con el panel.
+ */
+const agenda = async () => ({ Component: (await import("@/features/agenda/pages/AgendaPage")).AgendaPage });
+const dashboard = async () => ({
+  Component: (await import("@/features/dashboard/pages/DashboardPage")).DashboardPage,
+});
+const fichaMascota = async () => ({
+  Component: (await import("@/features/salud/pages/FichaMascotaPage")).FichaMascotaPage,
+});
+const roles = async () => ({ Component: (await import("@/features/equipo/pages/RolesPage")).RolesPage });
+const adminNegocios = async () => ({
+  Component: (await import("@/features/admin/pages/AdminNegociosPage")).AdminNegociosPage,
+});
 
 const rutasDesarrollo: RouteObject[] = import.meta.env.DEV
   ? [
@@ -86,7 +97,7 @@ export const rutas: RouteObject[] = [
             // Solo el super admin; para los demás, "No encontrado".
             path: "admin",
             element: <AdminLayout />,
-            children: [{ index: true, element: <AdminNegociosPage /> }],
+            children: [{ index: true, lazy: adminNegocios }],
           },
           {
             path: "n/:idNegocio",
@@ -114,7 +125,7 @@ export const rutas: RouteObject[] = [
                     children: [
                       { index: true, element: <Navigate to="miembros" replace /> },
                       { path: "miembros", element: <MiembrosPage /> },
-                      { path: "roles", element: <RolesPage /> },
+                      { path: "roles", lazy: roles },
                     ],
                   },
                   {
@@ -137,12 +148,12 @@ export const rutas: RouteObject[] = [
               },
               {
                 path: "dashboard",
-                element: <DashboardPage />,
+                lazy: dashboard,
                 handle: { titulo: "Dashboard" } satisfies HandleRuta,
               },
               {
                 path: "agenda",
-                element: <AgendaPage />,
+                lazy: agenda,
                 handle: { titulo: "Agenda" } satisfies HandleRuta,
               },
               {
@@ -154,7 +165,7 @@ export const rutas: RouteObject[] = [
                   // historial_medico.ver o vacunas.ver, aunque no tengan Clientes en el menú.
                   {
                     path: "mascotas/:idMascota",
-                    element: <FichaMascotaPage />,
+                    lazy: fichaMascota,
                     handle: { titulo: "Ficha de la mascota" } satisfies HandleRuta,
                   },
                 ],
