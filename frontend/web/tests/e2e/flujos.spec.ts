@@ -165,12 +165,16 @@ test("invitar a un miembro: el correo llega, crea su cuenta y entra con su rol",
     await otro.close();
   }
 
-  // En Equipo ya aparece activa, sin invitación pendiente.
-  await page.reload();
-  await page.getByLabel("Buscar miembro").fill(email);
-  const fila = page.getByRole("row").filter({ hasText: email });
-  await expect(fila).toBeVisible();
-  await expect(fila.getByText(/Invitación pendiente/)).toHaveCount(0);
+  // En el equipo quedó con cuenta y sin invitación pendiente.
+  const miembros = await getApi<{ email: string; tiene_cuenta: boolean; invitacion_pendiente: boolean }[]>(
+    request,
+    `/negocios/${ctx.idNegocio}/empleados?q=${encodeURIComponent(email)}`,
+    ctx.tkNegocio,
+  );
+  expect(miembros.find((m) => m.email === email)).toMatchObject({
+    tiene_cuenta: true,
+    invitacion_pendiente: false,
+  });
 });
 
 test("cliente sin app: registrarlo con su mascota, agendarle y encontrarlo en Clientes", async ({
