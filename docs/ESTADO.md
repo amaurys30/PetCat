@@ -24,7 +24,7 @@ La API cubre las Fases 0 a 2 (flujo de citas completo, salud, notificaciones, pl
 
 **Calidad:** pruebas de componentes con la API simulada, flujos de punta a punta con Playwright contra la API de demo (incluidos los recorridos completos de P7 y la revisión con axe de 30 pantallas, también la landing en celular), typecheck, lint y build en CI. La API tiene su suite de integración con verificación del contrato de Swagger.
 
-**Medidas al cerrar P7** (equipo de desarrollo, 12 núcleos): pruebas del panel 336 en ~150 s (antes ~190 s y con fallas por tiempo); punta a punta 87 en ~4 min; build del panel: la landing descarga 185 kB gzip, el panel inicial (`rutasPanel`) 193 kB (57 kB gzip; antes 482 kB y 136 kB gzip) y cada página se descarga al entrar.
+**Medidas al cerrar P7** (equipo de desarrollo, 12 núcleos): pruebas del panel 337 en 150–170 s (antes ~190 s y con fallas por tiempo); API 851; punta a punta 87 en ~4 min; build del panel: la landing descarga 185 kB gzip, el panel inicial (`rutasPanel`) 193 kB (57 kB gzip; antes 482 kB y 136 kB gzip) y cada página se descarga al entrar.
 
 **Fuera del panel v1:** inventario, pedidos y pagos (las secciones del menú muestran "Próximamente"), estadísticas avanzadas de reportes, WhatsApp, IA, y el panel para el diseño móvil (el panel es de escritorio, desde 1280 px; la página pública sí es móvil). Pendiente de la revisión de P7: los selects nativos (punto 18 del informe), que se dejaron para después.
 
