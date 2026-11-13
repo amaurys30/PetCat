@@ -67,7 +67,7 @@ export function AgregarMascotaDialog({
 
   return (
     <Dialog open onOpenChange={(abierto) => !abierto && onCerrar()}>
-      <DialogContent className="max-w-[560px]">
+      <DialogContent className="max-h-[92vh] max-w-[560px] overflow-y-auto">
         <DialogTitle>Nueva mascota</DialogTitle>
         <DialogDescription className="mt-1">Queda a nombre de {nombreCliente}.</DialogDescription>
         <form onSubmit={(e) => void enviar(e)} className="mt-4 flex flex-col gap-4" noValidate>

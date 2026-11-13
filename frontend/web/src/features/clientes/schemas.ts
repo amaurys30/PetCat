@@ -35,6 +35,10 @@ export const mascotaSchema = z.object({
   sexo: z.enum(["macho", "hembra", "desconocido"]),
   fecha_nacimiento: fecha,
   peso,
+  color: opcional(100),
+  /** Con texto, la mascota queda con alergias (tiene_alergias) y este detalle. */
+  alergias: opcional(2000),
+  condiciones_medicas: opcional(2000),
 });
 export type MascotaValores = z.infer<typeof mascotaSchema>;
 
@@ -75,6 +79,9 @@ export const CAMPOS_REGISTRO = [
   "mascota.sexo",
   "mascota.fecha_nacimiento",
   "mascota.peso",
+  "mascota.color",
+  "mascota.alergias",
+  "mascota.condiciones_medicas",
 ] as const;
 
 export const mascotaAApi = (m: MascotaValores): MascotaNueva => ({
@@ -85,6 +92,9 @@ export const mascotaAApi = (m: MascotaValores): MascotaNueva => ({
   ...(m.sexo !== "desconocido" && { sexo: m.sexo }),
   ...(m.fecha_nacimiento && { fecha_nacimiento: m.fecha_nacimiento }),
   ...(m.peso.trim() && { peso: Number(m.peso.replace(",", ".")) }),
+  ...(m.color.trim() && { color: m.color.trim() }),
+  ...(m.alergias.trim() && { tiene_alergias: true, alergias_detalle: m.alergias.trim() }),
+  ...(m.condiciones_medicas.trim() && { condiciones_medicas: m.condiciones_medicas.trim() }),
 });
 
 export const registroAApi = (v: RegistroValores): RegistrarClienteBody => ({
@@ -103,4 +113,7 @@ export const mascotaVacia = (): MascotaValores => ({
   sexo: "desconocido",
   fecha_nacimiento: "",
   peso: "",
+  color: "",
+  alergias: "",
+  condiciones_medicas: "",
 });
