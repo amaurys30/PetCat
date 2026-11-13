@@ -74,7 +74,7 @@ npm run build          # build de producción en dist/
 
 **Pruebas de componentes y pantallas** (`src/**/*.test.tsx`): pintan la app con las rutas reales (`renderRuta` de `src/test/render.tsx`) y una API simulada con MSW (`src/test/servidor.ts`). Cada prueba declara las respuestas que necesita con `servidor.use(http.get(...))`; una petición sin respuesta hace fallar la prueba. Los datos de ejemplo están en `src/test/<modulo>.ts` (`citaPanelDemo`, `registroDemo`…). No necesitan Docker.
 
-**Pruebas de punta a punta** (`tests/e2e/*.spec.ts`): necesitan `backend-demo` y Mailpit encendidos. Construyen el panel en `dist-e2e` y lo sirven con `vite preview` en el puerto 5180 (no usan el Vite del 5173). Corren de a una (`workers: 1`) porque comparten la base de demo. Reglas:
+**Pruebas de punta a punta** (`tests/e2e/*.spec.ts`): necesitan `backend-demo` y Mailpit encendidos. Construyen el panel en una carpeta temporal del sistema (`%TEMP%/petcat-e2e/dist`, fuera del repositorio y de OneDrive; las trazas y capturas de las pruebas que fallan quedan en `%TEMP%/petcat-e2e/test-results`) y lo sirven con `vite preview` en el puerto 5180 (no usan el Vite del 5173). Corren de a una (`workers: 1`) porque comparten la base de demo. Reglas:
 
 - Cada prueba crea sus propios datos por la API (helpers de `tests/e2e/citas.ts`: `reservaPendiente`, `citaDeHoy`…) y los cancela o borra al final, en un `finally`. No dependen de las citas del seed, que vencen.
 - La preparación llama directo a `http://127.0.0.1:3001`, no por el proxy de la vista previa.
