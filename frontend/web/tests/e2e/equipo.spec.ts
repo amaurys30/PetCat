@@ -213,7 +213,7 @@ test("escalada: un coordinador invitado no asigna Administrador ni se toca a sí
 
   await page.goto(`/n/${SALUD_ANIMAL}/equipo/roles?rol=${rol.id_rol}`);
   await expect(page.getByText(/No puedes modificar tu propio rol\./)).toBeVisible();
-  await expect(page.getByRole("checkbox", { name: "Citas: ver" })).toBeDisabled();
+  await expect(page.getByRole("checkbox", { name: "Citas: ver", exact: true })).toBeDisabled();
 });
 
 test("disponibilidad: guarda la semana desde la sede y registra vacaciones", async ({ page, request }) => {
