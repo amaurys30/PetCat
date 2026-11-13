@@ -73,7 +73,8 @@ export const buscarNegocios = async ({ q, tipo, id_categoria, geo, limit, offset
   return pagina({
     ...partes,
     select: `n.id_negocio, n.nombre, n.tipo, n.descripcion, n.ciudad, n.logo_url,
-             n.calificacion_promedio, n.total_resenas, n.verificado, n.destacado, ${partes.columnas}`,
+             n.calificacion_promedio, n.total_resenas, n.verificado, n.destacado,
+             n.confirmacion_automatica, ${partes.columnas}`,
     from: `FROM negocios n ${partes.join}`,
     where: `WHERE ${condiciones.join(" AND ")}`,
     valores,

@@ -1726,7 +1726,10 @@ INSERT INTO configuracion_global (clave, valor, tipo, descripcion) VALUES
 ('confirmacion_antes_inicio_min', '60', 'integer', 'La cita pendiente se cancela a más tardar estos minutos antes de su inicio'),
 -- Migración 018.
 ('resena_plazo_dias',   '30', 'integer', 'Días desde que se completa la cita en que el dueño puede reseñarla o editar su reseña'),
-('resena_invitacion_h', '3',  'integer', 'Horas después de completada la cita para invitar a reseñar (entre las 20:00 y las 10:00 se corre a las 10:00)');
+('resena_invitacion_h', '3',  'integer', 'Horas después de completada la cita para invitar a reseñar (entre las 20:00 y las 10:00 se corre a las 10:00)'),
+-- Migración 027.
+('publico_umbral_cifras', '5', 'integer', 'Landing: una cifra (negocios activos, ciudades, citas atendidas) se muestra solo si supera este valor'),
+('publico_min_resenas',   '3', 'integer', 'Landing: reseñas elegibles mínimas (4 y 5 estrellas con comentario) para mostrar la sección de reseñas');
 
 
 -- ═══════════════════════════════════════════════════════════════════════════
@@ -1897,7 +1900,8 @@ INSERT INTO schema_migrations (nombre) VALUES
 ('023_vacunas_ediciones.sql'),
 ('024_notificaciones_destino.sql'),
 ('025_suscripciones_usuario_registro.sql'),
-('026_citas_ver_todas_y_creador_historial.sql');
+('026_citas_ver_todas_y_creador_historial.sql'),
+('027_publico_landing.sql');
 
 
 SET FOREIGN_KEY_CHECKS = 1;
