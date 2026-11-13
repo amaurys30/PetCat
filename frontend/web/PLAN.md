@@ -91,17 +91,38 @@ Sub-bloques: P6.1 suscripción · P6.2 dashboard · P6.3 reseñas · P6.4 notifi
 - [x] Sexo de la mascota en C3 y en Nueva mascota.
 - [x] Carnet y pestaña Vacunas por fecha de aplicación, de la más reciente a la más antigua.
 
-## Página pública de presentación (P7 en pausa)
+## Página pública de presentación (durante P7)
 - [x] Landing para dueños de mascotas en `/`: encabezado con menú en celular, hero con ilustración propia, beneficios, cómo funciona, buscador real de negocios cercanos (ubicación del navegador o Sincelejo), cifras y reseñas reales de la API, banda para negocios, preguntas frecuentes y pie con política y soporte.
 - [x] `/para-negocios`: beneficios del panel, planes de `GET /planes` con la prueba Pro, llamadas al registro y al login, preguntas frecuentes y soporte.
 - [x] El panel se carga aparte (`rutasPanel`, `patchRoutesOnNavigation`): la landing no lo descarga. `/panel` es la entrada al panel (antes `/`).
 - [x] SEO básico (título, descripción, Open Graph con `public/og-petcat.png`, idioma es), axe sin violaciones en las dos páginas (escritorio, celular y menú abierto), pruebas unitarias y de punta a punta (`landing.spec.ts`).
 
 ## P7 — Cierre del panel v1
-- [ ] Flujos de punta a punta con Playwright: login → elegir negocio → agendar → confirmar → completar → registro médico; invitar a un miembro; cliente sin app.
-- [ ] Revisión contra el Figma pantalla por pantalla.
-- [ ] Revisión de accesibilidad básica y de estados vacíos y de error.
-- [ ] README del panel (cómo correrlo y probarlo) y PR a `main`.
+- [x] Flujos de punta a punta con Playwright: login → elegir negocio → agendar → confirmar → completar → registro médico; invitar a un miembro; cliente sin app.
+- [x] Revisión contra el Figma pantalla por pantalla.
+- [x] Revisión de accesibilidad básica y de estados vacíos y de error.
+- [x] README del panel (cómo correrlo y probarlo) y PR a `main`.
+
+**Correcciones de la revisión (Fase 3 de P7)**
+- [x] Vitest con la mitad de los núcleos (`maxWorkers: "50%"`): las pantallas pesadas vencían sus esperas con un worker por núcleo.
+- [x] Prueba de escalada con `exact: true` ("Citas: ver" también coincidía con "ver citas de todos").
+- [x] Sesión entre pestañas: una pestaña recién cargada pide los tokens a las abiertas antes de renovar; un 401 reintenta con el token que dejó otra pestaña y nunca lo borra.
+- [x] Lo que generan las pruebas de punta a punta (build y resultados) va a una carpeta temporal del sistema, fuera de OneDrive.
+- [x] nodemon con `--polling-interval 1000` en `docker-compose.dev.yml`.
+- [x] Contraste AA desde los tokens (`primary`, `primary-dark`, `subtle`, `info`, `done`, `danger`, `warning-ink`); axe sin violaciones conocidas en ninguna pantalla.
+- [x] Foco de vuelta al botón que abrió Nueva cita y el detalle de una cita al cerrarlos con Escape.
+- [x] "Saltar al contenido" en el panel, el acceso, la administración y las páginas públicas.
+- [x] Gráficos sin elementos enfocables dentro de `aria-hidden`; avatares de Servicios con `role="img"`; un panel por pestaña en Notificaciones; `aria-busy` en los estados de carga.
+- [x] B7 (y B5): horarios libres por madrugada, mañana, tarde y noche con desplazamiento interno; título y botones fijos.
+- [x] Semana y Día: las canceladas no ocupan columna, salvo con "Mostrar canceladas".
+- [x] C6 y C3: color, alergias y condiciones médicas de la mascota.
+- [x] D2: primero los profesionales de atención clínica.
+- [x] Fechas cortas con el mes ("Mar 17 nov") en C2, Por confirmar, Fuera de disponibilidad y el detalle.
+- [x] Textos que se cortaban: Registró del carnet, excepciones de D5, raza en C1, nombre del negocio en el menú (tooltip) y columnas de X1.
+- [x] C1: una búsqueda sin resultados cierra el detalle del cliente anterior.
+- [x] Buscador de Equipo que no dejaba escribir al recargar: la tabla entraba en un ciclo de renders (datos vacíos nuevos en cada render y reinicio de página de TanStack Table) que congelaba la pestaña.
+- [x] Carga diferida de Google Maps y de las páginas del panel.
+- [ ] Punto 18 del informe (selects nativos): pendiente, se decidió no hacerlo por ahora.
 
 ---
 
@@ -290,3 +311,11 @@ _(Lo que el panel necesite y la API no tenga. No se inventa: se anota aquí.)_
 - Página pública: las cifras y las reseñas las decide la API. Una cifra solo llega si supera `publico_umbral_cifras` (estrictamente mayor), y las reseñas solo si hay al menos `publico_min_resenas` elegibles (4 o 5 estrellas con comentario, de cita completada, visibles, sin reporte, de negocio activo y sin las de clientes que el mismo negocio registró desde el panel), como máximo 2 por negocio.
 - Página pública: el buscador no pide la ubicación al cargar; la usa sin preguntar solo si el permiso ya está concedido, y si no, con el botón "Usar mi ubicación". Sin ella, busca cerca del centro de Sincelejo.
 - Página pública: las tiendas de la app aparecen como "Próximamente", sin enlaces ni logos de terceros. Con sesión, el encabezado y el pie dicen "Ir al panel" (`/panel`).
+- P7: Vitest corre con la mitad de los núcleos (`maxWorkers: "50%"`); con uno por núcleo las pantallas pesadas fallaban por tiempo y la suite era más lenta.
+- P7: los tokens de texto se oscurecieron lo justo para AA (4,5:1) con el mismo matiz; `primary` queda en #0F7D76 y `primary-dark` en #0B6F69. No se atenúa texto con `opacity`.
+- P7: un diálogo que se abre por estado o por la URL (sin el Trigger de Radix) devuelve el foco con `useFocoDeRegreso`.
+- P7: estados de carga con `Skeleton etiqueta` (uno solo) o `CargandoGrupo` (varios): `role="status"` y `aria-busy`.
+- P7: las canceladas no se dibujan en Semana y Día salvo con el interruptor, el filtro de estado o si es la abierta. La lista las sigue mostrando.
+- P7: rol clínico = su rol puede crear registros médicos; sin permiso para ver los roles, la especialidad o el rol Veterinario.
+- P7: las páginas del panel se cargan con `lazy`; en `rutasPanel` quedan layouts, guardas y acceso. Google Maps va en `UbicacionGoogle`. Las pruebas resuelven las rutas diferidas antes de pintar (`test/render.tsx`).
+- P7: `DataTable` usa un arreglo vacío estable y sin reinicio automático de la página (la paginación es de la API).

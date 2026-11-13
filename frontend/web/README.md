@@ -41,7 +41,7 @@ docker compose exec backend-demo npm run db:migrate
 cd frontend/web
 npm install
 Copy-Item .env.example .env.local   # opcional: todas las variables tienen valor por defecto
-npm run dev                         # http://localhost:5173
+npm run dev                         # http://localhost:5173 (landing); el panel entra por /panel o /login
 ```
 
 Vite reenvía `/api` y `/socket.io` a `VITE_API_PROXY_TARGET` (por defecto `http://localhost:3001`), así que no hay CORS. Sin `VITE_GOOGLE_MAPS_API_KEY`, las sedes se ubican con latitud y longitud manuales.
@@ -92,7 +92,7 @@ frontend/web/
 ├── docs/mockups/            # capturas de las 43 pantallas del Figma (fuente de diseño)
 ├── src/
 │   ├── main.tsx · index.css # tokens de diseño en @theme (Tailwind 4)
-│   ├── app/                 # router.tsx, guards, layouts (AuthLayout, PanelLayout, Sidebar, Topbar), menu.ts
+│   ├── app/                 # router.tsx (páginas públicas), rutasPanel.tsx (panel), guards, layouts, menu.ts
 │   ├── api/
 │   │   ├── schema.d.ts      # GENERADO desde Swagger: npm run api:types (no se edita)
 │   │   ├── types.ts         # tipos derivados (Body<>, DataGet<>, Usuario, Permisos…)
@@ -112,7 +112,7 @@ frontend/web/
 └── tests/e2e/               # Playwright
 ```
 
-Las pantallas pesadas (agenda, dashboard, ficha de la mascota, roles y administración) se cargan bajo demanda con `lazy` en `app/router.tsx`: no van en el archivo inicial.
+**Rutas y carga diferida.** `app/router.tsx` tiene las páginas públicas (`/` y `/para-negocios`, en `features/publico`, mobile first). El panel está en `app/rutasPanel.tsx` y se agrega al router la primera vez que se navega a una de sus rutas (`patchRoutesOnNavigation`): la landing no lo descarga. Dentro del panel, cada página va con `lazy` (un archivo por página); en `rutasPanel` quedan los layouts, los guardas y el acceso (login, registro, recuperar). Google Maps se descarga solo con clave (`UbicacionGoogle`). Las pruebas resuelven todo eso antes de pintar (`test/render.tsx`).
 
 ---
 
@@ -195,17 +195,17 @@ Ejemplo: una sección **Inventario** con la lista de productos (`GET /negocios/:
    }
    ```
 
-7. **Ruta y menú.** En `src/app/menu.ts`, la sección (`ruta: "inventario"`, `permiso: ["inventario", "ver"]`) ya existe como pendiente: quitarla de la lista de "pendientes" en `app/router.tsx` y agregar la ruta bajo `n/:idNegocio`:
+7. **Ruta y menú.** En `src/app/menu.ts`, la sección (`ruta: "inventario"`, `permiso: ["inventario", "ver"]`) ya existe como pendiente: quitarla de la lista de "pendientes" en `app/rutasPanel.tsx` y agregar la ruta bajo `n/:idNegocio`:
 
    ```tsx
    {
      path: "inventario",
-     lazy: async () => ({ Component: (await import("@/features/inventario/pages/InventarioPage")).InventarioPage }),
+     lazy: pagina(() => import("@/features/inventario/pages/InventarioPage"), "InventarioPage"),
      handle: { titulo: "Inventario" } satisfies HandleRuta,
    },
    ```
 
-   Usa `lazy` si la pantalla es grande o trae una librería pesada; si no, un `element` normal.
+   Toda página nueva va con `lazy` (el helper `pagina` de `rutasPanel.tsx`): así no pesa en la carga inicial del panel.
 
 8. **Formularios** (si hay): esquema Zod en `features/inventario/schemas.ts` con las mismas reglas que la API, `useForm` con `zodResolver`, campos con `Field`, y los 422 de la API con `aplicarErroresApi`.
 

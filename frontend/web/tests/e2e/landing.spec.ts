@@ -24,8 +24,10 @@ test("landing, buscador, para negocios y registro", async ({ page }) => {
   await expect(patitas.getByText(/^a [\d,]+ (km|m)/)).toBeVisible();
   await expect(patitas.getByRole("button", { name: "Reservar desde la app · próximamente" })).toBeDisabled();
 
+  // Otras pruebas crean negocios en la demo: todos los resultados tienen "Patitas" y está la del seed.
   await page.getByRole("searchbox", { name: "Buscar por nombre" }).fill("Patitas");
-  await expect(lista.getByRole("listitem")).toHaveCount(1);
+  await expect(lista.getByRole("listitem").filter({ hasNotText: "Patitas" })).toHaveCount(0);
+  await expect(lista.getByRole("heading", { name: "Clínica Veterinaria Patitas" })).toBeVisible();
   await page.getByRole("searchbox", { name: "Buscar por nombre" }).fill("");
   await page.getByRole("button", { name: "Guarderías" }).click();
   await expect(lista.getByRole("heading", { name: "Guardería Patas Felices" })).toBeVisible();
