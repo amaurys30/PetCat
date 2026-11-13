@@ -54,6 +54,28 @@ async function entrar(page: Page, email: string) {
   await expect(page).not.toHaveURL(/\/login$/);
 }
 
+test("después de agregar un miembro y recargar, el buscador deja escribir y lo encuentra", async ({ page }) => {
+  // P7: al recargar, la tabla podía quedar en un ciclo de renders (datos vacíos nuevos en cada
+  // render) que congelaba la pantalla; pasaba en la mayoría de las corridas.
+  const email = `recarga.${unico()}@petcat.test`;
+  await entrar(page, "saludanimal@petcat.test");
+  await page.goto(`/n/${SALUD_ANIMAL}/equipo/miembros`);
+  await page.getByRole("button", { name: "Agregar miembro" }).click();
+  const dialogo = page.getByRole("dialog");
+  await dialogo.getByLabel("Nombre *").fill("Recarga");
+  await dialogo.getByLabel("Apellido *").fill("Equipo");
+  await dialogo.getByLabel("Correo (para la invitación)").fill(email);
+  await dialogo.getByRole("radio", { name: /Recepcionista/ }).click();
+  await dialogo.getByRole("button", { name: "Guardar y enviar invitación" }).click();
+  await expect(page.getByText(/quedó en el equipo/)).toBeVisible();
+
+  for (let i = 0; i < 3; i += 1) {
+    await page.reload();
+    await page.getByLabel("Buscar miembro").fill(email, { timeout: 10_000 });
+    await expect(page.getByRole("row").filter({ hasText: email })).toBeVisible();
+  }
+});
+
 test("invita desde el formulario, reenvía y agota los 4 correos de 24 horas", async ({ page, request }) => {
   test.setTimeout(60_000);
   const email = `equipo.${unico()}@petcat.test`;

@@ -3,6 +3,8 @@ import type { KeyboardEvent, ReactNode } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
+const SIN_DATOS: never[] = [];
+
 /**
  * Tabla base del panel. La paginación, el orden y los filtros van del lado de la API:
  * esta tabla solo pinta filas, el esqueleto de carga y el estado vacío.
@@ -27,10 +29,17 @@ export function DataTable<T>({
   // TanStack Table devuelve funciones que no se pueden memorizar; el compilador de React lo sabe.
   // eslint-disable-next-line react-hooks/incompatible-library
   const tabla = useReactTable({
-    data: datos ?? [],
+    // Un arreglo estable mientras carga: con `datos ?? []` cada render traía datos "nuevos", la
+    // tabla reiniciaba la página con un setState en una microtarea y el render siguiente volvía
+    // a empezar. El ciclo no soltaba el hilo y congelaba la pantalla (el buscador de Equipo
+    // no dejaba escribir al recargar).
+    data: datos ?? SIN_DATOS,
     columns: columnas,
     getCoreRowModel: getCoreRowModel(),
     getRowId: idFila ? (fila) => String(idFila(fila)) : undefined,
+    // La paginación es de la API: nada que reiniciar en la tabla.
+    manualPagination: true,
+    autoResetAll: false,
   });
 
   const filas = tabla.getRowModel().rows;
