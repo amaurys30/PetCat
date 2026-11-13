@@ -90,7 +90,8 @@ export function ResenasDestacadas() {
                 <p className="text-[15px] font-semibold text-ink">{r.autor}</p>
                 <p className="text-[14px] text-muted">{r.negocio.nombre}</p>
                 <p className="mt-2 inline-flex items-center gap-1.5 text-[13px] font-semibold text-primary-deep">
-                  <BadgeCheck className="size-4" aria-hidden /> Visita verificada · {textoMes(r.visita_verificada)}
+                  <BadgeCheck className="size-4" aria-hidden /> Visita verificada ·{" "}
+                  {textoMes(r.visita_verificada)}
                 </p>
               </figcaption>
             </figure>

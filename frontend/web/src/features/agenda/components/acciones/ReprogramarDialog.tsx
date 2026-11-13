@@ -210,7 +210,7 @@ export function ReprogramarDialog({
               Horarios libres · {/^\d{4}-\d{2}-\d{2}$/.test(fecha) ? encabezadoDia(fecha) : "elige una fecha"}
             </Label>
             {horarios.isPending && horarios.fetchStatus !== "idle" ? (
-              <Skeleton className="h-16" />
+              <Skeleton etiqueta="Cargando horarios libres" className="h-16" />
             ) : horarios.data && horarios.data.horarios.length > 0 ? (
               <div role="radiogroup" aria-label="Horarios libres" className="flex flex-wrap gap-2">
                 {horarios.data.horarios.map((h) => (

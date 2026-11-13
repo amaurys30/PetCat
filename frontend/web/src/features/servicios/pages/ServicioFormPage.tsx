@@ -64,7 +64,8 @@ export function ServicioFormPage() {
     );
   }
   if (id !== null) {
-    if (servicio.isPending) return <Skeleton className="h-[640px] rounded-card" />;
+    if (servicio.isPending)
+      return <Skeleton etiqueta="Cargando servicio" className="h-[640px] rounded-card" />;
     if (servicio.isError) {
       return (
         <Card>

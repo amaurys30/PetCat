@@ -26,6 +26,7 @@ import { useCrearCita, useHorariosLibres } from "../../hooks/useCita";
 import type { ClienteElegido } from "../../nuevaCita";
 import { nombreCompleto } from "../../textos";
 import { BuscarCliente } from "./BuscarCliente";
+import { useFocoDeRegreso } from "@/lib/useFocoDeRegreso";
 
 const CUALQUIERA = "cualquiera";
 const ORIGENES = [
@@ -72,6 +73,9 @@ export function NuevaCitaDialog({
   const negocio = useNegocioActivo();
   const puede = usePuede();
   const hoy = hoyISO();
+  // Al cerrarse (se desmonta), el foco vuelve a lo que lo abrió. Sin onCloseAutoFocus: este diálogo
+  // también se cierra al abrir Registrar cliente o Agregar mascota, y ahí el foco va a esos.
+  useFocoDeRegreso();
   const { sedes } = useSedes();
   const catalogo = useCatalogoServicios(negocio.id_negocio);
   const profesionales = useProfesionales(negocio.id_negocio);
@@ -256,7 +260,7 @@ export function NuevaCitaDialog({
                 {!cliente ? (
                   <p className="text-body text-subtle">Primero elige al cliente.</p>
                 ) : !mascotas ? (
-                  <Skeleton className="h-8 w-40" />
+                  <Skeleton etiqueta="Cargando mascotas" className="h-8 w-40" />
                 ) : (
                   <div role="radiogroup" aria-label="Mascota" className="flex flex-wrap gap-2">
                     {mascotas.map((m) => (
@@ -431,7 +435,7 @@ export function NuevaCitaDialog({
                 {!servicio || !sede ? (
                   <p className="text-body text-subtle">Elige el servicio para ver los horarios libres.</p>
                 ) : horarios.isPending ? (
-                  <Skeleton className="h-24" />
+                  <Skeleton etiqueta="Cargando horarios libres" className="h-24" />
                 ) : horarios.isError ? (
                   <Alert tono="error">{horarios.error.message}</Alert>
                 ) : libres && libres.length > 0 ? (

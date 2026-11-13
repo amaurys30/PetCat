@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
+import { CargandoGrupo, Skeleton } from "@/components/ui/skeleton";
 import { usePlanes } from "@/features/negocios/hooks/useGestion";
 import { dinero, fechaCorta, fechaHora } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -119,11 +119,11 @@ export function AdminNegociosPage() {
 
         <Card className="overflow-hidden p-0">
           {negocios.isPending ? (
-            <div className="flex flex-col gap-2 p-4">
+            <CargandoGrupo etiqueta="Cargando negocios" className="flex flex-col gap-2 p-4">
               <Skeleton className="h-10" />
               <Skeleton className="h-10" />
               <Skeleton className="h-10" />
-            </div>
+            </CargandoGrupo>
           ) : negocios.isError ? (
             <ErrorConsulta error={negocios.error} reintentar={() => void negocios.refetch()} />
           ) : filas.length === 0 ? (
@@ -258,7 +258,7 @@ function Historial({ negocio }: { negocio: NegocioAdmin }) {
     <Card className="p-5">
       <h2 className="mb-3 text-card font-semibold text-ink">Historial de suscripciones</h2>
       {historial.isPending ? (
-        <Skeleton className="h-24" />
+        <Skeleton etiqueta="Cargando historial de suscripciones" className="h-24" />
       ) : historial.isError ? (
         <p className="text-body text-muted">No se pudo cargar el historial.</p>
       ) : (

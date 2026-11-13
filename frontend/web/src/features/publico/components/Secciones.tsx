@@ -59,7 +59,7 @@ export function TarjetasBeneficios({ beneficios }: { beneficios: Beneficio[] }) 
       {beneficios.map((b) => (
         <li
           key={b.titulo}
-          className="flex flex-col gap-4 rounded-card border border-border bg-white p-6 transition-shadow lg:last:[&:nth-child(3n+1)]:col-span-3 hover:shadow-[0_12px_32px_rgb(30_42_59/0.08)]"
+          className="flex flex-col gap-4 rounded-card border border-border bg-white p-6 transition-shadow hover:shadow-[0_12px_32px_rgb(30_42_59/0.08)] lg:last:[&:nth-child(3n+1)]:col-span-3"
         >
           <span className={cn("flex size-12 items-center justify-center rounded-card", TONOS[b.tono])}>
             <b.icono className="size-6" aria-hidden />
@@ -76,7 +76,10 @@ export function Pasos({ pasos }: { pasos: { titulo: string; texto: string }[] })
   return (
     <ol className="grid gap-5 md:grid-cols-3">
       {pasos.map((p, i) => (
-        <li key={p.titulo} className="relative flex flex-col gap-3 rounded-modal bg-white p-7 shadow-[0_1px_2px_rgb(30_42_59/0.06)]">
+        <li
+          key={p.titulo}
+          className="relative flex flex-col gap-3 rounded-modal bg-white p-7 shadow-[0_1px_2px_rgb(30_42_59/0.06)]"
+        >
           <span className="flex size-12 items-center justify-center rounded-full bg-primary-dark text-[20px] font-bold text-white">
             {i + 1}
           </span>
@@ -92,10 +95,16 @@ export function PreguntasFrecuentes({ preguntas }: { preguntas: Pregunta[] }) {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-3">
       {preguntas.map((p) => (
-        <details key={p.pregunta} className="group rounded-card border border-border bg-white open:shadow-card">
+        <details
+          key={p.pregunta}
+          className="group rounded-card border border-border bg-white open:shadow-card"
+        >
           <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-card px-5 py-4 text-left text-[16px] font-semibold text-ink [&::-webkit-details-marker]:hidden">
             {p.pregunta}
-            <ChevronDown className="size-5 shrink-0 text-muted transition-transform group-open:rotate-180" aria-hidden />
+            <ChevronDown
+              className="size-5 shrink-0 text-muted transition-transform group-open:rotate-180"
+              aria-hidden
+            />
           </summary>
           <p className="px-5 pb-5 text-[15px] leading-6 text-muted">{p.respuesta}</p>
         </details>
@@ -109,7 +118,10 @@ export function BotonesTiendas() {
   return (
     <ul className="flex flex-wrap gap-3" aria-label="Descargar la app">
       {["Google Play", "App Store"].map((tienda) => (
-        <li key={tienda} className="flex items-center gap-3 rounded-card border border-border bg-white px-4 py-2.5 text-ink">
+        <li
+          key={tienda}
+          className="flex items-center gap-3 rounded-card border border-border bg-white px-4 py-2.5 text-ink"
+        >
           <Smartphone className="size-6 shrink-0" aria-hidden />
           <span className="flex flex-col leading-tight">
             <span className="text-[12px] text-muted">Próximamente en</span>

@@ -28,4 +28,5 @@ export const getConfiguracionPublica = () =>
   apiGet<ConfiguracionPublica>("/publico/configuracion", undefined, { sinRenovar: true });
 
 /** Búsqueda de la app: negocios activos dentro del radio por defecto (10 km), los destacados primero. */
-export const buscarNegocios = (filtros: FiltrosBusqueda) => apiGetPagina<NegocioBusqueda>("/negocios", filtros);
+export const buscarNegocios = (filtros: FiltrosBusqueda) =>
+  apiGetPagina<NegocioBusqueda>("/negocios", filtros);

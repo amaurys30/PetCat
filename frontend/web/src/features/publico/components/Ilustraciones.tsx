@@ -27,7 +27,13 @@ function Perro({ x, y }: { x: number; y: number }) {
   return (
     <g transform={`translate(${x} ${y})`}>
       {/* cola */}
-      <path d="M150 168 q40 -10 38 -52" stroke={PIEL_PERRO_OSCURA} strokeWidth="14" strokeLinecap="round" fill="none" />
+      <path
+        d="M150 168 q40 -10 38 -52"
+        stroke={PIEL_PERRO_OSCURA}
+        strokeWidth="14"
+        strokeLinecap="round"
+        fill="none"
+      />
       {/* cuerpo */}
       <ellipse cx="95" cy="168" rx="62" ry="58" fill={PIEL_PERRO} />
       <ellipse cx="95" cy="182" rx="34" ry="40" fill={CREMA} />
@@ -75,8 +81,19 @@ function Gato({ x, y }: { x: number; y: number }) {
       <ellipse cx="46" cy="45" rx="2" ry="6" fill={INK} />
       <ellipse cx="74" cy="45" rx="2" ry="6" fill={INK} />
       <path d="M56 58 h8 l-4 5 z" fill={ROSA} />
-      <path d="M60 63 q-5 6 -10 2 M60 63 q5 6 10 2" stroke={GATO_CLARO} strokeWidth="2" strokeLinecap="round" fill="none" />
-      <path d="M30 58 h-18 M30 64 l-16 5 M90 58 h18 M90 64 l16 5" stroke={GATO_CLARO} strokeWidth="1.6" strokeLinecap="round" />
+      <path
+        d="M60 63 q-5 6 -10 2 M60 63 q5 6 10 2"
+        stroke={GATO_CLARO}
+        strokeWidth="2"
+        strokeLinecap="round"
+        fill="none"
+      />
+      <path
+        d="M30 58 h-18 M30 64 l-16 5 M90 58 h18 M90 64 l16 5"
+        stroke={GATO_CLARO}
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
     </g>
   );
 }
@@ -97,7 +114,14 @@ function Check({ x, y }: { x: number; y: number }) {
   return (
     <g transform={`translate(${x} ${y})`}>
       <circle r="10" fill="#E3F6F3" />
-      <path d="M-4.5 0.5 l3 3 l6 -6.5" stroke="#0D7F78" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <path
+        d="M-4.5 0.5 l3 3 l6 -6.5"
+        stroke="#0D7F78"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
     </g>
   );
 }
@@ -137,18 +161,41 @@ export function IlustracionDuenos({ className }: { className?: string }) {
       <rect x="352" y="110" width="80" height="10" rx="5" fill="#1E2A3B" />
       <rect x="352" y="128" width="56" height="8" rx="4" fill="#9AA6B2" />
       <rect x="306" y="160" width="158" height="30" rx="10" fill="#F0FAF9" />
-      <text x="318" y="180" fontSize="12" fontWeight="700" fill="#0B6F69" fontFamily="Inter Variable, sans-serif">
+      <text
+        x="318"
+        y="180"
+        fontSize="12"
+        fontWeight="700"
+        fill="#0B6F69"
+        fontFamily="Inter Variable, sans-serif"
+      >
         Carnet de vacunas
       </text>
       {[0, 1, 2].map((i) => (
         <g key={i}>
           <Check x={322} y={214 + i * 38} />
-          <rect x="340" y={208 + i * 38} width={i === 1 ? 70 : 92} height="8" rx="4" fill="#1E2A3B" opacity="0.8" />
+          <rect
+            x="340"
+            y={208 + i * 38}
+            width={i === 1 ? 70 : 92}
+            height="8"
+            rx="4"
+            fill="#1E2A3B"
+            opacity="0.8"
+          />
           <rect x="340" y={220 + i * 38} width="54" height="6" rx="3" fill="#9AA6B2" />
         </g>
       ))}
       <rect x="306" y="330" width="158" height="44" rx="14" fill="#0D7F78" />
-      <text x="385" y="357" fontSize="13" fontWeight="700" fill="#FFFFFF" textAnchor="middle" fontFamily="Inter Variable, sans-serif">
+      <text
+        x="385"
+        y="357"
+        fontSize="13"
+        fontWeight="700"
+        fill="#FFFFFF"
+        textAnchor="middle"
+        fontFamily="Inter Variable, sans-serif"
+      >
         Agendar cita
       </text>
 
@@ -164,7 +211,14 @@ export function IlustracionDuenos({ className }: { className?: string }) {
         strokeLinejoin="round"
         fill="none"
       />
-      <text x="414" y="45" fontSize="12" fontWeight="700" fill="#1E2A3B" fontFamily="Inter Variable, sans-serif">
+      <text
+        x="414"
+        y="45"
+        fontSize="12"
+        fontWeight="700"
+        fill="#1E2A3B"
+        fontFamily="Inter Variable, sans-serif"
+      >
         Vacuna de Max
       </text>
       <text x="414" y="62" fontSize="11" fill="#5B6B7C" fontFamily="Inter Variable, sans-serif">
@@ -210,11 +264,26 @@ export function IlustracionNegocios({ className }: { className?: string }) {
       <g filter={`url(#${sombra})`}>
         <rect x="80" y="70" width="400" height="260" rx="20" fill="#FFFFFF" />
       </g>
-      <text x="104" y="104" fontSize="15" fontWeight="700" fill="#1E2A3B" fontFamily="Inter Variable, sans-serif">
+      <text
+        x="104"
+        y="104"
+        fontSize="15"
+        fontWeight="700"
+        fill="#1E2A3B"
+        fontFamily="Inter Variable, sans-serif"
+      >
         Agenda de hoy
       </text>
       <rect x="388" y="88" width="72" height="24" rx="12" fill="#E3F6F3" />
-      <text x="424" y="104" fontSize="11" fontWeight="700" fill="#0B6F69" textAnchor="middle" fontFamily="Inter Variable, sans-serif">
+      <text
+        x="424"
+        y="104"
+        fontSize="11"
+        fontWeight="700"
+        fill="#0B6F69"
+        textAnchor="middle"
+        fontFamily="Inter Variable, sans-serif"
+      >
         8 citas
       </text>
       {["8:00", "10:00", "12:00", "14:00"].map((h, i) => (
@@ -239,7 +308,14 @@ export function IlustracionNegocios({ className }: { className?: string }) {
         <rect x="300" y="300" width="200" height="64" rx="16" fill="#FFFFFF" />
       </g>
       <Check x={330} y={332} />
-      <text x="350" y="327" fontSize="12" fontWeight="700" fill="#1E2A3B" fontFamily="Inter Variable, sans-serif">
+      <text
+        x="350"
+        y="327"
+        fontSize="12"
+        fontWeight="700"
+        fill="#1E2A3B"
+        fontFamily="Inter Variable, sans-serif"
+      >
         Cita confirmada
       </text>
       <text x="350" y="344" fontSize="11" fill="#5B6B7C" fontFamily="Inter Variable, sans-serif">
@@ -269,7 +345,12 @@ export function IlustracionBanda({ className }: { className?: string }) {
     <svg viewBox="0 0 220 180" className={className} aria-hidden>
       <circle cx="110" cy="96" r="78" fill="#FFFFFF" opacity="0.12" />
       <rect x="50" y="62" width="120" height="86" rx="18" fill="#FFFFFF" />
-      <path d="M86 62 v-12 a10 10 0 0 1 10 -10 h28 a10 10 0 0 1 10 10 v12" stroke="#FFFFFF" strokeWidth="8" fill="none" />
+      <path
+        d="M86 62 v-12 a10 10 0 0 1 10 -10 h28 a10 10 0 0 1 10 10 v12"
+        stroke="#FFFFFF"
+        strokeWidth="8"
+        fill="none"
+      />
       <rect x="100" y="84" width="20" height="44" rx="5" fill="#F29921" />
       <rect x="88" y="96" width="44" height="20" rx="5" fill="#F29921" />
       <Huella x={180} y={40} escala={1} color="#FFF2D9" />

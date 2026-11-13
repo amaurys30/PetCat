@@ -72,7 +72,7 @@ export function CitasDeHoy({
     <Card className="p-5">
       <Titulo enlace={{ a: `../agenda?vista=dia&fecha=${hoy}`, texto: "Ver agenda" }}>Citas de hoy</Titulo>
       {agenda.isPending ? (
-        <Skeleton className="h-40" />
+        <Skeleton etiqueta="Cargando citas de hoy" className="h-40" />
       ) : agenda.isError ? (
         <p className="text-body text-muted">No se pudieron cargar las citas de hoy.</p>
       ) : citas.length === 0 ? (
@@ -213,7 +213,7 @@ export function RequiereAtencion({
     <Card className="p-5">
       <Titulo>Requiere tu atención</Titulo>
       {verCitas && atencion.isPending ? (
-        <Skeleton className="h-24" />
+        <Skeleton etiqueta="Cargando lo que requiere atención" className="h-24" />
       ) : nada ? (
         <p className="flex items-center gap-2 text-body text-muted">
           <CircleCheck className="size-4 text-primary" aria-hidden /> Todo al día.

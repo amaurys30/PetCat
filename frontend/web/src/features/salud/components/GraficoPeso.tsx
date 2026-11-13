@@ -47,7 +47,12 @@ export function GraficoPeso({ evolucion }: { evolucion: Evolucion }) {
         <>
           <div className="mt-2 h-20 w-full" aria-hidden>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={puntos} margin={{ top: 2, right: 4, bottom: 0, left: 4 }} barCategoryGap={2}>
+              <BarChart
+                data={puntos}
+                margin={{ top: 2, right: 4, bottom: 0, left: 4 }}
+                barCategoryGap={2}
+                accessibilityLayer={false}
+              >
                 <XAxis
                   dataKey="fecha"
                   tickFormatter={mes}

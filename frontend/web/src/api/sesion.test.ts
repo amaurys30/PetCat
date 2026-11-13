@@ -160,7 +160,12 @@ describe("sesión entre pestañas", () => {
     sessionStorage.setItem("petcat.refresh_token", "r-viejo");
     otraPestana.onmessage = (e: MessageEvent<{ tipo: string }>) => {
       if (e.data.tipo === "pedir") {
-        otraPestana.postMessage({ tipo: "respuesta", access: "a-vigente", refresh: "r-vigente", recordar: false });
+        otraPestana.postMessage({
+          tipo: "respuesta",
+          access: "a-vigente",
+          refresh: "r-vigente",
+          recordar: false,
+        });
       }
     };
     const refresco = vi.fn(() => fallo(401, "Sesión inválida o expirada"));

@@ -68,7 +68,7 @@ export function Vacunas({ idMascota, completo = false }: { idMascota: number; co
   const fecha = completo ? fechaCorta : fechaCompacta;
   const [anteriores, setAnteriores] = useState(false);
 
-  if (vacunas.isPending) return <Skeleton className="h-40" />;
+  if (vacunas.isPending) return <Skeleton etiqueta="Cargando vacunas" className="h-40" />;
   if (vacunas.isError)
     return <ErrorConsulta error={vacunas.error} reintentar={() => void vacunas.refetch()} />;
   const todas = ordenarVacunas(vacunas.data);

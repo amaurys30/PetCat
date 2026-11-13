@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
+import { CargandoGrupo, Skeleton } from "@/components/ui/skeleton";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useNegocioActivo } from "@/features/negocios/hooks/useNegocio";
 import { nombreCompleto } from "@/features/agenda/textos";
@@ -110,11 +110,11 @@ export function ListaClientes({
       </div>
 
       {lista.isPending ? (
-        <div className="flex flex-col gap-2" aria-label="Cargando clientes">
+        <CargandoGrupo etiqueta="Cargando clientes" className="flex flex-col gap-2">
           {[0, 1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-16 rounded-card" />
           ))}
-        </div>
+        </CargandoGrupo>
       ) : lista.isError ? (
         <ErrorConsulta error={lista.error} reintentar={() => void lista.refetch()} />
       ) : filas.length === 0 ? (

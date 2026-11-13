@@ -27,6 +27,7 @@ import {
 import { botonClaro, botonPrimario, contenedor, etiquetaSeccion, textoSeccion } from "../estilos";
 import { useMetadatos } from "../hooks/useMetadatos";
 import { PREGUNTAS_DUENOS } from "../textos";
+import { SaltarAlContenido } from "@/components/common/SaltarAlContenido";
 
 const TITULO_LANDING = "PetCat · Todo lo de tu mascota en un solo lugar";
 const DESCRIPCION =
@@ -99,15 +100,13 @@ export function LandingPage() {
 
   return (
     <div className="pagina-publica flex min-h-screen flex-col bg-white text-ink">
-      <a
-        href="#contenido"
-        className="sr-only rounded-control bg-white px-4 py-2 font-semibold text-primary-deep focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50"
-      >
-        Saltar al contenido
-      </a>
-      <EncabezadoPublico secciones={SECCIONES} otraPagina={{ to: "/para-negocios", texto: "¿Tienes una veterinaria?" }} />
+      <SaltarAlContenido />
+      <EncabezadoPublico
+        secciones={SECCIONES}
+        otraPagina={{ to: "/para-negocios", texto: "¿Tienes una veterinaria?" }}
+      />
 
-      <main id="contenido" className="flex-1">
+      <main id="contenido" tabIndex={-1} className="flex-1 focus:outline-none">
         {/* Hero */}
         <section className="relative overflow-hidden bg-gradient-to-b from-primary-soft via-selected to-white">
           <div
@@ -152,12 +151,7 @@ export function LandingPage() {
           <TarjetasBeneficios beneficios={BENEFICIOS} />
         </Seccion>
 
-        <Seccion
-          id="como-funciona"
-          etiqueta="Cómo funciona"
-          titulo="En tres pasos"
-          className="bg-surface"
-        >
+        <Seccion id="como-funciona" etiqueta="Cómo funciona" titulo="En tres pasos" className="bg-surface">
           <Pasos pasos={PASOS} />
         </Seccion>
 
@@ -176,14 +170,17 @@ export function LandingPage() {
         {/* Banda para negocios */}
         <section aria-labelledby="banda-negocios" className="py-16 sm:py-20">
           <Aparecer className={contenedor}>
-            <div className="bg-marca-oscura grid items-center gap-8 overflow-hidden rounded-modal px-6 py-10 text-white sm:px-10 md:grid-cols-[1fr_auto] lg:px-14 lg:py-14">
+            <div className="grid items-center gap-8 overflow-hidden rounded-modal bg-marca-oscura px-6 py-10 text-white sm:px-10 md:grid-cols-[1fr_auto] lg:px-14 lg:py-14">
               <div className="flex flex-col items-start gap-4">
-                <h2 id="banda-negocios" className="text-[26px] leading-8 font-bold sm:text-[32px] sm:leading-10">
+                <h2
+                  id="banda-negocios"
+                  className="text-[26px] leading-8 font-bold sm:text-[32px] sm:leading-10"
+                >
                   ¿Tienes una veterinaria o un negocio de mascotas?
                 </h2>
                 <p className="max-w-2xl text-[16px] leading-[26px] text-white">
-                  Recibe citas en línea, envía recordatorios automáticos, lleva las historias clínicas y el carnet de
-                  vacunas, y aparece cuando los dueños buscan cerca. Empieza gratis.
+                  Recibe citas en línea, envía recordatorios automáticos, lleva las historias clínicas y el
+                  carnet de vacunas, y aparece cuando los dueños buscan cerca. Empieza gratis.
                 </p>
                 <Link to="/para-negocios" className={cn(botonClaro, "mt-2")}>
                   Conoce PetCat para negocios
@@ -194,7 +191,12 @@ export function LandingPage() {
           </Aparecer>
         </section>
 
-        <Seccion id="preguntas" etiqueta="Preguntas frecuentes" titulo="¿Tienes dudas?" className="bg-surface">
+        <Seccion
+          id="preguntas"
+          etiqueta="Preguntas frecuentes"
+          titulo="¿Tienes dudas?"
+          className="bg-surface"
+        >
           <PreguntasFrecuentes preguntas={PREGUNTAS_DUENOS} />
         </Seccion>
       </main>

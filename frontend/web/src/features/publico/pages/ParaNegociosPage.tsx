@@ -30,6 +30,7 @@ import {
 import { useMetadatos } from "../hooks/useMetadatos";
 import { useConfiguracionPublica, usePlanes } from "../hooks/usePublico";
 import { preguntasNegocios } from "../textos";
+import { SaltarAlContenido } from "@/components/common/SaltarAlContenido";
 
 const TITULO = "PetCat para negocios · Agenda en línea para veterinarias y negocios de mascotas";
 const DESCRIPCION =
@@ -52,7 +53,8 @@ const BENEFICIOS: Beneficio[] = [
   {
     icono: BellRing,
     titulo: "Menos inasistencias",
-    texto: "Recordatorios automáticos antes de cada cita y de las próximas vacunas, sin que tengas que llamar.",
+    texto:
+      "Recordatorios automáticos antes de cada cita y de las próximas vacunas, sin que tengas que llamar.",
     tono: "naranja",
   },
   {
@@ -81,7 +83,7 @@ const BENEFICIOS: Beneficio[] = [
   },
   {
     icono: MapPin,
-    titulo: "Aparece en \"Cerca de mí\"",
+    titulo: 'Aparece en "Cerca de mí"',
     texto: "Los dueños que buscan cerca encuentran tu negocio con su calificación y sus servicios.",
     tono: "azul",
   },
@@ -105,21 +107,17 @@ export function ParaNegociosPage() {
         externo: true,
       };
     }
-    if (nombre === "Pro" && diasPrueba) return { to: "/registro", texto: `Probar Pro ${diasPrueba} días gratis` };
+    if (nombre === "Pro" && diasPrueba)
+      return { to: "/registro", texto: `Probar Pro ${diasPrueba} días gratis` };
     return { to: "/registro", texto: "Crear mi negocio gratis" };
   };
 
   return (
     <div className="pagina-publica flex min-h-screen flex-col bg-white text-ink">
-      <a
-        href="#contenido"
-        className="sr-only rounded-control bg-white px-4 py-2 font-semibold text-primary-deep focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50"
-      >
-        Saltar al contenido
-      </a>
+      <SaltarAlContenido />
       <EncabezadoPublico secciones={SECCIONES} otraPagina={{ to: "/", texto: "¿Tienes una mascota?" }} />
 
-      <main id="contenido" className="flex-1">
+      <main id="contenido" tabIndex={-1} className="flex-1 focus:outline-none">
         <section className="relative overflow-hidden bg-gradient-to-b from-primary-soft via-selected to-white">
           <div
             className={cn(
@@ -135,8 +133,8 @@ export function ParaNegociosPage() {
                 Agenda en línea, menos inasistencias, <span className="text-primary-deep">más clientes</span>
               </h1>
               <p className={cn(textoSeccion, "max-w-xl text-ink/80")}>
-                El panel de PetCat organiza las citas, los recordatorios, las historias clínicas y las reseñas de tu
-                veterinaria, peluquería, guardería o tienda. Empieza gratis y crece cuando lo necesites.
+                El panel de PetCat organiza las citas, los recordatorios, las historias clínicas y las reseñas
+                de tu veterinaria, peluquería, guardería o tienda. Empieza gratis y crece cuando lo necesites.
               </p>
               <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
                 <Link to="/registro" className={botonPrimario}>
@@ -175,7 +173,7 @@ export function ParaNegociosPage() {
           className="bg-surface"
         >
           {planes.isPending ? (
-            <ul className="grid gap-6 lg:grid-cols-3" aria-label="Cargando planes">
+            <ul className="grid gap-6 lg:grid-cols-3" aria-label="Cargando planes" aria-busy>
               {Array.from({ length: 3 }, (_, i) => (
                 <li key={i} className="flex flex-col gap-4 rounded-modal border border-border bg-white p-7">
                   <Skeleton className="h-6 w-32" />
@@ -188,7 +186,11 @@ export function ParaNegociosPage() {
           ) : planes.isError ? (
             <div className="rounded-modal border border-border bg-white p-8 text-center">
               <p className="text-[16px] font-semibold text-ink">No pudimos cargar los planes.</p>
-              <button type="button" className={cn(botonSecundario, "mt-4")} onClick={() => void planes.refetch()}>
+              <button
+                type="button"
+                className={cn(botonSecundario, "mt-4")}
+                onClick={() => void planes.refetch()}
+              >
                 Reintentar
               </button>
             </div>
@@ -223,8 +225,11 @@ export function ParaNegociosPage() {
 
         <section aria-labelledby="cta-negocios" className="py-16 sm:py-20">
           <Aparecer className={contenedor}>
-            <div className="bg-marca-oscura flex flex-col items-center gap-5 rounded-modal px-6 py-12 text-center text-white sm:px-10 lg:py-16">
-              <h2 id="cta-negocios" className="max-w-2xl text-[26px] leading-8 font-bold sm:text-[34px] sm:leading-[42px]">
+            <div className="flex flex-col items-center gap-5 rounded-modal bg-marca-oscura px-6 py-12 text-center text-white sm:px-10 lg:py-16">
+              <h2
+                id="cta-negocios"
+                className="max-w-2xl text-[26px] leading-8 font-bold sm:text-[34px] sm:leading-[42px]"
+              >
                 Lleva tu negocio de mascotas al siguiente nivel
               </h2>
               <p className="max-w-xl text-[16px] leading-[26px] text-white">
@@ -242,7 +247,12 @@ export function ParaNegociosPage() {
           </Aparecer>
         </section>
 
-        <Seccion id="preguntas" etiqueta="Preguntas frecuentes" titulo="Preguntas de los negocios" className="bg-surface">
+        <Seccion
+          id="preguntas"
+          etiqueta="Preguntas frecuentes"
+          titulo="Preguntas de los negocios"
+          className="bg-surface"
+        >
           <PreguntasFrecuentes preguntas={preguntasNegocios(diasPrueba)} />
           {(soporte?.email || soporte?.whatsapp) && (
             <p className="mt-8 text-center text-[15px] text-muted">

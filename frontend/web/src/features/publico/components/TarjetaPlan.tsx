@@ -25,7 +25,9 @@ export function TarjetaPlan({
     <li
       className={cn(
         "relative flex flex-col gap-5 rounded-modal border bg-white p-7",
-        destacado ? "border-2 border-primary-dark shadow-[0_16px_40px_rgb(13_127_120/0.16)]" : "border-border",
+        destacado
+          ? "border-2 border-primary-dark shadow-[0_16px_40px_rgb(13_127_120/0.16)]"
+          : "border-border",
       )}
     >
       {destacado && diasPrueba && (
@@ -39,11 +41,17 @@ export function TarjetaPlan({
       </div>
       <div>
         <p className="flex items-baseline gap-1 text-ink">
-          <span className="text-[34px] leading-10 font-bold">{gratis ? "Gratis" : dinero(plan.precio_mensual)}</span>
+          <span className="text-[34px] leading-10 font-bold">
+            {gratis ? "Gratis" : dinero(plan.precio_mensual)}
+          </span>
           {!gratis && <span className="text-[15px] text-muted">/mes</span>}
         </p>
         <p className="mt-1 text-[14px] text-muted">
-          {gratis ? "Sin tiempo límite" : plan.precio_anual > 0 ? `o ${dinero(plan.precio_anual)} al año` : "Pago mensual"}
+          {gratis
+            ? "Sin tiempo límite"
+            : plan.precio_anual > 0
+              ? `o ${dinero(plan.precio_anual)} al año`
+              : "Pago mensual"}
         </p>
       </div>
       <ul className="flex flex-1 flex-col gap-3">

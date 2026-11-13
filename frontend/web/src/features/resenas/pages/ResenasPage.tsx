@@ -8,7 +8,7 @@ import { ErrorConsulta } from "@/components/common/QueryState";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
+import { CargandoGrupo, Skeleton } from "@/components/ui/skeleton";
 import { useNegocioActivo, usePuede } from "@/features/negocios/hooks/useNegocio";
 import { ReportarDialog } from "../components/ReportarDialog";
 import { Estrellas, ResenaCard } from "../components/ResenaCard";
@@ -121,10 +121,10 @@ export function ResenasPage() {
           </div>
         )}
         {lista.isPending ? (
-          <>
+          <CargandoGrupo etiqueta="Cargando reseñas" className="contents">
             <Skeleton className="h-40 rounded-card" />
             <Skeleton className="h-40 rounded-card" />
-          </>
+          </CargandoGrupo>
         ) : lista.isError ? (
           <Card>
             <ErrorConsulta error={lista.error} reintentar={() => void lista.refetch()} />
@@ -197,7 +197,7 @@ const ESTRELLAS = [1, 2, 3, 4, 5] as const;
 type Estrellas = (typeof ESTRELLAS)[number];
 
 function Resumen({ resumen }: { resumen: ResumenResenas | undefined }) {
-  if (!resumen) return <Skeleton className="h-56 rounded-card" />;
+  if (!resumen) return <Skeleton etiqueta="Cargando resumen" className="h-56 rounded-card" />;
   const { calificacion_promedio: promedio, total_resenas: total, distribucion, sin_responder } = resumen;
   const conteo = (estrellas: Estrellas) => distribucion[estrellas];
   const maximo = Math.max(1, ...ESTRELLAS.map(conteo));

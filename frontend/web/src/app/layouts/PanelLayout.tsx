@@ -13,6 +13,7 @@ import { TiempoRealAgenda } from "@/features/agenda/components/TiempoRealAgenda"
 import { TiempoRealNotificaciones } from "@/features/notificaciones/components/TiempoRealNotificaciones";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
+import { SaltarAlContenido } from "@/components/common/SaltarAlContenido";
 
 /**
  * /n/:idNegocio/*: comprueba que el usuario pueda entrar a ese negocio (está en
@@ -49,10 +50,11 @@ export function PanelLayout() {
 
   return (
     <div className="flex h-screen overflow-hidden">
+      <SaltarAlContenido />
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar />
-        <main className="flex-1 overflow-y-auto p-6">
+        <main id="contenido" tabIndex={-1} className="flex-1 overflow-y-auto p-6 focus:outline-none">
           <AvisoConfiguracionPendiente />
           <Outlet />
         </main>

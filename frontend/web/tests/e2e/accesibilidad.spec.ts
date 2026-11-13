@@ -16,37 +16,11 @@ import {
  * proceso y la vuelve a abrir, así que cada pantalla se analiza aunque falle la anterior): cada
  * prueba navega a su pantalla, espera a que terminen los esqueletos y analiza la página.
  *
- * `CONOCIDAS`: reglas que fallan hoy y están en el informe de P7, pendientes de corregir. La
+ * `CONOCIDAS`: reglas que fallan hoy, pendientes de corregir (al cerrar P7 no queda ninguna). La
  * prueba falla con cualquier regla nueva, y también si una conocida ya no aparece (para
  * quitarla de la lista al corregirla). El detalle de cada análisis queda adjunto al reporte.
  */
-const CONOCIDAS: Record<string, string[]> = {
-  "A1 login": [],
-  "A2 recuperar contraseña": [],
-  "A7 crear cuenta": [],
-  "B1 dashboard": ["aria-hidden-focus"],
-  "B3 agenda semanal": [],
-  "B9 agenda día": [],
-  "B10 agenda lista": [],
-  "C1 clientes": [],
-  "C2 ficha de la mascota": [],
-  "D1 servicios": ["aria-prohibited-attr"],
-  "D2 nuevo servicio": [],
-  "D3 equipo": [],
-  "D4 roles": [],
-  "E0 resumen del negocio": [],
-  "E1 perfil del negocio": [],
-  "E2 sedes": [],
-  "E3 reseñas": [],
-  "E4 suscripción": [],
-  "E5 notificaciones": ["aria-valid-attr-value"],
-  "E6 mi perfil": [],
-  "B4 detalle de cita": [],
-  "B5 nueva cita": [],
-  "C4 nuevo registro médico": [],
-  "A5 seleccionar negocio": [],
-  "X1 administración": [],
-};
+const CONOCIDAS: Record<string, string[]> = {};
 
 const ETIQUETAS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 

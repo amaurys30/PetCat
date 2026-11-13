@@ -22,7 +22,11 @@ export function Raiz() {
 
   if (estado === "iniciando") {
     return (
-      <div className="flex min-h-screen items-center justify-center" role="status" aria-label="Cargando PetCat">
+      <div
+        className="flex min-h-screen items-center justify-center"
+        role="status"
+        aria-label="Cargando PetCat"
+      >
         <Logo className="animate-pulse" />
       </div>
     );

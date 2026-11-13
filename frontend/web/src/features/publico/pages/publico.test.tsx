@@ -133,7 +133,9 @@ describe("landing (/)", () => {
       renderRuta("/");
 
       await usuario.click(await screen.findByRole("button", { name: "Usar mi ubicación" }));
-      expect(await screen.findByText("Todavía no hay negocios de PetCat a menos de 10 km de ti.")).toBeInTheDocument();
+      expect(
+        await screen.findByText("Todavía no hay negocios de PetCat a menos de 10 km de ti."),
+      ).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Ver negocios en Sincelejo" })).toBeInTheDocument();
     });
   });
@@ -174,7 +176,9 @@ describe("landing (/)", () => {
         ],
       });
       renderRuta("/");
-      const seccion = (await screen.findByRole("heading", { name: "Lo que dicen los dueños" })).closest("section")!;
+      const seccion = (await screen.findByRole("heading", { name: "Lo que dicen los dueños" })).closest(
+        "section",
+      )!;
       const [primera, segunda] = within(seccion).getAllByRole("listitem");
       expect(within(primera!).getByText("Sofía G.")).toBeInTheDocument();
       expect(within(primera!).getByText("Clínica Veterinaria Patitas")).toBeInTheDocument();
@@ -195,7 +199,10 @@ describe("landing (/)", () => {
   describe("pie de página", () => {
     it("muestra la política y el contacto de soporte configurado", async () => {
       apiPublica({
-        configuracion: { soporte: { email: "soporte@petcat.com.co", whatsapp: "+57 300 123 4567" }, prueba_pro_dias: 14 },
+        configuracion: {
+          soporte: { email: "soporte@petcat.com.co", whatsapp: "+57 300 123 4567" },
+          prueba_pro_dias: 14,
+        },
       });
       renderRuta("/");
       const pie = screen.getByRole("contentinfo");

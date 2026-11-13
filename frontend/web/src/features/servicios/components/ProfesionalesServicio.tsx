@@ -3,7 +3,7 @@ import type { Servicio } from "@/api/servicios";
 import { Avatar } from "@/components/common/Avatar";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Skeleton } from "@/components/ui/skeleton";
+import { CargandoGrupo, Skeleton } from "@/components/ui/skeleton";
 import { useEmpleados } from "@/features/equipo/hooks/useEquipo";
 import { useNegocioActivo, usePuede } from "@/features/negocios/hooks/useNegocio";
 import { cn } from "@/lib/utils";
@@ -71,10 +71,10 @@ export function ProfesionalesServicio({
           </p>
         </>
       ) : empleados.isPending ? (
-        <div className="mt-3 flex flex-col gap-2">
+        <CargandoGrupo etiqueta="Cargando profesionales" className="mt-3 flex flex-col gap-2">
           <Skeleton className="h-8" />
           <Skeleton className="h-8" />
-        </div>
+        </CargandoGrupo>
       ) : empleados.isError ? (
         <p className="mt-3 text-body text-danger">No se pudo cargar el equipo: {empleados.error.message}</p>
       ) : lista?.length === 0 ? (

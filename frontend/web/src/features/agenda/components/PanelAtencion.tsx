@@ -49,7 +49,12 @@ export function PanelAtencion({
   }
   if (!atencion) {
     return (
-      <Card className="flex flex-col gap-3 p-4" aria-busy>
+      <Card
+        role="status"
+        aria-busy
+        aria-label="Cargando citas por atender"
+        className="flex flex-col gap-3 p-4"
+      >
         <Skeleton className="h-5 w-32" />
         <Skeleton className="h-20" />
         <Skeleton className="h-20" />

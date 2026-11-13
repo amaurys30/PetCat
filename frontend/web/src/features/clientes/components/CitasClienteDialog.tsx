@@ -35,7 +35,7 @@ export function CitasClienteDialog({
         </DialogDescription>
         <div className="max-h-[60vh] overflow-y-auto">
           {citas.isPending ? (
-            <Skeleton className="h-40" />
+            <Skeleton etiqueta="Cargando citas" className="h-40" />
           ) : citas.isError ? (
             <ErrorConsulta error={citas.error} reintentar={() => void citas.refetch()} />
           ) : (

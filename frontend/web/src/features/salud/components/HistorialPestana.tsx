@@ -6,7 +6,7 @@ import { ErrorConsulta } from "@/components/common/QueryState";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
+import { CargandoGrupo, Skeleton } from "@/components/ui/skeleton";
 import { useNegocioActivo, usePuede } from "@/features/negocios/hooks/useNegocio";
 import { useUi } from "@/stores/ui";
 import { sumarDias } from "@/lib/agenda";
@@ -77,10 +77,10 @@ export function HistorialPestana({ idMascota, comparte }: { idMascota: number; c
         </Alert>
       )}
       {historial.isPending ? (
-        <div className="flex flex-col gap-3" aria-label="Cargando historial">
+        <CargandoGrupo etiqueta="Cargando historial" className="flex flex-col gap-3">
           <Skeleton className="h-32" />
           <Skeleton className="h-24" />
-        </div>
+        </CargandoGrupo>
       ) : historial.isError ? (
         <ErrorConsulta error={historial.error} reintentar={() => void historial.refetch()} />
       ) : registros.length === 0 ? (

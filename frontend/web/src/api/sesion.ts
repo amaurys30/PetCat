@@ -202,7 +202,12 @@ export function renovarSesion(): Promise<string> {
         });
         const { access_token, refresh_token } = data.data;
         aplicarTokens(access_token, refresh_token, guardado.recordar);
-        publicar({ tipo: "tokens", access: access_token, refresh: refresh_token, recordar: guardado.recordar });
+        publicar({
+          tipo: "tokens",
+          access: access_token,
+          refresh: refresh_token,
+          recordar: guardado.recordar,
+        });
         return access_token;
       } catch (error) {
         const apiError = toApiError(error);

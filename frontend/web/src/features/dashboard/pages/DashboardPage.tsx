@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
+import { CargandoGrupo, Skeleton } from "@/components/ui/skeleton";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useSedes } from "@/features/equipo/hooks/useDisponibilidad";
 import { useNegocioActivo, usePuede, useSuscripcion } from "@/features/negocios/hooks/useNegocio";
@@ -77,11 +77,11 @@ export function DashboardPage() {
 function Cargando() {
   return (
     <>
-      <div className="grid grid-cols-5 gap-4">
+      <CargandoGrupo etiqueta="Cargando indicadores" className="grid grid-cols-5 gap-4">
         {Array.from({ length: 5 }, (_, i) => (
           <Skeleton key={i} className="h-28 rounded-card" />
         ))}
-      </div>
+      </CargandoGrupo>
       <Skeleton className="h-64 rounded-card" />
     </>
   );

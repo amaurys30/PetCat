@@ -6,7 +6,14 @@ import { iniciales } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { botonSecundario } from "../estilos";
 import { POR_PAGINA, useNegociosCercanos } from "../hooks/usePublico";
-import { FILTROS_TIPO, SINCELEJO, textoCalificacion, textoDistancia, textoNumero, textoTipo } from "../textos";
+import {
+  FILTROS_TIPO,
+  SINCELEJO,
+  textoCalificacion,
+  textoDistancia,
+  textoNumero,
+  textoTipo,
+} from "../textos";
 
 type Origen = { tipo: "sincelejo" } | { tipo: "ubicacion"; lat: number; lng: number };
 type EstadoUbicacion = "inactiva" | "buscando" | "denegada" | "no-disponible";
@@ -79,7 +86,10 @@ export function BuscadorNegocios() {
         <div className="flex flex-col gap-3 md:flex-row md:items-center">
           <label className="relative flex-1">
             <span className="sr-only">Buscar por nombre</span>
-            <Search className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted" aria-hidden />
+            <Search
+              className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted"
+              aria-hidden
+            />
             <input
               type="search"
               value={texto}
@@ -90,7 +100,11 @@ export function BuscadorNegocios() {
             />
           </label>
           {origen.tipo === "ubicacion" ? (
-            <button type="button" className={botonSecundario} onClick={() => setOrigen({ tipo: "sincelejo" })}>
+            <button
+              type="button"
+              className={botonSecundario}
+              onClick={() => setOrigen({ tipo: "sincelejo" })}
+            >
               <MapPin aria-hidden /> Ver Sincelejo
             </button>
           ) : (
@@ -100,7 +114,8 @@ export function BuscadorNegocios() {
               onClick={pedirUbicacion}
               disabled={ubicacion === "buscando"}
             >
-              <LocateFixed aria-hidden /> {ubicacion === "buscando" ? "Buscando tu ubicación…" : "Usar mi ubicación"}
+              <LocateFixed aria-hidden />{" "}
+              {ubicacion === "buscando" ? "Buscando tu ubicación…" : "Usar mi ubicación"}
             </button>
           )}
         </div>
@@ -132,14 +147,15 @@ export function BuscadorNegocios() {
         <p className="text-[14px] text-muted" aria-live="polite">
           {ubicacion === "denegada" &&
             "No pudimos usar tu ubicación (permiso denegado o sin señal). Te mostramos los negocios de Sincelejo. "}
-          {ubicacion === "no-disponible" && "Tu navegador no comparte la ubicación. Te mostramos los negocios de Sincelejo. "}
+          {ubicacion === "no-disponible" &&
+            "Tu navegador no comparte la ubicación. Te mostramos los negocios de Sincelejo. "}
           {consulta.isSuccess &&
             (total === 1 ? `1 negocio cerca ${cerca}.` : `${textoNumero(total)} negocios cerca ${cerca}.`)}
         </p>
       </div>
 
       {consulta.isPending ? (
-        <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-label="Cargando negocios">
+        <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-label="Cargando negocios" aria-busy>
           {Array.from({ length: 3 }, (_, i) => (
             <li key={i} className="flex flex-col gap-4 rounded-modal border border-border bg-white p-6">
               <div className="flex items-center gap-3">
@@ -154,7 +170,11 @@ export function BuscadorNegocios() {
       ) : consulta.isError ? (
         <div className="rounded-modal border border-border bg-white p-8 text-center">
           <p className="text-[16px] font-semibold text-ink">No pudimos cargar los negocios.</p>
-          <button type="button" className={cn(botonSecundario, "mt-4")} onClick={() => void consulta.refetch()}>
+          <button
+            type="button"
+            className={cn(botonSecundario, "mt-4")}
+            onClick={() => void consulta.refetch()}
+          >
             Reintentar
           </button>
         </div>
@@ -171,7 +191,11 @@ export function BuscadorNegocios() {
               : "Prueba con otro nombre o con otro tipo de negocio."}
           </p>
           {origen.tipo === "ubicacion" && (
-            <button type="button" className={cn(botonSecundario, "mt-4")} onClick={() => setOrigen({ tipo: "sincelejo" })}>
+            <button
+              type="button"
+              className={cn(botonSecundario, "mt-4")}
+              onClick={() => setOrigen({ tipo: "sincelejo" })}
+            >
               Ver negocios en Sincelejo
             </button>
           )}
@@ -207,7 +231,11 @@ function TarjetaNegocio({ negocio: n }: { negocio: NegocioBusqueda }) {
     <li className="flex flex-col gap-4 rounded-modal border border-border bg-white p-6">
       <div className="flex items-start gap-4">
         {logo ? (
-          <img src={logo} alt="" className="size-14 shrink-0 rounded-card border border-border object-cover" />
+          <img
+            src={logo}
+            alt=""
+            className="size-14 shrink-0 rounded-card border border-border object-cover"
+          />
         ) : (
           <span
             aria-hidden

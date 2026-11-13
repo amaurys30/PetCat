@@ -18,6 +18,7 @@ export const contenedor = "mx-auto w-full max-w-[1160px] px-4 sm:px-6 lg:px-8";
 export const etiquetaSeccion =
   "inline-flex items-center gap-2 rounded-full bg-primary-soft px-3 py-1 text-[13px] font-semibold text-primary-deep";
 
-export const tituloSeccion = "text-[28px] leading-[34px] font-bold tracking-tight text-ink sm:text-[36px] sm:leading-[44px]";
+export const tituloSeccion =
+  "text-[28px] leading-[34px] font-bold tracking-tight text-ink sm:text-[36px] sm:leading-[44px]";
 
 export const textoSeccion = "text-[16px] leading-[26px] text-muted sm:text-[17px] sm:leading-[28px]";

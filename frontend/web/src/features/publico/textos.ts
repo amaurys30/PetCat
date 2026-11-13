@@ -69,7 +69,7 @@ export const PREGUNTAS_DUENOS: Pregunta[] = [
   {
     pregunta: "¿Quién puede ver el historial médico de mi mascota?",
     respuesta:
-      "Tú ves todo el historial de tus mascotas. Un negocio solo puede ver la ficha de una mascota si tiene al menos una cita con ella. Si desactivas \"compartir historial\", cada negocio ve solo lo que él mismo registró; las vacunas, alergias y condiciones médicas siguen visibles para los negocios con cita, para cuidar su salud y evitar vacunas repetidas.",
+      'Tú ves todo el historial de tus mascotas. Un negocio solo puede ver la ficha de una mascota si tiene al menos una cita con ella. Si desactivas "compartir historial", cada negocio ve solo lo que él mismo registró; las vacunas, alergias y condiciones médicas siguen visibles para los negocios con cita, para cuidar su salud y evitar vacunas repetidas.',
   },
   {
     pregunta: "¿Qué negocios encuentro en PetCat?",
@@ -117,7 +117,7 @@ export const preguntasNegocios = (diasPrueba: number | null): Pregunta[] => [
       "La mascota pertenece a su dueño. Tu negocio ve el historial de las mascotas que tienen al menos una cita contigo y registra consultas, tratamientos y vacunas que el dueño ve en su celular.",
   },
   {
-    pregunta: "¿Cómo aparece mi negocio en \"Cerca de mí\"?",
+    pregunta: '¿Cómo aparece mi negocio en "Cerca de mí"?',
     respuesta:
       "Al crear tu negocio ubicas tu sede en el mapa. Con eso, los dueños que buscan cerca de su ubicación encuentran tu negocio, con su calificación y sus reseñas verificadas.",
   },

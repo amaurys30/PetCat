@@ -109,7 +109,7 @@ export function RegistroMedicoDialog({
       <DialogContent className="max-h-[92vh] max-w-[760px] overflow-y-auto">
         <DialogTitle>{titulo}</DialogTitle>
         {resumen.isPending ? (
-          <Skeleton className="mt-4 h-80" />
+          <Skeleton etiqueta="Cargando" className="mt-4 h-80" />
         ) : resumen.isError ? (
           <Alert tono="error" className="mt-4">
             {resumen.error.message}

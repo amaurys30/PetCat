@@ -50,7 +50,10 @@ export function SuscripcionPage() {
   }
 
   return (
-    <QueryState query={suscripcion} cargando={<Skeleton className="h-48 rounded-card" />}>
+    <QueryState
+      query={suscripcion}
+      cargando={<Skeleton etiqueta="Cargando suscripción" className="h-48 rounded-card" />}
+    >
       {(datos) => (
         <div className="flex flex-col gap-5">
           <PlanActual suscripcion={datos} onProbar={() => setConfirmar(true)} />
@@ -127,7 +130,7 @@ function PlanActual({ suscripcion, onProbar }: { suscripcion: Suscripcion; onPro
 
 function Planes({ suscripcion, onProbar }: { suscripcion: Suscripcion; onProbar: () => void }) {
   const planes = usePlanes();
-  if (planes.isPending) return <Skeleton className="h-64 rounded-card" />;
+  if (planes.isPending) return <Skeleton etiqueta="Cargando planes" className="h-64 rounded-card" />;
   if (planes.isError) return null;
   const lista = planes.data;
   // Se recomienda el primer plan con estadísticas avanzadas, si el actual no las tiene.

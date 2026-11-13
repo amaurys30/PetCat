@@ -136,7 +136,7 @@ export const CuentaBloqueada = ({ acciones, descripcion, className }: Preset) =>
 /** Esqueleto de carga genérico: líneas grises mientras llegan los datos. */
 export function Cargando({ lineas = 3, className }: { lineas?: number; className?: string }) {
   return (
-    <div role="status" aria-label="Cargando" className={cn("flex flex-col gap-3 p-6", className)}>
+    <div role="status" aria-busy aria-label="Cargando" className={cn("flex flex-col gap-3 p-6", className)}>
       {Array.from({ length: lineas }, (_, i) => (
         <Skeleton key={i} className="h-3" style={{ width: `${[90, 70, 80, 60][i % 4]}%` }} />
       ))}

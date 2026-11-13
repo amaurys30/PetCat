@@ -159,7 +159,7 @@ export function AgendaPage() {
           )}
 
           {(soloFuera ? atencion.isPending : agenda.isPending) || !sedes ? (
-            <Skeleton className="h-[560px] rounded-card" />
+            <Skeleton etiqueta="Cargando agenda" className="h-[560px] rounded-card" />
           ) : !soloFuera && agenda.isError ? (
             <Card>
               <ErrorConsulta error={agenda.error} reintentar={() => void agenda.refetch()} />

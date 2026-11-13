@@ -225,4 +225,3 @@ export const rutasPanel: RouteObject[] = [
     ],
   },
 ];
-

@@ -353,7 +353,7 @@ function SelectorRol({
         Rol *
       </p>
       {cargando ? (
-        <Skeleton className="h-16" />
+        <Skeleton etiqueta="Cargando roles" className="h-16" />
       ) : (
         <div role="radiogroup" aria-labelledby="miembro-rol" className="grid grid-cols-4 gap-2">
           {roles?.map((r) => {
@@ -436,7 +436,7 @@ function SelectorServicios({
         Servicios que atiende
       </p>
       {cargando ? (
-        <Skeleton className="h-8" />
+        <Skeleton etiqueta="Cargando servicios" className="h-8" />
       ) : servicios?.length === 0 ? (
         <p className="text-body text-muted">Todavía no hay servicios activos. Créalos en Servicios.</p>
       ) : (

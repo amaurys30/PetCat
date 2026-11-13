@@ -11,7 +11,7 @@ import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { CargandoGrupo, Skeleton } from "@/components/ui/skeleton";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { InicioNuevaCita } from "@/features/agenda/components/nueva/NuevaCitaDialog";
 import { nombreCompleto } from "@/features/agenda/textos";
@@ -35,10 +35,10 @@ export function DetalleCliente({ idUsuario }: { idUsuario: number }) {
     <QueryState
       query={detalle}
       cargando={
-        <div className="flex flex-col gap-4" aria-label="Cargando cliente">
+        <CargandoGrupo etiqueta="Cargando cliente" className="flex flex-col gap-4">
           <Skeleton className="h-40" />
           <Skeleton className="h-48" />
-        </div>
+        </CargandoGrupo>
       }
     >
       {(d) => <Contenido detalle={d} />}

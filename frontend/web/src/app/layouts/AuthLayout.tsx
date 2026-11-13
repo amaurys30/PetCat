@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Outlet } from "react-router";
 import { Logo } from "@/components/common/Logo";
 import { cn } from "@/lib/utils";
+import { SaltarAlContenido } from "@/components/common/SaltarAlContenido";
 
 const VENTAJAS = [
   "Reservas desde la app, sin llamadas",
@@ -14,6 +15,7 @@ const VENTAJAS = [
 export function AuthLayout() {
   return (
     <div className="flex min-h-screen">
+      <SaltarAlContenido />
       <aside className="flex w-[560px] shrink-0 flex-col justify-between bg-marca px-14 py-14 text-white">
         <Logo claro />
         <div>
@@ -34,7 +36,11 @@ export function AuthLayout() {
         </div>
         <p className="text-label text-white/75">© 2026 PetCat · Sincelejo, Sucre</p>
       </aside>
-      <main className="flex flex-1 items-center justify-center p-10">
+      <main
+        id="contenido"
+        tabIndex={-1}
+        className="flex flex-1 items-center justify-center p-10 focus:outline-none"
+      >
         <Outlet />
       </main>
     </div>
