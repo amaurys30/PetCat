@@ -23,7 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { aviso } from "@/components/ui/toaster";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useNegocioActivo, usePuede } from "@/features/negocios/hooks/useNegocio";
-import { encabezadoDia } from "@/lib/agenda";
+import { diaConMes } from "@/lib/agenda";
 import { dinero, fechaCorta, fechaHora, hora, hoyISO } from "@/lib/format";
 import { useUi } from "@/stores/ui";
 import { textoTipo } from "@/features/salud/textos";
@@ -116,7 +116,7 @@ function Contenido({ cita }: { cita: CitaPanelDetalle }) {
       <SheetHeader>
         <SheetTitle>Cita #{cita.id_cita}</SheetTitle>
         <SheetDescription>
-          {encabezadoDia(cita.fecha)} · {hora(cita.hora_inicio)} – {hora(cita.hora_fin)}
+          {diaConMes(cita.fecha)} · {hora(cita.hora_inicio)} – {hora(cita.hora_fin)}
         </SheetDescription>
         <div className="mt-3 flex flex-wrap gap-2">
           <EstadoCitaBadge estado={cita.estado} cancelacion={cita.cancelacion} />

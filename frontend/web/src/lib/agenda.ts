@@ -162,6 +162,10 @@ const sinPunto = (texto: string) => texto.replace(".", "");
 export const encabezadoDia = (fecha: string) =>
   capitalizar(sinPunto(format(parseFecha(fecha), "EEE d", { locale: es })));
 
+/** "Mar 17 nov": cuando la fecha puede no ser de la semana a la vista (listas, detalle). */
+export const diaConMes = (fecha: string) =>
+  capitalizar(sinPunto(format(parseFecha(fecha), "EEE d MMM", { locale: es })));
+
 /** "Jueves 25 de septiembre, 2026" */
 export const tituloDia = (fecha: string) =>
   capitalizar(format(parseFecha(fecha), "EEEE d 'de' MMMM, yyyy", { locale: es }));

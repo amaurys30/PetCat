@@ -5,7 +5,7 @@ import type { ApiError } from "@/api/errors";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { encabezadoDia } from "@/lib/agenda";
+import { diaConMes } from "@/lib/agenda";
 import { hora } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { TipoAccionCita } from "@/stores/ui";
@@ -102,7 +102,7 @@ export function PanelAtencion({
                     {c.mascota.nombre} · {c.servicio.nombre}
                   </span>
                   <span className="block truncate text-label text-muted">
-                    {encabezadoDia(c.fecha)} · {hora(c.hora_inicio)} · {nombreCompleto(c.cliente)}
+                    {diaConMes(c.fecha)} · {hora(c.hora_inicio)} · {nombreCompleto(c.cliente)}
                   </span>
                   {textoPlazo(c, ahora) && (
                     <span className="mt-1 block text-label font-semibold text-warning-ink">
@@ -145,7 +145,7 @@ export function PanelAtencion({
                   }
                 >
                   <span className="block truncate font-semibold text-ink">
-                    {c.mascota.nombre} · {encabezadoDia(c.fecha)} {hora(c.hora_inicio)}
+                    {c.mascota.nombre} · {diaConMes(c.fecha)} {hora(c.hora_inicio)}
                   </span>
                   <span className="block text-label text-muted">{textoMotivoFuera(c)}.</span>
                 </Tarjeta>
