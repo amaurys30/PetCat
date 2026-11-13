@@ -8,22 +8,24 @@
 # - node_modules no se monta: queda el del contenedor (Linux), porque el de Windows no sirve
 #   ahí (sharp y otros módulos nativos). Si cambia package.json: --build -V.
 # - --legacy-watch: los cambios en archivos de Windows no llegan al contenedor como eventos;
-#   nodemon revisa los archivos cada poco tiempo.
+#   nodemon revisa los archivos cada segundo (--polling-interval 1000; el valor por defecto,
+#   100 ms, mantenía ocupados la CPU y el disco con dos APIs encendidas).
 services:
   backend:
     build:
       context: ./backend
       target: dev
-    command: npx nodemon --legacy-watch --watch src src/server.js
+    command: npx nodemon --legacy-watch --polling-interval 1000 --watch src src/server.js
     volumes:
       - ./backend:/app
       - /app/node_modules
+      - ./database:/database:ro
 
   backend-demo:
     build:
       context: ./backend
       target: dev
-    command: sh -c "node scripts/db-demo.js --si-no-existe && npx nodemon --legacy-watch --watch src src/server.js"
+    command: sh -c "node scripts/db-demo.js --si-no-existe && npx nodemon --legacy-watch --polling-interval 1000 --watch src src/server.js"
     volumes:
       - ./backend:/app
       - /app/node_modules

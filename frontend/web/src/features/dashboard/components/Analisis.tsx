@@ -121,7 +121,13 @@ export function TendenciaCard({
         <>
           <div className="h-44 w-full" aria-hidden>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={datos} margin={{ top: 4, right: 0, bottom: 0, left: 0 }} barCategoryGap={2}>
+              <BarChart
+                data={datos}
+                margin={{ top: 4, right: 0, bottom: 0, left: 0 }}
+                barCategoryGap={2}
+                // Va dentro de aria-hidden (los datos están en la tabla sr-only): sin foco en el gráfico.
+                accessibilityLayer={false}
+              >
                 <XAxis
                   dataKey="etiqueta"
                   tickLine={false}

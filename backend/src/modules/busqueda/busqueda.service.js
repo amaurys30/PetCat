@@ -22,7 +22,7 @@ const sucursalCercana = (row) =>
   row.sc_id_sucursal ? { id_sucursal: row.sc_id_sucursal, nombre: row.sc_nombre, direccion: row.sc_direccion } : null;
 
 const formatNegocio = ({ sc_id_sucursal, sc_nombre, sc_direccion, ...row }) => ({
-  ...conMiniaturas(castFields(row, { bools: ["verificado", "destacado"], numbers: ["calificacion_promedio"] })),
+  ...conMiniaturas(castFields(row, { bools: ["verificado", "destacado", "confirmacion_automatica"], numbers: ["calificacion_promedio"] })),
   distancia_km: redondearKm(row.distancia_km),
   sucursal_cercana: sucursalCercana({ sc_id_sucursal, sc_nombre, sc_direccion }),
 });

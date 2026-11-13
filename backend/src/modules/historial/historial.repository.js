@@ -8,12 +8,14 @@ const SELECT_HISTORIAL = `
          h.tipo, h.fecha, h.motivo_consulta, h.diagnostico, h.tratamiento, h.medicamentos_prescritos,
          h.indicaciones, h.proximo_control, h.peso_registro, h.temperatura, h.frecuencia_cardiaca,
          h.frecuencia_respiratoria, h.archivos_json, h.notas_internas, h.fecha_creacion,
+         h.id_usuario_registro, ur.nombre AS registro_nombre, ur.apellido AS registro_apellido,
          h.fecha_edicion, h.id_usuario_edicion, ue.nombre AS editor_nombre, ue.apellido AS editor_apellido,
          (SELECT COUNT(*) FROM historial_medico_ediciones he WHERE he.id_historial = h.id_historial) AS ediciones
   FROM historial_medico h
   LEFT JOIN negocios n ON n.id_negocio = h.id_negocio
   LEFT JOIN empleados e ON e.id_empleado = h.id_empleado
-  LEFT JOIN usuarios ue ON ue.id_usuario = h.id_usuario_edicion`;
+  LEFT JOIN usuarios ue ON ue.id_usuario = h.id_usuario_edicion
+  LEFT JOIN usuarios ur ON ur.id_usuario = h.id_usuario_registro`;
 
 export const findById = async (id_historial, conn) => {
   const [rows] = await (conn ?? db).query(`${SELECT_HISTORIAL} WHERE h.id_historial = ?`, [id_historial]);
@@ -62,8 +64,8 @@ export const findParaResumen = async (id_mascota, soloNegocio) => {
 // subidos están en la tabla `archivos`.
 const columnasDe = (data) => pick(data, CAMPOS_HISTORIAL);
 
-export const create = async ({ id_mascota, id_negocio, id_cita = null, ...data }, conn) => {
-  const campos = { ...columnasDe(data), id_mascota, id_negocio, id_cita };
+export const create = async ({ id_mascota, id_negocio, id_cita = null, id_usuario_registro, ...data }, conn) => {
+  const campos = { ...columnasDe(data), id_mascota, id_negocio, id_cita, id_usuario_registro };
   const columnas = Object.keys(campos);
   const [result] = await conn.query(
     `INSERT INTO historial_medico (${columnas.join(", ")}) VALUES (${columnas.map(() => "?").join(", ")})`,

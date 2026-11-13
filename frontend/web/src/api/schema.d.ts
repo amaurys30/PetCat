@@ -1533,7 +1533,7 @@ export interface paths {
         };
         /**
          * Detalle de una cita (dueño o negocio)
-         * @description El personal del negocio de la cita con `citas.ver` (y el propietario y el admin) recibe la vista completa, con notas internas y `fuera_de_disponibilidad`. El dueño de la cita recibe la vista sin notas internas. Si es personal y además dueño, recibe la del personal. Cualquier otro, incluido el personal de otros negocios: 403.
+         * @description El personal del negocio de la cita con `citas.ver` (y el propietario y el admin) recibe la vista completa, con notas internas y `fuera_de_disponibilidad`. El dueño de la cita recibe la vista sin notas internas. Si es personal y además dueño, recibe la del personal. Cualquier otro, incluido el personal de otros negocios: 403. Sin `citas.ver_todas`, el personal solo accede a las citas de su perfil de empleado: la de otro profesional da 403.
          */
         get: {
             parameters: {
@@ -1574,7 +1574,7 @@ export interface paths {
         head?: never;
         /**
          * Editar una cita (panel)
-         * @description Requiere `citas.editar`. Al menos un campo. `precio_final` solo en citas en curso o completadas. `id_empleado` (reasignar) solo en pendientes o confirmadas: el empleado debe atender el servicio y estar libre a esa hora (disponibilidad y otras citas, con el mismo cálculo de la reserva); si no, 409. Cada campo que cambia queda en el historial.
+         * @description Requiere `citas.editar`. Al menos un campo. `precio_final` solo en citas en curso o completadas. `id_empleado` (reasignar) solo en pendientes o confirmadas: el empleado debe atender el servicio y estar libre a esa hora (disponibilidad y otras citas, con el mismo cálculo de la reserva); si no, 409. Cada campo que cambia queda en el historial. Sin `citas.ver_todas`, solo las citas propias y sin reasignarlas a otro profesional (403).
          */
         patch: {
             parameters: {
@@ -1622,7 +1622,7 @@ export interface paths {
         head?: never;
         /**
          * Cambiar el estado de una cita (panel)
-         * @description Requiere `citas.editar`. Transiciones: pendiente → confirmada (se programa el recordatorio); confirmada → en_curso (desde la fecha de la cita) o no_asistio (desde la hora de inicio); en_curso → completada (con `precio_final`, por defecto el estimado; suma al total de citas del negocio, guarda `fecha_completada` y programa la invitación a reseñar para 3 horas después, o las 10:00 si cae entre las 20:00 y las 10:00); no_asistio → en_curso solo el mismo día (el cliente llegó tarde). completada, cancelada y reprogramada son finales. Para cancelar o reprogramar hay endpoints propios. Queda en el historial. Al confirmar se avisa al dueño (`cita_confirmada`).
+         * @description Requiere `citas.editar`. Transiciones: pendiente → confirmada (se programa el recordatorio); confirmada → en_curso (desde la fecha de la cita) o no_asistio (desde la hora de inicio); en_curso → completada (con `precio_final`, por defecto el estimado; suma al total de citas del negocio, guarda `fecha_completada` y programa la invitación a reseñar para 3 horas después, o las 10:00 si cae entre las 20:00 y las 10:00); no_asistio → en_curso solo el mismo día (el cliente llegó tarde). completada, cancelada y reprogramada son finales. Para cancelar o reprogramar hay endpoints propios. Queda en el historial. Al confirmar se avisa al dueño (`cita_confirmada`). Sin `citas.ver_todas`, el personal solo accede a las citas de su perfil de empleado: la de otro profesional da 403.
          */
         patch: {
             parameters: {
@@ -1666,7 +1666,7 @@ export interface paths {
         put?: never;
         /**
          * Cancelar una cita (dueño o negocio)
-         * @description Solo citas pendientes o confirmadas. El dueño puede cancelar siempre que la cita no haya empezado (409 después); si faltan menos de `antelacion_cancelacion_app_h` (2) horas queda como cancelación tardía, que el panel ve. El negocio (`citas.cancelar`) exige motivo. Se guarda quién canceló y cuándo, y se cancelan los recordatorios pendientes. Aviso `cita_cancelada` a la otra parte: al personal con `citas.ver` y al propietario si cancela el dueño; al dueño si cancela el negocio.
+         * @description Solo citas pendientes o confirmadas. El dueño puede cancelar siempre que la cita no haya empezado (409 después); si faltan menos de `antelacion_cancelacion_app_h` (2) horas queda como cancelación tardía, que el panel ve. El negocio (`citas.cancelar`) exige motivo. Se guarda quién canceló y cuándo, y se cancelan los recordatorios pendientes. Aviso `cita_cancelada` a la otra parte: al personal con `citas.ver` y al propietario si cancela el dueño; al dueño si cancela el negocio. Sin `citas.ver_todas`, el personal solo accede a las citas de su perfil de empleado: la de otro profesional da 403.
          */
         post: {
             parameters: {
@@ -1711,7 +1711,7 @@ export interface paths {
         put?: never;
         /**
          * Reprogramar una cita (dueño o negocio)
-         * @description Solo citas pendientes o confirmadas. Crea una cita nueva (con `id_cita_origen`) con el mismo cálculo de horarios libres y la misma protección contra reservas simultáneas, y marca la original como `reprogramada`, en una transacción: si el horario nuevo no está libre (409) la original no cambia. El dueño lo hace con las reglas de la app y hasta 2 horas antes de la cita original; la nueva queda `pendiente` (o `confirmada` si el negocio tiene `confirmacion_automatica`). El negocio (`citas.editar`), en cualquier momento y con las reglas del panel; la nueva queda `confirmada`. Conserva servicio, mascota, precio estimado, origen, notas y prioridad; por defecto la misma sucursal. Una mascota fallecida no se reprograma (409). La nueva cita cuenta para el límite de citas del mes del plan (la original deja de contar): si el mes nuevo está lleno, el dueño recibe el 409 de horario no disponible y el negocio 403 con `errors.plan`. Aviso `cita_reprogramada` (con la fecha anterior) a la otra parte, como en la cancelación.
+         * @description Solo citas pendientes o confirmadas. Crea una cita nueva (con `id_cita_origen`) con el mismo cálculo de horarios libres y la misma protección contra reservas simultáneas, y marca la original como `reprogramada`, en una transacción: si el horario nuevo no está libre (409) la original no cambia. Sin `citas.ver_todas`, el personal solo reprograma sus propias citas y a su nombre (403 con otro `id_empleado`). El dueño lo hace con las reglas de la app y hasta 2 horas antes de la cita original; la nueva queda `pendiente` (o `confirmada` si el negocio tiene `confirmacion_automatica`). El negocio (`citas.editar`), en cualquier momento y con las reglas del panel; la nueva queda `confirmada`. Conserva servicio, mascota, precio estimado, origen, notas y prioridad; por defecto la misma sucursal. Una mascota fallecida no se reprograma (409). La nueva cita cuenta para el límite de citas del mes del plan (la original deja de contar): si el mes nuevo está lleno, el dueño recibe el 409 de horario no disponible y el negocio 403 con `errors.plan`. Aviso `cita_reprogramada` (con la fecha anterior) a la otra parte, como en la cancelación.
          */
         post: {
             parameters: {
@@ -1775,7 +1775,7 @@ export interface paths {
         };
         /**
          * Profesionales libres para reasignar una cita (panel)
-         * @description Requiere `citas.editar`. Cada profesional activo que atiende el servicio, con `libre` si puede tomar la cita a su hora (disponibilidad y otras citas, con el mismo cálculo de la reserva y sin contar esta cita) y, si no, el motivo. `actual` marca a quien la tiene ahora. Solo citas pendientes o confirmadas (409). Para reasignar: `PATCH /citas/{id_cita}` con `id_empleado`.
+         * @description Requiere `citas.editar`. Cada profesional activo que atiende el servicio, con `libre` si puede tomar la cita a su hora (disponibilidad y otras citas, con el mismo cálculo de la reserva y sin contar esta cita) y, si no, el motivo. `actual` marca a quien la tiene ahora. Solo citas pendientes o confirmadas (409). Para reasignar: `PATCH /citas/{id_cita}` con `id_empleado`. Sin `citas.ver_todas`, el personal solo accede a las citas de su perfil de empleado: la de otro profesional da 403.
          */
         get: {
             parameters: {
@@ -1846,7 +1846,7 @@ export interface paths {
         };
         /**
          * Historial de cambios de una cita (dueño o negocio)
-         * @description Del más antiguo al más reciente. El personal del negocio con `citas.ver` ve todos los cambios con el usuario y el empleado que los hizo. El dueño ve solo los cambios de estado y de empleado, con su motivo, y `realizado_por` (dueno, negocio o sistema: la cancelación automática), sin nombres del personal.
+         * @description Del más antiguo al más reciente. El personal del negocio con `citas.ver` ve todos los cambios con el usuario y el empleado que los hizo. El dueño ve solo los cambios de estado y de empleado, con su motivo, y `realizado_por` (dueno, negocio o sistema: la cancelación automática), sin nombres del personal. Sin `citas.ver_todas`, el personal solo accede a las citas de su perfil de empleado: la de otro profesional da 403.
          */
         get: {
             parameters: {
@@ -1918,7 +1918,7 @@ export interface paths {
         };
         /**
          * Horarios libres para agendar (panel)
-         * @description Requiere `citas.crear` o `citas.editar` (agendar o reprogramar). Igual que el de la app, pero admite servicios ocultos en la app (del propio negocio) y no aplica la antelación mínima (solo que el horario sea futuro). Con `id_cita_excluir` (reprogramar), esa cita no ocupa su hora ni cuenta en los cupos ni en el límite del plan; debe ser de este negocio (422) y exige `citas.editar` (403). Con `id_mascota`, no ofrece las horas en que la mascota ya tiene otra cita (el cruce daría 409 al reservar). Si el negocio alcanzó el límite de citas del mes de su plan, no hay horarios y `motivo_sin_horarios` lo dice ("El negocio alcanzó las 30 citas de su plan Gratuito en octubre de 2026").
+         * @description Requiere `citas.crear` o `citas.editar` (agendar o reprogramar). Igual que el de la app, pero admite servicios ocultos en la app (del propio negocio) y no aplica la antelación mínima (solo que el horario sea futuro). Con `id_cita_excluir` (reprogramar), esa cita no ocupa su hora ni cuenta en los cupos ni en el límite del plan; debe ser de este negocio (422) y exige `citas.editar` (403). Con `id_mascota`, no ofrece las horas en que la mascota ya tiene otra cita (el cruce daría 409 al reservar). Si el negocio alcanzó el límite de citas del mes de su plan, no hay horarios y `motivo_sin_horarios` lo dice ("El negocio alcanzó las 30 citas de su plan Gratuito en octubre de 2026"). Sin `citas.ver_todas`, solo los horarios de quien consulta (`id_empleado` es el suyo; otro da 403).
          */
         get: {
             parameters: {
@@ -1990,7 +1990,7 @@ export interface paths {
         };
         /**
          * Agenda del negocio (panel)
-         * @description Requiere `citas.ver`. Citas del negocio entre `desde` y `hasta` (por defecto hoy; máximo 31 días), por fecha y hora, sin paginar (`meta.total`). Filtros: estados, sucursal, empleado y servicio (deben ser del negocio: 422 si no), `q` (nombre del cliente o de la mascota), `solo_mias` (las del perfil de empleado de quien consulta en este negocio; 422 si no tiene) y `fuera_de_disponibilidad`.
+         * @description Requiere `citas.ver`. Citas del negocio entre `desde` y `hasta` (por defecto hoy; máximo 31 días), por fecha y hora, sin paginar (`meta.total`). Filtros: estados, sucursal, empleado y servicio (deben ser del negocio: 422 si no), `q` (nombre del cliente o de la mascota), `solo_mias` (las del perfil de empleado de quien consulta en este negocio; 422 si no tiene) y `fuera_de_disponibilidad`. Sin `citas.ver_todas`, solo las citas propias, como con `solo_mias` (`id_empleado` de otro: 403).
          */
         get: {
             parameters: {
@@ -2046,7 +2046,7 @@ export interface paths {
         put?: never;
         /**
          * Agendar una cita desde el panel
-         * @description Requiere `citas.crear`. Para un cliente (`id_usuario`, p. ej. encontrado con clientes/buscar o recién registrado) y su mascota. Mismas reglas que la app, con las diferencias del panel (servicios ocultos, sin antelación mínima). La cita queda `confirmada` y se programa su recordatorio. 403 con `errors.plan` si el negocio alcanzó el límite de citas del mes de la cita en su plan. Avisa al dueño (`cita_agendada`, por correo si no tiene la app) y, como la reserva de la app, `plan_limite_80` y `plan_limite_alcanzado` al negocio.
+         * @description Requiere `citas.crear`. Para un cliente (`id_usuario`, p. ej. encontrado con clientes/buscar o recién registrado) y su mascota. Mismas reglas que la app, con las diferencias del panel (servicios ocultos, sin antelación mínima). La cita queda `confirmada` y se programa su recordatorio. 403 con `errors.plan` si el negocio alcanzó el límite de citas del mes de la cita en su plan. Avisa al dueño (`cita_agendada`, por correo si no tiene la app) y, como la reserva de la app, `plan_limite_80` y `plan_limite_alcanzado` al negocio. Sin `citas.ver_todas`, la cita queda a nombre de quien la agenda (`id_empleado` de otro: 403).
          */
         post: {
             parameters: {
@@ -2114,7 +2114,7 @@ export interface paths {
         };
         /**
          * Citas por confirmar y fuera de disponibilidad (panel)
-         * @description Requiere `citas.ver`. Sin límite de rango, desde hoy: `por_confirmar` son las citas pendientes ordenadas por `confirmar_antes_de` (las que se cancelan solas primero) y `fuera_de_disponibilidad` las pendientes o confirmadas futuras que ya no caben en la disponibilidad de su empleado, por fecha y hora, con `motivo_fuera`. Una cita pendiente fuera de disponibilidad está en las dos listas. Filtros: sucursal, empleado y `solo_mias`, como en la agenda.
+         * @description Requiere `citas.ver`. Sin límite de rango, desde hoy: `por_confirmar` son las citas pendientes ordenadas por `confirmar_antes_de` (las que se cancelan solas primero) y `fuera_de_disponibilidad` las pendientes o confirmadas futuras que ya no caben en la disponibilidad de su empleado, por fecha y hora, con `motivo_fuera`. Una cita pendiente fuera de disponibilidad está en las dos listas. Filtros: sucursal, empleado y `solo_mias`, como en la agenda. Sin `citas.ver_todas`, solo las propias.
          */
         get: {
             parameters: {
@@ -5797,6 +5797,7 @@ export interface paths {
                              * @example {
                              *       "citas": [
                              *         "ver",
+                             *         "ver_todas",
                              *         "crear",
                              *         "editar",
                              *         "cancelar"
@@ -5814,6 +5815,144 @@ export interface paths {
                     };
                 };
                 401: components["responses"]["Unauthorized"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/publico/estadisticas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cifras de la plataforma (landing)
+         * @description Público. Conteos agregados, sin datos personales: negocios activos, ciudades y citas atendidas. Cada cifra que no supera el umbral llega en null.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Cifras */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            /** @example OK */
+                            message: string;
+                            data: components["schemas"]["EstadisticasPublicas"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/publico/resenas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reseñas destacadas (landing)
+         * @description Público. Reseñas de 4 y 5 estrellas con comentario, de una cita completada, visibles, sin reporte y de negocios activos; nunca las ocultas, reportadas o retiradas, ni las de un cliente que el mismo negocio registró desde el panel. Las más recientes, como máximo 2 por negocio. Si hay menos de `configuracion_global.publico_min_resenas` (3) elegibles, la lista llega vacía y la landing no muestra la sección.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Reseñas */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            /** @example OK */
+                            message: string;
+                            data: components["schemas"]["ResenaLanding"][];
+                        };
+                    };
+                };
+                422: components["responses"]["ValidationError"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/publico/configuracion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Contacto de soporte y prueba Pro (landing)
+         * @description Público. Contacto de soporte de PetCat y duración de la prueba del plan Pro.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Configuración pública */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            /** @example OK */
+                            message: string;
+                            data: components["schemas"]["ConfiguracionPublica"];
+                        };
+                    };
+                };
             };
         };
         put?: never;
@@ -8077,6 +8216,8 @@ export interface components {
             total_resenas: number;
             verificado: boolean;
             destacado: boolean;
+            /** @description Las citas se confirman al reservarlas (confirmación inmediata) */
+            confirmacion_automatica: boolean;
             /** @description A la sucursal más cercana (null sin coordenadas) */
             distancia_km: number | null;
             sucursal_cercana: components["schemas"]["SucursalCercana"];
@@ -8860,7 +9001,7 @@ export interface components {
             frecuencia_respiratoria?: number | null;
             /** @description Solo las ve el negocio que creó el registro */
             notas_internas?: string | null;
-            /** @description Quien atendió; por defecto el perfil de empleado de quien registra */
+            /** @description Quien atendió; por defecto el perfil de empleado de quien registra. Elegir a otro profesional (o cambiarlo al editar) exige historial_medico.asignar_profesional (el propietario y el admin de plataforma siempre pueden); sin el permiso es siempre el perfil de quien registra, y otro da 403. */
             id_empleado?: number | null;
         };
         RegistroHistorial: {
@@ -8896,6 +9037,12 @@ export interface components {
             es_propio?: boolean;
             /** @description Solo en los registros del negocio que consulta */
             notas_internas?: string | null;
+            /** @description Solo en los registros del negocio que consulta. Quién creó el registro, que puede no ser el profesional que atendió (empleado). null en los registros anteriores a la migración 026 o si la cuenta ya no existe. */
+            registrado_por?: {
+                id_usuario: number;
+                nombre: string;
+                apellido: string;
+            } | null;
             fecha_creacion: string;
             /** @description Última edición (los registros no se borran: cada edición queda con quién, cuándo, los campos que cambiaron y sus valores anteriores). null si nunca se editó. Los archivos tienen su propio rastro. */
             edicion: {
@@ -9316,6 +9463,60 @@ export interface components {
              * @example 2
              */
             negocio: number;
+        };
+        /** @description Cada cifra es null si no supera `configuracion_global.publico_umbral_cifras` (5): con pocos datos la landing no la muestra. */
+        EstadisticasPublicas: {
+            /**
+             * @description Negocios activos con al menos una sucursal activa
+             * @example 12
+             */
+            negocios_activos: number | null;
+            /**
+             * @description Ciudades distintas de sus sucursales activas
+             * @example null
+             */
+            ciudades: number | null;
+            /**
+             * @description Citas completadas
+             * @example 340
+             */
+            citas_atendidas: number | null;
+        };
+        ResenaLanding: {
+            id_resena: number;
+            /** @enum {integer} */
+            calificacion: 4 | 5;
+            titulo: string | null;
+            comentario: string;
+            /**
+             * @description Nombre e inicial del apellido
+             * @example Sofía G.
+             */
+            autor: string;
+            negocio: {
+                id_negocio: number;
+                nombre: string;
+                tipo: string;
+            };
+            /**
+             * @description Mes y año de la cita reseñada
+             * @example 2026-09
+             */
+            visita_verificada: string;
+        };
+        ConfiguracionPublica: {
+            /** @description `soporte_email` y `soporte_whatsapp` de la configuración global; vacío = null */
+            soporte: {
+                /** @example soporte@petcat.com.co */
+                email: string | null;
+                /** @example +57 300 123 4567 */
+                whatsapp: string | null;
+            };
+            /**
+             * @description Días de la prueba del plan Pro (dias_prueba_gratis)
+             * @example 14
+             */
+            prueba_pro_dias: number;
         };
         ResenaInput: {
             calificacion: number;

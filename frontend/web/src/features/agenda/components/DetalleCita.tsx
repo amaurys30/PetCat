@@ -18,12 +18,12 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Skeleton } from "@/components/ui/skeleton";
+import { CargandoGrupo, Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { aviso } from "@/components/ui/toaster";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useNegocioActivo, usePuede } from "@/features/negocios/hooks/useNegocio";
-import { encabezadoDia } from "@/lib/agenda";
+import { diaConMes } from "@/lib/agenda";
 import { dinero, fechaCorta, fechaHora, hora, hoyISO } from "@/lib/format";
 import { useUi } from "@/stores/ui";
 import { textoTipo } from "@/features/salud/textos";
@@ -41,6 +41,7 @@ import {
   textoPeso,
   textoPlazoLargo,
 } from "../textos";
+import { useFocoDeRegreso } from "@/lib/useFocoDeRegreso";
 
 const ESPECIE: Record<string, string> = { perro: "Perro", gato: "Gato", conejo: "Conejo", ave: "Ave" };
 
@@ -53,9 +54,11 @@ const ESPECIE: Record<string, string> = { perro: "Perro", gato: "Gato", conejo: 
 export function DetalleCita({ idCita, onCerrar }: { idCita: number; onCerrar: () => void }) {
   const negocio = useNegocioActivo();
   const cita = useCita(negocio.id_negocio, idCita);
+  // Se abre por la URL (?cita=): sin Trigger, el foco vuelve a mano a la cita que lo abrió.
+  const { onCloseAutoFocus } = useFocoDeRegreso();
   return (
     <Sheet open onOpenChange={(abierto) => !abierto && onCerrar()}>
-      <SheetContent className="w-[480px]" aria-describedby={undefined}>
+      <SheetContent className="w-[480px]" aria-describedby={undefined} onCloseAutoFocus={onCloseAutoFocus}>
         {cita.data ? (
           <Contenido key={cita.data.id_cita} cita={cita.data} />
         ) : (
@@ -67,11 +70,11 @@ export function DetalleCita({ idCita, onCerrar }: { idCita: number; onCerrar: ()
               {cita.isError ? (
                 <ErrorConsulta error={cita.error} reintentar={() => void cita.refetch()} />
               ) : (
-                <div className="flex flex-col gap-3" aria-busy>
+                <CargandoGrupo etiqueta="Cargando cita" className="flex flex-col gap-3">
                   <Skeleton className="h-24" />
                   <Skeleton className="h-24" />
                   <Skeleton className="h-40" />
-                </div>
+                </CargandoGrupo>
               )}
             </SheetBody>
           </>
@@ -90,7 +93,11 @@ function Contenido({ cita }: { cita: CitaPanelDetalle }) {
   const [confirmarNoAsistio, setConfirmarNoAsistio] = useState(false);
   const acciones = accionesDe(
     cita,
-    { editar: puede("citas", "editar"), cancelar: puede("citas", "cancelar") },
+    {
+      editar: puede("citas", "editar"),
+      cancelar: puede("citas", "cancelar"),
+      verTodas: puede("citas", "ver_todas"),
+    },
     ahora,
   );
   const hoy = hoyISO(ahora);
@@ -109,7 +116,7 @@ function Contenido({ cita }: { cita: CitaPanelDetalle }) {
       <SheetHeader>
         <SheetTitle>Cita #{cita.id_cita}</SheetTitle>
         <SheetDescription>
-          {encabezadoDia(cita.fecha)} · {hora(cita.hora_inicio)} – {hora(cita.hora_fin)}
+          {diaConMes(cita.fecha)} · {hora(cita.hora_inicio)} – {hora(cita.hora_fin)}
         </SheetDescription>
         <div className="mt-3 flex flex-wrap gap-2">
           <EstadoCitaBadge estado={cita.estado} cancelacion={cita.cancelacion} />
@@ -423,7 +430,7 @@ function Historial({ cita, hoy }: { cita: CitaPanelDetalle; hoy: string }) {
         historial.isError ? (
           <p className="text-body text-danger">{historial.error.message}</p>
         ) : (
-          <Skeleton className="h-16" />
+          <Skeleton etiqueta="Cargando historial de la cita" className="h-16" />
         )
       ) : (
         <ol className="flex flex-col gap-3">

@@ -11,7 +11,7 @@ import { ErrorConsulta } from "@/components/common/QueryState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { CargandoGrupo, Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip } from "@/components/ui/tooltip";
 import { nombreCompleto, textoEdad, textoPeso } from "@/features/agenda/textos";
@@ -50,11 +50,11 @@ export function FichaMascotaPage() {
   }
   if (resumen.isPending) {
     return (
-      <div className="flex flex-col gap-4" aria-label="Cargando ficha">
+      <CargandoGrupo etiqueta="Cargando ficha" className="flex flex-col gap-4">
         <Skeleton className="h-24" />
         <Skeleton className="h-28" />
         <Skeleton className="h-64" />
-      </div>
+      </CargandoGrupo>
     );
   }
   if (resumen.isError) {
@@ -315,7 +315,7 @@ function CitasPestana({ idMascota }: { idMascota: number }) {
   const puedeAgenda = usePuede()("citas", "ver");
   const navigate = useNavigate();
   const citas = useCitasMascota(negocio.id_negocio, idMascota, true);
-  if (citas.isPending) return <Skeleton className="h-40" />;
+  if (citas.isPending) return <Skeleton etiqueta="Cargando citas" className="h-40" />;
   if (citas.isError) return <ErrorConsulta error={citas.error} reintentar={() => void citas.refetch()} />;
   const filas = citas.data.pages.flatMap((p) => p.data);
   if (filas.length === 0)

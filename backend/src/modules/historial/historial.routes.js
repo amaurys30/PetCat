@@ -42,7 +42,13 @@ const router = express.Router();
  *         frecuencia_cardiaca: { type: integer, nullable: true }
  *         frecuencia_respiratoria: { type: integer, nullable: true }
  *         notas_internas: { type: string, maxLength: 2000, nullable: true, description: Solo las ve el negocio que creó el registro }
- *         id_empleado: { type: integer, nullable: true, description: Quien atendió; por defecto el perfil de empleado de quien registra }
+ *         id_empleado:
+ *           type: integer
+ *           nullable: true
+ *           description: >
+ *             Quien atendió; por defecto el perfil de empleado de quien registra. Elegir a otro profesional
+ *             (o cambiarlo al editar) exige historial_medico.asignar_profesional (el propietario y el admin de
+ *             plataforma siempre pueden); sin el permiso es siempre el perfil de quien registra, y otro da 403.
  *     RegistroHistorial:
  *       type: object
  *       properties:
@@ -72,6 +78,15 @@ const router = express.Router();
  *           properties: { id_empleado: { type: integer }, nombre: { type: string }, apellido: { type: string } }
  *         es_propio: { type: boolean, x-opcional: true, description: Solo en el panel; lo creó el negocio que consulta }
  *         notas_internas: { type: string, nullable: true, x-opcional: true, description: Solo en los registros del negocio que consulta }
+ *         registrado_por:
+ *           type: object
+ *           nullable: true
+ *           x-opcional: true
+ *           description: >
+ *             Solo en los registros del negocio que consulta. Quién creó el registro, que puede no ser el
+ *             profesional que atendió (empleado). null en los registros anteriores a la migración 026 o si la
+ *             cuenta ya no existe.
+ *           properties: { id_usuario: { type: integer }, nombre: { type: string }, apellido: { type: string } }
  *         fecha_creacion: { type: string }
  *         edicion:
  *           type: object

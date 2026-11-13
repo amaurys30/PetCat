@@ -14,7 +14,8 @@ import { registrarEmisor } from "../modules/notificaciones/notificacion.service.
  *   - `notificaciones_leidas`: { no_leidas, por_destino: { dueno, negocio } }, al marcar desde
  *     otra sesión del mismo usuario (la app usa `dueno` y el panel `negocio`).
  *   - `agenda_actualizada`: cambio en las citas o la disponibilidad de un negocio, para el
- *     personal con citas.ver y el propietario; no se guarda (citas/agenda.tiempoReal.js).
+ *     personal con citas.ver (sin citas.ver_todas, solo los de sus citas) y el propietario; no se
+ *     guarda (citas/agenda.tiempoReal.js).
  * Un solo proceso en el MVP (sin Redis): las salas viven en memoria.
  */
 

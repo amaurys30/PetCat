@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSedes } from "@/features/equipo/hooks/useDisponibilidad";
-import { useNegocioActivo } from "@/features/negocios/hooks/useNegocio";
+import { useNegocioActivo, usePuede } from "@/features/negocios/hooks/useNegocio";
 import { encabezadoDia, fechaHoraCita, sumarDias } from "@/lib/agenda";
 import { dinero, hoyISO } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,7 @@ import { useProfesionales } from "../../hooks/useAgenda";
 import { useHorariosLibres, useReprogramarCita } from "../../hooks/useCita";
 import { nombreCompleto } from "../../textos";
 import { ResumenCita } from "./ResumenCita";
+import { SelectorHorarios } from "../SelectorHorarios";
 
 const CUALQUIERA = "cualquiera";
 
@@ -41,6 +42,9 @@ export function ReprogramarDialog({
   const { sedes } = useSedes();
   const profesionales = useProfesionales(negocio.id_negocio);
   const reprogramar = useReprogramarCita(negocio.id_negocio);
+  // Sin citas.ver_todas se reprograma a nombre de quien lo hace (la API lo exige).
+  const puede = usePuede();
+  const verTodas = puede("citas", "ver_todas");
   const hoy = hoyISO();
 
   const [idSucursal, setIdSucursal] = useState<number | undefined>(cita.sucursal?.id_sucursal);
@@ -54,7 +58,9 @@ export function ReprogramarDialog({
     return dias;
   }, [hoy, sede]);
   const [fecha, setFecha] = useState(cita.fecha >= hoy ? cita.fecha : hoy);
-  const [empleado, setEmpleado] = useState(CUALQUIERA);
+  const [empleado, setEmpleado] = useState(
+    verTodas || negocio.id_empleado === null ? CUALQUIERA : String(negocio.id_empleado),
+  );
   const [horaElegida, setHoraElegida] = useState<string | null>(null);
   const [motivo, setMotivo] = useState("");
 
@@ -108,9 +114,10 @@ export function ReprogramarDialog({
 
   return (
     <Dialog open onOpenChange={(abierto) => !abierto && onCerrar()}>
-      <DialogContent className="max-w-[620px]">
+      {/* Título y botones fijos; lo de en medio se desplaza si no cabe (muchos horarios, pantallas bajas). */}
+      <DialogContent className="flex max-h-[92vh] max-w-[620px] flex-col">
         <DialogTitle>Reprogramar cita</DialogTitle>
-        <div className="mt-4 flex flex-col gap-4">
+        <div className="-mx-1 mt-4 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 pb-1">
           <ResumenCita
             cita={cita}
             detalle={[
@@ -178,17 +185,23 @@ export function ReprogramarDialog({
               </Select>
             </Field>
             <Field label="Profesional">
-              <Select value={empleado} onValueChange={(v) => cambiar(() => setEmpleado(v))}>
+              <Select
+                value={empleado}
+                onValueChange={(v) => cambiar(() => setEmpleado(v))}
+                disabled={!verTodas}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={CUALQUIERA}>Cualquier profesional</SelectItem>
-                  {quienes.map((p) => (
-                    <SelectItem key={p.id_empleado} value={String(p.id_empleado)}>
-                      {nombreCompleto(p)}
-                    </SelectItem>
-                  ))}
+                  {verTodas && <SelectItem value={CUALQUIERA}>Cualquier profesional</SelectItem>}
+                  {quienes
+                    .filter((p) => verTodas || p.id_empleado === negocio.id_empleado)
+                    .map((p) => (
+                      <SelectItem key={p.id_empleado} value={String(p.id_empleado)}>
+                        {nombreCompleto(p)}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </Field>
@@ -199,27 +212,13 @@ export function ReprogramarDialog({
               Horarios libres · {/^\d{4}-\d{2}-\d{2}$/.test(fecha) ? encabezadoDia(fecha) : "elige una fecha"}
             </Label>
             {horarios.isPending && horarios.fetchStatus !== "idle" ? (
-              <Skeleton className="h-16" />
+              <Skeleton etiqueta="Cargando horarios libres" className="h-16" />
             ) : horarios.data && horarios.data.horarios.length > 0 ? (
-              <div role="radiogroup" aria-label="Horarios libres" className="flex flex-wrap gap-2">
-                {horarios.data.horarios.map((h) => (
-                  <button
-                    key={h.hora_inicio}
-                    type="button"
-                    role="radio"
-                    aria-checked={horaElegida === h.hora_inicio}
-                    onClick={() => setHoraElegida(h.hora_inicio)}
-                    className={cn(
-                      "h-8 rounded-control border px-3 text-body font-medium tabular-nums",
-                      horaElegida === h.hora_inicio
-                        ? "border-primary bg-primary text-white"
-                        : "bg-white text-ink hover:bg-surface",
-                    )}
-                  >
-                    {h.hora_inicio}
-                  </button>
-                ))}
-              </div>
+              <SelectorHorarios
+                horarios={horarios.data.horarios}
+                elegido={horaElegida}
+                onElegir={setHoraElegida}
+              />
             ) : horarios.data ? (
               <p className="text-body text-muted">{horarios.data.motivo_sin_horarios}</p>
             ) : null}
@@ -240,7 +239,7 @@ export function ReprogramarDialog({
           </Alert>
           {error && <Alert tono="error">{error}</Alert>}
         </div>
-        <DialogFooter>
+        <DialogFooter className="mt-4 shrink-0">
           <Button variant="secondary" onClick={onCerrar}>
             Cancelar
           </Button>

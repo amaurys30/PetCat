@@ -279,7 +279,7 @@ export const desactivarEmpleado = async (id_empleado, acceso, por = null) => {
     await invitacionRepo.invalidatePrevious(id_empleado, conn);
     return citasFuturasDeEmpleado(id_empleado, conn);
   });
-  await avisarAgenda(id_negocio, { accion: "disponibilidad", id_empleado, por });
+  await avisarAgenda(id_negocio, { accion: "disponibilidad", id_empleado, por }, { empleados: [id_empleado] });
   return { empleado: await getEmpleado(id_empleado), citas_afectadas };
 };
 
@@ -297,7 +297,7 @@ export const reactivarEmpleado = async (id_empleado, acceso, por = null) => {
     if (!empleado.es_propietario) await bloquearYVerificarLimite(empleado.id_negocio, "empleados", conn);
     await empleadoRepo.reactivar(id_empleado, conn);
   });
-  await avisarAgenda(empleado.id_negocio, { accion: "disponibilidad", id_empleado, por });
+  await avisarAgenda(empleado.id_negocio, { accion: "disponibilidad", id_empleado, por }, { empleados: [id_empleado] });
   return getEmpleado(id_empleado);
 };
 

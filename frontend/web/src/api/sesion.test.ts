@@ -155,6 +155,64 @@ describe("sesión entre pestañas", () => {
     expect(leerRefresh()).toEqual({ token: "r1", recordar: false });
   });
 
+  it("al recargar con una pestaña abierta usa sus tokens vigentes y no renueva con el guardado", async () => {
+    // Recarga sin "Recordarme": esta pestaña conserva en sessionStorage un token que la otra ya rotó.
+    sessionStorage.setItem("petcat.refresh_token", "r-viejo");
+    otraPestana.onmessage = (e: MessageEvent<{ tipo: string }>) => {
+      if (e.data.tipo === "pedir") {
+        otraPestana.postMessage({
+          tipo: "respuesta",
+          access: "a-vigente",
+          refresh: "r-vigente",
+          recordar: false,
+        });
+      }
+    };
+    const refresco = vi.fn(() => fallo(401, "Sesión inválida o expirada"));
+    servidor.use(http.post(`${API}/auth/refresh-token`, refresco));
+
+    await expect(renovarSesion()).resolves.toBe("a-vigente");
+    expect(refresco).not.toHaveBeenCalled();
+    expect(leerRefresh()).toEqual({ token: "r-vigente", recordar: false });
+  });
+
+  it("si otra pestaña rotó el token mientras se usaba, reintenta con el nuevo y no borra la sesión", async () => {
+    localStorage.setItem("petcat.refresh_token", "r-1");
+    const usados: string[] = [];
+    servidor.use(
+      http.post(`${API}/auth/refresh-token`, async ({ request }) => {
+        const { refresh_token } = (await request.json()) as { refresh_token: string };
+        usados.push(refresh_token);
+        if (refresh_token === "r-1") {
+          // La otra pestaña renovó con r-1 primero y dejó r-2 en localStorage.
+          localStorage.setItem("petcat.refresh_token", "r-2");
+          return fallo(401, "Sesión inválida o expirada");
+        }
+        return ok({ access_token: "a-3", refresh_token: "r-3" });
+      }),
+    );
+
+    await expect(renovarSesion()).resolves.toBe("a-3");
+    expect(usados).toEqual(["r-1", "r-2"]);
+    expect(leerRefresh()).toEqual({ token: "r-3", recordar: true });
+  });
+
+  it("un 401 con un token viejo no borra el que otra pestaña acaba de guardar", async () => {
+    localStorage.setItem("petcat.refresh_token", "r-1");
+    servidor.use(
+      http.post(`${API}/auth/refresh-token`, async ({ request }) => {
+        const { refresh_token } = (await request.json()) as { refresh_token: string };
+        // Cada intento llega tarde: otra pestaña ya rotó el token y dejó uno nuevo.
+        localStorage.setItem("petcat.refresh_token", `${refresh_token}-rotado`);
+        return fallo(401, "Sesión inválida o expirada");
+      }),
+    );
+
+    await expect(renovarSesion()).rejects.toMatchObject({ status: 401 });
+    expect(getAccessToken()).toBeNull();
+    expect(leerRefresh()).toEqual({ token: "r-1-rotado-rotado", recordar: true });
+  });
+
   it("sin pestañas abiertas responde false", async () => {
     await expect(pedirSesionAPestanas()).resolves.toBe(false);
   });

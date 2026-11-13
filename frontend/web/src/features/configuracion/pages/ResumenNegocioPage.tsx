@@ -38,7 +38,7 @@ export function ResumenNegocioPage() {
           <Equipo idNegocio={negocio.id_negocio} puedeCrear={puede("empleados", "crear")} />
         )}
         <ReglasAgenda negocio={negocio} />
-        <Card className="p-5 opacity-70">
+        <Card className="border-dashed bg-surface p-5">
           <h2 className="flex items-center gap-2 text-card font-semibold text-muted">
             Integraciones <Badge tono="neutral">Próximamente</Badge>
           </h2>
@@ -175,7 +175,7 @@ function PlanActual({ suscripcion }: { suscripcion: Suscripcion | undefined }) {
     <Card className="p-5">
       <Encabezado titulo="Plan actual" enlace={{ a: "../../suscripcion", texto: "Ver planes" }} />
       {!suscripcion ? (
-        <Skeleton className="h-24" />
+        <Skeleton etiqueta="Cargando plan" className="h-24" />
       ) : (
         <div className="flex flex-col gap-3">
           <p className="flex items-center gap-2">
@@ -216,7 +216,7 @@ function Equipo({ idNegocio, puedeCrear }: { idNegocio: number; puedeCrear: bool
     <Card className="p-5">
       <Encabezado titulo="Equipo" enlace={{ a: "../../equipo", texto: "Ver equipo" }} />
       {!empleados.data ? (
-        <Skeleton className="h-20" />
+        <Skeleton etiqueta="Cargando equipo" className="h-20" />
       ) : empleados.data.data.length === 0 ? (
         <p className="text-body text-muted">Todavía no hay miembros en el equipo.</p>
       ) : (

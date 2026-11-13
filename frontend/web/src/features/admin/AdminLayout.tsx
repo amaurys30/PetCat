@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { fechaLargaTitulo, hoyISO } from "@/lib/format";
 import { useAuth } from "@/stores/auth";
+import { SaltarAlContenido } from "@/components/common/SaltarAlContenido";
 
 /**
  * Administración de PetCat (`/admin`): solo el super admin (`tipo_usuario = admin`), que puede
@@ -32,7 +33,7 @@ export function AdminLayout() {
           <NoEncontrado
             acciones={
               <Button asChild variant="secondary">
-                <Link to="/">Ir al inicio</Link>
+                <Link to="/panel">Ir al inicio</Link>
               </Button>
             }
           />
@@ -44,6 +45,7 @@ export function AdminLayout() {
 
   return (
     <div className="flex min-h-screen min-w-[1280px] bg-surface">
+      <SaltarAlContenido />
       <aside className="flex h-screen w-[220px] shrink-0 flex-col border-r bg-white">
         <div className="px-4 pt-5 pb-3">
           <Logo />
@@ -56,7 +58,7 @@ export function AdminLayout() {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-body font-semibold text-ink">Administración</span>
-                <span className="block truncate text-label text-muted">Super admin de PetCat</span>
+                <span className="block truncate text-label text-muted">Super admin</span>
               </span>
               <ChevronsUpDown className="size-4 shrink-0 text-subtle" aria-hidden />
               <span className="sr-only">Cambiar a un negocio</span>
@@ -129,7 +131,7 @@ export function AdminLayout() {
             </DropdownMenuContent>
           </DropdownMenu>
         </header>
-        <main className="flex-1 overflow-y-auto p-6">
+        <main id="contenido" tabIndex={-1} className="flex-1 overflow-y-auto p-6 focus:outline-none">
           <Outlet />
         </main>
       </div>

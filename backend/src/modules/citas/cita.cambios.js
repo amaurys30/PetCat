@@ -1,7 +1,7 @@
 import * as citaRepo from "./cita.repository.js";
 import * as servicioRepo from "../servicios/servicio.repository.js";
 import * as configuracionRepo from "../configuracion/configuracion.repository.js";
-import { configAgenda, crearCita, evaluarDia, getCita } from "./cita.service.js";
+import { configAgenda, crearCita, evaluarDia, getCita, profesionalDelPanel } from "./cita.service.js";
 import { aHora, aMinutos, cabeEn } from "../disponibilidad/disponibilidad.calculo.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
 import { eventoCita } from "./cita.avisos.js";
@@ -9,6 +9,7 @@ import { avisarAgenda } from "./agenda.tiempoReal.js";
 import { conNotificaciones } from "../notificaciones/notificacion.service.js";
 import { programarInvitacion } from "../resenas/resena.plazo.js";
 import { aDatetimeSQL, hoyISO } from "../../shared/utils/fechas.js";
+import { veTodasLasCitas } from "../../shared/utils/permissions.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
 
 /**
@@ -92,7 +93,11 @@ export const cambiarEstado = async (id_cita, { estado, motivo, precio_final }, a
     }
     return cita;
   });
-  await avisarAgenda(cita.id_negocio, { accion: "estado", id_cita, estado, fechas: [cita.fecha], por: actor.id_usuario });
+  await avisarAgenda(
+    cita.id_negocio,
+    { accion: "estado", id_cita, estado, fechas: [cita.fecha], por: actor.id_usuario },
+    { empleados: [cita.id_empleado] }
+  );
   return getCita(id_cita, acceso);
 };
 
@@ -141,7 +146,11 @@ export const cancelarCita = async (id_cita, { motivo }, actor, acceso) => {
     ]);
     return cita;
   });
-  await avisarAgenda(cancelada.id_negocio, { accion: "cancelada", id_cita, fechas: [cancelada.fecha], por: actor.id_usuario });
+  await avisarAgenda(
+    cancelada.id_negocio,
+    { accion: "cancelada", id_cita, fechas: [cancelada.fecha], por: actor.id_usuario },
+    { empleados: [cancelada.id_empleado] }
+  );
   return getCita(id_cita, acceso);
 };
 
@@ -162,13 +171,17 @@ const verificarReprogramable = (cita, esDueno, horas) => {
  * si el horario nuevo no está libre, la original no cambia. El dueño lo hace con
  * las reglas de la app y al menos antelacion_cancelacion_app_h horas antes (la nueva
  * queda pendiente); el negocio, con las del panel (queda confirmada). Conserva el
- * precio estimado, el origen, las notas y la prioridad de la original.
+ * precio estimado, el origen, las notas y la prioridad de la original. Sin citas.ver_todas,
+ * el negocio la reprograma solo a nombre de quien la hace (403 con otro profesional).
  */
 export const reprogramarCita = async (id_cita, { fecha, hora_inicio, id_empleado, id_sucursal, motivo }, actor, acceso) => {
   const esDueno = acceso.relacion === "dueno";
   const horas = await horasAntelacionApp();
   const original = await citaRepo.findCita(id_cita);
   verificarReprogramable(original, esDueno, horas);
+  if (!esDueno) {
+    id_empleado = profesionalDelPanel(acceso, id_empleado, "Solo puedes reprogramar citas a tu nombre");
+  }
 
   let estadoAnterior;
   const datos = {
@@ -187,6 +200,7 @@ export const reprogramarCita = async (id_cita, { fecha, hora_inicio, id_empleado
   return crearCita(esDueno ? "app" : "panel", datos, actor, original.id_negocio, {
     excluirIdCita: id_cita,
     id_cita_origen: id_cita,
+    id_empleado_anterior: original.id_empleado,
     precio_estimado: original.precio_estimado,
     origen: original.origen,
     motivoCreacion: `Reprogramación de la cita #${id_cita}`,
@@ -219,12 +233,15 @@ export const reprogramarCita = async (id_cita, { fecha, hora_inicio, id_empleado
  * notas_internas, prioridad, precio_final (solo en curso o completada) e id_empleado
  * (solo pendiente o confirmada): el nuevo empleado debe atender el servicio y estar
  * libre a esa hora, con el mismo cálculo de la reserva. Cada campo que cambia queda
- * en el historial.
+ * en el historial. Reasignar a otro profesional exige citas.ver_todas.
  */
 export const actualizarCita = async (id_cita, data, actor, acceso) => {
   const editada = await withTransaction(async (conn) => {
     const cita = await citaRepo.lockCita(id_cita, conn);
     const cambiaEmpleado = data.id_empleado !== undefined && data.id_empleado !== cita.id_empleado;
+    if (cambiaEmpleado && !veTodasLasCitas(acceso)) {
+      throw ApiError.forbidden("Para reasignar una cita a otro profesional necesitas ver las citas de todos");
+    }
 
     if (data.precio_final !== undefined && !["en_curso", "completada"].includes(cita.estado)) {
       throw ApiError.conflict("El precio final solo se registra en citas en curso o completadas");
@@ -260,13 +277,17 @@ export const actualizarCita = async (id_cita, data, actor, acceso) => {
     }
     return { cita, cambiaEmpleado };
   });
-  await avisarAgenda(editada.cita.id_negocio, {
-    accion: "editada",
-    id_cita,
-    ...(editada.cambiaEmpleado && { id_empleado: data.id_empleado }),
-    fechas: [editada.cita.fecha],
-    por: actor.id_usuario,
-  });
+  await avisarAgenda(
+    editada.cita.id_negocio,
+    {
+      accion: "editada",
+      id_cita,
+      ...(editada.cambiaEmpleado && { id_empleado: data.id_empleado }),
+      fechas: [editada.cita.fecha],
+      por: actor.id_usuario,
+    },
+    { empleados: [editada.cita.id_empleado, ...(editada.cambiaEmpleado ? [data.id_empleado] : [])] }
+  );
   return getCita(id_cita, acceso);
 };
 

@@ -56,6 +56,7 @@ describe("GET /negocios (búsqueda pública)", () => {
       calificacion_promedio: 4.8,
       verificado: false,
       destacado: false,
+      confirmacion_automatica: false,
       distancia_km: null,
       sucursal_cercana: null,
     });

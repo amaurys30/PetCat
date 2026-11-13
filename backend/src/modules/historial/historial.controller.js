@@ -18,7 +18,7 @@ export const crearRegistro = async (req, res) => {
 };
 
 export const actualizarRegistro = async (req, res) => {
-  const registro = await service.actualizarRegistro(req.params.id_historial, req.negocio, req.user.id_usuario, req.body);
+  const registro = await service.actualizarRegistro(req.params.id_historial, req.negocio, { id_usuario: req.user.id_usuario, acceso: req.acceso }, req.body);
   return ok(res, registro, "Registro actualizado");
 };
 

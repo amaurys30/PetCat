@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { Empleado } from "@/api/empleados";
 import { __reiniciarSesionParaPruebas } from "@/api/sesion";
 import { hoyISO } from "@/lib/format";
-import { empleadoDemo } from "@/test/equipo";
+import { empleadoDemo, rolesDemo } from "@/test/equipo";
 import { negocioDemo, renderRuta, usuarioDemo } from "@/test/render";
 import { categoriasDemo, servicioDemo } from "@/test/servicios";
 import { API, fallo, http, HttpResponse, ok, servidor } from "@/test/servidor";
@@ -26,9 +26,25 @@ const paula = empleadoDemo({
 
 const base = () => [
   http.get(`${API}/categorias-servicio`, () => ok(categoriasDemo)),
-  http.get(`${API}/negocios/1/empleados`, () => HttpResponse.json(paginaEmpleados([carlos, paula]))),
+  // Paula (recepción) primero en la lista de la API: en D2 va después de los roles clínicos.
+  http.get(`${API}/negocios/1/empleados`, () => HttpResponse.json(paginaEmpleados([paula, carlos]))),
+  http.get(`${API}/negocios/1/roles`, () => ok(rolesDemo)),
   http.get(`${API}/negocios/1/servicios`, () => HttpResponse.json({ ...paginaEmpleados([]), data: [] })),
 ];
+
+describe("D2 · Profesionales que lo atienden", () => {
+  beforeEach(() => __reiniciarSesionParaPruebas());
+
+  it("muestra primero los roles clínicos (los que pueden crear registros médicos)", async () => {
+    servidor.use(...base());
+    renderRuta("/n/1/servicios/nuevo", { usuario: usuarioDemo() });
+    const clinica = await screen.findByRole("list", { name: "Atención clínica" });
+    expect(within(clinica).getByRole("checkbox", { name: /^Carlos/ })).toBeInTheDocument();
+    const otros = screen.getByRole("list", { name: "Otros roles" });
+    expect(within(otros).getByRole("checkbox", { name: /^Paula Rojas/ })).toBeInTheDocument();
+    expect(clinica.compareDocumentPosition(otros) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
 
 const escribir = (etiqueta: string, valor: string) =>
   fireEvent.change(screen.getByLabelText(etiqueta), { target: { value: valor } });

@@ -4,7 +4,7 @@ import { Link } from "react-router";
 import type { Notificacion } from "@/api/notificaciones";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Skeleton } from "@/components/ui/skeleton";
+import { CargandoGrupo, Skeleton } from "@/components/ui/skeleton";
 import { useNegocioActivo } from "@/features/negocios/hooks/useNegocio";
 import { textoContador } from "../destino";
 import { useAbrirNotificacion } from "../hooks/useAbrirNotificacion";
@@ -58,10 +58,10 @@ export function Campana() {
         </div>
         <div className="max-h-[420px] overflow-y-auto">
           {recientes.isPending ? (
-            <div className="flex flex-col gap-2 p-4">
+            <CargandoGrupo etiqueta="Cargando notificaciones" className="flex flex-col gap-2 p-4">
               <Skeleton className="h-12" />
               <Skeleton className="h-12" />
-            </div>
+            </CargandoGrupo>
           ) : recientes.isError ? (
             <p className="px-4 py-6 text-center text-body text-muted">
               No se pudieron cargar las notificaciones.

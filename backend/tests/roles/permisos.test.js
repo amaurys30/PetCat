@@ -79,8 +79,10 @@ describe("roles del sistema", () => {
 
   it("los roles clínicos tienen las mismas acciones en historial_medico y en vacunas (migración 011)", async () => {
     const roles = await rolesDelSistema();
+    // asignar_profesional solo existe en historial_medico (migración 026).
+    const clinicas = (acciones) => acciones.filter((a) => a !== "asignar_profesional").sort();
     for (const nombre of ["Administrador", "Veterinario"]) {
-      expect([...roles[nombre].vacunas].sort(), nombre).toEqual([...roles[nombre].historial_medico].sort());
+      expect([...roles[nombre].vacunas].sort(), nombre).toEqual(clinicas(roles[nombre].historial_medico));
     }
     expect(roles.Veterinario.vacunas.sort()).toEqual(["crear", "editar", "ver"]);
   });

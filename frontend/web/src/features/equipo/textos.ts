@@ -31,6 +31,9 @@ export const NOMBRES_ACCION: Record<string, string> = {
   reembolsar: "reembolsar",
   ver_basico: "ver básico",
   editar_stock: "editar stock",
+  // Sin ver_todas, citas.ver solo alcanza las citas propias (migración 026).
+  ver_todas: "ver citas de todos",
+  asignar_profesional: "registrar a nombre de otro profesional",
 };
 
 /** Columnas fijas de la matriz; "eliminar / cancelar" toma la que tenga el módulo. */

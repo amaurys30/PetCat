@@ -117,7 +117,7 @@ COMPOSE_PROFILES=panel
 
 - Las dos APIs corren los jobs (recordatorios, confirmaciones…), cada una sobre su base.
 - En modo desarrollo, nodemon revisa `backend/src` cada poco tiempo (`--legacy-watch`), porque los cambios en archivos de Windows no llegan al contenedor como eventos.
-- `npm run db:migrate` solo migra `petcat_db`. `petcat_demo` se recarga con `scripts/db-demo.js`, porque `petcat.sql` ya trae todas las migraciones.
+- Migraciones en Docker: `docker compose exec backend npm run db:migrate` migra `petcat_db` y `docker compose exec backend-demo npm run db:migrate` migra `petcat_demo` (los dos contenedores montan `database/`). `petcat_demo` también se puede recargar con `scripts/db-demo.js`, porque `petcat.sql` ya trae todas las migraciones.
 
 ### Tareas programadas (jobs)
 
@@ -259,7 +259,7 @@ npm run db:migrate -- --status     # muestra aplicadas y pendientes (no cambia n
 npm run db:migrate -- --baseline   # marca todas las existentes como aplicadas SIN ejecutarlas
 ```
 
-- Usan la base de `backend/.env` y se corren desde el host (no desde el contenedor backend).
+- Desde el host usan la base de `backend/.env`; en Docker, `docker compose exec backend npm run db:migrate` (la de ese contenedor; ver "Dos backends en Docker").
 - Una base creada con `petcat.sql` (volumen nuevo de compose, `db:reset` o los tests) ya trae registradas todas las migraciones existentes: `db:migrate` no tiene nada que hacer.
 - Si una migración falla, `db:migrate` se detiene, no la registra y no aplica las siguientes. MySQL confirma cada sentencia DDL al ejecutarla, así que puede quedar aplicada a medias: revisa la base antes de corregirla y reintentar.
 - Al crear una migración nueva: agrega su nombre al `INSERT INTO schema_migrations` del final de `petcat.sql`. Un test falla si falta.

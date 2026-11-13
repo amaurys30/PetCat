@@ -5,7 +5,7 @@ import type { ApiError } from "@/api/errors";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { encabezadoDia } from "@/lib/agenda";
+import { diaConMes } from "@/lib/agenda";
 import { hora } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { TipoAccionCita } from "@/stores/ui";
@@ -33,7 +33,8 @@ export function PanelAtencion({
   ahora: Date;
   idSeleccionada?: number;
   onAbrir: (cita: CitaPanel) => void;
-  permisos: { editar: boolean; cancelar: boolean };
+  /** reasignar: citas.editar y citas.ver_todas. */
+  permisos: { editar: boolean; cancelar: boolean; reasignar: boolean };
   onConfirmar: (cita: CitaPanel) => void;
   /** Cita que se está confirmando (su botón muestra que espera). */
   confirmando?: number;
@@ -48,7 +49,12 @@ export function PanelAtencion({
   }
   if (!atencion) {
     return (
-      <Card className="flex flex-col gap-3 p-4" aria-busy>
+      <Card
+        role="status"
+        aria-busy
+        aria-label="Cargando citas por atender"
+        className="flex flex-col gap-3 p-4"
+      >
         <Skeleton className="h-5 w-32" />
         <Skeleton className="h-20" />
         <Skeleton className="h-20" />
@@ -96,7 +102,7 @@ export function PanelAtencion({
                     {c.mascota.nombre} · {c.servicio.nombre}
                   </span>
                   <span className="block truncate text-label text-muted">
-                    {encabezadoDia(c.fecha)} · {hora(c.hora_inicio)} · {nombreCompleto(c.cliente)}
+                    {diaConMes(c.fecha)} · {hora(c.hora_inicio)} · {nombreCompleto(c.cliente)}
                   </span>
                   {textoPlazo(c, ahora) && (
                     <span className="mt-1 block text-label font-semibold text-warning-ink">
@@ -126,9 +132,11 @@ export function PanelAtencion({
                   acciones={
                     permisos.editar && (
                       <>
-                        <Button size="sm" variant="secondary" onClick={() => onAccion("reasignar", c)}>
-                          Reasignar
-                        </Button>
+                        {permisos.reasignar && (
+                          <Button size="sm" variant="secondary" onClick={() => onAccion("reasignar", c)}>
+                            Reasignar
+                          </Button>
+                        )}
                         <Button size="sm" variant="secondary" onClick={() => onAccion("reprogramar", c)}>
                           Reprogramar
                         </Button>
@@ -137,7 +145,7 @@ export function PanelAtencion({
                   }
                 >
                   <span className="block truncate font-semibold text-ink">
-                    {c.mascota.nombre} · {encabezadoDia(c.fecha)} {hora(c.hora_inicio)}
+                    {c.mascota.nombre} · {diaConMes(c.fecha)} {hora(c.hora_inicio)}
                   </span>
                   <span className="block text-label text-muted">{textoMotivoFuera(c)}.</span>
                 </Tarjeta>

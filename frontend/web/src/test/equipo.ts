@@ -90,8 +90,9 @@ export const rolesDemo: RolNegocio[] = [
 
 /** Catálogo de `GET /permisos` (recortado). */
 export const catalogoDemo = {
-  citas: ["ver", "crear", "editar", "cancelar"],
+  citas: ["ver", "ver_todas", "crear", "editar", "cancelar"],
   clientes: ["ver", "editar"],
+  historial_medico: ["ver", "crear", "editar", "asignar_profesional"],
   empleados: ["ver", "crear", "editar", "eliminar"],
   roles: ["ver", "crear", "editar", "eliminar"],
   resenas: ["ver", "responder", "reportar"],

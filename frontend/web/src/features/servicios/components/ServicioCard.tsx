@@ -148,7 +148,11 @@ export function ServicioCard({
           <span className="text-body text-muted">No requiere cita</span>
         ) : (
           <Tooltip texto={nombres.join(", ")}>
-            <span className="flex -space-x-1.5" aria-label={`Profesionales: ${nombres.join(", ")}`}>
+            <span
+              role="img"
+              className="flex -space-x-1.5"
+              aria-label={`Profesionales: ${nombres.join(", ")}`}
+            >
               {s.empleados.slice(0, MAX_AVATARES).map((e) => (
                 <Avatar
                   key={e.id_empleado}

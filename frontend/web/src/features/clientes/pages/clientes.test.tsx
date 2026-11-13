@@ -203,13 +203,16 @@ describe("C1 · Clientes", () => {
     const user = userEvent.setup();
     const registro = nuevoRegistro();
     servidor.use(...base(registro, { detalles: { 20: detalleLaura() } }));
-    renderRuta("/n/1/clientes?cliente=20", { usuario: usuarioDemo() });
+    const { router } = renderRuta("/n/1/clientes?cliente=20", { usuario: usuarioDemo() });
     await screen.findByRole("list", { name: "Clientes" });
 
     await user.type(screen.getByLabelText("Buscar clientes"), "zz");
     expect(await screen.findByText('Ningún cliente coincide con "zz".')).toBeInTheDocument();
     // Una consulta por búsqueda, no una por tecla.
     expect(registro.listas.map((u) => u.searchParams.get("q"))).toEqual([null, "zz"]);
+    // Sin resultados se cierra el detalle del cliente que estaba elegido.
+    expect(await screen.findByText("Elige un cliente")).toBeInTheDocument();
+    expect(router.state.location.search).not.toContain("cliente=");
   });
 
   it("notas: escribe, edita solo las propias y borra con confirmación; recuerda la Ley 1581", async () => {
@@ -309,7 +312,9 @@ describe("C1 · Correo de un cliente sin cuenta", () => {
     ).toBeInTheDocument();
     expect(registro.correos).toEqual([{ email: "ocupado@petcat.test" }, { email: "jorge@petcat.test" }]);
     // El aviso sale del hook al guardar; el diálogo se cierra cuando se recarga el cliente.
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Agregar correo" })).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Agregar correo" })).not.toBeInTheDocument(),
+    );
   });
 
   it("registrado aquí sin activar: corrige el correo o reenvía la bienvenida al mismo", async () => {

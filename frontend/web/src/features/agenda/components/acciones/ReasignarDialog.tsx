@@ -60,7 +60,7 @@ export function ReasignarDialog({
           <ResumenCita cita={cita} />
           {!libres.data ? (
             libres.isError ? null : (
-              <Skeleton className="h-28" />
+              <Skeleton etiqueta="Cargando profesionales libres" className="h-28" />
             )
           ) : libres.data.profesionales.length === 0 ? (
             <Alert tono="advertencia">

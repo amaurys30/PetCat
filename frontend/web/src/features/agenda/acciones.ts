@@ -19,11 +19,12 @@ export interface Acciones {
 
 /**
  * Qué se puede hacer con la cita según su estado, la hora (Bogotá) y los permisos, con las
- * mismas reglas que la API (TRANSICIONES de cita.cambios.js). La API decide igual.
+ * mismas reglas que la API (TRANSICIONES de cita.cambios.js). La API decide igual. Reasignar a
+ * otro profesional exige además citas.ver_todas (`verTodas`).
  */
 export function accionesDe(
   cita: Pick<CitaPanel, "estado" | "fecha" | "hora_inicio">,
-  { editar, cancelar }: { editar: boolean; cancelar: boolean },
+  { editar, cancelar, verTodas = true }: { editar: boolean; cancelar: boolean; verTodas?: boolean },
   ahora: Date = new Date(),
 ): Acciones {
   const hoy = hoyISO(ahora);
@@ -36,7 +37,7 @@ export function accionesDe(
     rechazar: cancelar && pendiente,
     cancelar: cancelar && confirmada,
     reprogramar: editar && activa,
-    reasignar: editar && activa,
+    reasignar: editar && verTodas && activa,
     iniciar: editar && confirmada && cita.fecha <= hoy,
     completar: editar && (cita.estado === "en_curso" || (confirmada && empezo)),
     noAsistio: editar && confirmada && empezo,

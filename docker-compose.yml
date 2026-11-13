@@ -47,6 +47,9 @@ services:
       DB_USER: root
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       DB_NAME: ${MYSQL_DATABASE:-petcat_db}
+    # Migraciones para npm run db:migrate dentro del contenedor (las busca en /database).
+    volumes:
+      - ./database:/database:ro
     # La imagen puede no traer curl: se usa fetch de Node.
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://localhost:' + (process.env.PORT || 3000) + '/api/v1/health').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))\""]

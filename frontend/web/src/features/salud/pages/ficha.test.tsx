@@ -232,6 +232,50 @@ describe("C2 · Ficha de la mascota", () => {
     expect(registro.citas).toBe(1);
   });
 
+  it("carnet y pestaña Vacunas ordenan por fecha de aplicación, de la más reciente a la más antigua", async () => {
+    const user = userEvent.setup();
+    const vacunas = [
+      vacunaDemo({
+        id_vacuna: 4,
+        nombre_vacuna: "Parvovirus",
+        fecha_aplicacion: "2023-03-01",
+        estado: "al_dia",
+      }),
+      vacunaDemo({ id_vacuna: 3, fecha_aplicacion: "2024-09-13", estado: "no_aplica" }),
+      vacunaDemo(),
+      vacunaDemo({
+        id_vacuna: 2,
+        nombre_vacuna: "Moquillo",
+        fecha_aplicacion: "2025-10-14",
+        estado: "proximo",
+      }),
+    ];
+    servidor.use(...base(nuevoRegistro(), { vacunas }));
+    const nombres = (contenedor: HTMLElement) =>
+      within(contenedor)
+        .getAllByRole("row")
+        .slice(1)
+        .map(
+          (fila) =>
+            `${within(fila).getAllByRole("cell")[0]!.textContent} ${within(fila).getAllByRole("cell")[1]!.textContent}`,
+        );
+
+    renderRuta(`${RUTA}?pestana=vacunas`, { usuario: usuarioDemo() });
+    const carnet = await screen.findByRole("region", { name: "Carnet de vacunas" });
+    await within(carnet).findByText("Moquillo");
+    expect(nombres(carnet).map((n) => n.split(" ")[0])).toEqual(["Moquillo", "Antirrábica", "Parvovirus"]);
+
+    // Con las dosis anteriores, la "No aplica" queda en su lugar por fecha, no al final.
+    const panel = screen.getByRole("tabpanel", { name: "Vacunas" });
+    await user.click(within(panel).getByRole("switch"));
+    expect(nombres(panel)).toEqual([
+      "Moquillo 14 oct 2025",
+      "Antirrábica 13 sep 2025",
+      "Antirrábica 13 sep 2024",
+      "Parvovirus 1 mar 2023",
+    ]);
+  });
+
   it("sin cita válida (403) explica por qué no se ve la ficha", async () => {
     servidor.use(
       ...base(nuevoRegistro(), { resumen: () => fallo(403, "Esta mascota no tiene citas con el negocio") }),

@@ -118,6 +118,28 @@ describe("B3 · Agenda semanal", () => {
     expect(within(screen.getByRole("navigation")).getByLabelText("1 por confirmar")).toBeInTheDocument();
   });
 
+  it("las canceladas no ocupan columna salvo con el interruptor", async () => {
+    const user = userEvent.setup();
+    const cancelada = citaPanelDemo({
+      id_cita: 9,
+      fecha: LUNES,
+      hora_inicio: "08:00",
+      hora_fin: "08:30",
+      estado: "cancelada",
+      mascota: { id_mascota: 9, nombre: "Toby", especie: "perro" },
+    });
+    servidor.use(...base({ agenda: [max, cancelada] }));
+    renderRuta("/n/1/agenda", { usuario: usuarioDemo() });
+
+    const deMax = await screen.findByRole("button", { name: /· Max ·/ });
+    expect(screen.queryByRole("button", { name: /· Toby ·/ })).not.toBeInTheDocument();
+    expect(deMax.style.width).toBe("calc(100% - 6px)");
+
+    await user.click(screen.getByRole("switch", { name: "Mostrar canceladas (1)" }));
+    expect(screen.getByRole("button", { name: /· Toby ·/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /· Max ·/ }).style.width).toBe("calc(50% - 6px)");
+  });
+
   it("los filtros quedan en la URL y llegan a la API", async () => {
     const user = userEvent.setup();
     const peticiones: URL[] = [];
@@ -249,6 +271,51 @@ describe("B9 · Día por profesional", () => {
     // Lo que tapa el bloqueo no se marca además como cerrado.
     expect(within(columnaPaula).queryByText("Cerrado desde las 12:00")).not.toBeInTheDocument();
     expect(within(columnaPaula).getByText("Cerrado 12:00–14:00")).toBeInTheDocument();
+  });
+});
+
+describe("Sin citas.ver_todas (Veterinario)", () => {
+  // Carlos (id_empleado 1) con el rol Veterinario del sistema: solo sus citas.
+  const veterinario = () =>
+    usuarioDemo({
+      negocios: [
+        negocioDemo({
+          relacion: "empleado",
+          id_empleado: 1,
+          rol: { id_rol: 2, nombre: "Veterinario", permisos_json: { citas: ["ver", "crear", "editar"] } },
+        }),
+      ],
+    });
+
+  it("sin filtro de profesional ni columnas de otros; no envía otro profesional a la API", async () => {
+    const peticiones: URL[] = [];
+    servidor.use(
+      ...base({ agenda: [max], peticiones }),
+      // Sin configuracion.ver, las sedes salen del perfil público.
+      http.get(`${API}/negocios/1`, () => ok({ sucursales: [sedeDemo({ horarios: horarioPartido })] })),
+      http.get(`${API}/empleados/:id/disponibilidad-efectiva`, () =>
+        ok({ fecha: LUNES, dia_semana: 1, sigue_horario_sucursal: true, sucursales: [] }),
+      ),
+      http.get(`${API}/empleados/:id/disponibilidad`, () =>
+        ok({ horario_semanal: [], sigue_horario_sucursal: true, excepciones: [] }),
+      ),
+    );
+    // Un enlace con el profesional de otra persona no cambia nada.
+    renderRuta(`/n/1/agenda?vista=dia&fecha=${LUNES}&profesional=2`, { usuario: veterinario() });
+
+    expect(await screen.findByRole("group", { name: "Carlos Pérez" })).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Paula Rojas" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Profesional" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Todos los profesionales")).not.toBeInTheDocument();
+    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+    expect(screen.getByText("Solo tus citas")).toBeInTheDocument();
+    expect(peticiones.at(-1)!.searchParams.get("id_empleado")).toBeNull();
+    expect(peticiones.at(-1)!.searchParams.get("solo_mias")).toBeNull();
+
+    // Fuera de disponibilidad: puede reprogramar, pero no reasignar a otro profesional.
+    const lista = screen.getByRole("list", { name: "Citas fuera de disponibilidad" });
+    expect(within(lista).getByRole("button", { name: "Reprogramar" })).toBeInTheDocument();
+    expect(within(lista).queryByRole("button", { name: "Reasignar" })).not.toBeInTheDocument();
   });
 });
 

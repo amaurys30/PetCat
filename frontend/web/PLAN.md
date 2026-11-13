@@ -85,11 +85,44 @@ Sub-bloques: P6.1 suscripción · P6.2 dashboard · P6.3 reseñas · P6.4 notifi
 - [x] E5 Notificaciones: desplegable, contador, marcar leídas, tiempo real, título de la pestaña y avisos del navegador — P6.4
 - [x] X1 Administración: negocios y planes, asignar plan con el historial de quién lo asignó (solo `tipo_usuario = admin`), en `/admin` — P6.5
 
+## Antes de P7 — Ajustes de roles y datos
+- [x] Agenda por profesional: sin `citas.ver_todas` no hay "Todos los profesionales" ni columnas de otros en Día, Nueva cita y Reprogramar quedan a nombre propio y no hay Reasignar.
+- [x] Profesional del registro médico fijo sin `historial_medico.asignar_profesional`; "Registrado por" en la tarjeta cuando no es quien atendió.
+- [x] Sexo de la mascota en C3 y en Nueva mascota.
+- [x] Carnet y pestaña Vacunas por fecha de aplicación, de la más reciente a la más antigua.
+
+## Página pública de presentación (durante P7)
+- [x] Landing para dueños de mascotas en `/`: encabezado con menú en celular, hero con ilustración propia, beneficios, cómo funciona, buscador real de negocios cercanos (ubicación del navegador o Sincelejo), cifras y reseñas reales de la API, banda para negocios, preguntas frecuentes y pie con política y soporte.
+- [x] `/para-negocios`: beneficios del panel, planes de `GET /planes` con la prueba Pro, llamadas al registro y al login, preguntas frecuentes y soporte.
+- [x] El panel se carga aparte (`rutasPanel`, `patchRoutesOnNavigation`): la landing no lo descarga. `/panel` es la entrada al panel (antes `/`).
+- [x] SEO básico (título, descripción, Open Graph con `public/og-petcat.png`, idioma es), axe sin violaciones en las dos páginas (escritorio, celular y menú abierto), pruebas unitarias y de punta a punta (`landing.spec.ts`).
+
 ## P7 — Cierre del panel v1
-- [ ] Flujos de punta a punta con Playwright: login → elegir negocio → agendar → confirmar → completar → registro médico; invitar a un miembro; cliente sin app.
-- [ ] Revisión contra el Figma pantalla por pantalla.
-- [ ] Revisión de accesibilidad básica y de estados vacíos y de error.
-- [ ] README del panel (cómo correrlo y probarlo) y PR a `main`.
+- [x] Flujos de punta a punta con Playwright: login → elegir negocio → agendar → confirmar → completar → registro médico; invitar a un miembro; cliente sin app.
+- [x] Revisión contra el Figma pantalla por pantalla.
+- [x] Revisión de accesibilidad básica y de estados vacíos y de error.
+- [x] README del panel (cómo correrlo y probarlo) y PR a `main`.
+
+**Correcciones de la revisión (Fase 3 de P7)**
+- [x] Vitest con la mitad de los núcleos (`maxWorkers: "50%"`): las pantallas pesadas vencían sus esperas con un worker por núcleo.
+- [x] Prueba de escalada con `exact: true` ("Citas: ver" también coincidía con "ver citas de todos").
+- [x] Sesión entre pestañas: una pestaña recién cargada pide los tokens a las abiertas antes de renovar; un 401 reintenta con el token que dejó otra pestaña y nunca lo borra.
+- [x] Lo que generan las pruebas de punta a punta (build y resultados) va a una carpeta temporal del sistema, fuera de OneDrive.
+- [x] nodemon con `--polling-interval 1000` en `docker-compose.dev.yml`.
+- [x] Contraste AA desde los tokens (`primary`, `primary-dark`, `subtle`, `info`, `done`, `danger`, `warning-ink`); axe sin violaciones conocidas en ninguna pantalla.
+- [x] Foco de vuelta al botón que abrió Nueva cita y el detalle de una cita al cerrarlos con Escape.
+- [x] "Saltar al contenido" en el panel, el acceso, la administración y las páginas públicas.
+- [x] Gráficos sin elementos enfocables dentro de `aria-hidden`; avatares de Servicios con `role="img"`; un panel por pestaña en Notificaciones; `aria-busy` en los estados de carga.
+- [x] B7 (y B5): horarios libres por madrugada, mañana, tarde y noche con desplazamiento interno; título y botones fijos.
+- [x] Semana y Día: las canceladas no ocupan columna, salvo con "Mostrar canceladas".
+- [x] C6 y C3: color, alergias y condiciones médicas de la mascota.
+- [x] D2: primero los profesionales de atención clínica.
+- [x] Fechas cortas con el mes ("Mar 17 nov") en C2, Por confirmar, Fuera de disponibilidad y el detalle.
+- [x] Textos que se cortaban: Registró del carnet, excepciones de D5, raza en C1, nombre del negocio en el menú (tooltip) y columnas de X1.
+- [x] C1: una búsqueda sin resultados cierra el detalle del cliente anterior.
+- [x] Buscador de Equipo que no dejaba escribir al recargar: la tabla entraba en un ciclo de renders (datos vacíos nuevos en cada render y reinicio de página de TanStack Table) que congelaba la pestaña.
+- [x] Carga diferida de Google Maps y de las páginas del panel.
+- [ ] Punto 18 del informe (selects nativos): pendiente, se decidió no hacerlo por ahora.
 
 ---
 
@@ -108,6 +141,8 @@ _(Lo que el panel necesite y la API no tenga. No se inventa: se anota aquí.)_
 - **Menores (C2, C5):** no hay `GET /historial/:id` (para renovar una URL firmada vencida se vuelve a pedir la página del historial), ni una vista con todos los archivos de la mascota (van en cada registro y el comprobante en el carnet), ni un catálogo de vacunas (las sugerencias de C5 son una lista fija por especie). La búsqueda del Topbar no busca citas: la API solo busca clientes y mascotas.
 - **Vacuna "verificada" por un negocio:** hoy una vacuna registrada por el dueño solo la edita el dueño y el negocio la ve como "Dueño". Idea: que un negocio con `vacunas.editar` y cita válida pueda marcarla como **verificada** después de revisar el carnet físico (columnas `verificada_por_negocio`, `verificada_por` y `fecha_verificacion`, o una tabla si varios negocios la verifican), sin poder cambiar sus datos. El carnet la mostraría "Dueño · verificada por Patitas". Con la verificación, el dueño ya no podría editar la vacuna (o perdería la marca al hacerlo). Decidir antes de construirlo.
 - **Mascotas con vacunas vencidas (B1):** el dashboard trae solo el número (`vacunas_vencidas.mascotas`). Para ver cuáles hace falta un listado (por ejemplo `GET /negocios/:id/mascotas/vacunas-vencidas?dias=30`, con el dueño y la vacuna); mientras tanto la fila de "Requiere tu atención" no lleva enlace.
+- Resueltos para la página pública (backend): migración 027 (`publico_umbral_cifras` y `publico_min_resenas`); `GET /publico/estadisticas`, `GET /publico/resenas` y `GET /publico/configuracion` (soporte y días de la prueba Pro), en caché 5 minutos; `confirmacion_automatica` en `GET /negocios`.
+- Resueltos antes de P7 (backend): `citas.ver_todas` y `historial_medico.asignar_profesional` en el catálogo (migración 026); la API limita a las citas propias sin `ver_todas` (agenda, atención, detalle y cambios, agendar, horarios libres, notificaciones y tiempo real) y fija el profesional del registro sin `asignar_profesional`; `registrado_por` en cada registro propio; `database/` montada en el contenedor `backend` para `db:migrate`.
 - Resueltos en P6.5 (backend): `GET /admin/negocios` (plan y estado efectivos, suscripción vigente, citas del mes, búsqueda y filtros) y `GET /admin/negocios/:id/suscripciones` (historial); migración 025 con quién creó cada suscripción (`id_usuario_registro`) y la fila de `auditoria_global` en cada asignación.
 - Resueltos en P6.4 (backend): `fecha` de la cita en el enlace de las notificaciones de citas (la agenda abre en su semana); `por_confirmar` en el de `cita_nueva` (false si nació confirmada); los campos del enlace (`datos`) en Swagger (llegaba tipado como objeto vacío).
 - Resueltos en P6.3 (backend): `/resenas/gestion` incluye las retiradas por su autor y trae `estado` (`publicada`, `oculta` por la moderación o `retirada`, con `retirada_en`; retirar también pone `visible` en false y no se podían distinguir); `autor` como se ve en público; `meta.resumen` (calificación, distribución y conteos sin responder, reportadas, ocultas y retiradas, sin depender de los filtros); filtros `estado`, `calificacion_max` (también en lo público) e `id_resena`; `cliente_registrado_por_negocio` ya no sale en ninguna respuesta, tampoco para el super admin (queda en la tabla para la moderación de la Fase 4).
@@ -268,3 +303,19 @@ _(Lo que el panel necesite y la API no tenga. No se inventa: se anota aquí.)_
 - P6.5: X1 con la tabla (negocio, tipo, plan, estado, vencimiento y citas del mes) y búsqueda y filtros de plan y estado en la URL; el negocio elegido (`?negocio=`) abre a la derecha "Asignar plan" y el historial de suscripciones, con quién creó cada una ("Ana Admin · super admin", "propietario" en la prueba, "Automática" en la Gratuita inicial). El formulario propone la fecha de fin (un mes o un año desde hoy) y el monto (el precio del plan según la facturación) hasta que el admin los cambia; el Gratuito no lleva fecha de fin, igual que la API. El aviso de éxito va en `useAsignarPlan`.
 - P6.5: la búsqueda espera 300 ms y el temporizador usa el `cambiar` del último render: con el de cuando se creó, `setSearchParams` partía de la URL vieja y borraba el negocio elegido mientras tanto (lo encontró la prueba de punta a punta). El campo de fecha de fin y el texto "Sin vencimiento" llevan `key` distintas: si React reutiliza el `<input type="date">`, el texto queda vacío.
 - Pruebas de punta a punta (P6.5): el admin del seed asigna Pro a un negocio Gratuito creado por la prueba (no toca los del seed), el historial lo nombra y el propietario ve Pro en E4; para él, `/admin` no existe.
+- Antes de P7: sin `citas.ver_todas` la barra de la agenda muestra "Solo tus citas" en lugar del filtro de profesional y del interruptor "Solo mis citas", la vista Día solo tiene la columna propia y el panel no envía `id_empleado` ni `solo_mias` (la API limita sola; un enlace con `profesional=` de otro no cambia nada). Nueva cita ofrece solo los servicios que atiende quien agenda, con el profesional deshabilitado a su nombre; Reprogramar igual; Reasignar no aparece (ni en B4 ni en "Fuera de disponibilidad").
+- Antes de P7: en C4, sin `historial_medico.asignar_profesional` y con perfil de empleado, el campo Profesional queda deshabilitado a nombre propio (vincular una cita de otro profesional no lo cambia) y explica por qué. La tarjeta del registro dice "Registrado por X" solo si quien lo creó no es el profesional que atendió (se comparan los nombres: uno es un usuario y el otro un empleado).
+- Antes de P7: los nombres de las acciones nuevas en el editor de roles van en minúscula como las demás ("ver citas de todos", "registrar a nombre de otro profesional").
+- Antes de P7: el carnet y la pestaña Vacunas ordenan solo por fecha de aplicación (antes las dosis "No aplica" iban al final); "Ver dosis anteriores" las intercala en su fecha.
+- Página pública: mobile first desde 360 px (el panel sigue en 1280 px; `body:has(.pagina-publica)` quita el ancho mínimo). El texto blanco va sobre `primary-dark` o el token nuevo `primary-deep` (#0B6F69, final del degradado), nunca sobre `primary` (3:1). El degradado de marca completo va detrás de las ilustraciones; las bandas con texto usan `bg-marca-oscura` (#0D7F78 → #0B6F69).
+- Página pública: las cifras y las reseñas las decide la API. Una cifra solo llega si supera `publico_umbral_cifras` (estrictamente mayor), y las reseñas solo si hay al menos `publico_min_resenas` elegibles (4 o 5 estrellas con comentario, de cita completada, visibles, sin reporte, de negocio activo y sin las de clientes que el mismo negocio registró desde el panel), como máximo 2 por negocio.
+- Página pública: el buscador no pide la ubicación al cargar; la usa sin preguntar solo si el permiso ya está concedido, y si no, con el botón "Usar mi ubicación". Sin ella, busca cerca del centro de Sincelejo.
+- Página pública: las tiendas de la app aparecen como "Próximamente", sin enlaces ni logos de terceros. Con sesión, el encabezado y el pie dicen "Ir al panel" (`/panel`).
+- P7: Vitest corre con la mitad de los núcleos (`maxWorkers: "50%"`); con uno por núcleo las pantallas pesadas fallaban por tiempo y la suite era más lenta.
+- P7: los tokens de texto se oscurecieron lo justo para AA (4,5:1) con el mismo matiz; `primary` queda en #0F7D76 y `primary-dark` en #0B6F69. No se atenúa texto con `opacity`.
+- P7: un diálogo que se abre por estado o por la URL (sin el Trigger de Radix) devuelve el foco con `useFocoDeRegreso`.
+- P7: estados de carga con `Skeleton etiqueta` (uno solo) o `CargandoGrupo` (varios): `role="status"` y `aria-busy`.
+- P7: las canceladas no se dibujan en Semana y Día salvo con el interruptor, el filtro de estado o si es la abierta. La lista las sigue mostrando.
+- P7: rol clínico = su rol puede crear registros médicos; sin permiso para ver los roles, la especialidad o el rol Veterinario.
+- P7: las páginas del panel se cargan con `lazy`; en `rutasPanel` quedan layouts, guardas y acceso. Google Maps va en `UbicacionGoogle`. Las pruebas resuelven las rutas diferidas antes de pintar (`test/render.tsx`).
+- P7: `DataTable` usa un arreglo vacío estable y sin reinicio automático de la página (la paginación es de la API).

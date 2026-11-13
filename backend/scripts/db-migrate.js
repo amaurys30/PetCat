@@ -7,7 +7,8 @@
  *                                       (una sola vez, en una base a la que se le aplicaron a mano;
  *                                       solo funciona con schema_migrations vacía)
  *
- * Se corre desde el host (usa backend/.env: DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME).
+ * Se corre desde el host (usa backend/.env: DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME)
+ * o dentro de los contenedores backend y backend-demo, que montan database/ en /database.
  * Una base creada con database/petcat.sql ya trae registradas todas las migraciones existentes.
  */
 import "../src/config/loadEnv.js";

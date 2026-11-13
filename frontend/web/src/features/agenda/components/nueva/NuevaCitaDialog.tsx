@@ -26,6 +26,8 @@ import { useCrearCita, useHorariosLibres } from "../../hooks/useCita";
 import type { ClienteElegido } from "../../nuevaCita";
 import { nombreCompleto } from "../../textos";
 import { BuscarCliente } from "./BuscarCliente";
+import { useFocoDeRegreso } from "@/lib/useFocoDeRegreso";
+import { SelectorHorarios } from "../SelectorHorarios";
 
 const CUALQUIERA = "cualquiera";
 const ORIGENES = [
@@ -72,10 +74,18 @@ export function NuevaCitaDialog({
   const negocio = useNegocioActivo();
   const puede = usePuede();
   const hoy = hoyISO();
+  // Al cerrarse (se desmonta), el foco vuelve a lo que lo abrió. Sin onCloseAutoFocus: este diálogo
+  // también se cierra al abrir Registrar cliente o Agregar mascota, y ahí el foco va a esos.
+  useFocoDeRegreso();
   const { sedes } = useSedes();
   const catalogo = useCatalogoServicios(negocio.id_negocio);
   const profesionales = useProfesionales(negocio.id_negocio);
   const crear = useCrearCita(negocio.id_negocio);
+  // Sin citas.ver_todas la cita es de quien la agenda (la API lo exige): solo sus servicios.
+  const verTodas = puede("citas", "ver_todas");
+  const propio = verTodas
+    ? null
+    : (profesionales.data?.find((p) => p.id_empleado === negocio.id_empleado) ?? null);
 
   const [cliente, setCliente] = useState<ClienteElegido | null>(inicio.cliente ?? null);
   const [registrando, setRegistrando] = useState<{ email?: string; telefono?: string } | null>(null);
@@ -106,8 +116,15 @@ export function NuevaCitaDialog({
       .map((m) => ({ id_mascota: m.id_mascota, nombre: m.nombre, especie: m.especie }));
 
   const servicios = useMemo(
-    () => (catalogo.data ?? []).filter((s) => s.activo && s.requiere_cita && !s.sin_empleados),
-    [catalogo.data],
+    () =>
+      (catalogo.data ?? []).filter(
+        (s) =>
+          s.activo &&
+          s.requiere_cita &&
+          !s.sin_empleados &&
+          (verTodas || (propio?.servicios.some((x) => x.id_servicio === s.id_servicio) ?? false)),
+      ),
+    [catalogo.data, verTodas, propio],
   );
   const servicio = servicios.find((s) => s.id_servicio === idServicio) ?? null;
   const sede =
@@ -115,8 +132,9 @@ export function NuevaCitaDialog({
   const quienes = (profesionales.data ?? []).filter((p) =>
     p.servicios.some((s) => s.id_servicio === idServicio),
   );
-  const idEmpleado =
-    empleado !== CUALQUIERA && quienes.some((p) => String(p.id_empleado) === empleado)
+  const idEmpleado = !verTodas
+    ? (propio?.id_empleado ?? undefined)
+    : empleado !== CUALQUIERA && quienes.some((p) => String(p.id_empleado) === empleado)
       ? Number(empleado)
       : undefined;
 
@@ -243,7 +261,7 @@ export function NuevaCitaDialog({
                 {!cliente ? (
                   <p className="text-body text-subtle">Primero elige al cliente.</p>
                 ) : !mascotas ? (
-                  <Skeleton className="h-8 w-40" />
+                  <Skeleton etiqueta="Cargando mascotas" className="h-8 w-40" />
                 ) : (
                   <div role="radiogroup" aria-label="Mascota" className="flex flex-wrap gap-2">
                     {mascotas.map((m) => (
@@ -396,14 +414,18 @@ export function NuevaCitaDialog({
                     setEmpleado(v);
                     limpiarHora();
                   }}
-                  disabled={!servicio}
+                  disabled={!servicio || !verTodas}
                 >
                   <SelectTrigger aria-label="Profesional">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={CUALQUIERA}>Cualquier profesional (asignación automática)</SelectItem>
-                    {quienes.map((p) => (
+                    {verTodas && (
+                      <SelectItem value={CUALQUIERA}>
+                        Cualquier profesional (asignación automática)
+                      </SelectItem>
+                    )}
+                    {(propio ? [propio] : quienes).map((p) => (
                       <SelectItem key={p.id_empleado} value={String(p.id_empleado)}>
                         {nombreCompleto(p)}
                       </SelectItem>
@@ -414,29 +436,11 @@ export function NuevaCitaDialog({
                 {!servicio || !sede ? (
                   <p className="text-body text-subtle">Elige el servicio para ver los horarios libres.</p>
                 ) : horarios.isPending ? (
-                  <Skeleton className="h-24" />
+                  <Skeleton etiqueta="Cargando horarios libres" className="h-24" />
                 ) : horarios.isError ? (
                   <Alert tono="error">{horarios.error.message}</Alert>
                 ) : libres && libres.length > 0 ? (
-                  <div role="radiogroup" aria-label="Horarios libres" className="flex flex-wrap gap-2">
-                    {libres.map((h) => (
-                      <button
-                        key={h.hora_inicio}
-                        type="button"
-                        role="radio"
-                        aria-checked={hora === h.hora_inicio}
-                        onClick={() => setHora(h.hora_inicio)}
-                        className={cn(
-                          "h-8 rounded-control border px-3 text-body font-medium tabular-nums",
-                          hora === h.hora_inicio
-                            ? "border-primary bg-primary text-white"
-                            : "bg-white text-ink hover:bg-surface",
-                        )}
-                      >
-                        {h.hora_inicio}
-                      </button>
-                    ))}
-                  </div>
+                  <SelectorHorarios horarios={libres} elegido={hora} onElegir={setHora} />
                 ) : (
                   <p className="text-body text-muted">{horarios.data?.motivo_sin_horarios}</p>
                 )}

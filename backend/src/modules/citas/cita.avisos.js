@@ -30,10 +30,18 @@ const datosDeCita = (row) => ({
  * Evento de una cita para el dueño (`para: "dueno"`) o para el personal del negocio con
  * `permiso` (`para: "negocio"`; por defecto `citas.ver`). `extra`: datos adicionales del tipo
  * (motivo, fecha anterior...); `enlace`: ids adicionales del deep link. No se notifica a quien
- * hizo el cambio (`actor`).
+ * hizo el cambio (`actor`). Con un permiso de citas, quien no tiene citas.ver_todas lo recibe
+ * solo si es el profesional de la cita (o uno de `otrosEmpleados`, p. ej. el de la cita original
+ * de una reprogramación).
  */
-export const eventoCita = async (tipo, id_cita, { para, actor, extra = {}, enlace = {}, permiso = PERMISO_CITAS }, conn) => {
+export const eventoCita = async (
+  tipo,
+  id_cita,
+  { para, actor, extra = {}, enlace = {}, permiso = PERMISO_CITAS, otrosEmpleados = [] },
+  conn
+) => {
   const row = await citaRepo.findDetalle(id_cita, conn);
+  const deCitas = permiso[0] === "citas" ? [row.id_empleado, ...otrosEmpleados] : undefined;
   return {
     tipo,
     id_negocio: row.id_negocio,
@@ -43,7 +51,7 @@ export const eventoCita = async (tipo, id_cita, { para, actor, extra = {}, enlac
     destinatarios:
       para === "dueno"
         ? [{ id_usuario: row.id_usuario, rol: "dueno" }]
-        : await destinatariosDelNegocio(row.id_negocio, permiso, conn),
+        : await destinatariosDelNegocio(row.id_negocio, permiso, conn, { deCitas }),
     excluir: actor?.id_usuario,
   };
 };

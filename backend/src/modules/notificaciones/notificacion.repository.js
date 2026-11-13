@@ -66,7 +66,7 @@ export const existeAviso = async ({ tipo, id_negocio, desde, mes }, conn) => {
 export const findPersonalDelNegocio = async (id_negocio, conn) => {
   const [[negocio]] = await (conn ?? db).query("SELECT id_usuario_propietario FROM negocios WHERE id_negocio = ?", [id_negocio]);
   const [empleados] = await (conn ?? db).query(
-    `SELECT e.id_usuario, r.permisos_json
+    `SELECT e.id_empleado, e.id_usuario, r.permisos_json
      FROM empleados e JOIN roles r ON r.id_rol = e.id_rol
      WHERE e.id_negocio = ? AND e.activo = TRUE AND e.id_usuario IS NOT NULL`,
     [id_negocio]

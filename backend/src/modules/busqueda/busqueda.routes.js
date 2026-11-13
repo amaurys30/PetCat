@@ -50,6 +50,7 @@ const router = express.Router();
  *         total_resenas: { type: integer }
  *         verificado: { type: boolean }
  *         destacado: { type: boolean }
+ *         confirmacion_automatica: { type: boolean, description: "Las citas se confirman al reservarlas (confirmación inmediata)" }
  *         distancia_km: { type: number, nullable: true, description: A la sucursal más cercana (null sin coordenadas) }
  *         sucursal_cercana: { $ref: '#/components/schemas/SucursalCercana' }
  *     ServicioPublico:

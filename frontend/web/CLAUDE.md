@@ -39,22 +39,23 @@ Objetivo de esta versión: **implementar todas las pantallas del Figma conectada
 
 | Token | Valor | Uso |
 |---|---|---|
-| `primary` | `#14A39A` | Botones principales, enlaces, acentos |
-| `primary-dark` | `#0D7F78` | Texto sobre fondo suave, degradados |
+| `primary` | `#0F7D76` | Botones principales, enlaces, acentos (antes `#14A39A`; oscurecido para AA: blanco encima 5:1) |
+| `primary-dark` | `#0B6F69` | Hover, texto sobre `primary-soft` y `selected` (5,4:1) |
+| `primary-deep` | `#0B6F69` | Final del degradado (hoy igual a `primary-dark`); páginas públicas |
 | `primary-soft` | `#E3F6F3` | Ítem activo del menú, fondos de acento |
 | `selected` | `#F0FAF9` | Filas o tarjetas seleccionadas |
 | `ink` | `#1E2A3B` | Texto principal, avisos oscuros |
 | `muted` | `#5B6B7C` | Texto secundario |
-| `subtle` | `#9AA6B2` | Placeholders, etiquetas de grupo |
+| `subtle` | `#606E7D` | Placeholders, etiquetas de grupo |
 | `border` | `#E3E8EC` | Bordes |
 | `surface` | `#F5F7F8` | Fondo de página |
 | `track` | `#EEF2F4` | Encabezados de tabla, barras vacías |
-| `info` / `info-soft` | `#2F80ED` / `#EAF2FE` | |
-| `warning` / `warning-ink` / `warning-soft` | `#F29921` / `#A86100` / `#FFF2D9` | Pendientes, avisos |
-| `danger` / `danger-soft` | `#E5484D` / `#FDECEC` | Errores, cancelaciones |
-| `done` / `done-soft` | `#7C5CD6` / `#EEE8FB` | Cita completada |
+| `info` / `info-soft` | `#1368DB` / `#EAF2FE` | |
+| `warning` / `warning-ink` / `warning-soft` | `#F29921` / `#A25D00` / `#FFF2D9` | Pendientes, avisos |
+| `danger` / `danger-soft` | `#D31E24` / `#FDECEC` | Errores, cancelaciones |
+| `done` / `done-soft` | `#7250D3` / `#EEE8FB` | Cita completada |
 
-Degradado de los paneles de acceso: `#17B5AB → #0B6F69`. Tipografía: **Inter** (pendiente: el equipo evalúa una fuente redondeada). Radios: 8 (controles), 16 (tarjetas), 20 (modales). Espaciado en múltiplos de 4. Diseño de escritorio, ancho mínimo 1280 px.
+Contraste: todo texto llega a 4,5:1 (AA). Los tokens de texto se oscurecieron lo justo, con el mismo matiz, en `src/index.css`; `warning` (naranja) solo va en íconos y fondos, y con texto blanco se usa `warning-ink`. Nada de `opacity-*` sobre texto para atenuar. Degradado de los paneles de acceso: `#17B5AB → #0B6F69`. Tipografía: **Inter** (pendiente: el equipo evalúa una fuente redondeada). Radios: 8 (controles), 16 (tarjetas), 20 (modales). Espaciado en múltiplos de 4. Diseño de escritorio, ancho mínimo 1280 px (las páginas públicas `/` y `/para-negocios`, en `features/publico`, son mobile first desde 360 px y el texto blanco va sobre `primary-dark` o `primary-deep`, no sobre `primary`).
 
 **Estados de cita** (componente `EstadoCitaBadge`, un solo lugar): pendiente → warning · confirmada → primary · en_curso → info · completada → done · cancelada → danger (con variante "sistema" y "tardía") · no_asistio y reprogramada → gris.
 

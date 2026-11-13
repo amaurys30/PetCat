@@ -32,6 +32,7 @@ import resenaRoutes from "./modules/resenas/resena.routes.js";
 import dashboardRoutes from "./modules/dashboard/dashboard.routes.js";
 import autorizacionRoutes from "./modules/autorizaciones/autorizacion.routes.js";
 import adminRoutes from "./modules/admin/admin.routes.js";
+import publicoRoutes from "./modules/publico/publico.routes.js";
 
 import { generalLimiter, strictLimiter } from "./shared/middlewares/rateLimit.js";
 import { notFound } from "./shared/middlewares/notFound.js";
@@ -111,6 +112,7 @@ v1.use(resenaRoutes);
 v1.use(dashboardRoutes);
 v1.use(autorizacionRoutes);
 v1.use(adminRoutes);
+v1.use(publicoRoutes);
 
 app.use("/api/v1", v1);
 

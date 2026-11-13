@@ -16,11 +16,8 @@ export const createCita = async (req, res) => {
 };
 
 export const createCitaPanel = async (req, res) => {
-  const cita = await service.crearCitaPanel(req.negocio.id_negocio, req.body, {
-    id_usuario: req.user.id_usuario,
-    id_empleado: req.acceso?.id_empleado ?? null,
-    ip: req.ip,
-  });
+  const actor = { id_usuario: req.user.id_usuario, id_empleado: req.acceso?.id_empleado ?? null, ip: req.ip };
+  const cita = await service.crearCitaPanel(req.negocio.id_negocio, req.body, actor, req.acceso);
   return created(res, cita, "Cita agendada y confirmada");
 };
 

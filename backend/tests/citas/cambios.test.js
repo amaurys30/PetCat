@@ -506,7 +506,7 @@ describe("GET /citas/:id_cita (detalle del panel, B4)", () => {
     await pool.query("UPDATE usuarios SET ultimo_acceso = NOW() WHERE id_usuario = ?", [ctx.cliente.id_usuario]);
     const c = await cita(ctx);
     const usuario = await crearUsuario();
-    await crearEmpleado(ctx.negocio, { usuario, rol: (await crearRol(ctx.negocio, { citas: ["ver"] })).id_rol });
+    await crearEmpleado(ctx.negocio, { usuario, rol: (await crearRol(ctx.negocio, { citas: ["ver", "ver_todas"] })).id_rol });
 
     const res = await api(await tokenDe(usuario)).get(`/citas/${c.id_cita}`);
     expect(res.status).toBe(200);
@@ -590,12 +590,12 @@ describe("GET /negocios/:id_negocio/citas/horarios-libres con id_cita_excluir", 
 
     const c = await cita(ctx);
     const soloCrear = await crearUsuario();
-    await crearEmpleado(ctx.negocio, { usuario: soloCrear, rol: (await crearRol(ctx.negocio, { citas: ["ver", "crear"] })).id_rol });
+    await crearEmpleado(ctx.negocio, { usuario: soloCrear, rol: (await crearRol(ctx.negocio, { citas: ["ver", "ver_todas", "crear"] })).id_rol });
     expect((await horarios(ctx, `&id_cita_excluir=${c.id_cita}`, await tokenDe(soloCrear))).status).toBe(403);
     expect((await horarios(ctx, "", await tokenDe(soloCrear))).status).toBe(200);
 
     const soloEditar = await crearUsuario();
-    await crearEmpleado(ctx.negocio, { usuario: soloEditar, rol: (await crearRol(ctx.negocio, { citas: ["ver", "editar"] })).id_rol });
+    await crearEmpleado(ctx.negocio, { usuario: soloEditar, rol: (await crearRol(ctx.negocio, { citas: ["ver", "ver_todas", "editar"] })).id_rol });
     expect((await horarios(ctx, `&id_cita_excluir=${c.id_cita}`, await tokenDe(soloEditar))).status).toBe(200);
   });
 });

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
+import { CargandoGrupo, Skeleton } from "@/components/ui/skeleton";
 import { useNegocioActivo, usePuede } from "@/features/negocios/hooks/useNegocio";
 import { ServicioCard } from "../components/ServicioCard";
 import { useEstadoServicio } from "../components/EstadoServicio";
@@ -155,11 +155,11 @@ export function ServiciosPage() {
       )}
 
       {catalogo.isPending ? (
-        <div className="grid grid-cols-3 gap-4">
+        <CargandoGrupo etiqueta="Cargando servicios" className="grid grid-cols-3 gap-4">
           {Array.from({ length: 6 }, (_, i) => (
             <Skeleton key={i} className="h-48 rounded-card" />
           ))}
-        </div>
+        </CargandoGrupo>
       ) : catalogo.isError ? (
         <Card>
           <ErrorConsulta error={catalogo.error} reintentar={() => void catalogo.refetch()} />

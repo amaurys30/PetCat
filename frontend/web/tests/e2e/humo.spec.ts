@@ -56,9 +56,36 @@ test("la sesión se comparte entre pestañas y el cierre también", async ({ con
   await expect(page).toHaveURL(/\/n\/\d+\/dashboard$/);
 
   const otra = await context.newPage();
-  await otra.goto("/");
+  await otra.goto("/panel");
   await expect(otra).toHaveURL(/\/n\/\d+\/dashboard$/);
 
   await page.getByRole("button", { name: "Cerrar sesión" }).click();
   await expect(otra).toHaveURL(/\/login$/);
 });
+
+for (const recordar of [false, true]) {
+  test(`dos pestañas que recargan a la vez conservan la sesión (${recordar ? "con" : "sin"} Recordarme)`, async ({
+    context,
+    page,
+  }) => {
+    await page.goto("/login");
+    await page.getByLabel("Correo electrónico").fill("propietario@petcat.test");
+    await page.getByLabel("Contraseña", { exact: true }).fill(PASSWORD);
+    if (!recordar) await page.getByLabel("Recordarme").uncheck();
+    await page.getByRole("button", { name: "Ingresar" }).click();
+    await expect(page).toHaveURL(/\/n\/\d+\/dashboard$/);
+
+    const otra = await context.newPage();
+    await otra.goto("/panel");
+    await expect(otra).toHaveURL(/\/n\/\d+\/dashboard$/);
+
+    // Cada recarga renueva el token (rota el refresh token) mientras la otra pestaña hace lo mismo.
+    for (let i = 0; i < 4; i += 1) {
+      await Promise.all([page.reload(), otra.reload()]);
+      for (const pestana of [page, otra]) {
+        await expect(pestana).toHaveURL(/\/n\/\d+\/dashboard$/);
+        await expect(pestana.getByRole("button", { name: "Cerrar sesión" })).toBeVisible();
+      }
+    }
+  });
+}

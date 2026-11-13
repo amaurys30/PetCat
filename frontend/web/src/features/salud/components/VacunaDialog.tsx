@@ -80,7 +80,7 @@ export function VacunaDialog({ inicio, onCerrar }: { inicio: InicioVacuna; onCer
           {nombre ? ` · ${nombre}` : ""}
         </DialogTitle>
         {resumen.isPending || vacunas.isPending ? (
-          <Skeleton className="mt-4 h-80" />
+          <Skeleton etiqueta="Cargando" className="mt-4 h-80" />
         ) : resumen.isError ? (
           <Alert tono="error" className="mt-4">
             {resumen.error.message}

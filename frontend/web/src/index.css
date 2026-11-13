@@ -5,24 +5,32 @@
 @theme {
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
 
-  --color-primary: #14a39a;
-  --color-primary-dark: #0d7f78;
+  /*
+   * Contraste AA (4,5:1): los tonos de texto y los fondos con texto blanco se oscurecieron lo
+   * justo, con el mismo matiz y saturación (antes primary #14a39a, primary-dark #0d7f78,
+   * subtle #9aa6b2, info #2f80ed, warning-ink #a86100, danger #e5484d, done #7c5cd6).
+   * primary con blanco: 4,6:1; primary-dark sobre primary-soft: 5,4:1.
+   */
+  --color-primary: #0f7d76;
+  --color-primary-dark: #0b6f69;
+  /* Final del degradado de marca: texto y botones de las páginas públicas (6:1 con blanco). */
+  --color-primary-deep: #0b6f69;
   --color-primary-soft: #e3f6f3;
   --color-selected: #f0faf9;
   --color-ink: #1e2a3b;
   --color-muted: #5b6b7c;
-  --color-subtle: #9aa6b2;
+  --color-subtle: #606e7d;
   --color-border: #e3e8ec;
   --color-surface: #f5f7f8;
   --color-track: #eef2f4;
-  --color-info: #2f80ed;
+  --color-info: #1368db;
   --color-info-soft: #eaf2fe;
   --color-warning: #f29921;
-  --color-warning-ink: #a86100;
+  --color-warning-ink: #a25d00;
   --color-warning-soft: #fff2d9;
-  --color-danger: #e5484d;
+  --color-danger: #d31e24;
   --color-danger-soft: #fdecec;
-  --color-done: #7c5cd6;
+  --color-done: #7250d3;
   --color-done-soft: #eee8fb;
 
   --radius-control: 8px;
@@ -80,4 +88,43 @@
 /* Degradado de los paneles de acceso */
 @utility bg-marca {
   background-image: linear-gradient(160deg, #17b5ab 0%, #0b6f69 100%);
+}
+
+/* Degradado de marca en tonos oscuros: fondos con texto blanco (AA en todo el degradado). */
+@utility bg-marca-oscura {
+  background-image: linear-gradient(160deg, #0d7f78 0%, #0b6f69 100%);
+}
+
+/*
+ * Páginas públicas (landing y para negocios): diseño adaptable desde 360 px. El panel sigue
+ * exigiendo 1280 px.
+ */
+@layer base {
+  body:has(.pagina-publica) {
+    min-width: 0;
+    background-color: #ffffff;
+  }
+  .pagina-publica [id] {
+    scroll-margin-top: 88px;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    html:has(.pagina-publica) {
+      scroll-behavior: smooth;
+    }
+  }
+}
+
+/* Animación suave al aparecer cada sección; sin ella si el usuario pide reducir el movimiento. */
+@media (prefers-reduced-motion: no-preference) {
+  .aparecer {
+    opacity: 0;
+    transform: translateY(24px);
+    transition:
+      opacity 700ms ease-out,
+      transform 700ms ease-out;
+  }
+  .aparecer[data-visible="true"] {
+    opacity: 1;
+    transform: none;
+  }
 }

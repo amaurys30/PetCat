@@ -25,6 +25,11 @@ export function RegistroHistorialCard({
   obtenerArchivo: (idArchivo: number) => Promise<ArchivoPrivado | undefined>;
 }) {
   const quien = [r.negocio?.nombre, r.empleado && nombreCompleto(r.empleado)].filter(Boolean).join(" · ");
+  // Quién lo creó, solo si no es el profesional que atendió (p. ej. un registro en papel transcrito).
+  const registradoPor =
+    r.registrado_por && (!r.empleado || nombreCompleto(r.registrado_por) !== nombreCompleto(r.empleado))
+      ? nombreCompleto(r.registrado_por)
+      : null;
   const signos = [
     r.peso_registro !== null && `Peso ${textoPeso(r.peso_registro)}`,
     r.temperatura !== null && `Temperatura ${String(r.temperatura).replace(".", ",")} °C`,
@@ -55,6 +60,7 @@ export function RegistroHistorialCard({
           </Button>
         )}
       </header>
+      {registradoPor && <p className="mt-0.5 text-label text-subtle">Registrado por {registradoPor}</p>}
       {r.edicion && (
         <p className="mt-0.5 text-label text-subtle">
           Editado por {r.edicion.usuario ? nombreCompleto(r.edicion.usuario) : "un ex miembro del equipo"} ·{" "}

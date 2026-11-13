@@ -46,9 +46,9 @@ const contexto = async () => {
   const sucursal = await crearSucursal(negocio, { nombre: "Sede Centro", direccion: "Calle 23 # 18-45" });
   const servicio = await crearServicio(negocio, { nombre: "Consulta general" });
   const editor = await crearUsuario();
-  await crearEmpleado(negocio, { usuario: editor, rol: (await crearRol(negocio, { citas: ["ver", "editar"] })).id_rol });
+  await crearEmpleado(negocio, { usuario: editor, rol: (await crearRol(negocio, { citas: ["ver", "ver_todas", "editar"] })).id_rol });
   const lector = await crearUsuario();
-  await crearEmpleado(negocio, { usuario: lector, rol: (await crearRol(negocio, { citas: ["ver"] })).id_rol });
+  await crearEmpleado(negocio, { usuario: lector, rol: (await crearRol(negocio, { citas: ["ver", "ver_todas"] })).id_rol });
   const cliente = await crearUsuario({ nombre: "Laura" });
   const mascota = await crearMascota(cliente, { nombre: "Max" });
   return { negocio, sucursal, servicio, editor, lector, cliente, mascota };

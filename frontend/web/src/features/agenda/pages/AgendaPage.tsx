@@ -8,6 +8,7 @@ import { ErrorConsulta } from "@/components/common/QueryState";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { aviso } from "@/components/ui/toaster";
 import { useSedes } from "@/features/equipo/hooks/useDisponibilidad";
 import { useNegocioActivo, usePuede } from "@/features/negocios/hooks/useNegocio";
@@ -38,23 +39,27 @@ const profesionalDeCita = (e: NonNullable<CitaPanel["empleado"]>): Profesional =
 /**
  * B3 · B9 · B10 · Agenda: Semana, Día por profesional y Lista, con los filtros en la URL y
  * el panel "Por confirmar" / "Fuera de disponibilidad". Requiere citas.ver. Al elegir una
- * cita queda en la URL (`?cita=`) y se abre su detalle (B4) en un panel lateral.
+ * cita queda en la URL (`?cita=`) y se abre su detalle (B4) en un panel lateral. Sin
+ * citas.ver_todas, solo las citas propias: la API las limita y aquí no hay filtro de profesional.
  */
 export function AgendaPage() {
   const negocio = useNegocioActivo();
   const puede = usePuede();
   const verCitas = puede("citas", "ver");
+  const verTodas = puede("citas", "ver_todas");
   const [filtros, cambiar] = useFiltrosUrl();
   const ahora = useAhora();
   const hoy = hoyISO(ahora);
   const { sedes } = useSedes();
   const profesionales = useProfesionales(negocio.id_negocio, verCitas);
 
+  // Sin ver_todas no se envía profesional: la API devuelve solo las propias (otro daría 403).
   const filtrosApi: FiltrosAgenda = {
     id_sucursal: filtros.idSucursal,
-    id_empleado: filtros.mias ? undefined : filtros.idEmpleado,
-    solo_mias: filtros.mias || undefined,
+    id_empleado: verTodas && !filtros.mias ? filtros.idEmpleado : undefined,
+    solo_mias: (verTodas && filtros.mias) || undefined,
   };
+  const idProfesional = !verTodas || filtros.mias ? negocio.id_empleado : filtros.idEmpleado;
   const dias = diasDeSemana(filtros.fecha);
   const [desde, hasta] = filtros.vista === "dia" ? [filtros.fecha, filtros.fecha] : [dias[0]!, dias[6]!];
   const soloFuera = filtros.vista === "lista" && filtros.fuera;
@@ -81,6 +86,7 @@ export function AgendaPage() {
   });
   useEffect(() => olvidarRecibida(), []);
   const conexion = useEstadoConexion();
+  const [verCanceladas, setVerCanceladas] = useState(false);
 
   if (!verCitas) {
     return (
@@ -112,6 +118,15 @@ export function AgendaPage() {
         : null;
   const citas = soloFuera ? (atencion.data?.fuera_de_disponibilidad ?? []) : (agenda.data ?? []);
   const total = soloFuera ? null : agenda.data?.length;
+  // Semana y Día: las canceladas no ocupan columna (quedan lado a lado con las vigentes y las
+  // angostan) salvo con el interruptor, con el filtro de estado "cancelada" o si es la abierta.
+  const canceladas = citas.filter((c) => c.estado === "cancelada").length;
+  const conCanceladas = verCanceladas || filtros.estados.includes("cancelada");
+  const enCalendario = conCanceladas
+    ? citas
+    : citas.filter((c) => c.estado !== "cancelada" || c.id_cita === filtros.idCita);
+  const conInterruptor =
+    filtros.vista !== "lista" && canceladas > 0 && !filtros.estados.includes("cancelada");
 
   return (
     <div>
@@ -121,6 +136,12 @@ export function AgendaPage() {
             .filter(Boolean)
             .join(" · ") || " "}
         </p>
+        {conInterruptor && (
+          <label className="flex items-center gap-2 text-body text-muted">
+            <Switch checked={verCanceladas} onCheckedChange={setVerCanceladas} />
+            Mostrar canceladas ({canceladas})
+          </label>
+        )}
         {conexion === "desconectado" && (
           <p role="status" className="ml-auto flex items-center gap-1.5 text-body text-warning-ink">
             <WifiOff className="size-3.5" aria-hidden />
@@ -135,6 +156,7 @@ export function AgendaPage() {
         profesionales={profesionales.data ?? []}
         sedes={sedes ?? []}
         conPerfilPropio={negocio.id_empleado !== null}
+        verTodas={verTodas}
         puedeCrear={puedeCrear}
         onNuevaCita={() => setNuevaCita({ fecha: filtros.vista === "dia" ? filtros.fecha : undefined })}
         onAnterior={() => cambiar({ fecha: sumarDias(filtros.fecha, -paso), idCita: undefined })}
@@ -154,7 +176,7 @@ export function AgendaPage() {
           )}
 
           {(soloFuera ? atencion.isPending : agenda.isPending) || !sedes ? (
-            <Skeleton className="h-[560px] rounded-card" />
+            <Skeleton etiqueta="Cargando agenda" className="h-[560px] rounded-card" />
           ) : !soloFuera && agenda.isError ? (
             <Card>
               <ErrorConsulta error={agenda.error} reintentar={() => void agenda.refetch()} />
@@ -162,7 +184,7 @@ export function AgendaPage() {
           ) : filtros.vista === "semana" ? (
             <VistaSemana
               dias={dias}
-              citas={citas}
+              citas={enCalendario}
               sedes={sedesVisibles}
               hoy={hoy}
               minutoActual={minutoActualBogota(ahora)}
@@ -175,12 +197,8 @@ export function AgendaPage() {
           ) : filtros.vista === "dia" ? (
             <VistaDia
               fecha={filtros.fecha}
-              citas={citas}
-              profesionales={columnasDelDia(
-                profesionales.data ?? [],
-                citas,
-                filtros.mias ? negocio.id_empleado : filtros.idEmpleado,
-              )}
+              citas={enCalendario}
+              profesionales={columnasDelDia(profesionales.data ?? [], enCalendario, idProfesional)}
               idSucursal={filtros.idSucursal}
               sedes={sedesVisibles}
               hoy={hoy}
@@ -217,7 +235,11 @@ export function AgendaPage() {
             ahora={ahora}
             idSeleccionada={filtros.idCita}
             onAbrir={abrir}
-            permisos={{ editar: puede("citas", "editar"), cancelar: puede("citas", "cancelar") }}
+            permisos={{
+              editar: puede("citas", "editar"),
+              cancelar: puede("citas", "cancelar"),
+              reasignar: puede("citas", "editar") && verTodas,
+            }}
             confirmando={confirmar.isPending ? confirmar.variables.idCita : undefined}
             onConfirmar={(c) =>
               confirmar.mutate(
@@ -261,7 +283,8 @@ function textoTotal(total: number, vista: string) {
 }
 
 /**
- * Columnas de la vista Día: el profesional elegido (o el propio con "Solo mis citas") o
+ * Columnas de la vista Día: el profesional elegido (o el propio con "Solo mis citas" o sin
+ * citas.ver_todas) o
  * todos los que atienden servicios, más quien tenga citas ese día aunque ya no esté.
  */
 function columnasDelDia(
