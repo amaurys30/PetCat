@@ -32,6 +32,10 @@ export default defineConfig(({ mode }) => {
       // Las pruebas de pantalla pintan el router completo y hacen varios clics: con todos los
       // archivos en paralelo, algunas pasaban de los 5 s por defecto en equipos cargados.
       testTimeout: 15_000,
+      // Con un worker por núcleo (11 en un equipo de 12) las pantallas pesadas (dashboard, ficha,
+      // asistente) vencían sus findBy de 5 s por la carga y fallaban pruebas distintas en cada
+      // corrida. Con la mitad pasan todas y la suite termina antes (161 s contra 190 s).
+      maxWorkers: "50%",
     },
   };
 });
