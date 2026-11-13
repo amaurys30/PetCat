@@ -36,19 +36,22 @@ function useConEspera(valor: string, ms = 300) {
 
 /**
  * Lista de C1: búsqueda por nombre, correo, teléfono o mascota, orden y "Cargar más". Sin
- * cliente elegido, elige el primero (como el mockup).
+ * cliente elegido, elige el primero (como el mockup); una búsqueda sin resultados cierra el
+ * detalle del que estaba elegido (si no, parecía un resultado).
  */
 export function ListaClientes({
   busqueda,
   onBusqueda,
   idElegido,
   onElegir,
+  onSinResultados,
   onNuevo,
 }: {
   busqueda: string;
   onBusqueda: (texto: string) => void;
   idElegido: number | null;
   onElegir: (idUsuario: number, opciones?: { reemplazar: boolean }) => void;
+  onSinResultados: () => void;
   /** Sin citas.crear no se ofrece registrar clientes. */
   onNuevo?: () => void;
 }) {
@@ -66,6 +69,14 @@ export function ListaClientes({
   useEffect(() => {
     if (primero !== undefined) elegirPrimero(primero);
   }, [primero]);
+
+  const sinResultados = q !== "" && lista.isSuccess && !lista.isPlaceholderData && total === 0;
+  const cerrarDetalle = useEffectEvent(() => {
+    if (idElegido !== null) onSinResultados();
+  });
+  useEffect(() => {
+    if (sinResultados) cerrarDetalle();
+  }, [sinResultados]);
 
   return (
     <Card className="flex flex-col gap-3 p-4">

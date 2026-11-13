@@ -43,6 +43,15 @@ export function ClientesPage() {
         onBusqueda={setBusqueda}
         idElegido={idCliente}
         onElegir={elegir}
+        onSinResultados={() =>
+          setParams(
+            (p) => {
+              p.delete("cliente");
+              return p;
+            },
+            { replace: true },
+          )
+        }
         onNuevo={puede("citas", "crear") ? () => setRegistrando(true) : undefined}
       />
       {idCliente ? (
