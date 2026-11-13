@@ -19,7 +19,7 @@ import { ESTADO_VACUNA, fechaCompacta } from "../textos";
 import { ArchivoChip } from "./RegistroHistorialCard";
 
 /** Quién registró la vacuna: el dueño (con clip si subió comprobante) o el negocio. */
-function Registro({ vacuna: v }: { vacuna: Vacuna }) {
+function Registro({ vacuna: v, idNegocio }: { vacuna: Vacuna; idNegocio: number }) {
   if (v.registrada_por === "dueno") {
     return (
       <Tooltip
@@ -38,8 +38,20 @@ function Registro({ vacuna: v }: { vacuna: Vacuna }) {
       </Tooltip>
     );
   }
+  // La columna es angosta en el resumen: el negocio activo va como "Tu negocio" (nombre completo
+  // en el tooltip) y otro negocio, en hasta dos líneas en lugar de cortarse.
+  if (v.negocio?.id_negocio === idNegocio) {
+    return (
+      <Tooltip texto={v.negocio.nombre}>
+        <span className="text-body text-ink">Tu negocio</span>
+      </Tooltip>
+    );
+  }
   return (
-    <span className="block max-w-20 truncate text-body text-ink" title={v.negocio?.nombre}>
+    <span
+      className="line-clamp-2 max-w-32 text-body leading-4 break-words text-ink"
+      title={v.negocio?.nombre}
+    >
       {v.negocio?.nombre ?? "Un negocio"}
     </span>
   );
@@ -120,7 +132,7 @@ export function Vacunas({ idMascota, completo = false }: { idMascota: number; co
                     <Badge tono={estado.tono}>{estado.texto}</Badge>
                   </td>
                   <td className="px-3 py-2.5">
-                    <Registro vacuna={v} />
+                    <Registro vacuna={v} idNegocio={negocio.id_negocio} />
                   </td>
                   {completo && (
                     <td className="px-3 py-2.5">

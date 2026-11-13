@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Logo } from "@/components/common/Logo";
+import { Tooltip } from "@/components/ui/tooltip";
 import { useAtencion } from "@/features/agenda/hooks/useAgenda";
 import { useNegocioActivo, usePuede, useSuscripcion } from "@/features/negocios/hooks/useNegocio";
 import { useResumenResenas } from "@/features/resenas/hooks/useResenas";
@@ -136,24 +137,27 @@ function SelectorNegocio() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex w-full items-center gap-2.5 rounded-control border p-2.5 text-left hover:bg-surface">
-        <Avatar nombre={negocio.nombre} fotoUrl={negocio.logo_miniatura_url} />
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-body font-semibold text-ink">{negocio.nombre}</span>
-          <span className="block truncate text-label text-muted">
-            {negocio.ciudad} · {rolEnNegocio(negocio)}
+      {/* El nombre se corta en el menú (220 px): completo en el tooltip. */}
+      <Tooltip lado="right" texto={`${negocio.nombre} · ${negocio.ciudad} · ${rolEnNegocio(negocio)}`}>
+        <DropdownMenuTrigger className="flex w-full items-center gap-2.5 rounded-control border p-2.5 text-left hover:bg-surface">
+          <Avatar nombre={negocio.nombre} fotoUrl={negocio.logo_miniatura_url} />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-body font-semibold text-ink">{negocio.nombre}</span>
+            <span className="block truncate text-label text-muted">
+              {negocio.ciudad} · {rolEnNegocio(negocio)}
+            </span>
           </span>
-        </span>
-        <ChevronsUpDown className="size-4 shrink-0 text-subtle" aria-hidden />
-        <span className="sr-only">Cambiar de negocio</span>
-      </DropdownMenuTrigger>
+          <ChevronsUpDown className="size-4 shrink-0 text-subtle" aria-hidden />
+          <span className="sr-only">Cambiar de negocio</span>
+        </DropdownMenuTrigger>
+      </Tooltip>
       <DropdownMenuContent align="start" className="w-64">
         <DropdownMenuLabel>Tus negocios</DropdownMenuLabel>
         {negocios.map((n) => (
           <DropdownMenuItem key={n.id_negocio} onSelect={() => cambiarA(n.id_negocio)}>
             <Avatar nombre={n.nombre} fotoUrl={n.logo_miniatura_url} tamano="sm" />
             <span className="min-w-0 flex-1">
-              <span className="block truncate font-medium">{n.nombre}</span>
+              <span className="line-clamp-2 font-medium break-words">{n.nombre}</span>
               <span className="block truncate text-label text-muted">{rolEnNegocio(n)}</span>
             </span>
             {n.id_negocio === negocio.id_negocio && (

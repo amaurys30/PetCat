@@ -256,7 +256,7 @@ function FilaMascota({ mascota: m }: { mascota: Mascota }) {
   const puede = usePuede();
   const verFicha = puede("historial_medico", "ver") || puede("vacunas", "ver");
   return (
-    <div className={cn("flex items-center gap-3 rounded-card border p-3", m.fallecido && "opacity-60")}>
+    <div className={cn("flex items-center gap-3 rounded-card border p-3", m.fallecido && "bg-surface")}>
       <span
         className="flex size-10 shrink-0 items-center justify-center rounded-full bg-done-soft text-card font-bold text-done"
         aria-hidden
@@ -265,14 +265,20 @@ function FilaMascota({ mascota: m }: { mascota: Mascota }) {
       </span>
       <div className="min-w-0 flex-1">
         <p className="font-semibold text-ink">{m.nombre}</p>
-        <p className="truncate text-label text-muted">{lineaMascota(m)}</p>
+        <p className="text-label break-words text-muted">{lineaMascota(m)}</p>
+        {/* Debajo de la raza: al lado le quitaban el espacio y la cortaban. */}
+        {(m.tiene_alergias || m.fallecido) && (
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            {m.tiene_alergias && (
+              <Badge tono="danger" className="h-auto min-h-5 py-0.5 whitespace-normal">
+                <TriangleAlert className="size-3 shrink-0" aria-hidden /> Alergia:{" "}
+                {m.alergias_detalle ?? "sin detalle"}
+              </Badge>
+            )}
+            {m.fallecido && <Badge>Fallecido</Badge>}
+          </div>
+        )}
       </div>
-      {m.tiene_alergias && (
-        <Badge tono="danger">
-          <TriangleAlert className="size-3" aria-hidden /> Alergia: {m.alergias_detalle ?? "sin detalle"}
-        </Badge>
-      )}
-      {m.fallecido && <Badge>Fallecido</Badge>}
       {verFicha &&
         (m.acceso_historial ? (
           <Link

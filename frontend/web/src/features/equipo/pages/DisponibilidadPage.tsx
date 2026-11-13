@@ -381,10 +381,14 @@ function Excepciones({
               <li key={e.id_disponibilidad} className="flex items-center gap-3 rounded-card border p-3">
                 <Icono className="size-4 shrink-0 text-muted" aria-hidden />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-body font-semibold text-ink">
+                  <p
+                    className="line-clamp-2 text-body font-semibold break-words text-ink"
+                    title={e.motivo ?? undefined}
+                  >
                     {e.motivo ?? NOMBRE_TIPO[e.tipo]}
                   </p>
-                  <p className="truncate text-label text-muted">{textoExcepcion(e, sedes)}</p>
+                  {/* Fechas, horas y sede completas: en la columna angosta se cortaban. */}
+                  <p className="text-label text-muted">{textoExcepcion(e, sedes)}</p>
                 </div>
                 <Badge tono={TONO[e.tipo]}>{NOMBRE_TIPO[e.tipo]}</Badge>
                 {puedeEditar && (

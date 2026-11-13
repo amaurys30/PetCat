@@ -58,7 +58,7 @@ export function AdminLayout() {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-body font-semibold text-ink">Administración</span>
-                <span className="block truncate text-label text-muted">Super admin de PetCat</span>
+                <span className="block truncate text-label text-muted">Super admin</span>
               </span>
               <ChevronsUpDown className="size-4 shrink-0 text-subtle" aria-hidden />
               <span className="sr-only">Cambiar a un negocio</span>

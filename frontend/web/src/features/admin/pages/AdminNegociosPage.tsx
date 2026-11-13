@@ -73,7 +73,7 @@ export function AdminNegociosPage() {
   const elegido = filas.find((n) => n.id_negocio === idElegido) ?? null;
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_400px] items-start gap-5">
+    <div className="grid grid-cols-[minmax(0,1fr)_360px] items-start gap-5">
       <div className="flex flex-col gap-4">
         <div className="flex gap-3">
           <div className="relative flex-1">
@@ -131,14 +131,14 @@ export function AdminNegociosPage() {
           ) : (
             <table className={cn("w-full text-body", negocios.isPlaceholderData && "opacity-60")}>
               <caption className="sr-only">Negocios de PetCat</caption>
-              <thead className="bg-track text-left text-label font-semibold tracking-wide text-muted uppercase">
+              <thead className="bg-track text-left text-label font-semibold tracking-wide whitespace-nowrap text-muted uppercase">
                 <tr>
                   <th className="px-4 py-2.5">Negocio</th>
                   <th className="px-4 py-2.5">Tipo</th>
                   <th className="px-4 py-2.5">Plan</th>
                   <th className="px-4 py-2.5">Estado</th>
                   <th className="px-4 py-2.5">Vence</th>
-                  <th className="px-4 py-2.5">Citas mes</th>
+                  <th className="px-4 py-2.5">Citas/mes</th>
                 </tr>
               </thead>
               <tbody>
@@ -239,15 +239,15 @@ function FilaNegocio({
           {!n.activo && " · inactivo"}
         </span>
       </td>
-      <td className="px-4 py-2.5 text-muted">{textoTipo(n.tipo)}</td>
+      <td className="px-4 py-2.5 whitespace-nowrap text-muted">{textoTipo(n.tipo)}</td>
       <td className="px-4 py-2.5">
         <Badge tono={n.plan.nombre === "Gratuito" ? "neutral" : "primary"}>{n.plan.nombre}</Badge>
       </td>
       <td className="px-4 py-2.5">
         <Badge tono={estado.tono}>{estado.texto}</Badge>
       </td>
-      <td className="px-4 py-2.5 text-muted tabular-nums">{textoVence(n)}</td>
-      <td className="px-4 py-2.5 text-muted tabular-nums">{textoCitasMes(n)}</td>
+      <td className="px-4 py-2.5 whitespace-nowrap text-muted tabular-nums">{textoVence(n)}</td>
+      <td className="px-4 py-2.5 whitespace-nowrap text-muted tabular-nums">{textoCitasMes(n)}</td>
     </tr>
   );
 }
