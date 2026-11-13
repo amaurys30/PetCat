@@ -185,7 +185,7 @@ describe("A8 · Verificación de correo", () => {
     renderRuta(`/verificar-email/${TOKEN}`, { usuario: nuevo });
     expect(await screen.findByRole("heading", { name: "¡Correo verificado!" })).toBeInTheDocument();
     expect(screen.getByText(/valentina@patitas.co quedó confirmado/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Ir al panel" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Ir al panel" })).toHaveAttribute("href", "/panel");
     expect(llamadas).toBe(1);
   });
 

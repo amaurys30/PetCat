@@ -3,6 +3,13 @@ export const queryKeys = {
   politica: () => ["politica-datos"] as const,
   invitacion: (token: string) => ["invitaciones", token] as const,
   planes: () => ["planes"] as const,
+  /** Páginas públicas (landing y para negocios). */
+  publico: {
+    estadisticas: () => ["publico", "estadisticas"] as const,
+    resenas: () => ["publico", "resenas"] as const,
+    configuracion: () => ["publico", "configuracion"] as const,
+    negocios: (filtros: object) => ["publico", "negocios", filtros] as const,
+  },
   negocios: {
     mios: () => ["negocios", "mios"] as const,
     gestion: (idNegocio: number) => ["negocios", idNegocio, "gestion"] as const,

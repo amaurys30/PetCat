@@ -89,7 +89,7 @@ function Verificado({ conSesion }: { conSesion: boolean }) {
         }
       />
       <Button asChild size="lg" className="w-full">
-        {conSesion ? <Link to="/">Ir al panel</Link> : <Link to="/login">Iniciar sesión</Link>}
+        {conSesion ? <Link to="/panel">Ir al panel</Link> : <Link to="/login">Iniciar sesión</Link>}
       </Button>
     </AuthCard>
   );
@@ -111,7 +111,7 @@ function EnlaceInvalidoConSesion() {
           descripcion={`${usuario.email} ya estaba confirmado; este enlace ya no hace falta.`}
         />
         <Button asChild size="lg" className="w-full">
-          <Link to="/">Ir al panel</Link>
+          <Link to="/panel">Ir al panel</Link>
         </Button>
       </AuthCard>
     );
@@ -134,7 +134,7 @@ function EnlaceInvalidoConSesion() {
           {reenviar.error.message}
         </Alert>
       )}
-      <Link to="/" className="mt-4 inline-block text-body font-semibold text-primary hover:underline">
+      <Link to="/panel" className="mt-4 inline-block text-body font-semibold text-primary hover:underline">
         Ir al panel
       </Link>
     </AuthCard>

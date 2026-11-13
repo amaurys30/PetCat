@@ -56,7 +56,7 @@ test("la sesión se comparte entre pestañas y el cierre también", async ({ con
   await expect(page).toHaveURL(/\/n\/\d+\/dashboard$/);
 
   const otra = await context.newPage();
-  await otra.goto("/");
+  await otra.goto("/panel");
   await expect(otra).toHaveURL(/\/n\/\d+\/dashboard$/);
 
   await page.getByRole("button", { name: "Cerrar sesión" }).click();

@@ -41,6 +41,7 @@ Objetivo de esta versión: **implementar todas las pantallas del Figma conectada
 |---|---|---|
 | `primary` | `#14A39A` | Botones principales, enlaces, acentos |
 | `primary-dark` | `#0D7F78` | Texto sobre fondo suave, degradados |
+| `primary-deep` | `#0B6F69` | Final del degradado; texto y botones con texto blanco de las páginas públicas |
 | `primary-soft` | `#E3F6F3` | Ítem activo del menú, fondos de acento |
 | `selected` | `#F0FAF9` | Filas o tarjetas seleccionadas |
 | `ink` | `#1E2A3B` | Texto principal, avisos oscuros |
@@ -54,7 +55,7 @@ Objetivo de esta versión: **implementar todas las pantallas del Figma conectada
 | `danger` / `danger-soft` | `#E5484D` / `#FDECEC` | Errores, cancelaciones |
 | `done` / `done-soft` | `#7C5CD6` / `#EEE8FB` | Cita completada |
 
-Degradado de los paneles de acceso: `#17B5AB → #0B6F69`. Tipografía: **Inter** (pendiente: el equipo evalúa una fuente redondeada). Radios: 8 (controles), 16 (tarjetas), 20 (modales). Espaciado en múltiplos de 4. Diseño de escritorio, ancho mínimo 1280 px.
+Degradado de los paneles de acceso: `#17B5AB → #0B6F69`. Tipografía: **Inter** (pendiente: el equipo evalúa una fuente redondeada). Radios: 8 (controles), 16 (tarjetas), 20 (modales). Espaciado en múltiplos de 4. Diseño de escritorio, ancho mínimo 1280 px (las páginas públicas `/` y `/para-negocios`, en `features/publico`, son mobile first desde 360 px y el texto blanco va sobre `primary-dark` o `primary-deep`, no sobre `primary`).
 
 **Estados de cita** (componente `EstadoCitaBadge`, un solo lugar): pendiente → warning · confirmada → primary · en_curso → info · completada → done · cancelada → danger (con variante "sistema" y "tardía") · no_asistio y reprogramada → gris.
 

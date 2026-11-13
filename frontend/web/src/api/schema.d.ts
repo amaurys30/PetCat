@@ -5825,6 +5825,144 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/publico/estadisticas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cifras de la plataforma (landing)
+         * @description Público. Conteos agregados, sin datos personales: negocios activos, ciudades y citas atendidas. Cada cifra que no supera el umbral llega en null.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Cifras */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            /** @example OK */
+                            message: string;
+                            data: components["schemas"]["EstadisticasPublicas"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/publico/resenas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reseñas destacadas (landing)
+         * @description Público. Reseñas de 4 y 5 estrellas con comentario, de una cita completada, visibles, sin reporte y de negocios activos; nunca las ocultas, reportadas o retiradas, ni las de un cliente que el mismo negocio registró desde el panel. Las más recientes, como máximo 2 por negocio. Si hay menos de `configuracion_global.publico_min_resenas` (3) elegibles, la lista llega vacía y la landing no muestra la sección.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Reseñas */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            /** @example OK */
+                            message: string;
+                            data: components["schemas"]["ResenaLanding"][];
+                        };
+                    };
+                };
+                422: components["responses"]["ValidationError"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/publico/configuracion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Contacto de soporte y prueba Pro (landing)
+         * @description Público. Contacto de soporte de PetCat y duración de la prueba del plan Pro.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Configuración pública */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            /** @example OK */
+                            message: string;
+                            data: components["schemas"]["ConfiguracionPublica"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/citas/{id_cita}/resena": {
         parameters: {
             query?: never;
@@ -8078,6 +8216,8 @@ export interface components {
             total_resenas: number;
             verificado: boolean;
             destacado: boolean;
+            /** @description Las citas se confirman al reservarlas (confirmación inmediata) */
+            confirmacion_automatica: boolean;
             /** @description A la sucursal más cercana (null sin coordenadas) */
             distancia_km: number | null;
             sucursal_cercana: components["schemas"]["SucursalCercana"];
@@ -9323,6 +9463,60 @@ export interface components {
              * @example 2
              */
             negocio: number;
+        };
+        /** @description Cada cifra es null si no supera `configuracion_global.publico_umbral_cifras` (5): con pocos datos la landing no la muestra. */
+        EstadisticasPublicas: {
+            /**
+             * @description Negocios activos con al menos una sucursal activa
+             * @example 12
+             */
+            negocios_activos: number | null;
+            /**
+             * @description Ciudades distintas de sus sucursales activas
+             * @example null
+             */
+            ciudades: number | null;
+            /**
+             * @description Citas completadas
+             * @example 340
+             */
+            citas_atendidas: number | null;
+        };
+        ResenaLanding: {
+            id_resena: number;
+            /** @enum {integer} */
+            calificacion: 4 | 5;
+            titulo: string | null;
+            comentario: string;
+            /**
+             * @description Nombre e inicial del apellido
+             * @example Sofía G.
+             */
+            autor: string;
+            negocio: {
+                id_negocio: number;
+                nombre: string;
+                tipo: string;
+            };
+            /**
+             * @description Mes y año de la cita reseñada
+             * @example 2026-09
+             */
+            visita_verificada: string;
+        };
+        ConfiguracionPublica: {
+            /** @description `soporte_email` y `soporte_whatsapp` de la configuración global; vacío = null */
+            soporte: {
+                /** @example soporte@petcat.com.co */
+                email: string | null;
+                /** @example +57 300 123 4567 */
+                whatsapp: string | null;
+            };
+            /**
+             * @description Días de la prueba del plan Pro (dias_prueba_gratis)
+             * @example 14
+             */
+            prueba_pro_dias: number;
         };
         ResenaInput: {
             calificacion: number;

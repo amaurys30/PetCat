@@ -97,7 +97,7 @@ test("con cuenta y otra sesión abierta: avisa, valida la contraseña y cambia d
 
   await entrar(page, "propietario@petcat.test");
   const otraPestana = await context.newPage();
-  await otraPestana.goto("/");
+  await otraPestana.goto("/panel");
   await expect(otraPestana).toHaveURL(/\/n\/1\/\w+/);
 
   await page.goto(`/invitacion/${token}`);
@@ -112,8 +112,8 @@ test("con cuenta y otra sesión abierta: avisa, valida la contraseña y cambia d
   await page.getByRole("button", { name: "Aceptar y entrar" }).click();
   await expect(page).toHaveURL(/\/n\/4\/\w+/);
 
-  // Quedó la cuenta invitada: con solo ese negocio, "/" entra directo a él.
-  await page.goto("/");
+  // Quedó la cuenta invitada: con solo ese negocio, "/panel" entra directo a él.
+  await page.goto("/panel");
   await expect(page).toHaveURL(/\/n\/4\/\w+/);
 
   // La otra pestaña soltó la sesión de la propietaria y tomó la nueva.

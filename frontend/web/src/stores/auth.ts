@@ -11,7 +11,6 @@ import {
 } from "@/api/sesion";
 import type { Me, Sesion } from "@/api/types";
 import { queryClient } from "@/app/queryClient";
-import { cerrarSocket } from "@/lib/socket";
 
 /**
  * Sesión del panel. Los tokens los maneja api/sesion.ts; aquí vive el estado que
@@ -37,7 +36,9 @@ interface AuthState {
 }
 
 const quedarAnonimo = (salida: AuthState["salida"]) => {
-  cerrarSocket();
+  // Import diferido: el socket es del panel y la landing también usa este store. Si el panel
+  // no se cargó, no hay conexión abierta.
+  void import("@/lib/socket").then((m) => m.cerrarSocket());
   queryClient.clear();
   useAuth.setState({ estado: "anonimo", usuario: null, salida });
 };

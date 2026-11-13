@@ -32,7 +32,7 @@ export function AdminLayout() {
           <NoEncontrado
             acciones={
               <Button asChild variant="secondary">
-                <Link to="/">Ir al inicio</Link>
+                <Link to="/panel">Ir al inicio</Link>
               </Button>
             }
           />

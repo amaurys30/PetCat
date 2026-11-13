@@ -4,7 +4,8 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import type { NegocioGestion, SucursalGestion } from "@/api/negocios";
 import type { Me, NegocioMio } from "@/api/types";
 import { crearQueryClient } from "@/app/queryClient";
-import { rutas } from "@/app/router";
+import { crearRutas } from "@/app/router";
+import { rutasPanel } from "@/app/rutasPanel";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/stores/auth";
@@ -13,7 +14,7 @@ import { useAuth } from "@/stores/auth";
 export function renderRuta(ruta: string, { usuario, state }: { usuario?: Me; state?: unknown } = {}) {
   useAuth.setState({ estado: usuario ? "autenticado" : "anonimo", usuario: usuario ?? null, salida: null });
   const url = new URL(ruta, "http://localhost");
-  const router = createMemoryRouter(rutas, {
+  const router = createMemoryRouter(crearRutas(rutasPanel), {
     initialEntries: [{ pathname: url.pathname, search: url.search, hash: url.hash, state }],
   });
   const resultado = render(

@@ -76,7 +76,7 @@ function NoUsable({ titulo, mensaje }: { titulo: string; mensaje: string }) {
         Si necesitas una invitación nueva, pide al negocio que te la reenvíe desde su panel.
       </p>
       <Button asChild size="lg" className="w-full">
-        {conSesion ? <Link to="/">Ir al panel</Link> : <Link to="/login">Ir a iniciar sesión</Link>}
+        {conSesion ? <Link to="/panel">Ir al panel</Link> : <Link to="/login">Ir a iniciar sesión</Link>}
       </Button>
     </AuthCard>
   );
