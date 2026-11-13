@@ -4,11 +4,23 @@ import { Avatar } from "@/components/common/Avatar";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { CargandoGrupo, Skeleton } from "@/components/ui/skeleton";
-import { useEmpleados } from "@/features/equipo/hooks/useEquipo";
+import type { Empleado } from "@/api/empleados";
+import type { Permisos } from "@/api/types";
+import { useEmpleados, useRoles } from "@/features/equipo/hooks/useEquipo";
 import { useNegocioActivo, usePuede } from "@/features/negocios/hooks/useNegocio";
 import { cn } from "@/lib/utils";
 
 const FILTRO_ACTIVOS = { activo: true, limit: 100 };
+
+/**
+ * Atiende mascotas: su rol puede crear registros médicos. Sin los permisos de los roles (no se
+ * pueden consultar sin roles.ver ni empleados.crear/editar), la especialidad o el rol
+ * Veterinario del sistema.
+ */
+const esClinico = (e: Empleado, permisos: Map<number, Permisos | undefined> | null) =>
+  permisos
+    ? Boolean(permisos.get(e.rol.id_rol)?.historial_medico?.includes("crear"))
+    : e.especialidad !== null || e.rol.nombre === "Veterinario";
 
 /**
  * D2 · Profesionales que atienden el servicio. Es la misma asignación que "Servicios que
@@ -37,6 +49,16 @@ export function ProfesionalesServicio({
   const puedeVerEquipo = puede("empleados", "ver");
   const empleados = useEmpleados(negocio.id_negocio, FILTRO_ACTIVOS, puedeVerEquipo);
   const lista = puedeVerEquipo ? empleados.data?.data : undefined;
+  const conRoles = puede("roles", "ver") || puede("empleados", "crear") || puede("empleados", "editar");
+  const roles = useRoles(negocio.id_negocio, puedeVerEquipo && conRoles);
+  const permisos = roles.data ? new Map(roles.data.map((r) => [r.id_rol, r.permisos_json])) : null;
+  // Primero quienes atienden mascotas: son los que suelen hacer el servicio.
+  const grupos = lista
+    ? [
+        { clave: "clinica", titulo: "Atención clínica", miembros: lista.filter((e) => esClinico(e, permisos)) },
+        { clave: "otros", titulo: "Otros roles", miembros: lista.filter((e) => !esClinico(e, permisos)) },
+      ].filter((g) => g.miembros.length > 0)
+    : [];
 
   const alternar = (id: number) =>
     onChange(valor.includes(id) ? valor.filter((v) => v !== id) : [...valor, id]);
@@ -70,7 +92,7 @@ export function ProfesionalesServicio({
             Para cambiar los profesionales necesitas el permiso de ver el equipo.
           </p>
         </>
-      ) : empleados.isPending ? (
+      ) : empleados.isPending || (conRoles && roles.isPending) ? (
         <CargandoGrupo etiqueta="Cargando profesionales" className="mt-3 flex flex-col gap-2">
           <Skeleton className="h-8" />
           <Skeleton className="h-8" />
@@ -87,35 +109,54 @@ export function ProfesionalesServicio({
           )}
         </p>
       ) : (
-        <ul className="mt-3 flex flex-col gap-1" aria-label="Profesionales">
-          {lista?.map((e) => {
-            const nombre = `${e.nombre} ${e.apellido}`;
-            const id = `profesional-${e.id_empleado}`;
-            return (
-              <li key={e.id_empleado}>
-                <label
-                  htmlFor={id}
-                  className={cn(
-                    "flex items-center gap-3 rounded-control px-1 py-1.5",
-                    editable && "cursor-pointer hover:bg-surface",
-                  )}
+        <div className="mt-3 flex flex-col gap-3">
+          {grupos.map((g) => (
+            <div key={g.clave}>
+              {grupos.length > 1 && (
+                <p
+                  id={`profesionales-${g.clave}`}
+                  className="mb-1 text-label font-semibold tracking-wide text-muted uppercase"
                 >
-                  <Checkbox
-                    id={id}
-                    checked={valor.includes(e.id_empleado)}
-                    disabled={!editable}
-                    onCheckedChange={() => alternar(e.id_empleado)}
-                  />
-                  <Avatar nombre={nombre} fotoUrl={e.foto_miniatura_url} tamano="sm" tono="suave" />
-                  <span className="min-w-0 text-body text-ink">
-                    {nombre}
-                    <span className="text-muted"> · {e.especialidad ?? e.rol.nombre}</span>
-                  </span>
-                </label>
-              </li>
-            );
-          })}
-        </ul>
+                  {g.titulo}
+                </p>
+              )}
+              <ul
+                className="flex flex-col gap-1"
+                {...(grupos.length > 1
+                  ? { "aria-labelledby": `profesionales-${g.clave}` }
+                  : { "aria-label": "Profesionales" })}
+              >
+                {g.miembros.map((e) => {
+                  const nombre = `${e.nombre} ${e.apellido}`;
+                  const id = `profesional-${e.id_empleado}`;
+                  return (
+                    <li key={e.id_empleado}>
+                      <label
+                        htmlFor={id}
+                        className={cn(
+                          "flex items-center gap-3 rounded-control px-1 py-1.5",
+                          editable && "cursor-pointer hover:bg-surface",
+                        )}
+                      >
+                        <Checkbox
+                          id={id}
+                          checked={valor.includes(e.id_empleado)}
+                          disabled={!editable}
+                          onCheckedChange={() => alternar(e.id_empleado)}
+                        />
+                        <Avatar nombre={nombre} fotoUrl={e.foto_miniatura_url} tamano="sm" tono="suave" />
+                        <span className="min-w-0 text-body text-ink">
+                          {nombre}
+                          <span className="text-muted"> · {e.especialidad ?? e.rol.nombre}</span>
+                        </span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </div>
       )}
       {error && <p className="mt-2 text-label text-danger">{error}</p>}
     </Card>
