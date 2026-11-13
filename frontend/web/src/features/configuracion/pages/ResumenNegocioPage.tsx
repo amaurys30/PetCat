@@ -38,7 +38,7 @@ export function ResumenNegocioPage() {
           <Equipo idNegocio={negocio.id_negocio} puedeCrear={puede("empleados", "crear")} />
         )}
         <ReglasAgenda negocio={negocio} />
-        <Card className="p-5 opacity-70">
+        <Card className="border-dashed bg-surface p-5">
           <h2 className="flex items-center gap-2 text-card font-semibold text-muted">
             Integraciones <Badge tono="neutral">Próximamente</Badge>
           </h2>

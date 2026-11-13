@@ -121,7 +121,7 @@ export function EditorHorarioSemanal({
                       disabled={disabled}
                       onClick={() => cambiarDia(dia, [...rangos, siguiente])}
                       aria-label={`Agregar rango al ${nombre.toLowerCase()}`}
-                      className="inline-flex h-7 items-center gap-1 rounded-control px-1.5 text-label font-semibold text-primary hover:bg-primary-soft disabled:opacity-50"
+                      className="inline-flex h-7 items-center gap-1 rounded-control px-1.5 text-label font-semibold text-primary-dark hover:bg-primary-soft disabled:opacity-50"
                     >
                       <Plus className="size-3.5" aria-hidden />
                       {!compacto && " rango"}

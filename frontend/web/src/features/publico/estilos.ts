@@ -1,6 +1,5 @@
 /**
- * Botones y piezas de las páginas públicas. El texto blanco va sobre primary-dark (4,9:1) y no
- * sobre primary (3:1, no alcanza AA).
+ * Botones y piezas de las páginas públicas. El texto blanco va sobre primary-dark (6:1).
  */
 const BASE =
   "inline-flex items-center justify-center gap-2 rounded-card font-semibold transition-colors [&_svg]:size-5 [&_svg]:shrink-0";

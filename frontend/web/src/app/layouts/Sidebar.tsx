@@ -97,7 +97,7 @@ function PorConfirmar() {
   if (n === 0) return null;
   return (
     <span
-      className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-warning px-1.5 text-[11px] font-bold text-white"
+      className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-warning-ink px-1.5 text-[11px] font-bold text-white"
       aria-label={`${n} por confirmar`}
     >
       {n}
@@ -113,7 +113,7 @@ function SinResponder() {
   if (n === 0) return null;
   return (
     <span
-      className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-warning px-1.5 text-[11px] font-bold text-white"
+      className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-warning-ink px-1.5 text-[11px] font-bold text-white"
       aria-label={`${n} sin responder`}
     >
       {n}
