@@ -44,7 +44,7 @@ Copy-Item .env.example .env.local   # opcional: todas las variables tienen valor
 npm run dev                         # http://localhost:5173 (landing); el panel entra por /panel o /login
 ```
 
-Vite reenvía `/api` y `/socket.io` a `VITE_API_PROXY_TARGET` (por defecto `http://localhost:3001`), así que no hay CORS. Sin `VITE_GOOGLE_MAPS_API_KEY`, las sedes se ubican con latitud y longitud manuales.
+Vite reenvía `/api` y `/socket.io` a `VITE_API_PROXY_TARGET` (por defecto `http://localhost:3001`), así que no hay CORS. El mapa de las sedes usa Leaflet con los mosaicos de OpenStreetMap, sin clave; para otro proveedor, `VITE_MAP_TILES_URL` y `VITE_MAP_ATTRIBUTION`.
 
 ### Cuentas del seed
 
@@ -112,7 +112,7 @@ frontend/web/
 └── tests/e2e/               # Playwright
 ```
 
-**Rutas y carga diferida.** `app/router.tsx` tiene las páginas públicas (`/` y `/para-negocios`, en `features/publico`, mobile first). El panel está en `app/rutasPanel.tsx` y se agrega al router la primera vez que se navega a una de sus rutas (`patchRoutesOnNavigation`): la landing no lo descarga. Dentro del panel, cada página va con `lazy` (un archivo por página); en `rutasPanel` quedan los layouts, los guardas y el acceso (login, registro, recuperar). Google Maps se descarga solo con clave (`UbicacionGoogle`). Las pruebas resuelven todo eso antes de pintar (`test/render.tsx`).
+**Rutas y carga diferida.** `app/router.tsx` tiene las páginas públicas (`/` y `/para-negocios`, en `features/publico`, mobile first). El panel está en `app/rutasPanel.tsx` y se agrega al router la primera vez que se navega a una de sus rutas (`patchRoutesOnNavigation`): la landing no lo descarga. Dentro del panel, cada página va con `lazy` (un archivo por página); en `rutasPanel` quedan los layouts, los guardas y el acceso (login, registro, recuperar). Leaflet y su CSS se descargan solo al mostrar el mapa de una sede (`MapaUbicacion`). Las pruebas resuelven todo eso antes de pintar (`test/render.tsx`).
 
 ---
 
