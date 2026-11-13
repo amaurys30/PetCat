@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-/** Centro de Sincelejo: punto de partida del mapa y sesgo de las búsquedas. */
+/** Centro de Sincelejo: punto de partida del mapa. */
 export const SINCELEJO = { lat: 9.30472, lng: -75.39778 } as const;
 
 export interface Ubicacion {
@@ -9,15 +9,30 @@ export interface Ubicacion {
   longitud: number | null;
 }
 
-/** Clave de Google Maps (opcional). Sin ella, las sedes usan latitud y longitud manuales. */
-export const claveMaps = (): string => import.meta.env.VITE_GOOGLE_MAPS_API_KEY ?? "";
+const MOSAICOS_OSM = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const ATRIBUCION_OSM = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 
-/** `AdvancedMarker` exige un Map ID; sin uno propio, Google ofrece DEMO_MAP_ID para desarrollo. */
-export const mapId = (): string => import.meta.env.VITE_GOOGLE_MAPS_MAP_ID || "DEMO_MAP_ID";
+/**
+ * Mosaicos del mapa. Por defecto, OpenStreetMap (sin clave; su política de uso exige la
+ * atribución visible y no descargar mosaicos en masa). Para cambiar de proveedor basta con
+ * `VITE_MAP_TILES_URL` (plantilla con `{z}`, `{x}`, `{y}` y, si usa subdominios, `{s}`) y
+ * `VITE_MAP_ATTRIBUTION` con la atribución que exija.
+ */
+export const capaMapa = () => {
+  const url = import.meta.env.VITE_MAP_TILES_URL || MOSAICOS_OSM;
+  const atribucion = import.meta.env.VITE_MAP_ATTRIBUTION || (url === MOSAICOS_OSM ? ATRIBUCION_OSM : "");
+  return { url, atribucion };
+};
 
-/** Enlace para revisar el punto en Google Maps (no necesita clave). */
-export const enlaceGoogleMaps = (latitud: number, longitud: number) =>
-  `https://www.google.com/maps/search/?api=1&query=${latitud},${longitud}`;
+/** Enlace para revisar el punto en OpenStreetMap. */
+export const enlaceMapa = (latitud: number, longitud: number) =>
+  `https://www.openstreetmap.org/?mlat=${latitud}&mlon=${longitud}#map=17/${latitud}/${longitud}`;
+
+/** Hay un punto válido para mostrar en el mapa. */
+export const tienePunto = (
+  u: Pick<Ubicacion, "latitud" | "longitud">,
+): u is { latitud: number; longitud: number } =>
+  u.latitud !== null && u.longitud !== null && Number.isFinite(u.latitud) && Number.isFinite(u.longitud);
 
 /** Redondea a 6 decimales (unos 10 cm): suficiente y legible. */
 export const redondear = (valor: number) => Math.round(valor * 1e6) / 1e6;

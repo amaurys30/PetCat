@@ -1,6 +1,7 @@
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { defineConfig, devices } from "@playwright/test";
+import { MOSAICOS_E2E } from "./tests/e2e/mosaicos";
 
 /**
  * Flujos de punta a punta contra la API real con la base de demo:
@@ -12,9 +13,9 @@ import { defineConfig, devices } from "@playwright/test";
  * OneDrive) y lo sirven con vite preview en el puerto 5180,
  * con el mismo proxy a la API: no usan el Vite que tengas abierto en el 5173 y no compilan
  * módulos sobre la marcha (con un Vite de desarrollo en frío, el proxy demoraba las respuestas
- * de la API varios segundos mientras transformaba las rutas). Se construye sin clave de
- * Google Maps: la ubicación de las sedes usa coordenadas manuales, haya o no
- * VITE_GOOGLE_MAPS_API_KEY en .env.local. Los correos se leen de Mailpit.
+ * de la API varios segundos mientras transformaba las rutas). El mapa de las sedes pide sus
+ * mosaicos a un dominio de prueba que responde cada contexto (tests/e2e/mosaicos.ts), no a
+ * OpenStreetMap. Los correos se leen de Mailpit.
  */
 const PUERTO = 5180;
 /** Build de las pruebas y resultados (trazas, capturas): fuera del repositorio, que está en OneDrive. */
@@ -56,6 +57,6 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 120_000,
     // Las variables del proceso tienen prioridad sobre .env.local en Vite (también en el build).
-    env: { VITE_GOOGLE_MAPS_API_KEY: "", VITE_GOOGLE_MAPS_MAP_ID: "" },
+    env: { VITE_MAP_TILES_URL: MOSAICOS_E2E, VITE_MAP_ATTRIBUTION: "&copy; OpenStreetMap" },
   },
 });

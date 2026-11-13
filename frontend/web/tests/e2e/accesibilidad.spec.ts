@@ -9,6 +9,7 @@ import {
   cancelarSiActiva,
   token,
 } from "./citas";
+import { mosaicosFalsos } from "./mosaicos";
 
 /**
  * P7 · Accesibilidad con axe (WCAG 2.1 A y AA) en las pantallas principales, contra la API de
@@ -52,6 +53,7 @@ async function analizar(
 
 async function sesion(browser: Browser, email: string) {
   const context = await browser.newContext();
+  await mosaicosFalsos(context);
   const page = await context.newPage();
   await page.goto("/login");
   await page.getByLabel("Correo electrónico").fill(email);

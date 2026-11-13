@@ -1,11 +1,9 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { __reiniciarSesionParaPruebas } from "@/api/sesion";
 import { gestionDemo, negocioDemo, renderRuta, sedeDemo, usuarioDemo } from "@/test/render";
 import { API, fallo, http, ok, servidor } from "@/test/servidor";
-
-vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "");
 
 const norte = sedeDemo({
   id_sucursal: 5,

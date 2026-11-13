@@ -1,13 +1,12 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { __reiniciarSesionParaPruebas } from "@/api/sesion";
 import type { NegocioMio } from "@/api/types";
 import { gestionDemo, negocioDemo, renderRuta, sedeDemo, usuarioDemo } from "@/test/render";
 import { API, fallo, http, ok, servidor } from "@/test/servidor";
 
-// Sin clave de Google: la sede usa latitud y longitud manuales.
-vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "");
+// La sede se ubica con las coordenadas manuales (respaldo del mapa).
 
 const plan = (nombre: string, sucursales: number, empleados: number, citas_mes: number) => ({
   id_plan: 1,
@@ -94,6 +93,7 @@ describe("A6 · Crear negocio", () => {
     });
     const user = userEvent.setup();
     await user.type(await screen.findByLabelText("Dirección *"), "Cra 19 #22-35");
+    await user.click(screen.getByRole("button", { name: "Escribir coordenadas" }));
     await user.type(screen.getByLabelText("Latitud"), "9.30472");
     await user.click(screen.getByRole("button", { name: /Continuar/ }));
     expect(await screen.findByText("Escribe también la longitud")).toBeInTheDocument();
