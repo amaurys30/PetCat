@@ -8,6 +8,7 @@ import { ErrorConsulta } from "@/components/common/QueryState";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { aviso } from "@/components/ui/toaster";
 import { useSedes } from "@/features/equipo/hooks/useDisponibilidad";
 import { useNegocioActivo, usePuede } from "@/features/negocios/hooks/useNegocio";
@@ -85,6 +86,7 @@ export function AgendaPage() {
   });
   useEffect(() => olvidarRecibida(), []);
   const conexion = useEstadoConexion();
+  const [verCanceladas, setVerCanceladas] = useState(false);
 
   if (!verCitas) {
     return (
@@ -116,6 +118,15 @@ export function AgendaPage() {
         : null;
   const citas = soloFuera ? (atencion.data?.fuera_de_disponibilidad ?? []) : (agenda.data ?? []);
   const total = soloFuera ? null : agenda.data?.length;
+  // Semana y Día: las canceladas no ocupan columna (quedan lado a lado con las vigentes y las
+  // angostan) salvo con el interruptor, con el filtro de estado "cancelada" o si es la abierta.
+  const canceladas = citas.filter((c) => c.estado === "cancelada").length;
+  const conCanceladas = verCanceladas || filtros.estados.includes("cancelada");
+  const enCalendario = conCanceladas
+    ? citas
+    : citas.filter((c) => c.estado !== "cancelada" || c.id_cita === filtros.idCita);
+  const conInterruptor =
+    filtros.vista !== "lista" && canceladas > 0 && !filtros.estados.includes("cancelada");
 
   return (
     <div>
@@ -125,6 +136,12 @@ export function AgendaPage() {
             .filter(Boolean)
             .join(" · ") || " "}
         </p>
+        {conInterruptor && (
+          <label className="flex items-center gap-2 text-body text-muted">
+            <Switch checked={verCanceladas} onCheckedChange={setVerCanceladas} />
+            Mostrar canceladas ({canceladas})
+          </label>
+        )}
         {conexion === "desconectado" && (
           <p role="status" className="ml-auto flex items-center gap-1.5 text-body text-warning-ink">
             <WifiOff className="size-3.5" aria-hidden />
@@ -167,7 +184,7 @@ export function AgendaPage() {
           ) : filtros.vista === "semana" ? (
             <VistaSemana
               dias={dias}
-              citas={citas}
+              citas={enCalendario}
               sedes={sedesVisibles}
               hoy={hoy}
               minutoActual={minutoActualBogota(ahora)}
@@ -180,8 +197,8 @@ export function AgendaPage() {
           ) : filtros.vista === "dia" ? (
             <VistaDia
               fecha={filtros.fecha}
-              citas={citas}
-              profesionales={columnasDelDia(profesionales.data ?? [], citas, idProfesional)}
+              citas={enCalendario}
+              profesionales={columnasDelDia(profesionales.data ?? [], enCalendario, idProfesional)}
               idSucursal={filtros.idSucursal}
               sedes={sedesVisibles}
               hoy={hoy}

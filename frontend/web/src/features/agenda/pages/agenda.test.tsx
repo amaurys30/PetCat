@@ -118,6 +118,28 @@ describe("B3 · Agenda semanal", () => {
     expect(within(screen.getByRole("navigation")).getByLabelText("1 por confirmar")).toBeInTheDocument();
   });
 
+  it("las canceladas no ocupan columna salvo con el interruptor", async () => {
+    const user = userEvent.setup();
+    const cancelada = citaPanelDemo({
+      id_cita: 9,
+      fecha: LUNES,
+      hora_inicio: "08:00",
+      hora_fin: "08:30",
+      estado: "cancelada",
+      mascota: { id_mascota: 9, nombre: "Toby", especie: "perro" },
+    });
+    servidor.use(...base({ agenda: [max, cancelada] }));
+    renderRuta("/n/1/agenda", { usuario: usuarioDemo() });
+
+    const deMax = await screen.findByRole("button", { name: /· Max ·/ });
+    expect(screen.queryByRole("button", { name: /· Toby ·/ })).not.toBeInTheDocument();
+    expect(deMax.style.width).toBe("calc(100% - 6px)");
+
+    await user.click(screen.getByRole("switch", { name: "Mostrar canceladas (1)" }));
+    expect(screen.getByRole("button", { name: /· Toby ·/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /· Max ·/ }).style.width).toBe("calc(50% - 6px)");
+  });
+
   it("los filtros quedan en la URL y llegan a la API", async () => {
     const user = userEvent.setup();
     const peticiones: URL[] = [];
