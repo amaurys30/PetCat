@@ -1,4 +1,5 @@
 import { createBrowserRouter, type RouteObject } from "react-router";
+import { CargandoPetCat } from "@/components/common/CargandoPetCat";
 import { LandingPage } from "@/features/publico/pages/LandingPage";
 import { ErrorDeRuta, PaginaNoEncontrada } from "./pages/PaginasGenerales";
 
@@ -19,6 +20,8 @@ export function crearRutas(panel: RouteObject[] = []): RouteObject[] {
     {
       id: ID_RAIZ,
       errorElement: <ErrorDeRuta />,
+      // Al abrir directo una ruta del panel, mientras se descargan el panel y la página.
+      hydrateFallbackElement: <CargandoPetCat />,
       children: [
         { index: true, element: <LandingPage /> },
         { path: "para-negocios", lazy: paraNegocios },

@@ -173,7 +173,7 @@ describe("UbicacionSede con Google Maps", () => {
     vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "clave-de-prueba");
     render(<UbicacionControlada inicial={sinPunto} />);
     const user = userEvent.setup();
-    await user.type(screen.getByRole("combobox"), "Calle 23");
+    await user.type(await screen.findByRole("combobox"), "Calle 23");
     await user.click(await screen.findByRole("option", { name: /Calle 23 # 18-45/ }));
     await waitFor(() =>
       expect(ubicacionActual()).toEqual({
@@ -189,7 +189,7 @@ describe("UbicacionSede con Google Maps", () => {
     vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "clave-de-prueba");
     render(<UbicacionControlada inicial={{ direccion: "Cra 19", latitud: null, longitud: null }} />);
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "tocar mapa" }));
+    await user.click(await screen.findByRole("button", { name: "tocar mapa" }));
     expect(ubicacionActual()).toEqual({ direccion: "Cra 19", latitud: 9.301111, longitud: -75.392223 });
     await user.click(screen.getByRole("button", { name: "arrastrar pin" }));
     expect(ubicacionActual()).toMatchObject({ latitud: 9.31, longitud: -75.39 });
@@ -197,18 +197,18 @@ describe("UbicacionSede con Google Maps", () => {
     expect(ubicacionActual()).toEqual({ direccion: "Cra 19", latitud: null, longitud: null });
   });
 
-  it("si Google no carga (clave inválida), pasa a coordenadas manuales con un aviso", () => {
+  it("si Google no carga (clave inválida), pasa a coordenadas manuales con un aviso", async () => {
     vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "clave-mala");
     estadoApi.valor = "AUTH_FAILURE";
     render(<UbicacionControlada inicial={sinPunto} />);
-    expect(screen.getByText(/No pudimos cargar el mapa/)).toBeInTheDocument();
+    expect(await screen.findByText(/No pudimos cargar el mapa/)).toBeInTheDocument();
     expect(screen.getByLabelText("Latitud")).toBeInTheDocument();
   });
 
   it("sin facturación en Google Cloud (solo lo dice la consola): coordenadas manuales con el motivo", async () => {
     vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "clave-sin-facturacion");
     render(<UbicacionControlada inicial={sinPunto} />);
-    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    expect(await screen.findByRole("combobox")).toBeInTheDocument();
 
     act(() =>
       console.error(

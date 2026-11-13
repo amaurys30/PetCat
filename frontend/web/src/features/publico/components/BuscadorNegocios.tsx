@@ -2,7 +2,7 @@ import { BadgeCheck, LocateFixed, MapPin, Search, Star, Zap } from "lucide-react
 import { useEffect, useState } from "react";
 import type { NegocioBusqueda } from "@/api/publico";
 import { Skeleton } from "@/components/ui/skeleton";
-import { iniciales } from "@/lib/format";
+import { iniciales } from "@/lib/texto";
 import { cn } from "@/lib/utils";
 import { botonSecundario } from "../estilos";
 import { POR_PAGINA, useNegociosCercanos } from "../hooks/usePublico";

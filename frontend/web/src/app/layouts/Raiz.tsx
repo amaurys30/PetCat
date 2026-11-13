@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { Outlet } from "react-router";
+import { CargandoPetCat } from "@/components/common/CargandoPetCat";
 import { CitasAfectadasDialog } from "@/components/common/CitasAfectadasDialog";
 import { SinConexion } from "@/components/common/EstadoPantalla";
-import { Logo } from "@/components/common/Logo";
 import { PlanLimitDialog } from "@/components/common/PlanLimitDialog";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/stores/auth";
@@ -20,17 +20,7 @@ export function Raiz() {
     document.title = "PetCat · Panel";
   }, []);
 
-  if (estado === "iniciando") {
-    return (
-      <div
-        className="flex min-h-screen items-center justify-center"
-        role="status"
-        aria-label="Cargando PetCat"
-      >
-        <Logo className="animate-pulse" />
-      </div>
-    );
-  }
+  if (estado === "iniciando") return <CargandoPetCat />;
   if (estado === "sin-conexion") {
     return (
       <div className="flex min-h-screen items-center justify-center">

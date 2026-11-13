@@ -2,7 +2,7 @@ import { Check } from "lucide-react";
 import { Link } from "react-router";
 import type { Plan } from "@/api/negocios";
 import { ventajasPlan } from "@/features/suscripcion/textos";
-import { dinero } from "@/lib/format";
+import { dinero } from "@/lib/texto";
 import { cn } from "@/lib/utils";
 import { botonPrimario, botonSecundario } from "../estilos";
 

@@ -1,7 +1,7 @@
 import { Mail, MessageCircle } from "lucide-react";
 import { Link } from "react-router";
 import { Logo } from "@/components/common/Logo";
-import { enlaceWhatsapp } from "@/features/suscripcion/textos";
+import { enlaceWhatsapp } from "@/lib/texto";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/stores/auth";
 import { contenedor } from "../estilos";

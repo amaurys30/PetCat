@@ -125,29 +125,5 @@ export function fechaHoraLarga(valor: string): string {
   return format(parseFechaHora(valor), "d 'de' MMMM, h:mm aaaa", { locale: es });
 }
 
-const COP = new Intl.NumberFormat("es-CO", {
-  style: "currency",
-  currency: "COP",
-  maximumFractionDigits: 0,
-});
-
-/** 1850000 -> "$ 1.850.000" */
-export function dinero(valor: number): string {
-  return COP.format(valor);
-}
-
-/**
- * Iniciales para avatares: primera letra de la primera y la última palabra con letras.
- * "Clínica Veterinaria Patitas" -> "CP", "Valentina Torres" -> "VT", "Huellitas" -> "HU".
- */
-export function iniciales(nombre: string): string {
-  const palabras = nombre
-    .trim()
-    .split(/\s+/)
-    .filter((p) => /\p{L}/u.test(p) && !/\d/.test(p));
-  const primera = palabras[0];
-  if (!primera) return "?";
-  const ultima = palabras.length > 1 ? palabras[palabras.length - 1]! : null;
-  const letras = ultima ? primera[0]! + ultima[0]! : primera.slice(0, 2);
-  return letras.toLocaleUpperCase("es");
-}
+// Sin fechas: en lib/texto.ts (la landing los usa sin cargar date-fns).
+export { dinero, iniciales } from "./texto";

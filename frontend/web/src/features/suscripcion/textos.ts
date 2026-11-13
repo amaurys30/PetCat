@@ -1,6 +1,7 @@
 import type { Plan } from "@/api/negocios";
 import type { Suscripcion } from "@/api/types";
 import { dinero, fechaCorta } from "@/lib/format";
+import { enlaceWhatsapp } from "@/lib/texto";
 
 const ILIMITADO = -1;
 /** Fecha de fin del plan Gratuito: no vence. */
@@ -71,9 +72,7 @@ export function avisoVencida({ plan, suscripcion }: Suscripcion): string | null 
 
 export const diasRestantes = (dias: number) => (dias === 1 ? "queda 1 día" : `quedan ${dias} días`);
 
-/** Enlace de WhatsApp: solo los dígitos del número (con el indicativo). */
-export const enlaceWhatsapp = (numero: string, texto?: string) =>
-  `https://wa.me/${numero.replace(/\D/g, "")}${texto ? `?text=${encodeURIComponent(texto)}` : ""}`;
+export { enlaceWhatsapp };
 
 /** Contacto para contratar un plan: correo con asunto, o WhatsApp; null sin soporte configurado. */
 export function enlaceContratar(soporte: Suscripcion["soporte"], asunto: string): string | null {
