@@ -87,6 +87,35 @@ async function sesion(browser: Browser, email: string) {
   return page;
 }
 
+test.describe("páginas públicas", () => {
+  // Con "reducir movimiento" las secciones se ven desde el inicio: sin la animación de entrada,
+  // axe analiza toda la página (con opacidad 0 la saltaría o mediría un contraste a medias).
+  test.use({ reducedMotion: "reduce" });
+
+  for (const [pantalla, ruta, ancho] of [
+    ["landing", "/", 1440],
+    ["landing en celular", "/", 360],
+    ["para negocios", "/para-negocios", 1440],
+    ["para negocios en celular", "/para-negocios", 360],
+  ] as const) {
+    test(pantalla, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width: ancho, height: 800 });
+      await page.goto(ruta);
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+      await expect(page.getByText(/Versión \d/)).toBeVisible();
+      await analizar(page, pantalla, testInfo);
+    });
+  }
+
+  test("menú del celular abierto", async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Abrir menú" }).click();
+    await expect(page.getByRole("navigation", { name: "Menú" })).toBeVisible();
+    await analizar(page, "menú del celular abierto", testInfo);
+  });
+});
+
 test.describe("sin sesión", () => {
   for (const [pantalla, ruta] of [
     ["A1 login", "/login"],
@@ -140,6 +169,7 @@ test.describe("panel del negocio (Salud Animal)", () => {
     ["E6 mi perfil", () => `/n/${idNegocio}/mi-perfil`],
   ];
   for (const [pantalla, ruta] of pantallas) {
+    // eslint-disable-next-line no-empty-pattern -- Playwright exige desestructurar el primer argumento
     test(pantalla, async ({}, testInfo) => {
       await page.goto(ruta());
       await expect(page.getByRole("main")).toBeVisible();
@@ -160,6 +190,7 @@ test.describe("panel del negocio (Salud Animal)", () => {
     }
   });
 
+  // eslint-disable-next-line no-empty-pattern -- Playwright exige desestructurar el primer argumento
   test("B5 nueva cita", async ({}, testInfo) => {
     await page.goto(`/n/${idNegocio}/agenda`);
     await page.getByRole("button", { name: "Nueva cita" }).click();
@@ -167,6 +198,7 @@ test.describe("panel del negocio (Salud Animal)", () => {
     await analizar(page, "B5 nueva cita", testInfo, { incluir: '[role="dialog"]' });
   });
 
+  // eslint-disable-next-line no-empty-pattern -- Playwright exige desestructurar el primer argumento
   test("C4 nuevo registro médico", async ({}, testInfo) => {
     await page.goto(`/n/${idNegocio}/clientes/mascotas/${idMascota}`);
     await page.getByRole("button", { name: "Registro médico" }).click();
