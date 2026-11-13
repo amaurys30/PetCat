@@ -19,6 +19,7 @@ import { useProfesionales } from "../../hooks/useAgenda";
 import { useHorariosLibres, useReprogramarCita } from "../../hooks/useCita";
 import { nombreCompleto } from "../../textos";
 import { ResumenCita } from "./ResumenCita";
+import { SelectorHorarios } from "../SelectorHorarios";
 
 const CUALQUIERA = "cualquiera";
 
@@ -113,9 +114,10 @@ export function ReprogramarDialog({
 
   return (
     <Dialog open onOpenChange={(abierto) => !abierto && onCerrar()}>
-      <DialogContent className="max-w-[620px]">
+      {/* Título y botones fijos; lo de en medio se desplaza si no cabe (muchos horarios, pantallas bajas). */}
+      <DialogContent className="flex max-h-[92vh] max-w-[620px] flex-col">
         <DialogTitle>Reprogramar cita</DialogTitle>
-        <div className="mt-4 flex flex-col gap-4">
+        <div className="-mx-1 mt-4 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 pb-1">
           <ResumenCita
             cita={cita}
             detalle={[
@@ -212,25 +214,11 @@ export function ReprogramarDialog({
             {horarios.isPending && horarios.fetchStatus !== "idle" ? (
               <Skeleton etiqueta="Cargando horarios libres" className="h-16" />
             ) : horarios.data && horarios.data.horarios.length > 0 ? (
-              <div role="radiogroup" aria-label="Horarios libres" className="flex flex-wrap gap-2">
-                {horarios.data.horarios.map((h) => (
-                  <button
-                    key={h.hora_inicio}
-                    type="button"
-                    role="radio"
-                    aria-checked={horaElegida === h.hora_inicio}
-                    onClick={() => setHoraElegida(h.hora_inicio)}
-                    className={cn(
-                      "h-8 rounded-control border px-3 text-body font-medium tabular-nums",
-                      horaElegida === h.hora_inicio
-                        ? "border-primary bg-primary text-white"
-                        : "bg-white text-ink hover:bg-surface",
-                    )}
-                  >
-                    {h.hora_inicio}
-                  </button>
-                ))}
-              </div>
+              <SelectorHorarios
+                horarios={horarios.data.horarios}
+                elegido={horaElegida}
+                onElegir={setHoraElegida}
+              />
             ) : horarios.data ? (
               <p className="text-body text-muted">{horarios.data.motivo_sin_horarios}</p>
             ) : null}
@@ -251,7 +239,7 @@ export function ReprogramarDialog({
           </Alert>
           {error && <Alert tono="error">{error}</Alert>}
         </div>
-        <DialogFooter>
+        <DialogFooter className="mt-4 shrink-0">
           <Button variant="secondary" onClick={onCerrar}>
             Cancelar
           </Button>

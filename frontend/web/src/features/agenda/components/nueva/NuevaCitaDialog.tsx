@@ -27,6 +27,7 @@ import type { ClienteElegido } from "../../nuevaCita";
 import { nombreCompleto } from "../../textos";
 import { BuscarCliente } from "./BuscarCliente";
 import { useFocoDeRegreso } from "@/lib/useFocoDeRegreso";
+import { SelectorHorarios } from "../SelectorHorarios";
 
 const CUALQUIERA = "cualquiera";
 const ORIGENES = [
@@ -439,25 +440,7 @@ export function NuevaCitaDialog({
                 ) : horarios.isError ? (
                   <Alert tono="error">{horarios.error.message}</Alert>
                 ) : libres && libres.length > 0 ? (
-                  <div role="radiogroup" aria-label="Horarios libres" className="flex flex-wrap gap-2">
-                    {libres.map((h) => (
-                      <button
-                        key={h.hora_inicio}
-                        type="button"
-                        role="radio"
-                        aria-checked={hora === h.hora_inicio}
-                        onClick={() => setHora(h.hora_inicio)}
-                        className={cn(
-                          "h-8 rounded-control border px-3 text-body font-medium tabular-nums",
-                          hora === h.hora_inicio
-                            ? "border-primary bg-primary text-white"
-                            : "bg-white text-ink hover:bg-surface",
-                        )}
-                      >
-                        {h.hora_inicio}
-                      </button>
-                    ))}
-                  </div>
+                  <SelectorHorarios horarios={libres} elegido={hora} onElegir={setHora} />
                 ) : (
                   <p className="text-body text-muted">{horarios.data?.motivo_sin_horarios}</p>
                 )}
