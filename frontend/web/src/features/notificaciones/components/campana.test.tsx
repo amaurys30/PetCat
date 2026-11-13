@@ -19,11 +19,17 @@ const resena = notificacionDemo({
 
 /** La API de notificaciones del panel: guarda las consultas y lo que se marcó. */
 function conNotificaciones(lista: Notificacion[] = [notificacionDemo(), resena], total = 1) {
-  const registro = { consultas: [] as URLSearchParams[], leidas: [] as number[], leerTodas: [] as string[] };
+  const registro = {
+    consultas: [] as URLSearchParams[],
+    leidas: [] as number[],
+    leerTodas: [] as string[],
+    /** No leídas del panel que responde la API (la prueba lo cambia cuando "el servidor" cambia). */
+    total,
+  };
   servidor.use(
     http.get(`${API}/notificaciones/no-leidas`, ({ request }) => {
       registro.consultas.push(new URL(request.url).searchParams);
-      return ok({ total, por_destino: { dueno: 4, negocio: total } });
+      return ok({ total: registro.total, por_destino: { dueno: 4, negocio: registro.total } });
     }),
     http.get(`${API}/notificaciones`, ({ request }) => {
       registro.consultas.push(new URL(request.url).searchParams);
@@ -131,7 +137,7 @@ describe("E5 · Campana", () => {
 
 describe("Notificaciones en tiempo real", () => {
   it("una del panel sube el contador; una de la app del dueño no; otra sesión que marcó lo corrige", async () => {
-    conNotificaciones([], 2);
+    const api = conNotificaciones([], 2);
     renderRuta("/n/1/mi-perfil", { usuario: usuarioDemo() });
     await screen.findByRole("button", { name: "Notificaciones: 2 sin leer" });
     const socket = socketFalso();
@@ -147,6 +153,9 @@ describe("Notificaciones en tiempo real", () => {
     );
     expect(screen.getByRole("button", { name: "Notificaciones: 3 sin leer" })).toBeInTheDocument();
 
+    // Otra sesión marcó todas como leídas: el servidor ya responde 0 (el evento también vuelve a
+    // pedir el contador; con la API simulada en 2, la respuesta deshacía el 0 si llegaba antes).
+    api.total = 0;
     socket.recibir("notificaciones_leidas", { no_leidas: 4, por_destino: { dueno: 4, negocio: 0 } });
     expect(await screen.findByRole("button", { name: "Notificaciones" })).toBeInTheDocument();
     expect(document.title).toBe("PetCat · Panel");
