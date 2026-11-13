@@ -1,16 +1,17 @@
 import { cn } from "@/lib/utils";
 
 const FRANJAS = [
+  { nombre: "Madrugada", hasta: "06:00" },
   { nombre: "Mañana", hasta: "12:00" },
   { nombre: "Tarde", hasta: "18:00" },
   { nombre: "Noche", hasta: "24:00" },
 ] as const;
 
-/** Franja de una hora "HH:MM": mañana antes de las 12, tarde hasta las 18, noche después. */
+/** Franja de una hora "HH:MM": madrugada antes de las 6, mañana hasta las 12, tarde hasta las 18, noche después. */
 const franjaDe = (hora: string) => FRANJAS.find((f) => hora < f.hasta)!.nombre;
 
 /**
- * Horarios libres agrupados por mañana, tarde y noche, con desplazamiento interno: con muchos
+ * Horarios libres agrupados por madrugada (sedes de 24 horas), mañana, tarde y noche, con desplazamiento interno: con muchos
  * horarios (sedes de 24 horas) el diálogo no crece ni corta el título o los botones.
  */
 export function SelectorHorarios({
