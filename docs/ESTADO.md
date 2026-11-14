@@ -35,7 +35,7 @@ La API cubre las Fases 0 a 2 (flujo de citas completo, salud, notificaciones, pl
 - **Pantalla congelada al recargar Equipo.** La tabla entraba en un ciclo de renders que no soltaba el hilo (no se podía escribir en el buscador). Corregido en `DataTable`, que usan todas las tablas.
 - **Agenda.** Horarios libres por madrugada, mañana, tarde y noche con desplazamiento (Reprogramar y Nueva cita no se cortan en sedes de 24 horas); las canceladas no ocupan columna en Semana y Día salvo con "Mostrar canceladas"; fechas con el mes ("Mar 17 nov").
 - **Clientes, servicios y textos.** Nueva mascota con color, alergias y condiciones médicas; en D2, primero los profesionales clínicos; una búsqueda sin resultados en C1 cierra el detalle anterior; textos que se cortaban en el carnet, D5, C1, el menú y X1.
-- **Rendimiento.** Carga diferida de Google Maps y de cada página del panel; la landing no descarga el panel.
+- **Rendimiento.** Carga diferida del mapa de las sedes y de cada página del panel; la landing no descarga el panel.
 - **Entorno.** Las pruebas de punta a punta escriben su build y sus resultados fuera de OneDrive (carpeta temporal del sistema); nodemon revisa los archivos cada segundo en Docker.
 - **API.** Migración 026 (`citas.ver_todas` e `historial_medico.asignar_profesional`, `registrado_por`) y migración 027 (umbrales de la landing), con `GET /publico/estadisticas`, `GET /publico/resenas`, `GET /publico/configuracion` y `confirmacion_automatica` en la búsqueda de negocios.
 
@@ -80,7 +80,7 @@ Lo que el panel necesita y la API todavía no tiene (lista completa con el conte
 | Supresión y consulta de datos (Ley 1581 de 2012) | Pendiente | Supresión de la cuenta y sus datos con borrado físico de archivos en Cloudinary, revocación de la autorización, exportar lo que un negocio guarda sobre el titular (incluidas las notas de clientes). Hoy el borrado es lógico. |
 | Contacto de soporte real | Pendiente | `soporte_email` y `soporte_whatsapp` en `configuracion_global` (los muestran el pie de la página pública y los avisos del plan; vacíos, no aparecen). |
 | Correo real | Pendiente | Proveedor transaccional con dominio verificado (SPF, DKIM, DMARC) y las variables SMTP en el servidor. En desarrollo va a Mailpit. |
-| Google Maps en el panel | Pendiente | Facturación de Google Cloud, clave restringida al dominio y a Maps JavaScript y Places, alerta de presupuesto, y la clave en el build. Mientras tanto, coordenadas manuales. |
+| Proveedor de mapas del panel | Pendiente | Elegir un proveedor de mosaicos para producción (MapTiler, Stadia Maps, Thunderforest o propios) y configurar `VITE_MAP_TILES_URL` y `VITE_MAP_ATTRIBUTION` en el build. Hoy, Leaflet con los mosaicos públicos de OpenStreetMap (solo para desarrollo y poco tráfico). |
 | Seguridad de las cuentas de super admin | Pendiente | Verificación en dos pasos y sesión más corta para `tipo_usuario = admin`. |
 | Sesión del panel | Deuda aceptada en el MVP | El refresh token está en `localStorage`; a futuro, cookie httpOnly desde la API. |
 | Pagos | Fase 3 | MercadoPago (citas, pedidos y suscripciones, comisión del 4 %). Hoy los planes los asigna el super admin a mano. |

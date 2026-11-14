@@ -1,66 +1,69 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { __reiniciarErroresGoogleMaps } from "@/lib/erroresGoogleMaps";
 import { PLANTILLAS, semanaVacia, type Semana } from "@/lib/horarios";
-import type { Ubicacion } from "@/lib/ubicacion";
+import { capaMapa, type Ubicacion } from "@/lib/ubicacion";
 import { EditorHorarioSemanal } from "./EditorHorarioSemanal";
 import { UbicacionSede } from "./UbicacionSede";
 
-// Google Maps simulado: el mapa es un botón que "toca" un punto, el pin otro que lo "arrastra"
-// y Places devuelve una sugerencia fija.
-const estadoApi = vi.hoisted(() => ({ valor: "LOADED" }));
-vi.mock("@vis.gl/react-google-maps", () => ({
-  APILoadingStatus: { FAILED: "FAILED", AUTH_FAILURE: "AUTH_FAILURE", LOADED: "LOADED" },
-  APIProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
-  useApiLoadingStatus: () => estadoApi.valor,
-  useMap: () => ({ panTo: vi.fn(), setZoom: vi.fn() }),
-  Map: ({ children, onClick }: { children: ReactNode; onClick: (e: unknown) => void }) => (
+// Leaflet simulado: el mapa es un botón que "toca" un punto, el pin otro que lo "arrastra" y
+// la capa de mosaicos muestra su atribución y un botón que simula que no cargó ninguno.
+const mapa = vi.hoisted(() => ({
+  clic: undefined as undefined | ((e: unknown) => void),
+  setView: vi.fn(),
+  getZoom: () => 13,
+  getBounds: () => ({ contains: () => true }),
+}));
+vi.mock("react-leaflet", () => ({
+  MapContainer: ({ children }: { children: ReactNode }) => (
     <div>
-      <button
-        type="button"
-        onClick={() => onClick({ detail: { latLng: { lat: 9.3011112, lng: -75.3922229 } } })}
-      >
+      <button type="button" onClick={() => mapa.clic?.({ latlng: { lat: 9.3011112, lng: -75.3922229 } })}>
         tocar mapa
       </button>
       {children}
     </div>
   ),
-  AdvancedMarker: ({ onDragEnd }: { onDragEnd: (e: unknown) => void }) => (
-    <button type="button" onClick={() => onDragEnd({ latLng: { lat: () => 9.31, lng: () => -75.39 } })}>
+  TileLayer: ({
+    url,
+    attribution,
+    eventHandlers,
+  }: {
+    url: string;
+    attribution: string;
+    eventHandlers: { tileerror: () => void };
+  }) => (
+    <div data-testid="mosaicos" data-url={url}>
+      <span dangerouslySetInnerHTML={{ __html: attribution }} />
+      <button type="button" onClick={() => eventHandlers.tileerror()}>
+        fallan los mosaicos
+      </button>
+    </div>
+  ),
+  Marker: ({ eventHandlers }: { eventHandlers: { dragend: (e: unknown) => void } }) => (
+    <button
+      type="button"
+      onClick={() => eventHandlers.dragend({ target: { getLatLng: () => ({ lat: 9.31, lng: -75.39 }) } })}
+    >
       arrastrar pin
     </button>
   ),
-  useMapsLibrary: () => ({
-    AutocompleteSessionToken: class {},
-    AutocompleteSuggestion: {
-      fetchAutocompleteSuggestions: async () => ({
-        suggestions: [
-          {
-            placePrediction: {
-              placeId: "p1",
-              text: { text: "Calle 23 # 18-45, Sincelejo" },
-              mainText: { text: "Calle 23 # 18-45" },
-              secondaryText: { text: "Sincelejo, Sucre" },
-              toPlace: () => ({
-                formattedAddress: "Cl. 23 #18-45, Sincelejo, Sucre",
-                location: { lat: () => 9.3047212345, lng: () => -75.3977812345 },
-                fetchFields: async () => undefined,
-              }),
-            },
-          },
-        ],
-      }),
-    },
-  }),
+  useMapEvents: (manejadores: { click: (e: unknown) => void }) => {
+    mapa.clic = manejadores.click;
+  },
+  useMap: () => mapa,
+  ZoomControl: () => null,
 }));
+
+/** Geolocalización simulada del navegador (jsdom no la trae). */
+const simularGeolocalizacion = (getCurrentPosition: Geolocation["getCurrentPosition"]) =>
+  Object.defineProperty(navigator, "geolocation", { configurable: true, value: { getCurrentPosition } });
 
 afterEach(() => {
   vi.unstubAllEnvs();
-  __reiniciarErroresGoogleMaps();
-  estadoApi.valor = "LOADED";
+  mapa.setView.mockClear();
+  Reflect.deleteProperty(navigator, "geolocation");
 });
 
 function EditorControlado({
@@ -147,79 +150,115 @@ const ubicacionActual = (): Ubicacion =>
   JSON.parse(screen.getByTestId("ubicacion").textContent!) as Ubicacion;
 const sinPunto: Ubicacion = { direccion: "", latitud: null, longitud: null };
 
-describe("UbicacionSede sin clave de Google", () => {
-  it("pide latitud y longitud a mano y enlaza el punto a Google Maps", async () => {
-    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "");
+describe("UbicacionSede", () => {
+  it("la dirección es texto; tocar el mapa y arrastrar el pin cambian solo las coordenadas; se pueden quitar", async () => {
     render(<UbicacionControlada inicial={sinPunto} />);
     const user = userEvent.setup();
-    await user.type(screen.getByLabelText("Dirección *"), "Calle 23 # 18-45");
+    await user.type(screen.getByLabelText("Dirección *"), "Cra 19 # 22-35");
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+
+    await user.click(await screen.findByRole("button", { name: "tocar mapa" }));
+    expect(ubicacionActual()).toEqual({
+      direccion: "Cra 19 # 22-35",
+      latitud: 9.301111,
+      longitud: -75.392223,
+    });
+    expect(screen.getByText(/9.301111, -75.392223 · Arrastra el pin/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "arrastrar pin" }));
+    expect(ubicacionActual()).toMatchObject({ latitud: 9.31, longitud: -75.39 });
+    await user.click(screen.getByRole("button", { name: "Quitar ubicación" }));
+    expect(ubicacionActual()).toEqual({ direccion: "Cra 19 # 22-35", latitud: null, longitud: null });
+  });
+
+  it("usa los mosaicos de OpenStreetMap con su atribución visible", async () => {
+    render(<UbicacionControlada inicial={sinPunto} />);
+    expect(await screen.findByRole("link", { name: "OpenStreetMap" })).toHaveAttribute(
+      "href",
+      "https://www.openstreetmap.org/copyright",
+    );
+    expect(screen.getByTestId("mosaicos")).toHaveAttribute(
+      "data-url",
+      "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    );
+  });
+
+  it("con la ubicación actual del navegador marca el punto y lleva el mapa hasta él", async () => {
+    simularGeolocalizacion((ok) =>
+      ok({ coords: { latitude: 9.2911119, longitude: -75.4011119 } } as GeolocationPosition),
+    );
+    render(<UbicacionControlada inicial={{ direccion: "Cra 19", latitud: null, longitud: null }} />);
+    await screen.findByRole("button", { name: "tocar mapa" });
+    await userEvent.setup().click(screen.getByRole("button", { name: "Usar mi ubicación actual" }));
+    expect(ubicacionActual()).toEqual({ direccion: "Cra 19", latitud: 9.291112, longitud: -75.401112 });
+    await waitFor(() => expect(mapa.setView).toHaveBeenCalledWith([9.291112, -75.401112], 17));
+  });
+
+  it("si el navegador niega la ubicación, lo dice y no cambia el punto", async () => {
+    simularGeolocalizacion((_ok, error) =>
+      error?.({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError),
+    );
+    render(<UbicacionControlada inicial={sinPunto} />);
+    await userEvent.setup().click(screen.getByRole("button", { name: "Usar mi ubicación actual" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("No diste permiso para usar tu ubicación");
+    expect(ubicacionActual()).toEqual(sinPunto);
+  });
+
+  it("sin geolocalización en el navegador no ofrece la ubicación actual", () => {
+    render(<UbicacionControlada inicial={sinPunto} />);
+    expect(screen.queryByRole("button", { name: "Usar mi ubicación actual" })).not.toBeInTheDocument();
+  });
+
+  it("las coordenadas manuales quedan como respaldo y enlazan el punto a OpenStreetMap", async () => {
+    render(<UbicacionControlada inicial={sinPunto} />);
+    const user = userEvent.setup();
+    expect(screen.queryByLabelText("Latitud")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Escribir coordenadas" }));
+    expect(screen.getByRole("button", { name: "Escribir coordenadas" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+
     await user.type(screen.getByLabelText("Latitud"), "9,30472");
-    expect(ubicacionActual()).toEqual({ direccion: "Calle 23 # 18-45", latitud: 9.30472, longitud: null });
-    expect(screen.queryByRole("link", { name: /Ver en Google Maps/ })).not.toBeInTheDocument();
+    expect(ubicacionActual()).toEqual({ direccion: "", latitud: 9.30472, longitud: null });
+    expect(screen.queryByRole("link", { name: /Ver en OpenStreetMap/ })).not.toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Longitud"), "-75.39778");
-    expect(screen.getByRole("link", { name: /Ver en Google Maps/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Ver en OpenStreetMap/ })).toHaveAttribute(
       "href",
-      "https://www.google.com/maps/search/?api=1&query=9.30472,-75.39778",
+      "https://www.openstreetmap.org/?mlat=9.30472&mlon=-75.39778#map=17/9.30472/-75.39778",
     );
+
+    // Lo que marca el mapa se ve en los campos.
+    await user.click(await screen.findByRole("button", { name: "tocar mapa" }));
+    expect(screen.getByLabelText("Latitud")).toHaveValue("9.301111");
 
     await user.clear(screen.getByLabelText("Latitud"));
     expect(ubicacionActual().latitud).toBeNull();
   });
+
+  it("si no carga ningún mosaico, quita el mapa y abre las coordenadas con un aviso", async () => {
+    render(<UbicacionControlada inicial={sinPunto} />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "fallan los mosaicos" }));
+    expect(screen.getByText(/No pudimos cargar el mapa/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "tocar mapa" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Escribir coordenadas" })).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText("Latitud"), "9.3");
+    expect(ubicacionActual().latitud).toBe(9.3);
+  });
 });
 
-describe("UbicacionSede con Google Maps", () => {
-  it("busca la dirección y al elegirla llena la dirección y el punto", async () => {
-    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "clave-de-prueba");
-    render(<UbicacionControlada inicial={sinPunto} />);
-    const user = userEvent.setup();
-    await user.type(await screen.findByRole("combobox"), "Calle 23");
-    await user.click(await screen.findByRole("option", { name: /Calle 23 # 18-45/ }));
-    await waitFor(() =>
-      expect(ubicacionActual()).toEqual({
-        direccion: "Cl. 23 #18-45, Sincelejo, Sucre",
-        latitud: 9.304721,
-        longitud: -75.397781,
-      }),
-    );
-    expect(screen.getByText(/9.304721, -75.397781 · Arrastra el pin/)).toBeInTheDocument();
-  });
-
-  it("tocar el mapa y arrastrar el pin cambian solo las coordenadas; se pueden quitar", async () => {
-    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "clave-de-prueba");
-    render(<UbicacionControlada inicial={{ direccion: "Cra 19", latitud: null, longitud: null }} />);
-    const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: "tocar mapa" }));
-    expect(ubicacionActual()).toEqual({ direccion: "Cra 19", latitud: 9.301111, longitud: -75.392223 });
-    await user.click(screen.getByRole("button", { name: "arrastrar pin" }));
-    expect(ubicacionActual()).toMatchObject({ latitud: 9.31, longitud: -75.39 });
-    await user.click(screen.getByRole("button", { name: "Quitar ubicación" }));
-    expect(ubicacionActual()).toEqual({ direccion: "Cra 19", latitud: null, longitud: null });
-  });
-
-  it("si Google no carga (clave inválida), pasa a coordenadas manuales con un aviso", async () => {
-    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "clave-mala");
-    estadoApi.valor = "AUTH_FAILURE";
-    render(<UbicacionControlada inicial={sinPunto} />);
-    expect(await screen.findByText(/No pudimos cargar el mapa/)).toBeInTheDocument();
-    expect(screen.getByLabelText("Latitud")).toBeInTheDocument();
-  });
-
-  it("sin facturación en Google Cloud (solo lo dice la consola): coordenadas manuales con el motivo", async () => {
-    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "clave-sin-facturacion");
-    render(<UbicacionControlada inicial={sinPunto} />);
-    expect(await screen.findByRole("combobox")).toBeInTheDocument();
-
-    act(() =>
-      console.error(
-        "Google Maps JavaScript API error: BillingNotEnabledMapError\nhttps://developers.google.com/maps/documentation/javascript/error-messages#billing-not-enabled-map-error",
-      ),
-    );
-    expect(await screen.findByText(/falta activar la facturación de Google Cloud/)).toBeInTheDocument();
-    expect(screen.getByLabelText("Latitud")).toBeInTheDocument();
-
-    // La API se carga una vez por página: otra ubicación que se monte después ya sabe del error.
-    render(<UbicacionControlada inicial={sinPunto} />);
-    expect(screen.getAllByText(/falta activar la facturación de Google Cloud/)).toHaveLength(2);
+describe("capaMapa", () => {
+  it("usa OpenStreetMap por defecto y otro proveedor con VITE_MAP_TILES_URL y VITE_MAP_ATTRIBUTION", () => {
+    expect(capaMapa()).toEqual({
+      url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+      atribucion: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    });
+    vi.stubEnv("VITE_MAP_TILES_URL", "https://mosaicos.ejemplo.com/{z}/{x}/{y}.png?key=abc");
+    vi.stubEnv("VITE_MAP_ATTRIBUTION", "&copy; Ejemplo &copy; OpenStreetMap");
+    expect(capaMapa()).toEqual({
+      url: "https://mosaicos.ejemplo.com/{z}/{x}/{y}.png?key=abc",
+      atribucion: "&copy; Ejemplo &copy; OpenStreetMap",
+    });
   });
 });

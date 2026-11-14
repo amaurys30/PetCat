@@ -1,9 +1,10 @@
 import { expect, test } from "@playwright/test";
+import { mosaicosFalsos } from "./mosaicos";
 
 /**
  * A6 contra la API de demo: registro → crear negocio → abandonar después del paso 1 →
  * entrar desde otro navegador y retomar donde quedó (lo decide la API con
- * configuracion_pendiente). Sin clave de Google: la sede usa coordenadas manuales.
+ * configuracion_pendiente). La sede se marca tocando el mapa y se ajusta con las coordenadas.
  */
 test("crea el negocio en tres pasos y retoma el asistente en otro navegador", async ({ browser, page }) => {
   // Registro, dos navegadores y los tres pasos: con la suite en paralelo pasa de 30 s.
@@ -29,6 +30,7 @@ test("crea el negocio en tres pasos y retoma el asistente en otro navegador", as
 
   // Abandona aquí y vuelve desde otro navegador: el asistente sigue en la sede.
   const otro = await browser.newContext();
+  await mosaicosFalsos(otro);
   const retomar = await otro.newPage();
   await retomar.goto("/login");
   await retomar.getByLabel("Correo electrónico").fill(email);
@@ -41,6 +43,11 @@ test("crea el negocio en tres pasos y retoma el asistente en otro navegador", as
   );
 
   await retomar.getByLabel("Dirección *").fill("Cra 19 #22-35, Centro");
+  await expect(retomar.locator(".leaflet-control-attribution")).toContainText("© OpenStreetMap");
+  await retomar.locator(".leaflet-container").click();
+  await expect(retomar.getByText(/· Arrastra el pin para ajustar/)).toBeVisible();
+  await expect(retomar.getByRole("button", { name: "Ubicación de la sede" })).toBeVisible();
+  await retomar.getByRole("button", { name: "Escribir coordenadas" }).click();
   await retomar.getByLabel("Latitud").fill("9.30472");
   await retomar.getByLabel("Longitud").fill("-75.39778");
   await retomar.getByRole("button", { name: /Continuar/ }).click();

@@ -11,7 +11,7 @@ Orden pensado para que cada fase deje datos listos para la siguiente: primero ac
 **Entorno**
 - [x] Base de demo separada: `petcat_demo` con esquema y seed, sin tocar `petcat_db`. Script en el backend (por ejemplo `npm run db:demo`) y forma de levantar la API contra esa base (por ejemplo `npm run dev:demo`). Documentarlo en el README.
 - [x] Crear el proyecto en `frontend/web` (Vite + React + TypeScript), ESLint, Prettier, alias `@/`.
-- [x] Proxy de Vite a la API, `.env.example` (`VITE_API_URL`, `VITE_SOCKET_URL`, `VITE_GOOGLE_MAPS_API_KEY` opcional) y `.env.local` en el `.gitignore`.
+- [x] Proxy de Vite a la API, `.env.example` (`VITE_API_URL`, `VITE_SOCKET_URL` y, desde el cambio a OpenStreetMap, `VITE_MAP_TILES_URL` y `VITE_MAP_ATTRIBUTION` opcionales) y `.env.local` en el `.gitignore`.
 - [x] `npm run api:types` con openapi-typescript y primera generación de `schema.d.ts`.
 - [x] Vitest + Testing Library; Playwright con un flujo de humo (login con el seed).
 - [x] CI: agregar al workflow un job para `frontend/web` (typecheck, lint, tests, build).
@@ -37,7 +37,7 @@ Orden pensado para que cada fase deje datos listos para la siguiente: primero ac
 ## P1 — Onboarding, perfil y configuración
 - [x] A7 Crear cuenta · A8 Verificación de correo (y reenviar enlace)
 - [x] A4 Aceptar invitación (cuenta nueva y existente; auto-login)
-- [x] Componente de ubicación de sede: Google Maps con pin arrastrable y Places Autocomplete; sin clave, latitud y longitud manuales.
+- [x] Componente de ubicación de sede: mapa con pin arrastrable y coordenadas manuales (hoy Leaflet + OpenStreetMap; ver Decisiones).
 - [x] A6 / A6b / A6c Crear negocio: datos, sede principal con mapa, horarios con plantillas
 - [x] E0 Perfil del negocio (resumen)
 - [x] E1 Configuración del negocio: datos, logo, banner, confirmación automática
@@ -121,8 +121,15 @@ Sub-bloques: P6.1 suscripción · P6.2 dashboard · P6.3 reseñas · P6.4 notifi
 - [x] Textos que se cortaban: Registró del carnet, excepciones de D5, raza en C1, nombre del negocio en el menú (tooltip) y columnas de X1.
 - [x] C1: una búsqueda sin resultados cierra el detalle del cliente anterior.
 - [x] Buscador de Equipo que no dejaba escribir al recargar: la tabla entraba en un ciclo de renders (datos vacíos nuevos en cada render y reinicio de página de TanStack Table) que congelaba la pestaña.
-- [x] Carga diferida de Google Maps y de las páginas del panel.
+- [x] Carga diferida del mapa de las sedes y de las páginas del panel.
 - [ ] Punto 18 del informe (selects nativos): pendiente, se decidió no hacerlo por ahora.
+
+---
+
+## Después de P7 — Mapas sin Google
+- [x] Ubicación de sede (A6b y E2) con Leaflet + OpenStreetMap en lugar de Google Maps: dirección como texto, punto tocando el mapa, arrastrando el pin o con "Usar mi ubicación actual"; coordenadas manuales como respaldo y si el mapa no carga. Atribución visible y carga diferida.
+- [x] Proveedor configurable con `VITE_MAP_TILES_URL` y `VITE_MAP_ATTRIBUTION`; fuera `@vis.gl/react-google-maps`, `VITE_GOOGLE_MAPS_API_KEY`, `VITE_GOOGLE_MAPS_MAP_ID` y el aviso de facturación de Google.
+- [x] Pruebas: componente con `react-leaflet` simulado; de punta a punta con mosaicos de un dominio de prueba (sin tráfico a OpenStreetMap).
 
 ---
 
@@ -164,7 +171,7 @@ _(Lo que el panel necesite y la API no tenga. No se inventa: se anota aquí.)_
 
 ## Decisiones
 - Calendario propio en lugar de FullCalendar Scheduler (licencia comercial). Sin arrastrar y soltar en el v1: mover una cita es reprogramar. Alternativa futura: react-big-calendar (MIT).
-- Mapas con Google Maps (`@vis.gl/react-google-maps`) y Places Autocomplete, por la calidad de las direcciones colombianas. Clave restringida por dominio y por API, con alerta de presupuesto en Google Cloud. El panel funciona sin clave (coordenadas manuales).
+- Mapas con **Leaflet + OpenStreetMap** (`react-leaflet`), no Google Maps: Google exige un prepago de facturación que el proyecto no puede hacer (decisión de noviembre de 2026; antes se usaban `@vis.gl/react-google-maps` y Places Autocomplete). Sin autocompletado: la dirección se escribe como texto y el punto se marca tocando el mapa, arrastrando el pin o con "Usar mi ubicación actual" (geolocalización del navegador); las coordenadas manuales quedan como respaldo ("Escribir coordenadas"). Se respeta la política de uso de los mosaicos de OpenStreetMap: atribución "© OpenStreetMap" visible, sin descargas en masa ni tráfico de pruebas (las de punta a punta usan un dominio falso, `tests/e2e/mosaicos.ts`). El proveedor se cambia sin tocar código con `VITE_MAP_TILES_URL` y `VITE_MAP_ATTRIBUTION`; para producción hay que elegir uno (requisito antes de lanzar en `docs/PLAN.md`).
 - Access token en memoria y refresh token en `localStorage` en el MVP (deuda: cookie httpOnly).
 - Negocio activo en la URL (`/n/:idNegocio/...`).
 - Diseño de escritorio, ancho mínimo 1280 px.
@@ -177,7 +184,6 @@ _(Lo que el panel necesite y la API no tenga. No se inventa: se anota aquí.)_
 - En P0 la búsqueda y la campana del Topbar están deshabilitadas (llegan en P5 y P6). La tarjeta del plan usa `GET /negocios/:id/suscripcion` solo si el rol tiene `configuracion.ver`; si no, muestra solo el nombre del plan.
 - P1: los huecos de API que bloquean o simplifican P1 se resuelven en el backend, en commits propios con Swagger y tests, antes de las pantallas: `GET /negocios/:id/gestion` con reglas de confirmación, `configuracion_pendiente` en `/negocios/mios` y `/auth/me` (el panel no lo calcula), `GET /politica-datos` público, fecha y versión aceptadas en `/auth/me`, reenvío de verificación sin sesión (respuesta neutra y límite estricto), registro con canal `panel` y el texto de `citas_afectadas` en horarios.
 - P1: el asistente de crear negocio escribe en la API en cada paso (el negocio se crea en el paso 1) y se retoma desde `configuracion_pendiente`. Solo el propietario es redirigido al asistente.
-- P1: `VITE_GOOGLE_MAPS_MAP_ID` opcional (el `AdvancedMarker` lo exige); sin él se usa `DEMO_MAP_ID`.
 - P1: no hay ruta `/bienvenida`. Después de crear la cuenta se va a `/negocios`, que sin negocios muestra la bienvenida (aviso de verificación con reenvío, crear negocio o "Ya acepté la invitación"). Es el mismo estado vacío de A5. El registro envía `tipo_usuario: "negocio"` y `canal: "panel_web"` y luego inicia sesión con las mismas credenciales.
 - P1: A8 funciona con o sin sesión y llama a la API una sola vez. Con el enlace vencido: con sesión, reenvía (`resend-verification`); sin sesión, pide el correo (`request-verification`, respuesta neutra).
 - P1: A4 con otra sesión abierta avisa antes y, al aceptar, cierra la sesión anterior y entra con la invitada (`reemplazar` en el store). El orden importa: primero se acepta (si falla, la sesión anterior sigue), luego se cierra la anterior (las otras pestañas quedan sin sesión) y por último se entra (las otras pestañas toman la nueva).
@@ -190,8 +196,8 @@ _(Lo que el panel necesite y la API no tenga. No se inventa: se anota aquí.)_
 - P1: en las pruebas, `request.formData()` de MSW no lee el multipart que arma jsdom; las subidas se verifican con el cuerpo crudo.
 - P1: E6 vive en `/n/:id/mi-perfil` (menú del avatar). Al cambiar nombre o foto, la pestaña avisa a las demás por BroadcastChannel (`perfil`) y recargan `/auth/me`. Las notificaciones se guardan al instante. El cambio de contraseña deja esta sesión (y sus pestañas) y cierra las de otros dispositivos.
 - Pruebas de punta a punta: `backend-demo` tiene límites de solicitudes mucho más altos (`RATE_LIMIT_MAX` 100000 y `AUTH_RATE_LIMIT_MAX` 10000 en `docker-compose.yml`) para que la suite no reciba 429. `petcat_backend` conserva 300 y 100.
-- Google Maps con clave pero sin facturación (o clave inválida, o dominio no permitido): Google no lo avisa por código, solo pinta un mapa gris y escribe `Google Maps JavaScript API error: <Código>` en la consola. `lib/erroresGoogleMaps.ts` escucha esa línea y la ubicación de la sede pasa a coordenadas manuales con el motivo. Se recuerda el error, porque la API se carga una sola vez por página.
-- Pruebas de punta a punta: construyen el panel en `dist-e2e` sin clave de Google y lo sirven con `vite preview` en el 5180 (mismo proxy a la API); no usan el Vite del 5173 ni dependen de `.env.local`. Corren de a una (`workers: 1`): comparten la demo y sus cuentas, y en paralelo el equipo llegaba al 100 % de CPU y fallaban al azar. Los correos se leen de Mailpit (`tests/e2e/mailpit.ts`).
+- Si no carga ningún mosaico del mapa (sin conexión o proveedor caído), la ubicación de la sede quita el mapa y abre las coordenadas manuales con un aviso; la ubicación actual sigue disponible.
+- Pruebas de punta a punta: construyen el panel en una carpeta temporal y lo sirven con `vite preview` en el 5180 (mismo proxy a la API); no usan el Vite del 5173 ni dependen de `.env.local`. Los mosaicos del mapa salen de un dominio de prueba que cada contexto responde con un PNG vacío (`tests/e2e/mosaicos.ts`). Corren de a una (`workers: 1`): comparten la demo y sus cuentas, y en paralelo el equipo llegaba al 100 % de CPU y fallaban al azar. Los correos se leen de Mailpit (`tests/e2e/mailpit.ts`).
 - `/dev/estados` (solo en desarrollo) reúne los estados de S1, los estados de cita y los botones para revisarlos contra el Figma.
 - P2: Equipo vive en `/n/:id/equipo` con las pestañas Miembros (`miembros`, requiere `empleados.ver`) y Roles y permisos (`roles`, requiere `roles.ver`). La disponibilidad está en `/n/:id/equipo/:idEmpleado/disponibilidad`: la ven quienes tienen `configuracion.ver` o `citas.ver` y el propio profesional, y la edita `configuracion.editar`. Un profesional sin `empleados.ver` llega a la suya solo por el enlace (no tiene Equipo en el menú).
 - P2: "Servicios que atiende" se asigna desde el formulario del miembro con `servicios` en `POST`/`PATCH /empleados` (opción A), que exige también `servicios.editar`. Sin `servicios.ver` el campo no aparece; sin `servicios.editar` se ve deshabilitado con el motivo.
@@ -317,5 +323,5 @@ _(Lo que el panel necesite y la API no tenga. No se inventa: se anota aquí.)_
 - P7: estados de carga con `Skeleton etiqueta` (uno solo) o `CargandoGrupo` (varios): `role="status"` y `aria-busy`.
 - P7: las canceladas no se dibujan en Semana y Día salvo con el interruptor, el filtro de estado o si es la abierta. La lista las sigue mostrando.
 - P7: rol clínico = su rol puede crear registros médicos; sin permiso para ver los roles, la especialidad o el rol Veterinario.
-- P7: las páginas del panel se cargan con `lazy`; en `rutasPanel` quedan layouts, guardas y acceso. Google Maps va en `UbicacionGoogle`. Las pruebas resuelven las rutas diferidas antes de pintar (`test/render.tsx`).
+- P7: las páginas del panel se cargan con `lazy`; en `rutasPanel` quedan layouts, guardas y acceso. El mapa de las sedes va en `MapaUbicacion` (Leaflet y su CSS en un chunk aparte). Las pruebas resuelven las rutas diferidas antes de pintar (`test/render.tsx`).
 - P7: `DataTable` usa un arreglo vacío estable y sin reinicio automático de la página (la paginación es de la API).
