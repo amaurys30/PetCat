@@ -57,6 +57,13 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 120_000,
     // Las variables del proceso tienen prioridad sobre .env.local en Vite (también en el build).
-    env: { VITE_MAP_TILES_URL: MOSAICOS_E2E, VITE_MAP_ATTRIBUTION: "&copy; OpenStreetMap" },
+    // El build es de producción y lee VITE_API_URL y VITE_SOCKET_URL: se fijan al mismo origen
+    // para que pasen por el proxy de vite preview aunque .env.local tenga una URL absoluta.
+    env: {
+      VITE_API_URL: "/api/v1",
+      VITE_SOCKET_URL: `http://localhost:${PUERTO}`,
+      VITE_MAP_TILES_URL: MOSAICOS_E2E,
+      VITE_MAP_ATTRIBUTION: "&copy; OpenStreetMap",
+    },
   },
 });

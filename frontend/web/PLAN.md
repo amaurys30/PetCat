@@ -325,3 +325,4 @@ _(Lo que el panel necesite y la API no tenga. No se inventa: se anota aquí.)_
 - P7: rol clínico = su rol puede crear registros médicos; sin permiso para ver los roles, la especialidad o el rol Veterinario.
 - P7: las páginas del panel se cargan con `lazy`; en `rutasPanel` quedan layouts, guardas y acceso. El mapa de las sedes va en `MapaUbicacion` (Leaflet y su CSS en un chunk aparte). Las pruebas resuelven las rutas diferidas antes de pintar (`test/render.tsx`).
 - P7: `DataTable` usa un arreglo vacío estable y sin reinicio automático de la página (la paginación es de la API).
+- Desarrollo: el panel llama a rutas relativas (`/api/v1`, `/socket.io`) y el proxy de Vite las reenvía; `VITE_API_URL` y `VITE_SOCKET_URL` solo cuentan en el build. `npm run dev` atiende solo en localhost y `npm run dev:red` (--host) en la red local.

@@ -42,9 +42,10 @@ cd frontend/web
 npm install
 Copy-Item .env.example .env.local   # opcional: todas las variables tienen valor por defecto
 npm run dev                         # http://localhost:5173 (landing); el panel entra por /panel o /login
+npm run dev:red                     # igual, pero abierto a la red local: http://<IP del equipo>:5173
 ```
 
-Vite reenvía `/api` y `/socket.io` a `VITE_API_PROXY_TARGET` (por defecto `http://localhost:3001`), así que no hay CORS. El mapa de las sedes usa Leaflet con los mosaicos de OpenStreetMap, sin clave; para otro proveedor, `VITE_MAP_TILES_URL` y `VITE_MAP_ATTRIBUTION`.
+En desarrollo el panel llama siempre a rutas relativas (`/api/v1`, `/socket.io`) y Vite las reenvía, websockets incluidos, a `VITE_API_PROXY_TARGET` (por defecto `http://localhost:3001`), así que no hay CORS. `VITE_API_URL` y `VITE_SOCKET_URL` solo cuentan en el build. `npm run dev` atiende solo en este equipo. Con `npm run dev:red` se puede abrir desde un celular u otro equipo de la misma red: el proxy corre en este equipo, así que la API de demo sigue publicada solo en 127.0.0.1. La primera vez, Windows puede pedir permiso en el firewall para Node. El mapa de las sedes usa Leaflet con los mosaicos de OpenStreetMap, sin clave; para otro proveedor, `VITE_MAP_TILES_URL` y `VITE_MAP_ATTRIBUTION`.
 
 ### Cuentas del seed
 

@@ -15,8 +15,12 @@ export default defineConfig(({ mode }) => {
       alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
     },
     server: {
+      // `npm run dev` solo atiende en este equipo; `npm run dev:red` (--host) lo abre a la red local.
+      host: "localhost",
       port: 5173,
       strictPort: true,
+      // En desarrollo el panel usa rutas relativas (src/api/origen.ts) y el proxy las reenvía a la
+      // API, también desde otro equipo de la red. `vite preview` (pruebas de punta a punta) usa el mismo.
       proxy: {
         "/api": { target: apiTarget, changeOrigin: true },
         "/socket.io": { target: apiTarget, changeOrigin: true, ws: true },

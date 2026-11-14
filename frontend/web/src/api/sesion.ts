@@ -1,5 +1,6 @@
 import axios from "axios";
 import { ApiError, toApiError } from "./errors";
+import { urlApi } from "./origen";
 import { borrarRefresh, guardarRefresh, leerRefresh } from "./refreshStorage";
 import type { Respuesta } from "./types";
 
@@ -21,7 +22,7 @@ import type { Respuesta } from "./types";
  *   nueva sin refresh token propio (sesión sin "Recordarme") se lo pide a las abiertas.
  */
 
-export const API_URL = import.meta.env.VITE_API_URL || "/api/v1";
+export const API_URL = urlApi();
 const CANDADO = "petcat-renovar-sesion";
 const TIEMPO_RESPUESTA_PESTANAS_MS = 250;
 
