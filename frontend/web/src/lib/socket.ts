@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { io, type Socket } from "socket.io-client";
+import { origenSocket } from "@/api/origen";
 import { getAccessToken, renovarSesion } from "@/api/sesion";
 
 /**
@@ -19,8 +20,8 @@ export type EstadoConexion = "cerrado" | "conectando" | "conectado" | "desconect
 
 const REINTENTO_RECHAZO_MS = 60_000;
 
-/** Servidor de Socket.IO: VITE_SOCKET_URL o, vacío, el mismo origen del panel (proxy). */
-const origen: string | undefined = import.meta.env.VITE_SOCKET_URL || undefined;
+/** Servidor de Socket.IO: en desarrollo el mismo origen (proxy); en el build, VITE_SOCKET_URL o el mismo origen. */
+const origen = origenSocket();
 
 let socket: Socket | null = null;
 let idUsuarioSocket: number | null = null;

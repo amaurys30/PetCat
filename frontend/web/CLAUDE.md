@@ -92,7 +92,7 @@ frontend/web/
 - Sesión: access token **en memoria**; refresh token en `localStorage` (decisión del MVP, anotada como deuda: a futuro, cookie httpOnly desde la API). Al cargar la app, si hay refresh token, se renueva antes de mostrar el panel.
 - **Negocio activo en la URL:** rutas bajo `/n/:idNegocio/...`. El selector del menú cambia de negocio sin perder la sección. `/negocios/mios` define a qué negocios se puede entrar y con qué rol.
 - **Permisos:** la UI oculta o deshabilita lo que el rol no permite (helper `puede(modulo, accion)`), pero la API es la que decide; siempre manejar el 403.
-- Vite usa un proxy `/api` y `/socket.io` → `VITE_API_PROXY_TARGET` (por defecto `http://localhost:3001`, la API de demo en Docker), así no hay problemas de CORS en desarrollo. Variables: `VITE_API_URL=/api/v1`, `VITE_API_PROXY_TARGET`, `VITE_SOCKET_URL` (vacío: mismo origen, por el proxy), `VITE_MAP_TILES_URL` y `VITE_MAP_ATTRIBUTION` (opcionales; por defecto OpenStreetMap).
+- Vite usa un proxy `/api` y `/socket.io` (con websockets) → `VITE_API_PROXY_TARGET` (por defecto `http://localhost:3001`, la API de demo en Docker), así no hay problemas de CORS en desarrollo. En desarrollo el panel usa siempre rutas relativas (`src/api/origen.ts`); `VITE_API_URL` (por defecto `/api/v1`) y `VITE_SOCKET_URL` (vacío: mismo origen) solo cuentan en el build. Otras variables: `VITE_API_PROXY_TARGET`, `VITE_MAP_TILES_URL` y `VITE_MAP_ATTRIBUTION` (opcionales; por defecto OpenStreetMap).
 - Tipos: en las respuestas de Swagger todo campo que la API envía siempre es requerido (convención `x-opcional` del backend), así que `schema.d.ts` refleja lo que llega. Usar los tipos de `src/api/types.ts`; tras un cambio en la API, `npm run api:types`. Si un proveedor de mapas exige clave, queda visible en el navegador dentro de `VITE_MAP_TILES_URL`: restringirla a los dominios del panel en el proveedor y no subirla al repositorio (va en `.env.local` o en el build).
 
 **Fechas, horas y dinero**
@@ -125,6 +125,7 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile panel u
 docker compose exec backend-demo node scripts/db-demo.js   # recarga petcat_demo con el seed
 
 cd frontend/web; npm run dev        # http://localhost:5173
+npm run dev:red                     # lo mismo, abierto a la red local (celular u otro equipo)
 npm run api:types                   # regenera src/api/schema.d.ts desde la API de demo (3001)
 npm run typecheck; npm run lint; npm test
 npm run test:e2e                    # Playwright contra la API de demo (usa el Chrome instalado)
