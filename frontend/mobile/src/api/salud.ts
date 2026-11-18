@@ -1,8 +1,7 @@
-import { api, type Respuesta } from "./client";
-
-export type Salud = { status: string; db: string; uptime: number; time: string };
+import { api } from "./client";
+import type { Respuesta, Salud } from "./types";
 
 export async function getSalud(): Promise<Salud> {
-  const { data } = await api.get<Respuesta<Salud>>("/health");
+  const { data } = await api.get<Respuesta<Salud>>("/health", { sinRenovar: true });
   return data.data;
 }
