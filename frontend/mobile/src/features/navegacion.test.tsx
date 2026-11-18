@@ -1,35 +1,18 @@
 import { fireEvent, screen } from "@testing-library/react-native";
-import { renderRouter } from "expo-router/testing-library";
+import { http } from "msw";
 
+import { refreshStorage } from "@/api/refreshStorage";
 import { volverOIr } from "@/lib/navegacion";
 
-import AuthLayout from "../../app/(auth)/_layout";
-import Bienvenida from "../../app/(auth)/bienvenida";
-import Login from "../../app/(auth)/login";
-import Registro from "../../app/(auth)/registro";
-import TabsLayout from "../../app/(tabs)/_layout";
-import Inicio from "../../app/(tabs)/index";
-import Perfil from "../../app/(tabs)/perfil";
-import RootLayout from "../../app/_layout";
-import Estado from "../../app/dev/estado";
-
-// Las rutas reales de la app (las pestañas que no se recorren aquí no hacen falta).
-const RUTAS = {
-  _layout: RootLayout,
-  "(tabs)/_layout": TabsLayout,
-  "(tabs)/index": Inicio,
-  "(tabs)/perfil": Perfil,
-  "(auth)/_layout": AuthLayout,
-  "(auth)/bienvenida": Bienvenida,
-  "(auth)/login": Login,
-  "(auth)/registro": Registro,
-  "dev/estado": Estado,
-};
+import { reiniciarSesion, renderApp } from "../../test/app";
+import { API, ok, perfilDemo, sesionDemo } from "../../test/msw/handlers";
+import { server } from "../../test/msw/server";
 
 let errores: string[] = [];
 let espia: jest.SpyInstance;
 
-beforeEach(() => {
+beforeEach(async () => {
+  await reiniciarSesion();
   errores = [];
   espia = jest.spyOn(console, "error").mockImplementation((...args) => {
     errores.push(args.map(String).join(" "));
@@ -42,45 +25,63 @@ afterEach(() => {
   expect(errores.filter((e) => e.includes("GO_BACK"))).toEqual([]);
 });
 
+async function conSesion() {
+  await refreshStorage.guardar("refresh-0");
+  server.use(
+    http.post(`${API}/auth/refresh-token`, () => ok(sesionDemo(1))),
+    http.get(`${API}/auth/me`, () => ok(perfilDemo())),
+  );
+}
+
 // La flecha de ScreenHeader es el primer "Volver" de la pantalla.
 const flechaVolver = () => screen.getAllByRole("button", { name: "Volver" })[0]!;
 
 describe("Volver sin historial (enlace directo o recarga de Metro)", () => {
   it.each([
-    ["/login", "/"],
-    ["/registro", "/"],
-    ["/bienvenida", "/perfil"],
-    ["/dev/estado", "/perfil"],
-  ])("en %s la flecha lleva a la ruta de respaldo %s", async (inicial, respaldo) => {
-    await renderRouter(RUTAS, { initialUrl: inicial });
-    expect(screen).toHavePathname(inicial);
-
-    await fireEvent.press(flechaVolver());
-
+    ["/registro", "/bienvenida"],
+    ["/recuperar", "/login"],
+    ["/recuperar-codigo?email=sofia%40petcat.test", "/recuperar"],
+  ])("sin sesión, en %s la flecha lleva a %s", async (inicial, respaldo) => {
+    await renderApp(inicial);
+    await fireEvent.press(await screen.findByRole("button", { name: "Volver" }));
     expect(screen).toHavePathname(respaldo);
   });
 
-  it("el botón Volver de la pantalla temporal también usa el respaldo", async () => {
-    await renderRouter(RUTAS, { initialUrl: "/login" });
-    const botones = screen.getAllByRole("button", { name: "Volver" });
-    await fireEvent.press(botones[botones.length - 1]!);
-    expect(screen).toHavePathname("/");
+  it("con sesión, el diagnóstico vuelve a Perfil", async () => {
+    await conSesion();
+    await renderApp("/dev/estado");
+    await screen.findByText("Conectada");
+    await fireEvent.press(flechaVolver());
+    expect(screen).toHavePathname("/perfil");
+  });
+
+  it("la política vuelve al inicio, que sin sesión es la Bienvenida", async () => {
+    await renderApp("/politica");
+    await fireEvent.press(await screen.findByRole("button", { name: "Volver" }));
+    expect(await screen.findByTestId("carrusel-bienvenida")).toBeOnTheScreen();
   });
 });
 
 describe("Volver con historial", () => {
-  it("Perfil → Bienvenida → Iniciar sesión, y de vuelta paso a paso", async () => {
-    await renderRouter(RUTAS, { initialUrl: "/perfil" });
-
-    await fireEvent.press(screen.getByRole("button", { name: "Ver la bienvenida" }));
-    expect(screen).toHavePathname("/bienvenida");
-    await fireEvent.press(screen.getByRole("button", { name: "Ya tengo cuenta" }));
-    expect(screen).toHavePathname("/login");
-
+  it("Bienvenida → Crear cuenta → Volver regresa a la Bienvenida", async () => {
+    await renderApp();
+    await fireEvent.press(await screen.findByRole("button", { name: "Crear mi cuenta" }));
+    expect(screen).toHavePathname("/registro");
     await fireEvent.press(flechaVolver());
     expect(screen).toHavePathname("/bienvenida");
-    await fireEvent.press(flechaVolver());
-    expect(screen).toHavePathname("/perfil");
+  });
+});
+
+describe("rutas protegidas", () => {
+  it("sin sesión, las pestañas y el diagnóstico llevan a la Bienvenida", async () => {
+    await renderApp("/perfil");
+    expect(await screen.findByTestId("carrusel-bienvenida")).toBeOnTheScreen();
+  });
+
+  it("con sesión, la Bienvenida y el login llevan a las pestañas", async () => {
+    await conSesion();
+    await renderApp("/login");
+    expect(await screen.findByRole("tab", { name: "Inicio" })).toBeSelected();
   });
 });
 

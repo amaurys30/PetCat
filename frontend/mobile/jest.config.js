@@ -44,6 +44,11 @@ module.exports = {
   // Entorno de jest-expo que conserva el fetch de Node para MSW (ver test/environment.js).
   testEnvironment: "<rootDir>/test/environment.js",
   setupFilesAfterEnv: ["<rootDir>/test/setup.ts"],
+  // renderRouter (expo-router/testing-library) activa los timers falsos con jest.useFakeTimers(),
+  // que toma estas opciones. nextTick y setImmediate siguen reales: el fetch de Node (y MSW)
+  // los usa para resolver las peticiones; con ellos falsos, cualquier pantalla que llame a la
+  // API se queda esperando.
+  fakeTimers: { doNotFake: ["nextTick", "setImmediate", "queueMicrotask"] },
   testMatch: ["<rootDir>/src/**/*.test.{ts,tsx}"],
   transform: { "\\.mjs$": "babel-jest" },
   transformIgnorePatterns: [`node_modules/(?!(${ESM.join("|")}))`],

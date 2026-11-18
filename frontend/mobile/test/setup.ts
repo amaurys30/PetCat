@@ -1,4 +1,10 @@
+import { configure } from "@testing-library/react-native";
+
 import { server } from "./msw/server";
+
+// Las pruebas de flujo (arranque, rutas protegidas, varias pantallas) pasan del segundo por
+// defecto de findBy*/waitFor cuando el equipo o CI están cargados.
+configure({ asyncUtilTimeout: 5_000 });
 
 // fetch, Request, Response y Headers de Node (ver test/environment.js): MSW los intercepta.
 const webDeNode = (globalThis as unknown as { __webDeNode: Record<string, unknown> }).__webDeNode;
@@ -12,6 +18,11 @@ console.warn = (...args: unknown[]) => {
   if (String(args[0]).startsWith("ImageBackground is deprecated")) return;
   warnOriginal(...args);
 };
+
+// NetInfo: el mock de la librería (addEventListener es un jest.fn; las pruebas llaman al listener).
+jest.mock("@react-native-community/netinfo", () =>
+  require("@react-native-community/netinfo/jest/netinfo-mock.js"),
+);
 
 // SecureStore en memoria (el módulo nativo no existe en Jest).
 jest.mock("expo-secure-store", () => {
