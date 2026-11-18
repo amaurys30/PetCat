@@ -1,16 +1,12 @@
-# Recorre las 5 pestañas. Se corre en local, no en CI: npm run e2e
-# Con Expo Go (M0): arrancar `npm start` y pasar la URL de Expo que muestra la terminal:
-#   maestro test -e EXPO_URL=exp://192.168.1.50:8081 e2e/navegacion.yaml
+# Recorre las 5 pestañas y cierra sesión. Local, no en CI: npm run e2e
+# Desde M1 la app abre en la Bienvenida sin sesión: primero entra con login.yaml.
+#   maestro test -e EXPO_URL=exp://192.168.1.50:8081 -e PASSWORD=<la del README> e2e/navegacion.yaml
 # Con la development build (desde M4) el appId es co.petcat.app y sobra el openLink.
 appId: host.exp.exponent
 env:
   EXPO_URL: exp://127.0.0.1:8081
 ---
-- launchApp
-- openLink: ${EXPO_URL}
-- extendedWaitUntil:
-    visible: "Inicio"
-    timeout: 60000
+- runFlow: login.yaml
 - tapOn: "Explorar"
 - assertVisible: "Explorar"
 - tapOn: "Carnet de mis mascotas"
@@ -18,6 +14,11 @@ env:
 - tapOn: "Citas"
 - assertVisible: "Citas"
 - tapOn: "Perfil"
-- assertVisible: "Todavía no has iniciado sesión"
+- assertVisible: "cliente@petcat.test"
 - tapOn: "Inicio"
 - assertVisible: "Inicio"
+- tapOn: "Perfil"
+- tapOn: "Cerrar sesión"
+- extendedWaitUntil:
+    visible: "Ya tengo cuenta"
+    timeout: 15000

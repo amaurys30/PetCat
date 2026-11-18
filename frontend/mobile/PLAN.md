@@ -95,13 +95,41 @@ Investigación:
 - **Sin sesión:** `GET /negocios` (búsqueda con `lat`, `lng`, `radio_km`), `/negocios/:id_negocio`, `/negocios/:id_negocio/sucursales`, `/negocios/:id_negocio/resenas`, `/sucursales/:id_sucursal`, `/sucursales/:id_sucursal/horarios`, `/servicios`, `/servicios/:id_servicio`, `/categorias-servicio` y `/citas/horarios-libres`. Agendar (`POST /citas`) pide sesión. Explorar y la consulta de disponibilidad no necesitan cambios en la API.
 - Para M1: los enlaces de verificación y recuperación de los correos apuntan a `FRONTEND_URL` (el panel web, `localhost:5173` en desarrollo) y no abren en el teléfono. Se propondrá en el plan de M1 (deep link `petcat://` o publicar esas páginas).
 
-## ⬜ M1 · Acceso
+## ✅ M1 · Acceso
 
 - M1 bienvenida (carrusel de 3), M2 registro con aceptación de la política (Ley 1581, enlace a la política), M3 login, recuperar contraseña.
 - Sesión persistente: al abrir la app, refresh silencioso → pestañas o bienvenida.
 - Cerrar sesión borra tokens y caché.
 - Caso "mi veterinaria me registró": activar cuenta con "olvidé mi contraseña".
 - Pruebas: validaciones, login correcto/incorrecto, refresh en cola. Maestro: login.
+
+### Resultado de M1 (rama `mobile/m1-acceso`)
+
+Backend primero: PR #16 (`api/codigos-correo`, fusionado). Los correos de verificación y recuperación llevan un código de 6 dígitos además del enlace (`POST /auth/verify-email/codigo`, `POST /auth/reset-password/codigo`); se eligió frente a una página que intente abrir `petcat://` (los clientes de correo lo bloquean y no funciona en Expo Go) y a universal links / App Links (necesitan dominio y la app firmada; ver "Antes de publicar").
+
+Hecho:
+- [x] Arranque: el splash sigue hasta saber si hay sesión; refresh silencioso (máximo 8 s) y `GET /auth/me` → pestañas, aceptar la política o Bienvenida. Sin red: pantalla "Sin conexión" que conserva la sesión, con Reintentar, y reintenta sola cuando la red pasa de caída a disponible (NetInfo).
+- [x] Rutas protegidas con `Stack.Protected` (sin sesión solo `(auth)`; con la política pendiente solo `aceptar-politica`). Login, cerrar sesión y aceptar la política redirigen solos.
+- [x] M1 · Bienvenida con 3 láminas sin avance automático; ilustraciones armadas con componentes (Pasaporte en miniatura con sellos y QR, mapa simplificado con la ruta y las horas), ocultas al lector. El carrusel es un control ajustable ("Lámina 1 de 3" con el título y el texto). Sin flecha Volver.
+- [x] M2 · Crear cuenta: validación como la API, medidor de contraseña en texto, casilla de la política separada del enlace "Ver política", `canal: "app"`; después entra solo y pasa a confirmar el correo. 409 → atajo "Activar mi cuenta con este correo"; 422 → error en su campo.
+- [x] M3 · Iniciar sesión con `dispositivo` (modelo y sistema, `expo-device`). 401 → mensaje propio; 403 por bloqueo → mensaje de la API y atajo a recuperar; 429 → mensaje de la API.
+- [x] Recuperar contraseña con código (correo → código y contraseña nueva → entra solo); también activa la cuenta que creó la veterinaria.
+- [x] Confirmar el correo con código (reenviar, "Hacerlo después"); aviso en Perfil mientras no esté confirmado.
+- [x] Aceptar la política cuando `requiere_aceptar_politica`. Mientras `politica_datos_url` esté vacía, "Ver política" abre un resumen en la app con aviso de versión provisional; con URL, el texto completo en el navegador.
+- [x] Perfil mínimo con cerrar sesión (avisa a la API con 5 s de límite; borra tokens, sesión y caché aunque no haya red).
+- [x] Accesibilidad: orden de foco con "siguiente" en el teclado, teclado y autocompletado por campo, Mostrar/Ocultar contraseña, errores en la etiqueta del campo y anunciados (iOS no tiene regiones vivas), foco al primer error.
+- [x] Pruebas: 149 (arranque, rutas protegidas, cada pantalla y flujo con MSW, carrusel, dispositivo, medidor). Maestro: `e2e/login.yaml` y `e2e/navegacion.yaml` (ahora entra con login primero).
+- [x] Contrato comprobado contra la API de demo con un usuario de prueba: registro (autorización canal `app`, versión 1.0), login con `dispositivo`, perfil, código del correo (Mailpit) y logout.
+
+Cierre (2026-11-18):
+- [x] Probada en Android con Expo Go. M1 terminada.
+
+Queda para después (no bloquea M1):
+- [ ] Correr los flujos de Maestro (`e2e/login.yaml` y `e2e/navegacion.yaml`; no estaba instalado).
+
+Notas:
+- Jest: `renderRouter` activa los timers falsos; `jest.config.js` deja `nextTick` y `setImmediate` reales (si no, ninguna llamada a la API termina en las pruebas de flujo).
+- Contraseñas del seed: `backend/README.md`, "Usuarios de prueba". En la demo de este equipo la de `cliente@petcat.test` ya no coincidía con el seed (se cambió después de cargarlo): recargar la demo antes de correr Maestro.
 
 ## ⬜ M2 · Inicio y mascotas
 
@@ -166,6 +194,8 @@ Depende de inventario (Fase 3) e IA (Fase 4). Versión inicial posible con regla
 
 - Proveedor de teselas para producción (las teselas públicas de OSM no se permiten para apps en producción).
 - Política de privacidad pública y enlace en la ficha de la tienda.
+- Página pública de la política de tratamiento de datos (texto revisado) y configurar su dirección en `configuracion_global.politica_datos_url`. Hasta entonces la app muestra un resumen provisional (`src/features/auth/PoliticaScreen.tsx`), que hay que reemplazar.
+- Universal links / App Links para los enlaces de los correos (abrir la app directo): dominio con HTTPS que sirva `apple-app-site-association` y `assetlinks.json`, y la app firmada. Hoy la app usa el código de 6 dígitos del correo.
 - Íconos, splash, nombre del paquete (`co.petcat.app` o el que definan).
 - Cuenta de Google Play (pago único) y Apple Developer (anual) si se publica en iOS.
 - SMTP real para correos de recuperación.

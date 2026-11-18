@@ -1,0 +1,40 @@
+# Login contra la API de demo (petcat_demo) con un cliente del seed: primero una contraseña
+# errónea (mensaje propio) y después la correcta (abre las pestañas). Local, no en CI.
+# La contraseña no va en el repositorio: la del seed está en backend/README.md, "Usuarios de
+# prueba" (si se cambió en la demo, recargarla).
+#   maestro test -e EXPO_URL=exp://192.168.1.50:8081 -e PASSWORD=<la del README> e2e/login.yaml
+# Empieza sin sesión (clearState borra los datos de Expo Go, también la sesión guardada).
+# Con la development build (desde M4) el appId es co.petcat.app y sobra el openLink.
+appId: host.exp.exponent
+env:
+  EXPO_URL: exp://127.0.0.1:8081
+  EMAIL: cliente@petcat.test
+---
+- launchApp:
+    clearState: true
+- openLink: ${EXPO_URL}
+- extendedWaitUntil:
+    visible: "Ya tengo cuenta"
+    timeout: 60000
+- tapOn: "Ya tengo cuenta"
+- assertVisible: "¡Hola de nuevo!"
+
+- tapOn: "Correo electrónico"
+- inputText: ${EMAIL}
+- tapOn: "Contraseña"
+- inputText: "no-es-la-clave"
+- hideKeyboard
+- tapOn: "Entrar"
+- extendedWaitUntil:
+    visible: "Correo o contraseña incorrectos. Revisa los datos e inténtalo de nuevo."
+    timeout: 15000
+
+- tapOn: "Contraseña"
+- eraseText: 30
+- inputText: ${PASSWORD}
+- hideKeyboard
+- tapOn: "Entrar"
+- extendedWaitUntil:
+    visible: "Inicio"
+    timeout: 15000
+- assertVisible: "Carnet de mis mascotas"

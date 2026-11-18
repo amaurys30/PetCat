@@ -123,7 +123,7 @@ export interface paths {
         put?: never;
         /**
          * Crear una cuenta
-         * @description Registro público para dueños de mascotas (`cliente`) y dueños de negocio (`negocio`). No permite crear administradores de plataforma. No inicia sesión: después se llama a `/auth/login`. Envía un correo con el enlace `${FRONTEND_URL}/verificar-email/<token>` (vigente 24 horas). El email sin verificar no impide iniciar sesión ni reservar citas.
+         * @description Registro público para dueños de mascotas (`cliente`) y dueños de negocio (`negocio`). No permite crear administradores de plataforma. No inicia sesión: después se llama a `/auth/login`. Envía un correo con un código de 6 dígitos para la app (vigente 15 minutos; ver `POST /auth/verify-email/codigo`) y el enlace `${FRONTEND_URL}/verificar-email/<token>` (vigente 24 horas). El email sin verificar no impide iniciar sesión ni reservar citas.
          */
         post: {
             parameters: {
@@ -797,8 +797,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Pedir un enlace para restablecer la contraseña
-         * @description Responde igual exista o no el email. Si la cuenta existe y está activa, envía `${FRONTEND_URL}/restablecer-password/<token>` (vigente 1 hora; cada enlace nuevo invalida el anterior; máximo uno por minuto). Funciona aunque la cuenta esté bloqueada por intentos fallidos.
+         * Pedir un código y un enlace para restablecer la contraseña
+         * @description Responde igual exista o no el email. Si la cuenta existe y está activa, envía un correo con un código de 6 dígitos para la app (vigente 15 minutos; ver `POST /auth/reset-password/codigo`) y el enlace `${FRONTEND_URL}/restablecer-password/<token>` (vigente 1 hora). Cada correo nuevo invalida el código y el enlace anteriores, también un enlace de bienvenida pendiente. Máximo un correo por minuto y cinco por hora por cuenta (además del límite por IP). Funciona aunque la cuenta esté bloqueada por intentos fallidos.
          */
         post: {
             parameters: {
@@ -825,7 +825,7 @@ export interface paths {
                         "application/json": {
                             /** @example true */
                             success: boolean;
-                            /** @example Si el correo está registrado, te enviamos un enlace para restablecer la contraseña */
+                            /** @example Si el correo está registrado, te enviamos un código y un enlace para restablecer la contraseña */
                             message: string;
                             /** @example null */
                             data: unknown;
@@ -853,7 +853,7 @@ export interface paths {
         put?: never;
         /**
          * Restablecer la contraseña con el token del correo
-         * @description Cambia la contraseña, desbloquea la cuenta (reinicia los intentos fallidos), marca el email como verificado y cierra todas las sesiones. No inicia sesión: después se llama a `/auth/login`.
+         * @description Cambia la contraseña, desbloquea la cuenta (reinicia los intentos fallidos), marca el email como verificado y cierra todas las sesiones. No inicia sesión: después se llama a `/auth/login`. Usar el enlace invalida también el código del mismo correo.
          */
         post: {
             parameters: {
@@ -923,6 +923,80 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/reset-password/codigo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restablecer la contraseña con el código del correo (app móvil)
+         * @description Igual que `POST /auth/reset-password`, con el código de 6 dígitos del correo de `POST /auth/forgot-password` en lugar del enlace: cambia la contraseña, desbloquea la cuenta, marca el email como verificado, invalida el enlace y cierra todas las sesiones. No inicia sesión. El código vence a los 15 minutos y sirve una vez; 5 intentos fallidos lo anulan (hay que pedir otro). Misma respuesta 400 si el email no existe, la cuenta está desactivada o el código no es válido: no delata cuentas.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: email */
+                        email: string;
+                        /** @example 482913 */
+                        codigo: string;
+                        /** @description Al menos una letra y un número. */
+                        password: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Contraseña restablecida */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            /** @example Contraseña restablecida. Ya puedes iniciar sesión */
+                            message: string;
+                            /** @example null */
+                            data: unknown;
+                        };
+                    };
+                };
+                /** @description Email sin cuenta activa, o código que no coincide, ya se usó, venció o se anuló por intentos */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        /**
+                         * @example {
+                         *       "success": false,
+                         *       "message": "El código no es válido o ya venció. Solicita uno nuevo"
+                         *     }
+                         */
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                422: components["responses"]["ValidationError"];
+                429: components["responses"]["TooManyRequests"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/verify-email/{token}": {
         parameters: {
             query?: never;
@@ -932,7 +1006,7 @@ export interface paths {
         };
         /**
          * Verificar el email con el token del correo
-         * @description La pantalla `${FRONTEND_URL}/verificar-email/<token>` del frontend llama a este endpoint. El token sirve una sola vez: un segundo intento da 400 (consultar `GET /auth/me` para saber si ya está verificado).
+         * @description La pantalla `${FRONTEND_URL}/verificar-email/<token>` del frontend llama a este endpoint. El token sirve una sola vez: un segundo intento da 400 (consultar `GET /auth/me` para saber si ya está verificado). Usar el enlace invalida también el código del mismo correo.
          */
         get: {
             parameters: {
@@ -988,6 +1062,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/verify-email/codigo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verificar el email con el código del correo (app móvil)
+         * @description Con sesión. Marca el email como verificado con el código de 6 dígitos del último correo de verificación (registro, `resend-verification` o `request-verification`) e invalida el enlace del mismo correo. El código vence a los 15 minutos y sirve una vez; 5 intentos fallidos lo anulan (pedir otro con `POST /auth/resend-verification`).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @example 482913 */
+                        codigo: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Correo verificado */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            /** @example Correo verificado */
+                            message: string;
+                            /** @example null */
+                            data: unknown;
+                        };
+                    };
+                };
+                /** @description El código no coincide, ya se usó, venció o se anuló por intentos */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        /**
+                         * @example {
+                         *       "success": false,
+                         *       "message": "El código no es válido o ya venció. Solicita uno nuevo"
+                         *     }
+                         */
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                /** @description El correo ya está verificado */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        /**
+                         * @example {
+                         *       "success": false,
+                         *       "message": "Tu correo ya está verificado"
+                         *     }
+                         */
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                422: components["responses"]["ValidationError"];
+                429: components["responses"]["TooManyRequests"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/resend-verification": {
         parameters: {
             query?: never;
@@ -999,7 +1159,7 @@ export interface paths {
         put?: never;
         /**
          * Reenviar el correo de verificación
-         * @description Envía un enlace nuevo (vigente 24 horas) e invalida el anterior. Máximo uno por minuto.
+         * @description Envía un código (vigente 15 minutos) y un enlace (vigente 24 horas) nuevos e invalida los anteriores. Máximo un correo por minuto y cinco por hora por cuenta.
          */
         post: {
             parameters: {
@@ -1019,7 +1179,7 @@ export interface paths {
                         "application/json": {
                             /** @example true */
                             success: boolean;
-                            /** @example Te enviamos un nuevo enlace de verificación */
+                            /** @example Te enviamos un nuevo código y enlace de verificación */
                             message: string;
                             data: {
                                 /** Format: email */
@@ -1044,7 +1204,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Se envió otro correo hace menos de un minuto, o se superó el límite de solicitudes */
+                /** @description Se envió otro correo hace menos de un minuto o ya van cinco en la última hora, o se superó el límite de solicitudes */
                 429: {
                     headers: {
                         [name: string]: unknown;
@@ -1081,7 +1241,7 @@ export interface paths {
         put?: never;
         /**
          * Pedir un enlace de verificación sin sesión
-         * @description Para cuando el enlace venció o se abrió en otro dispositivo sin sesión. Responde igual exista o no el email, y aunque ya esté verificado. Si la cuenta existe, está activa y no está verificada, envía `${FRONTEND_URL}/verificar-email/<token>` (vigente 24 horas; cada enlace nuevo invalida el anterior; máximo uno por minuto). Con sesión, usar `POST /auth/resend-verification`, que sí informa si ya está verificado o si el correo no se pudo enviar.
+         * @description Para cuando el enlace venció o se abrió en otro dispositivo sin sesión. Responde igual exista o no el email, y aunque ya esté verificado. Si la cuenta existe, está activa y no está verificada, envía un código (vigente 15 minutos) y `${FRONTEND_URL}/verificar-email/<token>` (vigente 24 horas); cada correo nuevo invalida los anteriores; máximo uno por minuto y cinco por hora por cuenta. Con sesión, usar `POST /auth/resend-verification`, que sí informa si ya está verificado o si el correo no se pudo enviar.
          */
         post: {
             parameters: {
@@ -1108,7 +1268,7 @@ export interface paths {
                         "application/json": {
                             /** @example true */
                             success: boolean;
-                            /** @example Si el correo está registrado y sin verificar, te enviamos un nuevo enlace de verificación */
+                            /** @example Si el correo está registrado y sin verificar, te enviamos un nuevo código y enlace de verificación */
                             message: string;
                             /** @example null */
                             data: unknown;

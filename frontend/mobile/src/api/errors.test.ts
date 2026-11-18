@@ -41,8 +41,14 @@ describe("toApiError", () => {
     );
   });
 
-  it("429: pedir que espere", () => {
-    expect(toApiError(conRespuesta(429, { message: "Too many requests" })).message).toBe(MENSAJES.limite);
+  it("429: el mensaje de la API (dice cuánto esperar); sin mensaje, el genérico", () => {
+    const conMensaje = conRespuesta(429, {
+      message: "Demasiados intentos, espera 15 minutos antes de volver a intentarlo",
+    });
+    expect(toApiError(conMensaje).message).toBe(
+      "Demasiados intentos, espera 15 minutos antes de volver a intentarlo",
+    );
+    expect(toApiError(conRespuesta(429, {})).message).toBe(MENSAJES.limite);
   });
 
   it("5xx: genérico, nunca el detalle interno del servidor", () => {

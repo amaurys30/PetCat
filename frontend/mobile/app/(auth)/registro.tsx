@@ -1,5 +1,3 @@
-import { ProximamenteScreen } from "@/features/bienvenida/ProximamenteScreen";
+import { RegistroScreen } from "@/features/auth/RegistroScreen";
 
-export default function Registro() {
-  return <ProximamenteScreen titulo="Crear cuenta" />;
-}
+export default RegistroScreen;
