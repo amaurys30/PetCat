@@ -5,6 +5,9 @@ import { useRouter, type Href } from "expo-router";
 export const RESPALDO = {
   inicio: "/",
   perfil: "/perfil",
+  bienvenida: "/bienvenida",
+  login: "/login",
+  recuperar: "/recuperar",
 } as const satisfies Record<string, Href>;
 
 type Navegador = { canGoBack: () => boolean; back: () => void; replace: (href: Href) => void };

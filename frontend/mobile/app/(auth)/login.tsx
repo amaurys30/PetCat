@@ -1,5 +1,3 @@
-import { ProximamenteScreen } from "@/features/bienvenida/ProximamenteScreen";
+import { LoginScreen } from "@/features/auth/LoginScreen";
 
-export default function Login() {
-  return <ProximamenteScreen titulo="Iniciar sesión" />;
-}
+export default LoginScreen;
