@@ -32,7 +32,7 @@ Figma (página "App móvil · Dueños de mascotas"): `https://www.figma.com/desi
 
 ---
 
-## 🟨 M0 · Base del proyecto
+## ✅ M0 · Base del proyecto
 
 **Objetivo:** proyecto Expo funcionando en el teléfono, con tema visual, navegación vacía, cliente de API y pruebas configuradas.
 
@@ -75,10 +75,11 @@ Prueba en Android (Expo Go por hotspot): carga y funciona. Corregido después:
 - [x] Aviso "ImageBackground is deprecated": la app no usa `ImageBackground`; lo dispara NativeWind 4 (`react-native-css-interop` lo registra al cargarse). Se calla solo ese aviso con `LogBox.ignoreLogs` en `app/_layout.tsx`. Si se quiere quitar también de la terminal de Metro, la alternativa es un parche con patch-package.
 - No correr `npm audit fix --force`: cambiaría versiones que fija el SDK 58.
 
-Falta:
-- [ ] Volver a probar en el teléfono la corrección de "Volver". Después de eso M0 pasa a ✅.
-- [ ] Correr `e2e/navegacion.yaml` con Maestro (no está instalado aquí).
-- [ ] Que CI pase en el PR.
+Cierre (2026-11-18):
+- [x] Probada en Android con Expo Go, también la corrección de "Volver". M0 terminada.
+
+Queda para después (no bloquea M0):
+- [ ] Correr `e2e/navegacion.yaml` con Maestro (no estaba instalado).
 
 Desviaciones del plan aprobado:
 - `danger` (`#D93F44`) no llega a AA como texto: se agregó `danger-ink` (`#B3262B`) para texto de error y el botón de peligro.
