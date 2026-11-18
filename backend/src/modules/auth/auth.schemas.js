@@ -85,6 +85,17 @@ export const resetPasswordBody = z.strictObject({
 
 export const verifyEmailParams = z.object({ token: tokenCorreo });
 
+// Código de 6 dígitos de los correos (la app lo escribe en lugar de abrir el enlace).
+const codigoCorreo = z.string().regex(/^\d{6}$/, "Debe tener 6 dígitos");
+
+export const verifyEmailCodigoBody = z.strictObject({ codigo: codigoCorreo });
+
+export const resetPasswordCodigoBody = z.strictObject({
+  email,
+  codigo: codigoCorreo,
+  password: passwordNueva,
+});
+
 export const aceptarPoliticaBody = z.strictObject({
   acepta_politica_datos: aceptaPolitica,
 });

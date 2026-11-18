@@ -10,6 +10,8 @@ import {
   requestVerificationBody,
   resetPasswordBody,
   verifyEmailParams,
+  verifyEmailCodigoBody,
+  resetPasswordCodigoBody,
   aceptarPoliticaBody,
 } from "./auth.schemas.js";
 import { authMiddleware } from "../../shared/middlewares/auth.middleware.js";
@@ -57,8 +59,9 @@ const router = express.Router();
  *     description: >
  *       Registro público para dueños de mascotas (`cliente`) y dueños de negocio (`negocio`).
  *       No permite crear administradores de plataforma. No inicia sesión: después se llama a `/auth/login`.
- *       Envía un correo con el enlace `${FRONTEND_URL}/verificar-email/<token>` (vigente 24 horas).
- *       El email sin verificar no impide iniciar sesión ni reservar citas.
+ *       Envía un correo con un código de 6 dígitos para la app (vigente 15 minutos; ver
+ *       `POST /auth/verify-email/codigo`) y el enlace `${FRONTEND_URL}/verificar-email/<token>`
+ *       (vigente 24 horas). El email sin verificar no impide iniciar sesión ni reservar citas.
  *     tags: [Auth]
  *     security: []
  *     requestBody:
@@ -507,11 +510,14 @@ router.post(
  * @swagger
  * /auth/forgot-password:
  *   post:
- *     summary: Pedir un enlace para restablecer la contraseña
+ *     summary: Pedir un código y un enlace para restablecer la contraseña
  *     description: >
- *       Responde igual exista o no el email. Si la cuenta existe y está activa, envía
- *       `${FRONTEND_URL}/restablecer-password/<token>` (vigente 1 hora; cada enlace nuevo invalida el
- *       anterior; máximo uno por minuto). Funciona aunque la cuenta esté bloqueada por intentos fallidos.
+ *       Responde igual exista o no el email. Si la cuenta existe y está activa, envía un correo con
+ *       un código de 6 dígitos para la app (vigente 15 minutos; ver `POST /auth/reset-password/codigo`)
+ *       y el enlace `${FRONTEND_URL}/restablecer-password/<token>` (vigente 1 hora). Cada correo nuevo
+ *       invalida el código y el enlace anteriores, también un enlace de bienvenida pendiente. Máximo
+ *       un correo por minuto y cinco por hora por cuenta (además del límite por IP). Funciona aunque
+ *       la cuenta esté bloqueada por intentos fallidos.
  *     tags: [Auth]
  *     security: []
  *     requestBody:
@@ -533,7 +539,7 @@ router.post(
  *               type: object
  *               properties:
  *                 success: { type: boolean, example: true }
- *                 message: { type: string, example: "Si el correo está registrado, te enviamos un enlace para restablecer la contraseña" }
+ *                 message: { type: string, example: "Si el correo está registrado, te enviamos un código y un enlace para restablecer la contraseña" }
  *                 data: { nullable: true, example: null }
  *       422: { $ref: '#/components/responses/ValidationError' }
  *       429: { $ref: '#/components/responses/TooManyRequests' }
@@ -548,6 +554,7 @@ router.post("/forgot-password", validate({ body: forgotPasswordBody }), controll
  *     description: >
  *       Cambia la contraseña, desbloquea la cuenta (reinicia los intentos fallidos), marca el email
  *       como verificado y cierra todas las sesiones. No inicia sesión: después se llama a `/auth/login`.
+ *       Usar el enlace invalida también el código del mismo correo.
  *     tags: [Auth]
  *     security: []
  *     requestBody:
@@ -594,13 +601,65 @@ router.post("/reset-password", validate({ body: resetPasswordBody }), controller
 
 /**
  * @swagger
+ * /auth/reset-password/codigo:
+ *   post:
+ *     summary: Restablecer la contraseña con el código del correo (app móvil)
+ *     description: >
+ *       Igual que `POST /auth/reset-password`, con el código de 6 dígitos del correo de
+ *       `POST /auth/forgot-password` en lugar del enlace: cambia la contraseña, desbloquea la cuenta,
+ *       marca el email como verificado, invalida el enlace y cierra todas las sesiones. No inicia
+ *       sesión. El código vence a los 15 minutos y sirve una vez; 5 intentos fallidos lo anulan
+ *       (hay que pedir otro). Misma respuesta 400 si el email no existe, la cuenta está desactivada
+ *       o el código no es válido: no delata cuentas.
+ *     tags: [Auth]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             additionalProperties: false
+ *             required: [email, codigo, password]
+ *             properties:
+ *               email: { type: string, format: email }
+ *               codigo: { type: string, pattern: '^\d{6}$', example: "482913" }
+ *               password:
+ *                 type: string
+ *                 minLength: 8
+ *                 maxLength: 72
+ *                 description: Al menos una letra y un número.
+ *     responses:
+ *       200:
+ *         description: Contraseña restablecida
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Contraseña restablecida. Ya puedes iniciar sesión }
+ *                 data: { nullable: true, example: null }
+ *       400:
+ *         description: Email sin cuenta activa, o código que no coincide, ya se usó, venció o se anuló por intentos
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorResponse' }
+ *             example: { success: false, message: El código no es válido o ya venció. Solicita uno nuevo }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ *       429: { $ref: '#/components/responses/TooManyRequests' }
+ */
+router.post("/reset-password/codigo", validate({ body: resetPasswordCodigoBody }), controller.resetPasswordConCodigo);
+
+/**
+ * @swagger
  * /auth/verify-email/{token}:
  *   get:
  *     summary: Verificar el email con el token del correo
  *     description: >
  *       La pantalla `${FRONTEND_URL}/verificar-email/<token>` del frontend llama a este endpoint.
  *       El token sirve una sola vez: un segundo intento da 400 (consultar `GET /auth/me` para saber
- *       si ya está verificado).
+ *       si ya está verificado). Usar el enlace invalida también el código del mismo correo.
  *     tags: [Auth]
  *     security: []
  *     parameters:
@@ -632,10 +691,67 @@ router.get("/verify-email/:token", validate({ params: verifyEmailParams }), cont
 
 /**
  * @swagger
+ * /auth/verify-email/codigo:
+ *   post:
+ *     summary: Verificar el email con el código del correo (app móvil)
+ *     description: >
+ *       Con sesión. Marca el email como verificado con el código de 6 dígitos del último correo de
+ *       verificación (registro, `resend-verification` o `request-verification`) e invalida el enlace
+ *       del mismo correo. El código vence a los 15 minutos y sirve una vez; 5 intentos fallidos lo
+ *       anulan (pedir otro con `POST /auth/resend-verification`).
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             additionalProperties: false
+ *             required: [codigo]
+ *             properties:
+ *               codigo: { type: string, pattern: '^\d{6}$', example: "482913" }
+ *     responses:
+ *       200:
+ *         description: Correo verificado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Correo verificado }
+ *                 data: { nullable: true, example: null }
+ *       400:
+ *         description: El código no coincide, ya se usó, venció o se anuló por intentos
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorResponse' }
+ *             example: { success: false, message: El código no es válido o ya venció. Solicita uno nuevo }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       409:
+ *         description: El correo ya está verificado
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorResponse' }
+ *             example: { success: false, message: Tu correo ya está verificado }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ *       429: { $ref: '#/components/responses/TooManyRequests' }
+ */
+router.post(
+  "/verify-email/codigo",
+  authMiddleware,
+  validate({ body: verifyEmailCodigoBody }),
+  controller.verifyEmailConCodigo
+);
+
+/**
+ * @swagger
  * /auth/resend-verification:
  *   post:
  *     summary: Reenviar el correo de verificación
- *     description: Envía un enlace nuevo (vigente 24 horas) e invalida el anterior. Máximo uno por minuto.
+ *     description: >
+ *       Envía un código (vigente 15 minutos) y un enlace (vigente 24 horas) nuevos e invalida los
+ *       anteriores. Máximo un correo por minuto y cinco por hora por cuenta.
  *     tags: [Auth]
  *     responses:
  *       200:
@@ -646,7 +762,7 @@ router.get("/verify-email/:token", validate({ params: verifyEmailParams }), cont
  *               type: object
  *               properties:
  *                 success: { type: boolean, example: true }
- *                 message: { type: string, example: Te enviamos un nuevo enlace de verificación }
+ *                 message: { type: string, example: Te enviamos un nuevo código y enlace de verificación }
  *                 data:
  *                   type: object
  *                   properties:
@@ -659,7 +775,7 @@ router.get("/verify-email/:token", validate({ params: verifyEmailParams }), cont
  *             schema: { $ref: '#/components/schemas/ErrorResponse' }
  *             example: { success: false, message: Tu correo ya está verificado }
  *       429:
- *         description: Se envió otro correo hace menos de un minuto, o se superó el límite de solicitudes
+ *         description: Se envió otro correo hace menos de un minuto o ya van cinco en la última hora, o se superó el límite de solicitudes
  *         content:
  *           application/json:
  *             schema: { $ref: '#/components/schemas/ErrorResponse' }
@@ -679,9 +795,10 @@ router.post("/resend-verification", authMiddleware, controller.resendVerificatio
  *     description: >
  *       Para cuando el enlace venció o se abrió en otro dispositivo sin sesión. Responde igual exista
  *       o no el email, y aunque ya esté verificado. Si la cuenta existe, está activa y no está
- *       verificada, envía `${FRONTEND_URL}/verificar-email/<token>` (vigente 24 horas; cada enlace
- *       nuevo invalida el anterior; máximo uno por minuto). Con sesión, usar `POST /auth/resend-verification`,
- *       que sí informa si ya está verificado o si el correo no se pudo enviar.
+ *       verificada, envía un código (vigente 15 minutos) y `${FRONTEND_URL}/verificar-email/<token>`
+ *       (vigente 24 horas); cada correo nuevo invalida los anteriores; máximo uno por minuto y cinco
+ *       por hora por cuenta. Con sesión, usar `POST /auth/resend-verification`, que sí informa si ya
+ *       está verificado o si el correo no se pudo enviar.
  *     tags: [Auth]
  *     security: []
  *     requestBody:
@@ -703,7 +820,7 @@ router.post("/resend-verification", authMiddleware, controller.resendVerificatio
  *               type: object
  *               properties:
  *                 success: { type: boolean, example: true }
- *                 message: { type: string, example: "Si el correo está registrado y sin verificar, te enviamos un nuevo enlace de verificación" }
+ *                 message: { type: string, example: "Si el correo está registrado y sin verificar, te enviamos un nuevo código y enlace de verificación" }
  *                 data: { nullable: true, example: null }
  *       422: { $ref: '#/components/responses/ValidationError' }
  *       429: { $ref: '#/components/responses/TooManyRequests' }

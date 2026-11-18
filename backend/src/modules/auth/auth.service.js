@@ -7,6 +7,7 @@ import { getPoliticaVigente, versionPolitica } from "../autorizaciones/autorizac
 import { createSessionForUser } from "../sessions/session.service.js";
 import { getMisNegocios } from "../negocios/negocio.service.js";
 import { correoBienvenida, correoRecuperacion, correoVerificacion } from "./auth.mail.js";
+import * as codigos from "./codigo.service.js";
 import { hashPassword, comparePassword, hashToken } from "../../shared/utils/hash.js";
 import { usuarioPublico } from "../../shared/utils/sanitize.js";
 import { castFields } from "../../shared/utils/format.js";
@@ -48,6 +49,28 @@ const enviarSinEsperar = (mail, contexto) => {
 
 export { versionPolitica };
 
+const CODIGO_INVALIDO = "El código no es válido o ya venció. Solicita uno nuevo";
+const LIMITE_CORREOS = {
+  minuto: "Ya te enviamos un correo hace menos de un minuto. Espera un momento",
+  hora: `Ya te enviamos ${codigos.CODIGOS_POR_HORA} correos en la última hora. Intenta más tarde`,
+};
+
+const MINUTOS_ENLACE = { verificacion: MINUTOS_VERIFICACION, recuperacion: MINUTOS_RECUPERACION };
+
+/**
+ * Emite el enlace y el código de un correo de verificación o recuperación (el mismo correo
+ * lleva los dos: el enlace para el panel web, el código para la app). Respeta el límite por
+ * cuenta (1 por minuto, 5 por hora) y devuelve `{ limite }` si se superó.
+ */
+const emitirEnlaceYCodigo = async (id_usuario, tipo, conn) => {
+  const limite = await codigos.limiteAlcanzado(id_usuario, tipo, conn);
+  if (limite) return { limite };
+  const { token, token_hash } = nuevoToken();
+  await usuarioRepo.setToken(id_usuario, tipo, { token_hash, minutos: MINUTOS_ENLACE[tipo], forzar: true }, conn);
+  const codigo = await codigos.emitir(id_usuario, tipo, conn);
+  return { token, codigo };
+};
+
 /**
  * El registro exige aceptar la política de datos y la guarda con el canal del
  * registro ("app" o "panel_web"), deja
@@ -63,9 +86,8 @@ export const register = async ({ nombre, apellido, email, password, telefono, ti
     );
   }
 
-  const { token, token_hash } = nuevoToken();
   const version_politica = await versionPolitica();
-  const id_usuario = await withTransaction(async (conn) => {
+  const { id_usuario, token, codigo } = await withTransaction(async (conn) => {
     const id = await usuarioRepo.create(
       { nombre, apellido, email, password_hash: await hashPassword(password), telefono, tipo_usuario },
       conn
@@ -74,11 +96,10 @@ export const register = async ({ nombre, apellido, email, password, telefono, ti
       { id_usuario: id, canal, id_usuario_registro: id, version_politica, ip_address: cliente.ip ?? null },
       conn
     );
-    await usuarioRepo.setToken(id, "verificacion", { token_hash, minutos: MINUTOS_VERIFICACION }, conn);
-    return id;
+    return { id_usuario: id, ...(await emitirEnlaceYCodigo(id, "verificacion", conn)) };
   });
 
-  enviarSinEsperar(correoVerificacion({ token, email, nombre, minutos: MINUTOS_VERIFICACION }), "verificación");
+  enviarSinEsperar(correoVerificacion({ token, codigo, email, nombre, minutos: MINUTOS_VERIFICACION }), "verificación");
   return usuarioPublico(await usuarioRepo.findById(id_usuario));
 };
 
@@ -249,32 +270,46 @@ export const changePassword = async (id_usuario, id_sesion, { password_actual, p
 };
 
 /**
- * Envía el enlace para restablecer la contraseña. Responde igual exista o no el
- * email (no delata cuentas), y el correo se envía sin esperar. Funciona aunque la
+ * Envía el enlace y el código para restablecer la contraseña. Responde igual exista o no
+ * el email (no delata cuentas), y el correo se envía sin esperar. Funciona aunque la
  * cuenta esté bloqueada por intentos fallidos; a una cuenta desactivada no se le envía.
- * Máximo un correo por minuto por cuenta; cada enlace nuevo invalida el anterior.
+ * Máximo un correo por minuto y cinco por hora por cuenta; cada correo nuevo invalida el
+ * enlace y el código anteriores (también un enlace de bienvenida pendiente).
  */
 export const forgotPassword = async ({ email }) => {
   const usuario = await usuarioRepo.findByEmail(email);
   if (!usuario?.activo) return;
 
-  const { token, token_hash } = nuevoToken();
-  const guardado = await usuarioRepo.setToken(usuario.id_usuario, "recuperacion", {
-    token_hash,
-    minutos: MINUTOS_RECUPERACION,
-  });
-  if (!guardado) return;
+  const emitido = await withTransaction((conn) => emitirEnlaceYCodigo(usuario.id_usuario, "recuperacion", conn));
+  if (emitido.limite) return;
 
   enviarSinEsperar(
-    correoRecuperacion({ token, email: usuario.email, nombre: usuario.nombre, minutos: MINUTOS_RECUPERACION }),
+    correoRecuperacion({
+      token: emitido.token,
+      codigo: emitido.codigo,
+      email: usuario.email,
+      nombre: usuario.nombre,
+      minutos: MINUTOS_RECUPERACION,
+    }),
     "recuperación de contraseña"
   );
 };
 
 /**
- * Cambia la contraseña con el token del correo. Desbloquea la cuenta (reinicia
- * los intentos), marca el email como verificado (el enlace llegó a ese correo) y
- * cierra todas las sesiones. 400 si el token no existe, ya se usó o venció.
+ * Cambia la contraseña de un usuario ya comprobado (enlace o código): desbloquea la cuenta
+ * (reinicia los intentos), marca el email como verificado (el correo llegó), cierra los
+ * códigos abiertos y todas las sesiones. Va dentro de la transacción de quien llama.
+ */
+const cambiarPasswordRecuperada = async (id_usuario, password_hash, motivoCodigos, conn) => {
+  await usuarioRepo.updatePassword(id_usuario, password_hash, conn);
+  await usuarioRepo.markEmailVerificado(id_usuario, conn);
+  await codigos.cerrarAbiertos(id_usuario, null, motivoCodigos, conn);
+  await sessionRepo.deactivateByUsuario(id_usuario, {}, conn);
+};
+
+/**
+ * Cambia la contraseña con el token del correo. 400 si el token no existe, ya se usó o venció.
+ * Usar el enlace invalida también el código del mismo correo.
  */
 export const resetPassword = async ({ token, password }) => {
   const password_hash = await hashPassword(password);
@@ -285,11 +320,31 @@ export const resetPassword = async ({ token, password }) => {
     }
     if (!usuario.activo) throw ApiError.forbidden(CUENTA_DESACTIVADA);
 
-    await usuarioRepo.updatePassword(usuario.id_usuario, password_hash, conn);
-    await usuarioRepo.markEmailVerificado(usuario.id_usuario, conn);
-    await sessionRepo.deactivateByUsuario(usuario.id_usuario, {}, conn);
+    await cambiarPasswordRecuperada(usuario.id_usuario, password_hash, "enlace", conn);
     return usuario.id_usuario;
   });
+  await desconectarSesionesDeUsuario(id_usuario);
+};
+
+/**
+ * Cambia la contraseña con el código de 6 dígitos del correo (app móvil). Igual que con el
+ * enlace: desbloquea, verifica el email y cierra todas las sesiones. Mismo 400 si el email no
+ * existe, la cuenta está desactivada o el código no coincide, ya se usó, venció o se cerró
+ * por intentos: la respuesta no delata cuentas. Cada fallo cuenta (5 cierran el código).
+ */
+export const resetPasswordConCodigo = async ({ email, codigo, password }) => {
+  const password_hash = await hashPassword(password);
+  const usuario = await usuarioRepo.findByEmail(email);
+
+  // La transacción termina (commit) también cuando el código falla: el intento queda contado.
+  const id_usuario = await withTransaction(async (conn) => {
+    if (!usuario?.activo) return codigos.comprobarSinCuenta(codigo) || null;
+    if (!(await codigos.comprobar(usuario.id_usuario, "recuperacion", codigo, conn))) return null;
+    await cambiarPasswordRecuperada(usuario.id_usuario, password_hash, "usado", conn);
+    return usuario.id_usuario;
+  });
+
+  if (!id_usuario) throw ApiError.badRequest(CODIGO_INVALIDO);
   await desconectarSesionesDeUsuario(id_usuario);
 };
 
@@ -324,60 +379,76 @@ export const enviarBienvenida = async ({ token, email, nombre, negocio }) => {
 
 // ---------- Verificación de email ----------
 
-/** 400 si el token no existe, ya se usó o venció. */
+/** 400 si el token no existe, ya se usó o venció. Usar el enlace invalida también el código. */
 export const verifyEmail = async (token) => {
   await withTransaction(async (conn) => {
     const usuario = await usuarioRepo.findByTokenHash("verificacion", hashToken(token), { conn, forUpdate: true });
     if (!usuario) throw ApiError.badRequest("El enlace de verificación no es válido o ya venció");
     await usuarioRepo.markEmailVerificado(usuario.id_usuario, conn);
+    await codigos.cerrarAbiertos(usuario.id_usuario, "verificacion", "enlace", conn);
   });
 };
 
 /**
- * Sin sesión (el enlace venció o se abrió en otro dispositivo): envía un enlace de
- * verificación nuevo si la cuenta existe, está activa y no está verificada. Responde
+ * Verifica el email con el código de 6 dígitos del correo (app móvil, con sesión). Invalida
+ * también el enlace del mismo correo. 409 si ya está verificado; 400 si el código no coincide,
+ * ya se usó, venció o se cerró por intentos (cada fallo cuenta; 5 cierran el código).
+ */
+export const verifyEmailConCodigo = async (id_usuario, codigo) => {
+  const usuario = await usuarioRepo.findById(id_usuario);
+  if (usuario.email_verificado) throw ApiError.conflict("Tu correo ya está verificado");
+
+  // La transacción termina (commit) también cuando el código falla: el intento queda contado.
+  const valido = await withTransaction(async (conn) => {
+    if (!(await codigos.comprobar(id_usuario, "verificacion", codigo, conn))) return false;
+    await usuarioRepo.markEmailVerificado(id_usuario, conn);
+    return true;
+  });
+  if (!valido) throw ApiError.badRequest(CODIGO_INVALIDO);
+};
+
+/**
+ * Sin sesión (el enlace venció o se abrió en otro dispositivo): envía un enlace y un código
+ * de verificación nuevos si la cuenta existe, está activa y no está verificada. Responde
  * igual en todos los casos (no delata cuentas) y el correo se envía sin esperar.
- * Máximo uno por minuto por cuenta; cada enlace nuevo invalida el anterior.
+ * Máximo uno por minuto y cinco por hora por cuenta; cada correo nuevo invalida el anterior.
  */
 export const requestVerification = async ({ email }) => {
   const usuario = await usuarioRepo.findByEmail(email);
   if (!usuario?.activo || usuario.email_verificado) return;
 
-  const { token, token_hash } = nuevoToken();
-  const guardado = await usuarioRepo.setToken(usuario.id_usuario, "verificacion", {
-    token_hash,
-    minutos: MINUTOS_VERIFICACION,
-  });
-  if (!guardado) return;
+  const emitido = await withTransaction((conn) => emitirEnlaceYCodigo(usuario.id_usuario, "verificacion", conn));
+  if (emitido.limite) return;
 
   enviarSinEsperar(
-    correoVerificacion({ token, email: usuario.email, nombre: usuario.nombre, minutos: MINUTOS_VERIFICACION }),
+    correoVerificacion({
+      token: emitido.token,
+      codigo: emitido.codigo,
+      email: usuario.email,
+      nombre: usuario.nombre,
+      minutos: MINUTOS_VERIFICACION,
+    }),
     "verificación"
   );
 };
 
 /**
- * Envía un enlace de verificación nuevo (invalida el anterior). 409 si el correo
- * ya está verificado; 429 si se envió otro hace menos de un minuto; 503 si el
- * correo no se pudo enviar (no se guarda el token).
+ * Envía un enlace y un código de verificación nuevos (invalida los anteriores). 409 si el
+ * correo ya está verificado; 429 si se envió otro hace menos de un minuto o ya van cinco en
+ * la última hora; 503 si el correo no se pudo enviar (no se guarda nada).
  */
 export const resendVerification = async (id_usuario) =>
   withTransaction(async (conn) => {
     const usuario = await usuarioRepo.findById(id_usuario, conn);
     if (usuario.email_verificado) throw ApiError.conflict("Tu correo ya está verificado");
 
-    const { token, token_hash } = nuevoToken();
-    const guardado = await usuarioRepo.setToken(
-      id_usuario,
-      "verificacion",
-      { token_hash, minutos: MINUTOS_VERIFICACION },
-      conn
-    );
-    if (!guardado) throw ApiError.tooMany("Ya te enviamos un correo hace menos de un minuto. Espera un momento");
+    const emitido = await emitirEnlaceYCodigo(id_usuario, "verificacion", conn);
+    if (emitido.limite) throw ApiError.tooMany(LIMITE_CORREOS[emitido.limite]);
+    const { token, codigo } = emitido;
 
     try {
       await sendMail(
-        correoVerificacion({ token, email: usuario.email, nombre: usuario.nombre, minutos: MINUTOS_VERIFICACION })
+        correoVerificacion({ token, codigo, email: usuario.email, nombre: usuario.nombre, minutos: MINUTOS_VERIFICACION })
       );
     } catch (err) {
       if (!isTest) console.error("Error enviando el correo de verificación:", err.message);

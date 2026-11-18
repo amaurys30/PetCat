@@ -110,14 +110,22 @@ const TOKEN_COLUMNAS = {
  * Guarda un token nuevo (reemplaza al anterior) con vigencia de `minutos`.
  * No lo guarda si el anterior se emitió hace menos de `esperaMinutos`: así se
  * limita a un correo por minuto por cuenta. Devuelve false en ese caso.
+ * La espera se deduce del vencimiento, así que solo sirve si el anterior tenía la misma
+ * vigencia: con `forzar` siempre lo guarda y quien llama pone el límite (los correos de
+ * verificación y recuperación lo cuentan en codigos_correo). Sin `forzar`, un enlace de
+ * bienvenida (7 días) impedía pedir uno de recuperación (1 hora) durante toda la semana.
  */
-export const setToken = async (id_usuario, tipo, { token_hash, minutos, esperaMinutos = 1 }, conn) => {
+export const setToken = async (
+  id_usuario,
+  tipo,
+  { token_hash, minutos, esperaMinutos = 1, forzar = false },
+  conn
+) => {
   const [token, expira] = TOKEN_COLUMNAS[tipo];
   const [result] = await (conn ?? pool).query(
     `UPDATE usuarios SET ${token} = ?, ${expira} = NOW() + INTERVAL ? MINUTE
-     WHERE id_usuario = ?
-       AND (${expira} IS NULL OR ${expira} <= NOW() + INTERVAL ? MINUTE)`,
-    [token_hash, minutos, id_usuario, minutos - esperaMinutos]
+     WHERE id_usuario = ?${forzar ? "" : ` AND (${expira} IS NULL OR ${expira} <= NOW() + INTERVAL ? MINUTE)`}`,
+    forzar ? [token_hash, minutos, id_usuario] : [token_hash, minutos, id_usuario, minutos - esperaMinutos]
   );
   return result.affectedRows > 0;
 };

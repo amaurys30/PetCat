@@ -90,10 +90,11 @@ const getTransporter = () => {
  * - Con SMTP_HOST: se envía con Nodemailer. Si falla, el mensaje del error lleva la causa
  *   explicada (explicarErrorSmtp) y el original entre corchetes.
  *
- * @param {{ to: string, subject: string, text: string, html?: string, headers?: Record<string, string> }} mail
+ * @param {{ to: string, subject: string, text: string, html?: string, headers?: Record<string, string>, ocultarEnConsola?: string[] }} mail
  *   `headers`: cabeceras adicionales (p. ej. List-Unsubscribe en los correos de notificaciones).
+ *   `ocultarEnConsola`: secretos que el modo consola tapa (códigos de 6 dígitos): nunca a un log.
  */
-export const sendMail = async ({ to, subject, text, html, headers }) => {
+export const sendMail = async ({ to, subject, text, html, headers, ocultarEnConsola = [] }) => {
   const mail = { from: env.MAIL_FROM, to, subject, text, html, ...(headers && { headers }) };
 
   if (isTest) {
@@ -103,7 +104,16 @@ export const sendMail = async ({ to, subject, text, html, headers }) => {
 
   if (!env.SMTP_HOST) {
     console.log(
-      ["", "---- Correo (sin SMTP configurado) ----", `Para:   ${to}`, `Asunto: ${subject}`, "", text, "--------------------------------------", ""].join("\n")
+      [
+        "",
+        "---- Correo (sin SMTP configurado) ----",
+        `Para:   ${to}`,
+        `Asunto: ${subject}`,
+        "",
+        textoParaConsola(text, ocultarEnConsola),
+        "--------------------------------------",
+        "",
+      ].join("\n")
     );
     return { delivered: false, mode: "console" };
   }
@@ -116,6 +126,17 @@ export const sendMail = async ({ to, subject, text, html, headers }) => {
     err.message = `${explicarErrorSmtp(err)} [${err.message}]`;
     throw err;
   }
+};
+
+/**
+ * Texto del correo para la consola, con los secretos tapados. Si tapó alguno, avisa
+ * dónde verlo (Mailpit muestra el correo completo; ver "Correo" en backend/README.md).
+ */
+export const textoParaConsola = (text, ocultar = []) => {
+  const secretos = ocultar.filter(Boolean);
+  if (secretos.length === 0) return text;
+  const tapado = secretos.reduce((acc, secreto) => acc.split(secreto).join("••••••"), text);
+  return `${tapado}\n\n(Código oculto en la consola: usa Mailpit para verlo, o el enlace del correo.)`;
 };
 
 /** Escapa texto para insertarlo en el HTML de un correo. */

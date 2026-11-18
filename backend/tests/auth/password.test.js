@@ -28,12 +28,17 @@ const bloquear = (id_usuario) =>
 
 const tokenDelCorreo = (mail) => /\/restablecer-password\/([0-9a-f]{64})/.exec(mail.text)?.[1];
 
-// Simula que el último enlace se pidió hace más de un minuto (se puede pedir otro).
-const envejecerEnlace = (id_usuario) =>
-  pool.query(
+// Simula que el último correo (enlace y código) se pidió hace más de un minuto (se puede pedir otro).
+const envejecerEnlace = async (id_usuario) => {
+  await pool.query(
     "UPDATE usuarios SET token_recuperacion_expira = token_recuperacion_expira - INTERVAL 2 MINUTE WHERE id_usuario = ?",
     [id_usuario]
   );
+  await pool.query(
+    "UPDATE codigos_correo SET fecha_creacion = fecha_creacion - INTERVAL 2 MINUTE WHERE id_usuario = ?",
+    [id_usuario]
+  );
+};
 
 const pedirEnlace = async (usuario) => {
   const res = await api().post("/auth/forgot-password").send({ email: usuario.email });
@@ -107,7 +112,7 @@ describe("POST /auth/change-password", () => {
 });
 
 describe("POST /auth/forgot-password", () => {
-  const MENSAJE = "Si el correo está registrado, te enviamos un enlace para restablecer la contraseña";
+  const MENSAJE = "Si el correo está registrado, te enviamos un código y un enlace para restablecer la contraseña";
 
   it("envía el enlace y guarda solo el hash del token, vigente 1 hora", async () => {
     const usuario = await crearUsuario();
