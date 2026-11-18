@@ -6,6 +6,13 @@ for (const [nombre, valor] of Object.entries(webDeNode)) {
   Object.defineProperty(globalThis, nombre, { value: valor, writable: true, configurable: true });
 }
 
+// Mismo aviso que se calla en app/_layout.tsx: lo dispara NativeWind, no la app.
+const warnOriginal = console.warn;
+console.warn = (...args: unknown[]) => {
+  if (String(args[0]).startsWith("ImageBackground is deprecated")) return;
+  warnOriginal(...args);
+};
+
 // SecureStore en memoria (el módulo nativo no existe en Jest).
 jest.mock("expo-secure-store", () => {
   const datos = new Map<string, string>();

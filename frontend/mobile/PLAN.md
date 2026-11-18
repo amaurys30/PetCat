@@ -70,8 +70,13 @@ Hecho:
 - [x] `e2e/navegacion.yaml` (Maestro, local).
 - [x] `.env.example` y README.
 
+Prueba en Android (Expo Go por hotspot): carga y funciona. Corregido después:
+- [x] "Volver" en una pantalla sin historial (abierta directo o tras recargar Metro, que reabre la última URL) daba `The action 'GO_BACK' was not handled by any navigator`. Ahora todo "Volver" y la flecha de `ScreenHeader` (`volverA`) usan `useVolver` de `src/lib/navegacion.ts`: `router.canGoBack() ? router.back() : router.replace(respaldo)`; respaldo Inicio por defecto, Perfil para Bienvenida y diagnóstico. Bienvenida tiene flecha Volver mientras se llegue desde Perfil (revisar en M1). Prueba con las rutas reales en `src/features/navegacion.test.tsx`.
+- [x] Aviso "ImageBackground is deprecated": la app no usa `ImageBackground`; lo dispara NativeWind 4 (`react-native-css-interop` lo registra al cargarse). Se calla solo ese aviso con `LogBox.ignoreLogs` en `app/_layout.tsx`. Si se quiere quitar también de la terminal de Metro, la alternativa es un parche con patch-package.
+- No correr `npm audit fix --force`: cambiaría versiones que fija el SDK 58.
+
 Falta:
-- [ ] Probarla en un Android físico (no hay emulador ni teléfono en este equipo). Después de eso M0 pasa a ✅.
+- [ ] Volver a probar en el teléfono la corrección de "Volver". Después de eso M0 pasa a ✅.
 - [ ] Correr `e2e/navegacion.yaml` con Maestro (no está instalado aquí).
 - [ ] Que CI pase en el PR.
 
