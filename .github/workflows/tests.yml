@@ -1,5 +1,5 @@
 # Suite de tests del backend (Vitest + supertest) contra un MySQL 8 de servicio,
-# y comprobaciones del panel web. Corre en cada pull request y en cada push a main.
+# y comprobaciones del panel web y de la app móvil. Corre en cada pull request y en cada push a main.
 name: Tests
 
 on:
@@ -92,3 +92,41 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  # App móvil (Expo): tipos, lint (con accesibilidad), pruebas, versiones compatibles con el
+  # SDK y que el bundle de Android compile. No necesita la API ni un teléfono.
+  app-movil:
+    name: App móvil (typecheck, lint, tests, bundle)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: frontend/mobile
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/mobile/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests
+        run: npm test -- --ci
+
+      - name: Versiones del SDK de Expo
+        run: npx expo install --check
+
+      - name: Bundle de Android
+        run: npx expo export --platform android --output-dir dist
