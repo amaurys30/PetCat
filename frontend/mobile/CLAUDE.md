@@ -1,110 +1,175 @@
-# PetCat · App móvil — Instrucciones para Claude Code
+# CLAUDE.md — PetCat App móvil (dueños de mascotas)
 
-Lee también el `CLAUDE.md` de la raíz (contexto del negocio y de la API). El plan de trabajo de la app está en `frontend/mobile/PLAN.md`: revísalo al iniciar cada sesión y marca las casillas al terminar cada tarea.
+Este archivo guía a Claude Code dentro de `frontend/mobile/`. Léelo completo antes de cada fase.
+Las reglas de la raíz del repositorio (`/CLAUDE.md`) también aplican.
 
-## Qué es
+## 1. Qué es
 
-La app es para los **dueños de mascotas** (B2C, gratis): registran sus mascotas, llevan el carnet de vacunas y el historial, buscan negocios cercanos, agendan citas, reciben recordatorios y dejan reseñas. Los negocios usan el panel web (`frontend/web`, otro proyecto).
+App para **dueños de mascotas** en Sincelejo (B2C). Complementa el panel web de negocios (`frontend/web/`)
+y consume la misma API (`backend/`, Express 5, `/api/v1`).
 
-## Fuentes de verdad
+Lo que hace el usuario en la app:
+- Ver y administrar sus mascotas.
+- **Pasaporte PetCat**: carnet digital de vacunas y desparasitaciones (pieza central de la app).
+- Explorar veterinarias, peluquerías y tiendas en un mapa.
+- Agendar, reprogramar y cancelar citas.
+- Recibir recordatorios y notificaciones.
+- Inscribirse a eventos de veterinarias (jornadas de vacunación, adopción…).
+- Ver recomendaciones para su mascota (fases posteriores).
 
-1. **API:** Swagger en `http://localhost:3001/api/v1/docs` (API de demo) y la especificación en `/api/v1/docs.json`. En las respuestas todo campo documentado es requerido salvo los `x-opcional` (convención del backend).
-2. **Diseño:** capturas en `frontend/mobile/docs/mockups/` (no se suben al repositorio): pantallas `M1 · Bienvenida` a `M21 · Agregar mascota`, `Guía visual de la app` (tokens) y `Notas para desarrollo (app)` (qué falta en la API y reglas de accesibilidad).
-3. **Si el diseño y la API no coinciden, manda la API.** No se inventan campos ni datos. Si a una pantalla le falta algo de la API, se anota en "Pendientes de API" en `PLAN.md` y se avisa a Amaurys.
+Idioma de la interfaz: **español (Colombia)**. Zona horaria: `America/Bogota`.
+Formatos: dinero `$45.000` (COP, sin decimales), fechas `vie 15 nov`, horas `8:30 a. m.`.
 
-Nombres: las **fases** del plan son M0, M1… (ramas `mobile/m<N>-*`); las **pantallas** del diseño se citan con su nombre completo ("M3 · Iniciar sesión") para no confundirlas.
+## 2. Diseño (fuente de verdad: Figma)
 
-## Stack (decidido)
+- Archivo: `https://www.figma.com/design/AXEbm1XsESvYf2S2W7oRUj/` → página **"App móvil · Dueños de mascotas"** (`188:3004`).
+- Guía visual: nodo `188:3071`. Notas para desarrollo: nodo `195:3262`.
+- Cada pantalla tiene código M1…M21 (ver `PLAN.md`). Si tienes el MCP de Figma, consulta el nodo antes de construir la pantalla.
+  Sin MCP, usa las capturas de `frontend/mobile/docs/mockups/` (ignoradas por git).
+- Los **emojis de la maqueta son marcadores**: en código se reemplazan por íconos de `lucide-react-native` (o SVG propios) con etiqueta accesible.
+  Excepción: el avatar de la mascota sin foto puede usar una ilustración por especie.
 
-- **Expo SDK 58** (React Native 0.88, React 19.3) con **TypeScript** estricto. Siempre `npx expo install <paquete>` (no `npm install`) para que la versión sea la del SDK.
-- **Expo Router** con las rutas en `src/app/`.
-- **NativeWind 4** (Tailwind 3) con los tokens de `src/theme/tokens.js`. No usar NativeWind 5 (rc). Si NativeWind 4 deja de funcionar en un SDK nuevo, el respaldo es `StyleSheet` con los mismos tokens.
-- TanStack Query para todo dato de la API; **Axios** como cliente.
-- Íconos **lucide-react-native** (los emojis del diseño son marcadores). Fuente **Plus Jakarta Sans** (`@expo-google-fonts/plus-jakarta-sans`).
-- Por llegar, cada uno en su fase: `expo-secure-store` (refresh token), Zustand (sesión), React Hook Form + Zod (formularios), MapLibre + teselas de OpenStreetMap (mapa, igual proveedor que el panel), `expo-notifications` (push), `expo-image-picker` + `expo-image-manipulator` (fotos en JPEG, la API no acepta HEIC).
-- Pruebas: **Jest (jest-expo) + Testing Library de React Native**. Vitest no se usa aquí: no corre el código de React Native.
-- Lint: `eslint-config-expo` + `eslint-plugin-react-native-a11y` (adaptado a ESLint 9 con `@eslint/compat`). Si el plugin da problemas, se reemplaza por reglas propias.
-- **Expo Go** mientras se pueda. MapLibre y las push remotas en Android necesitan una **development build** (EAS): se crea en la fase que las use.
+### Tokens
 
-## Tokens de diseño
+| Token | Valor | Uso |
+|---|---|---|
+| `primary` | `#14A39A` | Decorativo: fondos, degradados, íconos grandes. **Nunca texto blanco encima** |
+| `primary-strong` | `#0F7D76` | Botones principales, texto sobre blanco, texto blanco encima (AA) |
+| `primary-deep` | `#0B6F69` | Texto sobre `primary-soft`, final de degradados |
+| `primary-soft` | `#E3F6F3` | Fondos suaves, estado activo de pestañas |
+| `ink` | `#1E2A3B` | Texto principal |
+| `muted` | `#55667A` | Texto secundario (AA sobre blanco y `#F6F8F9`) |
+| `subtle` | `#8A97A6` | Solo placeholders y rótulos decorativos, nunca información esencial |
+| `border` | `#E3E8EC` | Bordes |
+| `surface` | `#F6F8F9` | Fondo de pantallas |
+| `track` | `#EEF2F4` | Segmentados, barras de progreso vacías |
+| `coral` | `#FF8A65` / degradado `#FF9E7A→#F0643C` | Acento: botón central Carnet, eventos. Texto encima: `#3A1408` |
+| `coral-dark` | `#B5462A` | Texto coral sobre blanco/`#FFEDE6` |
+| `sun` | `#FFC857` / soft `#FFF5DC` / texto `#9A5800` | Recordatorios, avisos |
+| `lavender` | `#7C5CD6` / soft `#EEE8FB` / texto `#5A3FB0` | IA, gatos, eventos de adopción |
+| `info` | `#2F80ED` / soft `#EAF2FE` / texto `#1F5FBF` | "Cómo llegar", estados informativos |
+| `danger` | `#D93F44` / soft `#FDECEC` | Errores, cancelar, eliminar |
+| `danger-ink` | `#B3262B` | Texto de error y fondo del botón de peligro. `danger` no llega a AA como texto (4,4:1 sobre blanco); se agregó en M0 |
+| `passport-bg` | `#0E2A33 → #132F3D` | Fondo oscuro de la pantalla Pasaporte |
+| Degradado marca | `#17B5AB → #0B6F69` | Héroes, tarjetas destacadas |
 
-Un solo archivo, `src/theme/tokens.js`: lo leen `tailwind.config.js` (clases) y el código (degradados, colores de íconos).
+- Tipografía: **Plus Jakarta Sans** (Regular 400, Medium 500, SemiBold 600, Bold 700, ExtraBold 800) con `expo-font`.
+- Escala: título 28/800, título de sección 18/800, cuerpo 15/400–500, apoyo 13/500, mínimo 11 (solo rótulos).
+- Radios: 12 (chips pequeños), 14–16 (botones, inputs), 20–24 (tarjetas), 26 (Pasaporte), 36 (marco).
+- Espaciado base 4; padding horizontal de pantalla 20.
+- Los tokens viven en **un solo lugar** (`src/theme/tokens.ts`) y se exponen a NativeWind en `tailwind.config.js`. No escribas colores hex sueltos en componentes.
+- Con fuentes propias, Android no sintetiza negritas: cada peso es su propia familia. Usa el componente `Text` de `src/components/ui` (o las clases `font-regular`, `font-medium`, `font-semibold`, `font-bold`, `font-extrabold`, que apuntan a la familia de cada peso). No pongas dos de esas clases en el mismo elemento: no gana la última escrita.
 
-| Token                                                                   | Valor                             | Uso                                                                      |
-| ----------------------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------ |
-| `marca`                                                                 | `#14A39A`                         | Decorativo (inicio del degradado, ilustraciones). Nunca con texto encima |
-| `primary`                                                               | `#0F7D76`                         | Botones, enlaces, acentos. Texto blanco solo sobre este o más oscuro     |
-| `primary-deep`                                                          | `#0B6F69`                         | Final del degradado; texto sobre `primary-soft`                          |
-| `primary-soft`                                                          | `#E3F6F3`                         | Fondos de acento, chips                                                  |
-| `ink`                                                                   | `#1E2A3B`                         | Texto principal                                                          |
-| `muted`                                                                 | `#55667A`                         | Texto secundario                                                         |
-| `coral` / `sol` / `lavanda`                                             | `#FF8A65` / `#FFC857` / `#7C5CD6` | Acentos decorativos, no para texto                                       |
-| `fondo`                                                                 | `#F6F8F9`                         | Fondo de pantalla                                                        |
-| `border`, `danger(-soft)`, `warning-ink`, `warning-soft`, `info(-soft)` | los del panel                     | Bordes y estados                                                         |
+## 3. Stack
 
-Tipografía: clases `font-sans`, `font-medio`, `font-seminegrita`, `font-negrita`, `font-extranegrita` (en Android cada peso es una familia; no usar `font-bold`). Tamaños `text-titulo` (28), `text-seccion` (18), `text-cuerpo` (15), `text-apoyo` (13, mínimo), `text-hero` (40, bienvenida). Radios `rounded-control` (16), `rounded-tarjeta` (20), `rounded-hoja` (28). Degradado de marca en `degradadoMarca`: de la mitad hacia abajo ya es `primary` o más oscuro, y el texto blanco va ahí.
+- **Expo** (SDK estable más reciente) + **React Native** + **TypeScript estricto**.
+- **Expo Router** (rutas por archivos, grupos `(auth)` y `(tabs)`).
+- **TanStack Query** para datos del servidor; **Zustand** para estado de cliente (sesión, mascota seleccionada).
+- **React Hook Form + Zod** para formularios.
+- **NativeWind** para estilos (verifica compatibilidad con la versión de Expo antes de instalar).
+- **expo-secure-store** para el refresh token.
+- **@maplibre/maplibre-react-native** + teselas OSM (URL configurable por variable de entorno).
+- **expo-notifications** (Expo Push ya existe en el backend).
+- **socket.io-client** (eventos `agenda_actualizada`, `notificaciones`).
+- **react-native-reanimated**, **expo-sensors** (efecto holográfico del Pasaporte), **react-native-svg**, **react-native-qrcode-svg**, **expo-image**, **lucide-react-native**.
+- **openapi-typescript** para generar tipos desde `GET /api/v1/docs.json`.
+- Pruebas: **Jest (jest-expo) + React Native Testing Library + MSW**; E2E con **Maestro**.
+  Aquí **no se usa Vitest** (el backend y el panel sí): Vitest no corre el código de React Native, y jest-expo trae los mocks de los módulos nativos.
 
-Componentes base en `src/components/ui/`: `Texto` (variantes de la escala, los títulos se anuncian como encabezado) y `Boton` (`primario`, `secundario`, `claro`, `contornoClaro`; estado de carga y deshabilitado sin opacidad).
+Versiones de M0: Expo SDK 58 (React Native 0.88, React 19.3, TypeScript 6), NativeWind 4.2 con Tailwind 3 (NativeWind 5 sigue en rc: no se usa), MSW 3.
+Dos paquetes declaran dependencias pares viejas y se instalan con `overrides` en `package.json`: `eslint-plugin-react-native-a11y` (ESLint ≤ 8, cargado con `@eslint/compat`) y `openapi-typescript` (TypeScript 5). Si alguno falla, el plugin de a11y se reemplaza por reglas propias.
 
-## Estructura
+**Expo Go no basta**: MapLibre y push en Android requieren **development build** (EAS Build, perfil `development`).
+Mantén la app compatible con Expo Go hasta M4 cuando sea posible, para facilitar las primeras pruebas.
+
+## 4. Estructura
 
 ```
 frontend/mobile/
-├── CLAUDE.md · PLAN.md · README.md · .env.example · app.json · eas.json
-├── docs/mockups/            # capturas del diseño (ignoradas por git)
-├── src/
-│   ├── app/                 # rutas de Expo Router: archivos finos que importan pantallas
-│   ├── api/                 # client.ts (Axios), config.ts y origen.ts (URL), errores.ts, <modulo>.ts
-│   ├── features/<modulo>/   # screens/, components/, hooks/ (useXxx con TanStack Query)
-│   ├── components/ui/       # Texto, Boton…
-│   ├── lib/                 # queryClient.ts, queryKeys.ts, format.ts…
-│   └── theme/tokens.js      # tokens (con tokens.d.ts)
-└── tests/                   # Jest, misma estructura que src/
+  app/                     # Expo Router
+    (auth)/                # bienvenida, registro, login, recuperar
+    (tabs)/                # inicio, explorar, carnet, citas, perfil
+    mascotas/[id]/…        # ficha, historial, editar
+    negocios/[id]/…        # perfil, agendar
+    eventos/[id].tsx
+  src/
+    api/                   # cliente HTTP, interceptores, tipos generados (api-types.ts)
+    features/<modulo>/     # hooks de queries, componentes y lógica por módulo
+    components/ui/         # Button, Chip, Card, Input, Segmented, Toggle, Avatar, Sheet…
+    theme/                 # tokens.ts, fuentes
+    lib/                   # formatos es-CO, fechas, utilidades
+    store/                 # Zustand
+  e2e/                     # flujos Maestro (.yaml)
+  test/                    # setup de Jest, handlers de MSW
 ```
 
-## Convenciones obligatorias
+Las pruebas van junto al código que prueban (`*.test.ts(x)` dentro de `src/`), nunca dentro de `app/`: Expo Router trataría el archivo como una ruta.
 
-**Datos y API**
+## 5. Reglas de la API
 
-- Las pantallas nunca llaman a Axios. Cada módulo expone funciones en `src/api/<modulo>.ts` y hooks en `features/<modulo>/hooks/`. Las claves de caché salen de `lib/queryKeys.ts`.
-- Respuestas `{ success, message, data, meta }`: las funciones devuelven `data` (y `meta` cuando hay paginación).
-- Los errores llegan como `ApiError` (`status`, `message`, `errors`; `status 0` = sin conexión). Los mensajes de la API se muestran tal cual. 401 → renovar sesión una vez (llega en M1); 403, 404, 409, 422 por campo, 429 y sin conexión tienen su estado en pantalla.
-- Avisos de éxito de una mutación en el `onSuccess` del hook, no en el componente (misma regla y motivo que el panel).
-- **URL de la API** (`src/api/origen.ts`): `EXPO_PUBLIC_API_URL` si existe; si no, en desarrollo la IP del computador que sirve el bundle con el puerto 3001 (API de demo). La app se prueba contra `backend-demo` (`petcat_demo`), nunca contra `petcat_db`.
-- Variables `EXPO_PUBLIC_*` quedan dentro del bundle: nunca secretos.
+- **No inventes endpoints.** Antes de cada fase, revisa Swagger (`/api/v1/docs.json`) y las rutas en `backend/src`. Si algo falta, **detente y propón** el cambio en el backend como parte del plan; no lo simules en la app.
+- URL base desde `EXPO_PUBLIC_API_URL` (ej. `http://192.168.1.50:3001/api/v1`). Nunca `localhost` en el teléfono.
+  Si la variable no está, en desarrollo se usa la IP con la que Expo sirve el bundle más el puerto 3001 (`src/lib/env.ts`); la excepción a "nunca localhost" es el USB con `adb reverse` (ver README).
+- **Sesión:** access token solo en memoria (Zustand); refresh token en `expo-secure-store`.
+  Interceptor: ante 401, **un solo refresh en curso** (cola de peticiones) y reintento; si el refresh falla, cerrar sesión.
+  El refresh rota (cada uso entrega uno nuevo): guarda siempre el nuevo.
+  **Verifica primero cómo recibe el backend el refresh token** (cookie vs cuerpo). Si solo acepta cookie, propón el cambio para clientes móviles antes de construir el login.
+  (Verificado en M0: llega en el cuerpo, `POST /auth/refresh-token` con `{ refresh_token }`; ver `PLAN.md`.)
+- Fechas: la API trabaja en hora de Colombia; muestra siempre en `America/Bogota`, independiente de la zona del teléfono.
+- Errores: mensajes en español, cortos y accionables. Nunca mostrar trazas ni códigos internos.
+- Regenera los tipos (`npm run api:types`) cuando cambie la API y súbelos en el mismo PR.
 
-**Fechas, horas y dinero:** la API envía `YYYY-MM-DD` y `HH:MM` en hora de Bogotá; no usar `new Date('YYYY-MM-DD')`. Dinero con `Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 })`.
+## 6. Accesibilidad (obligatoria)
 
-**Accesibilidad** (guía visual y notas para desarrollo)
+- Contraste **WCAG AA**: texto blanco solo sobre `primary-strong` o más oscuro; nunca sobre `primary` (`#14A39A`).
+- Áreas táctiles ≥ **48×48** (usa `hitSlop` si el elemento visual es menor).
+- Todo `Pressable` sin texto visible lleva `accessibilityLabel` y `accessibilityRole`. Estados con `accessibilityState` (seleccionado, deshabilitado).
+- El estado nunca se comunica solo con color: horas ocupadas tachadas + "Ocupado" para lectores; vacunas con texto "Aplicada / Pendiente".
+- Soporta el tamaño de texto del sistema (`allowFontScaling` activo). Limita con `maxFontSizeMultiplier` solo en piezas decorativas (sellos, MRZ del Pasaporte).
+- Respeta "Reducir movimiento" (`AccessibilityInfo.isReduceMotionEnabled`): desactiva el efecto holográfico y el confeti.
+- Orden de foco lógico; los sheets y modales atrapan el foco y se cierran con el gesto atrás.
+- El Pasaporte debe leerse completo con TalkBack/VoiceOver como texto: nombre, número, especie, microchip, estado de vacunas.
 
-- Contraste AA: texto blanco solo sobre `primary` o más oscuro. Nada de opacidad para atenuar texto.
-- Áreas táctiles de al menos 48 × 48 (`min-h-12`), separación de 8 entre acciones.
-- Texto mínimo 13; se respeta el tamaño de texto del sistema (no usar `allowFontScaling={false}`); los textos largos se envuelven, no se cortan.
-- El estado (vacunas, cupos, citas) nunca solo con color: siempre con texto o ícono.
-- Cada elemento interactivo lleva `accessibilityRole` y una etiqueta; los íconos interactivos, `accessibilityLabel`. Lo decorativo se oculta (`accessibilityElementsHidden` + `importantForAccessibility="no-hide-descendants"`).
+## 7. Pruebas
 
-**Interfaz:** textos en español, tuteo, como en los mockups. Cada pantalla contempla carga, vacío, error y sin conexión.
+- Cada pantalla nueva: al menos una prueba con RNTL (renderiza, estados vacío/carga/error, acción principal).
+- Lógica pura (formatos, cálculo de estado de vacunas, franjas horarias) con pruebas unitarias.
+- MSW para simular la API; no dependas del backend real en Jest.
+- Flujos críticos con Maestro: login, agendar cita, abrir Pasaporte, compartir QR.
+- Lint incluye `eslint-plugin-react-native-a11y` (con `has-accessibility-hint` apagada: las pistas son opcionales en iOS y Android).
+- Antes de abrir el PR: `npm run lint`, `npm run typecheck`, `npm test` en verde.
+- Jest corre con `TZ=Asia/Tokyo` (`jest.config.js`) para que una fecha que dependa de la zona del equipo falle en las pruebas.
+- MSW en Jest: el SDK 58 reemplaza el `fetch` global por `expo/fetch` (un stub en Jest). `test/environment.js` guarda el `fetch` de Node y `test/setup.ts` lo restaura antes de arrancar MSW; MSW 3 usa `onUnhandledFrame` (antes `onUnhandledRequest`).
 
-## Forma de trabajar
+## 8. Comandos
 
-- Una rama por fase (`mobile/m0-cimientos`, `mobile/m1-acceso`…) y un PR a `main` al cerrarla. Un commit por tarea lógica, en español (`feat(app/mascotas): carnet de vacunas`).
-- Antes de cada fase: revisar las pantallas y los endpoints en Swagger, y **mostrar el plan para aprobación**.
-- Después de cada cambio: `npm run typecheck`, `npm run lint`, `npm test`, y verlo funcionando en Expo Go contra la API de demo. Al cambiar dependencias, `npx expo install --check` y `npx expo-doctor`.
-- `ios/` y `android/` no existen (se generan): la configuración nativa va en `app.json` y los plugins.
-- No leer ni modificar el `.env` de la raíz ni `backend/.env`.
-- La terminal de Amaurys es PowerShell 5.1: comandos separados con `;`, nunca `&&`.
-
-## Comandos
-
-```powershell
-# API de demo (petcat_demo) en Docker, puerto 3001
-docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile panel up -d --build backend-demo
-
-cd frontend/mobile
-npm start                 # servidor de Expo: escanear el QR con Expo Go (misma wifi)
-npm run start:usb         # por USB con adb reverse (ver README)
-npm run typecheck; npm run lint; npm test
-npx expo install --check; npx expo-doctor
+```
+npm run start          # expo start (dev build o Expo Go)
+npm run start:usb      # expo start --localhost, para adb reverse (ver README)
+npm run android        # abre en emulador/dispositivo Android
+npm run lint
+npm run typecheck
+npm test
+npm run api:types      # genera src/api/api-types.ts desde docs.json
+npm run e2e            # maestro test e2e/
+npx expo install --check; npx expo-doctor   # al cambiar dependencias
 ```
 
-Detalle de cómo probar en el teléfono en `frontend/mobile/README.md`. En desarrollo, "Diagnóstico de la conexión" (al pie de la bienvenida, ruta `/dev/estado`) muestra la URL de la API y si responde.
+El equipo usa **Windows + PowerShell 5.1**: no encadenes con `&&` en instrucciones para el usuario (usa `;` o líneas separadas).
+
+## 9. Seguridad y datos (no negociable)
+
+- **Nunca leas ni modifiques `backend/.env` ni el `.env` de la raíz**. No pidas ni pegues secretos (Cloudinary, SMTP, claves de mapas) en el chat.
+- No uses `docker compose config` sin filtrar: imprime los valores de los `.env`. Para ver puertos o servicios, `docker compose ps` o `docker compose config --services`.
+- `frontend/mobile/.env` **no se sube** al repositorio; mantén `frontend/mobile/.env.example` con nombres de variables sin valores reales.
+- Solo variables `EXPO_PUBLIC_*` llegan al cliente: **nunca** pongas secretos en ellas.
+- No ejecutes `db:reset` sobre `petcat_db` ni `docker compose down -v`. Para probar usa **backend-demo (puerto 3001, `petcat_demo`)**.
+- Datos personales (Ley 1581): no guardes en el teléfono más de lo necesario; el caché de TanStack Query se borra al cerrar sesión.
+- La contraseña `2003` del seed es solo para desarrollo.
+
+## 10. Forma de trabajo
+
+1. Al iniciar una fase: lee este archivo, `PLAN.md` y las pantallas de Figma de la fase. **Entrega un plan** (archivos, dependencias, cambios de API, pruebas, preguntas) y **espera aprobación** antes de escribir código.
+2. Una rama por fase: `mobile/m<N>-<nombre>`. Commits pequeños en español.
+3. PR con: resumen, capturas (o GIF) de las pantallas, cómo probarlo en el teléfono y lista de pendientes.
+4. Al cerrar la fase, actualiza el estado en `PLAN.md`.
