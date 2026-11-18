@@ -1,10 +1,17 @@
 export { Avatar, iniciales } from "./Avatar";
+export { Aviso } from "./Aviso";
 export { Button, type VarianteBoton } from "./Button";
 export { Card } from "./Card";
+export { Checkbox } from "./Checkbox";
 export { Chip } from "./Chip";
+export { CodigoInput } from "./CodigoInput";
 export { EmptyState } from "./EmptyState";
+export { Enlace } from "./Enlace";
 export { ErrorState } from "./ErrorState";
-export { Input } from "./Input";
+export { Input, type InputProps } from "./Input";
+export { MedidorPassword, nivelPassword } from "./MedidorPassword";
+export { PantallaFormulario } from "./PantallaFormulario";
+export { PasswordInput } from "./PasswordInput";
 export { ScreenHeader } from "./ScreenHeader";
 export { Segmented } from "./Segmented";
 export { Skeleton, SkeletonLista } from "./Skeleton";
