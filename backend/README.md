@@ -477,7 +477,8 @@ Pantallas del frontend que abren los enlaces de los correos (el token va en la r
 - El código vence a los 15 minutos, sirve una vez y 5 intentos fallidos lo anulan. Cada correo nuevo reemplaza el código y el enlace anteriores; usar uno invalida el otro.
 - Error: 400 "El código no es válido o ya venció. Solicita uno nuevo", el mismo si el email no existe o la cuenta está desactivada (no delata cuentas).
 - Máximo un correo por minuto y cinco por hora por cuenta, además del límite por IP. `forgot-password` y `request-verification` responden igual aunque no envíen; `resend-verification` responde 429.
-- "Mi veterinaria me registró": el correo de bienvenida sigue con su enlace de 7 días; en la app se usa "¿Olvidaste tu contraseña?", que envía un código (y reemplaza el enlace de bienvenida).
+- "Mi veterinaria me registró": el correo de bienvenida sigue con su enlace de 7 días; en la app se usa "¿Olvidaste tu contraseña?", que envía un código. Nunca quedan dos formas activas de poner contraseña: pedir la recuperación anula el enlace de bienvenida, y un enlace de bienvenida nuevo anula el código y el enlace de recuperación pendientes.
+- El límite por cuenta no delata qué correos tienen cuenta: `forgot-password` y `request-verification` responden siempre 200 con el mismo mensaje, envíen o no.
 - En la base solo está el HMAC del código (`codigos_correo`, clave `CODIGO_SECRET`), ligado al usuario y al tipo; la comparación es en tiempo constante.
 
 ### Acceso al panel de un negocio

@@ -298,6 +298,32 @@ describe("límite de correos por cuenta (además del de IP)", () => {
     expect(res.body.message).toBe(`Ya te enviamos ${CODIGOS_POR_HORA} correos en la última hora. Intenta más tarde`);
   });
 
+  it("el límite no delata cuentas: con o sin cuenta, siempre 200 y el mismo cuerpo", async () => {
+    const usuario = await crearUsuario({ email_verificado: false });
+    const nadie = `nadie_${unique()}@petcat.test`;
+    const MENSAJES = {
+      "/auth/forgot-password":
+        "Si el correo está registrado, te enviamos un código y un enlace para restablecer la contraseña",
+      "/auth/request-verification":
+        "Si el correo está registrado y sin verificar, te enviamos un nuevo código y enlace de verificación",
+    };
+
+    for (const [ruta, message] of Object.entries(MENSAJES)) {
+      // Más solicitudes que el límite por minuto y por hora, alternando correo con y sin cuenta.
+      for (let i = 0; i < CODIGOS_POR_HORA + 2; i++) {
+        for (const email of [usuario.email, nadie]) {
+          const res = await api().post(ruta).send({ email });
+          expect(res.status).toBe(200);
+          expect(res.body).toEqual({ success: true, message, data: null });
+        }
+        await envejecer(usuario.id_usuario, 2);
+      }
+    }
+    // Solo la cuenta real recibió correos, y nunca más de CODIGOS_POR_HORA de cada tipo.
+    expect(outbox.every((mail) => mail.to === usuario.email)).toBe(true);
+    expect(outbox.length).toBeLessThanOrEqual(2 * CODIGOS_POR_HORA);
+  });
+
   it("un enlace de bienvenida pendiente (7 días) no impide pedir la recuperación", async () => {
     const usuario = await crearUsuario();
     const bienvenida = await withTransaction((conn) => emitirEnlaceBienvenida(usuario.id_usuario, conn));
@@ -308,5 +334,72 @@ describe("límite de correos por cuenta (además del de IP)", () => {
     expect((await restablecer(usuario.email, codigoDelCorreo(outbox[0]))).status).toBe(200);
     // El enlace de bienvenida quedó reemplazado.
     expect((await api().post("/auth/reset-password").send({ token: bienvenida, password: "Tercera123" })).status).toBe(400);
+  });
+});
+
+describe("enlace de bienvenida y recuperación: nunca dos formas activas de poner contraseña", () => {
+  const conBienvenida = async () => {
+    const usuario = await crearUsuario();
+    const bienvenida = await withTransaction((conn) => emitirEnlaceBienvenida(usuario.id_usuario, conn));
+    clearOutbox();
+    return { usuario, bienvenida };
+  };
+  const usarEnlace = (token, password = "Tercera123") =>
+    api().post("/auth/reset-password").send({ token, password });
+
+  it("pedir la recuperación anula el enlace de bienvenida en ese momento, antes de usar nada", async () => {
+    const { usuario, bienvenida } = await conBienvenida();
+    await pedirRecuperacion(usuario.email);
+    expect((await usarEnlace(bienvenida)).status).toBe(400);
+    // Quedan solo el código y el enlace del correo de recuperación.
+    expect((await restablecer(usuario.email, codigoDelCorreo(outbox[0]))).status).toBe(200);
+  });
+
+  it("al usar el enlace de recuperación, ni la bienvenida ni el código sirven", async () => {
+    const { usuario, bienvenida } = await conBienvenida();
+    await pedirRecuperacion(usuario.email);
+    const correo = outbox[0];
+
+    expect((await usarEnlace(enlaceRecuperacion(correo), NUEVA)).status).toBe(200);
+    expect((await usarEnlace(bienvenida)).status).toBe(400);
+    expect((await restablecer(usuario.email, codigoDelCorreo(correo), "Cuarta1234")).status).toBe(400);
+  });
+
+  it("al usar el código, ni la bienvenida ni el enlace de recuperación sirven", async () => {
+    const { usuario, bienvenida } = await conBienvenida();
+    await pedirRecuperacion(usuario.email);
+    const correo = outbox[0];
+
+    expect((await restablecer(usuario.email, codigoDelCorreo(correo))).status).toBe(200);
+    expect((await usarEnlace(bienvenida)).status).toBe(400);
+    expect((await usarEnlace(enlaceRecuperacion(correo))).status).toBe(400);
+  });
+
+  it("un enlace de bienvenida nuevo (el negocio lo reenvía) anula el código de recuperación pendiente", async () => {
+    const usuario = await crearUsuario();
+    await pedirRecuperacion(usuario.email);
+    const correo = outbox[0];
+
+    const bienvenida = await withTransaction((conn) =>
+      emitirEnlaceBienvenida(usuario.id_usuario, conn, { esperaMinutos: 0 })
+    );
+    expect(bienvenida).toBeTruthy();
+
+    expect((await restablecer(usuario.email, codigoDelCorreo(correo))).status).toBe(400);
+    expect((await usarEnlace(enlaceRecuperacion(correo))).status).toBe(400);
+    expect((await codigosDe(usuario.id_usuario, "recuperacion"))[0].motivo_cierre).toBe("reemplazado");
+    expect((await usarEnlace(bienvenida, NUEVA)).status).toBe(200);
+  });
+
+  it("usar el enlace de bienvenida anula el código de recuperación", async () => {
+    const usuario = await crearUsuario();
+    await pedirRecuperacion(usuario.email);
+    const codigo = codigoDelCorreo(outbox[0]);
+    const bienvenida = await withTransaction((conn) =>
+      emitirEnlaceBienvenida(usuario.id_usuario, conn, { esperaMinutos: 0 })
+    );
+
+    expect((await usarEnlace(bienvenida, NUEVA)).status).toBe(200);
+    expect((await restablecer(usuario.email, codigo, "Cuarta1234")).status).toBe(400);
   });
 });

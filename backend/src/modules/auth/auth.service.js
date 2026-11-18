@@ -358,11 +358,15 @@ export const MINUTOS_BIENVENIDA = 7 * 24 * 60;
  * (mismo flujo que restablecer, con vigencia de 7 días). Reemplaza el enlace anterior.
  * Devuelve el token real, o null si ya se emitió uno hace menos de `esperaMinutos`
  * (con 0 siempre se emite: al corregir un correo el enlace anterior no debe servir).
+ * Comparte la columna con el enlace de recuperación, que queda reemplazado; también se cierra
+ * el código de recuperación pendiente: nunca quedan dos formas activas de poner contraseña.
  */
 export const emitirEnlaceBienvenida = async (id_usuario, conn, { esperaMinutos = 1 } = {}) => {
   const { token, token_hash } = nuevoToken();
   const emitido = await usuarioRepo.setToken(id_usuario, "recuperacion", { token_hash, minutos: MINUTOS_BIENVENIDA, esperaMinutos }, conn);
-  return emitido ? token : null;
+  if (!emitido) return null;
+  await codigos.cerrarAbiertos(id_usuario, "recuperacion", "reemplazado", conn);
+  return token;
 };
 
 /** Correo de bienvenida con el nombre del negocio; se envía sin esperar. */
