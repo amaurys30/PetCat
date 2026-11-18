@@ -52,11 +52,16 @@ export const changePassword = async (req, res) => {
 
 export const forgotPassword = async (req, res) => {
   await service.forgotPassword(req.body);
-  return ok(res, null, "Si el correo está registrado, te enviamos un enlace para restablecer la contraseña");
+  return ok(res, null, "Si el correo está registrado, te enviamos un código y un enlace para restablecer la contraseña");
 };
 
 export const resetPassword = async (req, res) => {
   await service.resetPassword(req.body);
+  return ok(res, null, "Contraseña restablecida. Ya puedes iniciar sesión");
+};
+
+export const resetPasswordConCodigo = async (req, res) => {
+  await service.resetPasswordConCodigo(req.body);
   return ok(res, null, "Contraseña restablecida. Ya puedes iniciar sesión");
 };
 
@@ -65,14 +70,19 @@ export const verifyEmail = async (req, res) => {
   return ok(res, null, "Correo verificado");
 };
 
+export const verifyEmailConCodigo = async (req, res) => {
+  await service.verifyEmailConCodigo(req.user.id_usuario, req.body.codigo);
+  return ok(res, null, "Correo verificado");
+};
+
 export const requestVerification = async (req, res) => {
   await service.requestVerification(req.body);
-  return ok(res, null, "Si el correo está registrado y sin verificar, te enviamos un nuevo enlace de verificación");
+  return ok(res, null, "Si el correo está registrado y sin verificar, te enviamos un nuevo código y enlace de verificación");
 };
 
 export const resendVerification = async (req, res) => {
   const data = await service.resendVerification(req.user.id_usuario);
-  return ok(res, data, "Te enviamos un nuevo enlace de verificación");
+  return ok(res, data, "Te enviamos un nuevo código y enlace de verificación");
 };
 
 export const aceptarPolitica = async (req, res) => {

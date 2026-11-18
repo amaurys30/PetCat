@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { z } from "zod";
 
 /**
@@ -33,6 +34,9 @@ const schema = z
     JWT_EXPIRES_IN: duration.default("1h"),
     REFRESH_SECRET: secret,
     REFRESH_EXPIRES_IN: duration.default("30d"),
+    // Clave del HMAC de los códigos de 6 dígitos de los correos (codigos_correo). Obligatoria en
+    // producción; en desarrollo y tests, si falta, se deriva de JWT_SECRET (ver más abajo).
+    CODIGO_SECRET: z.string().min(32, "Debe tener al menos 32 caracteres").optional(),
 
     APP_URL: z.url().default("http://localhost:3000"),
     FRONTEND_URL: z.url().default("http://localhost:5173"),
@@ -88,6 +92,20 @@ const schema = z
         code: "custom",
         path: ["REFRESH_SECRET"],
         message: "Debe ser distinto de JWT_SECRET",
+      });
+    }
+    if (data.NODE_ENV === "production" && !data.CODIGO_SECRET) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["CODIGO_SECRET"],
+        message: "Obligatoria en producción (clave de los códigos de los correos)",
+      });
+    }
+    if (data.CODIGO_SECRET && [data.JWT_SECRET, data.REFRESH_SECRET].includes(data.CODIGO_SECRET)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["CODIGO_SECRET"],
+        message: "Debe ser distinta de JWT_SECRET y REFRESH_SECRET",
       });
     }
     if (data.NODE_ENV === "production" && !data.SMTP_HOST) {
@@ -151,6 +169,11 @@ process.env.TZ = "America/Bogota";
 
 export const env = Object.freeze({
   ...parsed.data,
+  // Sin CODIGO_SECRET (solo desarrollo y tests): una clave propia derivada de JWT_SECRET,
+  // nunca la misma, para no reutilizar la clave de los tokens en otro HMAC.
+  CODIGO_SECRET:
+    parsed.data.CODIGO_SECRET ??
+    createHmac("sha256", parsed.data.JWT_SECRET).update("petcat:codigos-correo").digest("hex"),
   AUTH_RATE_LIMIT_MAX:
     parsed.data.AUTH_RATE_LIMIT_MAX ?? (parsed.data.NODE_ENV === "production" ? 10 : 100),
 });

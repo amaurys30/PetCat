@@ -21,12 +21,17 @@ const usuarioDe = async (id_usuario) => {
   return row;
 };
 
-// Simula que el último correo de verificación se envió hace más de un minuto.
-const envejecerEnlace = (id_usuario) =>
-  pool.query(
+// Simula que el último correo de verificación (enlace y código) se envió hace más de un minuto.
+const envejecerEnlace = async (id_usuario) => {
+  await pool.query(
     "UPDATE usuarios SET token_verificacion_expira = token_verificacion_expira - INTERVAL 2 MINUTE WHERE id_usuario = ?",
     [id_usuario]
   );
+  await pool.query(
+    "UPDATE codigos_correo SET fecha_creacion = fecha_creacion - INTERVAL 2 MINUTE WHERE id_usuario = ?",
+    [id_usuario]
+  );
+};
 
 beforeEach(() => clearOutbox());
 
@@ -94,7 +99,7 @@ describe("POST /auth/resend-verification", () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
       success: true,
-      message: "Te enviamos un nuevo enlace de verificación",
+      message: "Te enviamos un nuevo código y enlace de verificación",
       data: { email: registrado.email },
     });
     expect(outbox).toHaveLength(2);
@@ -125,7 +130,7 @@ describe("POST /auth/resend-verification", () => {
 });
 
 describe("POST /auth/request-verification (sin sesión)", () => {
-  const MENSAJE = "Si el correo está registrado y sin verificar, te enviamos un nuevo enlace de verificación";
+  const MENSAJE = "Si el correo está registrado y sin verificar, te enviamos un nuevo código y enlace de verificación";
   const pedir = (email) => api().post("/auth/request-verification").send({ email });
 
   it("envía un enlace nuevo que verifica el correo e invalida el anterior; máximo uno por minuto", async () => {

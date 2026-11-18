@@ -1422,6 +1422,28 @@ CREATE TABLE autorizaciones_datos (
   COMMENT='Autorizaciones de tratamiento de datos personales (Ley 1581 de 2012)';
 
 
+-- Migración 028. Códigos de 6 dígitos de los correos de verificación y recuperación
+-- (la app los escribe en lugar de abrir el enlace). HMAC del código, 15 minutos, 5 intentos;
+-- las filas se conservan para limitar los correos por cuenta (1 por minuto, 5 por hora).
+CREATE TABLE codigos_correo (
+    id_codigo       BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    id_usuario      INT UNSIGNED    NOT NULL,
+    tipo            ENUM('verificacion','recuperacion') NOT NULL,
+    codigo_hash     CHAR(64)        NOT NULL COMMENT 'HMAC-SHA256 con CODIGO_SECRET, en hexadecimal',
+    expira          DATETIME        NOT NULL,
+    intentos        TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Intentos fallidos',
+    cerrado_en      DATETIME        NULL COMMENT 'Ya no sirve: usado, reemplazado, por intentos o por usar el enlace',
+    motivo_cierre   ENUM('usado','reemplazado','intentos','enlace') NULL,
+    fecha_creacion  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id_codigo),
+    INDEX idx_codigos_usuario_tipo (id_usuario, tipo, fecha_creacion),
+    CONSTRAINT fk_codigos_usuario
+        FOREIGN KEY (id_usuario) REFERENCES usuarios (id_usuario)
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Códigos de 6 dígitos de los correos de verificación y recuperación';
+
+
 -- Migración 019: notas del negocio sobre sus clientes. Borrado físico (excepción a la
 -- convención de borrado lógico): si el negocio borra una nota, el dato personal desaparece.
 CREATE TABLE notas_cliente (
@@ -1901,7 +1923,8 @@ INSERT INTO schema_migrations (nombre) VALUES
 ('024_notificaciones_destino.sql'),
 ('025_suscripciones_usuario_registro.sql'),
 ('026_citas_ver_todas_y_creador_historial.sql'),
-('027_publico_landing.sql');
+('027_publico_landing.sql'),
+('028_codigos_correo.sql');
 
 
 SET FOREIGN_KEY_CHECKS = 1;
