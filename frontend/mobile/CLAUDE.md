@@ -168,7 +168,7 @@ El equipo usa **Windows + PowerShell 5.1**: no encadenes con `&&` en instruccion
 - Solo variables `EXPO_PUBLIC_*` llegan al cliente: **nunca** pongas secretos en ellas.
 - No ejecutes `db:reset` sobre `petcat_db` ni `docker compose down -v`. Para probar usa **backend-demo (puerto 3001, `petcat_demo`)**.
 - Datos personales (Ley 1581): no guardes en el teléfono más de lo necesario; el caché de TanStack Query se borra al cerrar sesión.
-- La contraseña `2003` del seed es solo para desarrollo.
+- Las contraseñas de los usuarios del seed son solo para desarrollo; están en `backend/README.md`, "Usuarios de prueba" (no copiarlas aquí ni en el código).
 
 ## 10. Forma de trabajo
 

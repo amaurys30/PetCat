@@ -95,7 +95,7 @@ Investigación:
 - **Sin sesión:** `GET /negocios` (búsqueda con `lat`, `lng`, `radio_km`), `/negocios/:id_negocio`, `/negocios/:id_negocio/sucursales`, `/negocios/:id_negocio/resenas`, `/sucursales/:id_sucursal`, `/sucursales/:id_sucursal/horarios`, `/servicios`, `/servicios/:id_servicio`, `/categorias-servicio` y `/citas/horarios-libres`. Agendar (`POST /citas`) pide sesión. Explorar y la consulta de disponibilidad no necesitan cambios en la API.
 - Para M1: los enlaces de verificación y recuperación de los correos apuntan a `FRONTEND_URL` (el panel web, `localhost:5173` en desarrollo) y no abren en el teléfono. Se propondrá en el plan de M1 (deep link `petcat://` o publicar esas páginas).
 
-## 🟨 M1 · Acceso
+## ✅ M1 · Acceso
 
 - M1 bienvenida (carrusel de 3), M2 registro con aceptación de la política (Ley 1581, enlace a la política), M3 login, recuperar contraseña.
 - Sesión persistente: al abrir la app, refresh silencioso → pestañas o bienvenida.
@@ -121,13 +121,15 @@ Hecho:
 - [x] Pruebas: 149 (arranque, rutas protegidas, cada pantalla y flujo con MSW, carrusel, dispositivo, medidor). Maestro: `e2e/login.yaml` y `e2e/navegacion.yaml` (ahora entra con login primero).
 - [x] Contrato comprobado contra la API de demo con un usuario de prueba: registro (autorización canal `app`, versión 1.0), login con `dispositivo`, perfil, código del correo (Mailpit) y logout.
 
-Falta:
-- [ ] Probar en un teléfono con Expo Go (después de eso M1 pasa a ✅).
-- [ ] Correr los flujos de Maestro (no está instalado en este equipo).
+Cierre (2026-11-18):
+- [x] Probada en Android con Expo Go. M1 terminada.
+
+Queda para después (no bloquea M1):
+- [ ] Correr los flujos de Maestro (`e2e/login.yaml` y `e2e/navegacion.yaml`; no estaba instalado).
 
 Notas:
 - Jest: `renderRouter` activa los timers falsos; `jest.config.js` deja `nextTick` y `setImmediate` reales (si no, ninguna llamada a la API termina en las pruebas de flujo).
-- La contraseña del seed es `Petcat123!` (backend/README.md); en la demo de este equipo la de `cliente@petcat.test` ya no coincide (se cambió después de cargar el seed): recargar la demo antes de correr Maestro.
+- Contraseñas del seed: `backend/README.md`, "Usuarios de prueba". En la demo de este equipo la de `cliente@petcat.test` ya no coincidía con el seed (se cambió después de cargarlo): recargar la demo antes de correr Maestro.
 
 ## ⬜ M2 · Inicio y mascotas
 

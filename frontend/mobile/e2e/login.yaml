@@ -1,14 +1,14 @@
-# Login contra la API de demo (petcat_demo) con un cliente del seed (contraseña del seed en
-# backend/README.md, "Usuarios de prueba"; si se cambió en la demo, recargarla). Primero una contraseña
-# errónea (mensaje propio) y después la correcta (abre las pestañas). Local, no en CI:
-#   maestro test -e EXPO_URL=exp://192.168.1.50:8081 e2e/login.yaml
+# Login contra la API de demo (petcat_demo) con un cliente del seed: primero una contraseña
+# errónea (mensaje propio) y después la correcta (abre las pestañas). Local, no en CI.
+# La contraseña no va en el repositorio: la del seed está en backend/README.md, "Usuarios de
+# prueba" (si se cambió en la demo, recargarla).
+#   maestro test -e EXPO_URL=exp://192.168.1.50:8081 -e PASSWORD=<la del README> e2e/login.yaml
 # Empieza sin sesión (clearState borra los datos de Expo Go, también la sesión guardada).
 # Con la development build (desde M4) el appId es co.petcat.app y sobra el openLink.
 appId: host.exp.exponent
 env:
   EXPO_URL: exp://127.0.0.1:8081
   EMAIL: cliente@petcat.test
-  PASSWORD: "Petcat123!"
 ---
 - launchApp:
     clearState: true
