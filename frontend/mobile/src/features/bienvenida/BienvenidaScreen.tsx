@@ -1,101 +1,122 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { CalendarDays, ChevronLeft, Dog, PawPrint, Syringe } from "lucide-react-native";
-import type { ReactNode } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { useRef, useState, type ComponentType } from "react";
+import { FlatList, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Button, Text } from "@/components/ui";
-import { RESPALDO, useVolver } from "@/lib/navegacion";
-import { colors, gradients } from "@/theme/tokens";
+import { gradients } from "@/theme/tokens";
 
-// M1 · Bienvenida, estática en M0 (el carrusel de 3 y el arranque con sesión llegan en M1).
-// El texto blanco va en la mitad inferior, donde el degradado ya es primary-strong o más oscuro.
+import { IlustracionAgenda, IlustracionMascota, IlustracionPasaporte } from "./ilustraciones";
+
+type Lamina = { id: string; titulo: string; cuerpo: string; Ilustracion: ComponentType };
+
+export const LAMINAS: Lamina[] = [
+  {
+    id: "mascota",
+    titulo: "Todo lo de tu mascota, en tu bolsillo.",
+    cuerpo: "Su carnet de vacunas, sus citas y las veterinarias de Sincelejo, en un solo lugar.",
+    Ilustracion: IlustracionMascota,
+  },
+  {
+    id: "pasaporte",
+    titulo: "Sus vacunas, siempre a mano.",
+    cuerpo: "Un pasaporte digital con cada vacuna sellada por su veterinaria. Compártelo con un QR.",
+    Ilustracion: IlustracionPasaporte,
+  },
+  {
+    id: "agenda",
+    titulo: "Agenda en la veterinaria de tu barrio.",
+    cuerpo: "Mira las horas libres, reserva en segundos y recibe un recordatorio el día antes.",
+    Ilustracion: IlustracionAgenda,
+  },
+];
+
+/**
+ * M1 · Bienvenida: la entrada sin sesión. Carrusel de 3 láminas sin avance automático. Para el
+ * lector de pantalla es un solo control ajustable ("Lámina 1 de 3", con el título y el texto):
+ * se cambia con los gestos de subir y bajar; las ilustraciones son decorativas.
+ * El texto blanco va en la mitad inferior, donde el degradado ya es primary-strong o más oscuro.
+ */
 export function BienvenidaScreen() {
   const router = useRouter();
-  // En M0 se llega desde Perfil; en M1, cuando sea la pantalla de entrada, se revisa esta flecha.
-  const volver = useVolver(RESPALDO.perfil);
+  const { width } = useWindowDimensions();
+  const lista = useRef<FlatList<Lamina>>(null);
+  const [actual, setActual] = useState(0);
+
+  const irA = (indice: number) => {
+    const destino = Math.max(0, Math.min(LAMINAS.length - 1, indice));
+    lista.current?.scrollToIndex({ index: destino, animated: true });
+    setActual(destino);
+  };
+
+  // onViewableItemsChanged no puede cambiar entre renders: se crea una vez.
+  const [alCambiarVisible] = useState(
+    () =>
+      ({ viewableItems }: { viewableItems: { index?: number | null }[] }) => {
+        const visible = viewableItems[0]?.index;
+        if (typeof visible === "number") setActual(visible);
+      },
+  );
+
+  const lamina = LAMINAS[actual]!;
 
   return (
     <LinearGradient colors={gradients.brand.colors} locations={gradients.brand.locations} style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 1 }}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Volver"
-          onPress={volver}
-          className="ml-3 h-12 w-12 items-center justify-center"
+        <View
+          className="flex-1"
+          accessible
+          accessibilityRole="adjustable"
+          accessibilityLabel={`${lamina.titulo} ${lamina.cuerpo}`}
+          accessibilityValue={{ text: `Lámina ${actual + 1} de ${LAMINAS.length}` }}
+          accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
+          onAccessibilityAction={(e) =>
+            irA(e.nativeEvent.actionName === "increment" ? actual + 1 : actual - 1)
+          }
+          testID="carrusel-bienvenida"
         >
-          {/* Círculo blanco: un ícono blanco sobre el inicio del degradado no llega a 3:1. */}
-          <View className="h-10 w-10 items-center justify-center rounded-full bg-white">
-            <ChevronLeft size={24} color={colors["primary-deep"]} />
-          </View>
-        </Pressable>
-        <ScrollView contentContainerClassName="grow justify-between px-pantalla pb-6">
-          <Ilustracion />
+          <FlatList
+            ref={lista}
+            data={LAMINAS}
+            keyExtractor={(l) => l.id}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onViewableItemsChanged={alCambiarVisible}
+            viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
+            getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
+            renderItem={({ item }) => (
+              <View style={{ width }} className="flex-1 justify-between px-pantalla pt-4">
+                <item.Ilustracion />
+                <View className="gap-3">
+                  <Text variante="hero" className="text-white">
+                    {item.titulo}
+                  </Text>
+                  <Text className="text-white">{item.cuerpo}</Text>
+                </View>
+              </View>
+            )}
+          />
+        </View>
 
-          <View className="gap-4">
-            <Text variante="hero" className="text-white">
-              Todo lo de tu mascota, en tu bolsillo.
-            </Text>
-            <Text className="text-white">
-              Su carnet de vacunas, sus citas y las veterinarias de Sincelejo, en un solo lugar.
-            </Text>
-            <View className="mt-4 gap-3">
-              <Button variante="claro" titulo="Crear mi cuenta" onPress={() => router.push("/registro")} />
-              <Button
-                variante="contornoClaro"
-                titulo="Ya tengo cuenta"
-                onPress={() => router.push("/login")}
+        <View className="gap-3 px-pantalla pb-6 pt-5">
+          <View
+            className="mb-2 flex-row gap-2"
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
+            {LAMINAS.map((l, i) => (
+              <View
+                key={l.id}
+                className={`h-2 rounded-full ${i === actual ? "w-6 bg-white" : "w-2 bg-white/50"}`}
               />
-            </View>
+            ))}
           </View>
-        </ScrollView>
+          <Button variante="claro" titulo="Crear mi cuenta" onPress={() => router.push("/registro")} />
+          <Button variante="contornoClaro" titulo="Ya tengo cuenta" onPress={() => router.push("/login")} />
+        </View>
       </SafeAreaView>
     </LinearGradient>
-  );
-}
-
-// Decorativa: se oculta a los lectores de pantalla, que ya leen el título.
-function Ilustracion() {
-  return (
-    <View
-      className="h-80 items-center justify-center"
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-    >
-      <View className="h-72 w-72 items-center justify-center rounded-full bg-white/10">
-        <View className="h-52 w-52 items-center justify-center rounded-full bg-white/15">
-          <View className="h-36 w-36 items-center justify-center rounded-full bg-white">
-            <Dog size={72} color={colors["primary-strong"]} strokeWidth={1.75} />
-          </View>
-        </View>
-      </View>
-      <Etiqueta
-        className="absolute right-0 top-8"
-        icono={<Syringe size={16} color={colors["primary-strong"]} />}
-      >
-        Vacuna al día
-      </Etiqueta>
-      <Etiqueta
-        className="absolute bottom-12 left-0"
-        icono={<CalendarDays size={16} color={colors["primary-strong"]} />}
-      >
-        Mañana · 8:00
-      </Etiqueta>
-      <View className="absolute bottom-10 right-6 h-14 w-14 items-center justify-center rounded-full bg-sun">
-        <PawPrint size={24} color={colors.ink} />
-      </View>
-    </View>
-  );
-}
-
-function Etiqueta({ icono, children, className }: { icono: ReactNode; children: string; className: string }) {
-  return (
-    <View className={`flex-row items-center gap-2 rounded-full bg-white px-4 py-2 ${className}`}>
-      {icono}
-      <Text variante="apoyo" className="font-bold text-primary-deep">
-        {children}
-      </Text>
-    </View>
   );
 }
