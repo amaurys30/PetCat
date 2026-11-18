@@ -58,7 +58,7 @@ services:
       retries: 3
       start_period: 15s
 
-  # API para el panel web contra la base de demo (petcat_demo), en 127.0.0.1:3001.
+  # API para el panel web y la app móvil contra la base de demo (petcat_demo), en el puerto 3001.
   # Solo arranca con el perfil "panel": docker compose --profile panel up -d
   # La primera vez crea petcat_demo con el esquema y el seed; para recargarla:
   #   docker compose exec backend-demo node scripts/db-demo.js
@@ -67,8 +67,11 @@ services:
     container_name: petcat_backend_demo
     profiles: [panel]
     restart: unless-stopped
+    # Cerrada a la red local por defecto. Para probar la app en un teléfono por wifi:
+    # DEMO_BIND=0.0.0.0 en el .env de la raíz y una regla de firewall solo para redes privadas
+    # (frontend/mobile/README.md). Por USB no hace falta abrirla: adb reverse.
     ports:
-      - "127.0.0.1:3001:3000"
+      - "${DEMO_BIND:-127.0.0.1}:3001:3000"
     depends_on:
       mysql:
         condition: service_healthy

@@ -70,8 +70,10 @@ La primera vez que se crea el volumen de MySQL, compose carga automáticamente e
 
 | Servicio | Contenedor | Dirección | Base | Para qué |
 |---|---|---|---|---|
-| `backend` | `petcat_backend` | `http://localhost:3000` | `petcat_db` | La API de siempre (desarrollo del backend, app móvil) |
-| `backend-demo` | `petcat_backend_demo` | `http://127.0.0.1:3001` | `petcat_demo` | El panel web (`frontend/web`) y sus pruebas, con datos conocidos |
+| `backend` | `petcat_backend` | `http://localhost:3000` | `petcat_db` | La API de siempre (desarrollo del backend) |
+| `backend-demo` | `petcat_backend_demo` | `http://127.0.0.1:3001` | `petcat_demo` | El panel web (`frontend/web`), la app móvil (`frontend/mobile`) y sus pruebas, con datos conocidos |
+
+`backend-demo` escucha solo en `127.0.0.1`. Para probar la app en un teléfono por wifi se abre a la red local con `DEMO_BIND=0.0.0.0` en el `.env` de la raíz y una regla de firewall solo para redes privadas; por USB basta `adb reverse`, sin abrir nada. Pasos en [frontend/mobile/README.md](../frontend/mobile/README.md#probar-en-el-teléfono-con-expo-go).
 
 `backend-demo` usa la misma imagen y el mismo `backend/.env`; solo cambia la base, el puerto, los límites de solicitudes (`RATE_LIMIT_MAX` y `AUTH_RATE_LIMIT_MAX` mucho más altos, para que las pruebas de punta a punta no reciban 429) y la carpeta de Cloudinary (`CLOUDINARY_FOLDER=petcat-demo`, para que los archivos de la demo no se mezclen con los de `petcat-dev`). Está en el **perfil `panel`**: un `docker compose up -d` normal no lo arranca. La primera vez crea `petcat_demo` con el esquema y el seed.
 
