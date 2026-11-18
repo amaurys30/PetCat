@@ -66,7 +66,8 @@ export function toApiError(error: unknown): ApiError {
     cuerpo.errors && typeof cuerpo.errors === "object" ? (cuerpo.errors as Record<string, unknown>) : {};
 
   if (status >= 500) return new ApiError(status, MENSAJES.servidor);
-  if (status === 429) return new ApiError(status, MENSAJES.limite, "http", errors);
+  // 429: el mensaje de la API dice cuánto esperar ("espera 15 minutos"); si no llega, el genérico.
+  if (status === 429) return new ApiError(status, mensajeApi ?? MENSAJES.limite, "http", errors);
   if (status === 422) return new ApiError(status, mensajeApi ?? MENSAJES.validacion, "http", errors);
   return new ApiError(status, mensajeApi ?? MENSAJES.generico, "http", errors);
 }

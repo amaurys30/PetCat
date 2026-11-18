@@ -10,7 +10,10 @@ import { LogBox } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { SinConexionScreen } from "@/features/sesion/SinConexionScreen";
+import { useArranque } from "@/features/sesion/useArranque";
 import { queryClient } from "@/lib/queryClient";
+import { useSesion } from "@/store/sesion";
 import { fuentes } from "@/theme/fuentes";
 import { colors } from "@/theme/tokens";
 
@@ -23,8 +26,9 @@ LogBox.ignoreLogs(["ImageBackground is deprecated"]);
 
 export default function RootLayout() {
   const [fuentesListas, errorFuentes] = useFonts(fuentes);
-  // Si la fuente falla, la app sigue con la del sistema.
-  const listo = fuentesListas || !!errorFuentes;
+  const arranque = useArranque();
+  // Si la fuente falla, la app sigue con la del sistema. El splash sigue hasta saber si hay sesión.
+  const listo = (fuentesListas || !!errorFuentes) && arranque.fase !== "cargando";
 
   useEffect(() => {
     if (listo) SplashScreen.hideAsync();
@@ -37,15 +41,45 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <StatusBar style="dark" />
-          {/* En M0 la app abre en las pestañas; la sesión (y la bienvenida al inicio) llega en M1. */}
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.surface } }}>
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="(auth)" />
-            <Stack.Screen name="dev/estado" />
-            <Stack.Screen name="+not-found" />
-          </Stack>
+          {arranque.fase === "sin_conexion" ? (
+            <SinConexionScreen onReintentar={arranque.reintentar} reintentando={arranque.reintentando} />
+          ) : (
+            <Navegacion />
+          )}
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
+  );
+}
+
+/**
+ * Rutas protegidas por el estado de la sesión: sin sesión, solo (auth) (bienvenida, registro,
+ * login, recuperar); con sesión y la política pendiente, solo aceptarla; con sesión, el resto.
+ * Al cambiar la sesión (login, cerrar sesión, aceptar), Expo Router redirige solo.
+ */
+function Navegacion() {
+  const autenticada = useSesion((s) => s.estado === "autenticada");
+  const requierePolitica = useSesion((s) => s.requierePolitica);
+  const recienRegistrado = useSesion((s) => s.recienRegistrado);
+
+  return (
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.surface } }}>
+      <Stack.Protected
+        guard={autenticada && !requierePolitica}
+        redirectTo={autenticada ? "/aceptar-politica" : "/bienvenida"}
+      >
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="verificar-correo" />
+      </Stack.Protected>
+      <Stack.Protected guard={autenticada && requierePolitica} redirectTo={autenticada ? "/" : "/bienvenida"}>
+        <Stack.Screen name="aceptar-politica" />
+      </Stack.Protected>
+      <Stack.Protected guard={!autenticada} redirectTo={recienRegistrado ? "/verificar-correo" : "/"}>
+        <Stack.Screen name="(auth)" />
+      </Stack.Protected>
+      <Stack.Screen name="politica" />
+      <Stack.Screen name="dev/estado" />
+      <Stack.Screen name="+not-found" />
+    </Stack>
   );
 }
