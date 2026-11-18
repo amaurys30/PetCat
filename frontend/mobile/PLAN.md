@@ -58,7 +58,7 @@ Figma (página "App móvil · Dueños de mascotas"): `https://www.figma.com/desi
 ### Resultado de M0 (rama `mobile/m0-cimientos`)
 
 Hecho:
-- [x] Expo SDK 58 (RN 0.88.1, React 19.3, TypeScript 6), Expo Router con `app/(tabs)` y `app/(auth)`, `app.config.ts` (`co.petcat.app`, scheme `petcat`), `eas.json` sin `projectId`.
+- [x] Expo SDK 58 (RN 0.88.1, React 19.3, TypeScript 6), Expo Router con `app/(tabs)` y `app/(auth)`, `app.config.ts` (`co.petcat.app`, scheme `petcat`), `eas.json`. Proyecto de EAS vinculado: `@petcat/petcat`, `projectId` `416e9696-62c4-451b-a495-2b29f7a627e3` en `extra.eas.projectId`, `owner: "petcat"`.
 - [x] Tokens en `src/theme/tokens.ts` → `tailwind.config.js`; NativeWind 4.2.7 funciona con RN 0.88 (bundle de Android y prueba de estilos); Plus Jakarta Sans con una familia por peso.
 - [x] Componentes base: `Text`, `Button` (primario, secundario, suave, peligro; más `claro` y `contornoClaro` para el degradado de marca), `Chip`, `Card`, `Input`, `Segmented`, `Toggle`, `Avatar`, `ScreenHeader`, `EmptyState`, `ErrorState`, `Skeleton`.
 - [x] Barra de pestañas propia (`TabBar` + `CarnetTabButton`): 5 pestañas, Carnet elevado con degradado coral; franja transparente con `pointerEvents="box-none"` para que el círculo reciba toques completo en Android; `tablist`/`tab` con `selected`, Carnet anunciado como "Carnet de mis mascotas", etiquetas hasta `maxFontSizeMultiplier` 1,4; se oculta con el teclado en Android. La app abre en las pestañas (la sesión llega en M1); la bienvenida se abre desde Perfil.

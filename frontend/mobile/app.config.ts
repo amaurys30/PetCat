@@ -1,9 +1,10 @@
 import type { ExpoConfig } from "expo/config";
 
-// Sin projectId de EAS todavía: Amaurys crea la cuenta y corre `npx eas-cli@latest init`,
-// que lo agrega en extra.eas.projectId (lo necesita el token de Expo Push en M6).
+// Proyecto de EAS vinculado con `npx eas-cli@latest init`. El projectId lo necesita el token de
+// Expo Push (M6); owner y slug tienen que coincidir con la cuenta y el proyecto en expo.dev.
 const config: ExpoConfig = {
   name: "PetCat",
+  owner: "petcat", // nombre de la cuenta en expo.dev, en minúsculas (EAS lo compara exacto)
   slug: "petcat",
   version: "0.1.0",
   orientation: "portrait",
@@ -35,6 +36,9 @@ const config: ExpoConfig = {
     ],
   ],
   experiments: { typedRoutes: true, reactCompiler: true },
+  extra: {
+    eas: { projectId: "416e9696-62c4-451b-a495-2b29f7a627e3" },
+  },
 };
 
 export default config;
