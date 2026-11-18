@@ -71,6 +71,7 @@ Formatos: dinero `$45.000` (COP, sin decimales), fechas `vie 15 nov`, horas `8:3
 - **@maplibre/maplibre-react-native** + teselas OSM (URL configurable por variable de entorno).
 - **expo-notifications** (Expo Push ya existe en el backend).
 - **socket.io-client** (eventos `agenda_actualizada`, `notificaciones`).
+- **@react-native-community/netinfo** (desde M1: reintentar el arranque cuando vuelve la red).
 - **react-native-reanimated**, **expo-sensors** (efecto holográfico del Pasaporte), **react-native-svg**, **react-native-qrcode-svg**, **expo-image**, **lucide-react-native**.
 - **openapi-typescript** para generar tipos desde `GET /api/v1/docs.json`.
 - Pruebas: **Jest (jest-expo) + React Native Testing Library + MSW**; E2E con **Maestro**.
@@ -140,6 +141,8 @@ Las pruebas van junto al código que prueban (`*.test.ts(x)` dentro de `src/`), 
 - Antes de abrir el PR: `npm run lint`, `npm run typecheck`, `npm test` en verde.
 - Jest corre con `TZ=Asia/Tokyo` (`jest.config.js`) para que una fecha que dependa de la zona del equipo falle en las pruebas.
 - MSW en Jest: el SDK 58 reemplaza el `fetch` global por `expo/fetch` (un stub en Jest). `test/environment.js` guarda el `fetch` de Node y `test/setup.ts` lo restaura antes de arrancar MSW; MSW 3 usa `onUnhandledFrame` (antes `onUnhandledRequest`).
+- Pruebas de flujo con la app real: `renderApp(ruta)` y `reiniciarSesion()` de `test/app.tsx` (todas las rutas, con el arranque y las rutas protegidas). `renderRouter` activa los timers falsos; `jest.config.js` deja `nextTick` y `setImmediate` reales para que las llamadas a la API terminen.
+- Formularios: React Hook Form con `Controller` (pasar `field.ref` al campo para el foco) y `useWatch` en lugar de `watch` (React Compiler omite los componentes que usan `watch`).
 
 ## 8. Comandos
 
