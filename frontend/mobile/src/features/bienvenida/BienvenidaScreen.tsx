@@ -1,21 +1,35 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { CalendarDays, Dog, PawPrint, Syringe } from "lucide-react-native";
+import { CalendarDays, ChevronLeft, Dog, PawPrint, Syringe } from "lucide-react-native";
 import type { ReactNode } from "react";
-import { ScrollView, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Button, Text } from "@/components/ui";
+import { RESPALDO, useVolver } from "@/lib/navegacion";
 import { colors, gradients } from "@/theme/tokens";
 
 // M1 · Bienvenida, estática en M0 (el carrusel de 3 y el arranque con sesión llegan en M1).
 // El texto blanco va en la mitad inferior, donde el degradado ya es primary-strong o más oscuro.
 export function BienvenidaScreen() {
   const router = useRouter();
+  // En M0 se llega desde Perfil; en M1, cuando sea la pantalla de entrada, se revisa esta flecha.
+  const volver = useVolver(RESPALDO.perfil);
 
   return (
     <LinearGradient colors={gradients.brand.colors} locations={gradients.brand.locations} style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 1 }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Volver"
+          onPress={volver}
+          className="ml-3 h-12 w-12 items-center justify-center"
+        >
+          {/* Círculo blanco: un ícono blanco sobre el inicio del degradado no llega a 3:1. */}
+          <View className="h-10 w-10 items-center justify-center rounded-full bg-white">
+            <ChevronLeft size={24} color={colors["primary-deep"]} />
+          </View>
+        </Pressable>
         <ScrollView contentContainerClassName="grow justify-between px-pantalla pb-6">
           <Ilustracion />
 

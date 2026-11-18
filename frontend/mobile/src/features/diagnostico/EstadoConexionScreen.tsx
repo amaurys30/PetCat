@@ -1,22 +1,21 @@
 import Constants from "expo-constants";
-import { useRouter } from "expo-router";
 import { CircleCheck } from "lucide-react-native";
 import { ScrollView, View } from "react-native";
 
 import { Button, Card, ErrorState, ScreenHeader, SkeletonLista, Text } from "@/components/ui";
 import { env } from "@/lib/env";
+import { RESPALDO } from "@/lib/navegacion";
 import { colors } from "@/theme/tokens";
 
 import { useSalud } from "./useSalud";
 
 // Solo en desarrollo: confirma que el teléfono llega a la API de demo (GET /health).
 export function EstadoConexionScreen() {
-  const router = useRouter();
   const salud = useSalud();
 
   return (
     <View className="flex-1 bg-surface">
-      <ScreenHeader titulo="Conexión" subtitulo="Solo en desarrollo" onVolver={() => router.back()} />
+      <ScreenHeader titulo="Conexión" subtitulo="Solo en desarrollo" volverA={RESPALDO.perfil} />
       <ScrollView contentContainerClassName="gap-4 pb-8">
         <View className="gap-3 px-pantalla">
           <Fila etiqueta="API" valor={env.apiUrl} />

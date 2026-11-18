@@ -171,12 +171,11 @@ describe("Avatar", () => {
 });
 
 describe("ScreenHeader", () => {
-  it("título como encabezado y botón Volver", async () => {
-    const onVolver = jest.fn();
-    await renderConProveedores(<ScreenHeader titulo="Ficha" subtitulo="Max" onVolver={onVolver} />);
+  // La flecha Volver (con su ruta de respaldo) se prueba con el router en features/navegacion.test.tsx.
+  it("título como encabezado; sin volverA no hay flecha", async () => {
+    await renderConProveedores(<ScreenHeader titulo="Ficha" subtitulo="Max" />);
     expect(screen.getByRole("header", { name: "Ficha" })).toBeOnTheScreen();
-    await fireEvent.press(screen.getByRole("button", { name: "Volver" }));
-    expect(onVolver).toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Volver" })).toBeNull();
   });
 });
 

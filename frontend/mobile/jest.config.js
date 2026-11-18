@@ -48,6 +48,8 @@ module.exports = {
   transform: { "\\.mjs$": "babel-jest" },
   transformIgnorePatterns: [`node_modules/(?!(${ESM.join("|")}))`],
   moduleNameMapper: {
+    // global.css lo compila Metro con NativeWind; en Jest no hace falta.
+    "\\.css$": "<rootDir>/test/vacio.js",
     "^lucide-react-native$": "<rootDir>/node_modules/lucide-react-native/dist/cjs/lucide-react-native.js",
   },
 };

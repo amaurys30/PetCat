@@ -3,7 +3,9 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import { BienvenidaScreen } from "./BienvenidaScreen";
 
 const mockPush = jest.fn();
-jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush, back: jest.fn() }) }));
+jest.mock("expo-router", () => ({
+  useRouter: () => ({ push: mockPush, back: jest.fn(), canGoBack: () => true, replace: jest.fn() }),
+}));
 
 describe("BienvenidaScreen (M1, estática en M0)", () => {
   beforeEach(() => mockPush.mockClear());
