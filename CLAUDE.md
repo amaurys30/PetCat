@@ -120,7 +120,7 @@ Formato `{ "modulo": ["accion", ...] }`. Módulos: `citas, servicios, inventario
 
 - `backend/` y `database/`: la API (este archivo).
 - `frontend/web/`: panel web para negocios (React + Vite + TypeScript). Para trabajar ahí, leer **también** `frontend/web/CLAUDE.md` (stack, convenciones y tokens de diseño) y su plan `frontend/web/PLAN.md`; esas reglas mandan dentro de `frontend/web`. Ramas `panel-p0`, `panel-p1`...
-- `frontend/mobile/`: app móvil de Daniel. **No se lee ni se modifica** desde aquí.
+- `frontend/mobile/`: app móvil para dueños de mascotas (Expo + React Native + TypeScript). Para trabajar ahí, leer **también** `frontend/mobile/CLAUDE.md` y su plan `frontend/mobile/PLAN.md`; esas reglas mandan dentro de `frontend/mobile`. Ramas `mobile/m0-*`, `mobile/m1-*`... La app también se prueba contra `backend-demo` (puerto 3001).
 - El panel se prueba contra la base de demo `petcat_demo`, servida por el contenedor `backend-demo` (127.0.0.1:3001), nunca contra `petcat_db`. El contenedor `petcat_backend` (3000, `petcat_db`) no se toca para trabajar en el panel.
 - Si el panel necesita algo que la API no tiene, se anota en "Pendientes de API" de `frontend/web/PLAN.md`; los cambios de la API siguen las reglas de este archivo.
 
