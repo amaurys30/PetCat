@@ -163,6 +163,7 @@ Hay tres archivos, ninguno se sube al repositorio (solo sus plantillas `.example
 | `DB_USER` / `DB_PASSWORD` / `DB_NAME` | Sí | | Usuario, contraseña y base (`petcat_db`; en tests debe terminar en `_test`) |
 | `JWT_SECRET` / `REFRESH_SECRET` | Sí | | Mínimo 32 caracteres y distintos entre sí |
 | `JWT_EXPIRES_IN` / `REFRESH_EXPIRES_IN` | | `1h` / `30d` | Vigencia del access token y del refresh token (y de la sesión); el refresh token se renueva en cada uso |
+| `CODIGO_SECRET` | En producción | Derivada de `JWT_SECRET` | Clave del HMAC de los códigos de 6 dígitos de los correos. Mínimo 32 caracteres, distinta de `JWT_SECRET` y `REFRESH_SECRET`; cambiarla invalida los códigos ya enviados |
 | `APP_URL` | | `http://localhost:3000` | URL pública de la API |
 | `FRONTEND_URL` | | `http://localhost:5173` | Panel web; base de los enlaces de los correos |
 | `CORS_ORIGINS` | | `http://localhost:5173` | Orígenes permitidos, separados por coma |
@@ -196,6 +197,8 @@ Cómo funciona en Docker: cada backend carga `backend/.env` y después `docker/c
 **Ver los correos en Mailpit**
 
 Mailpit arranca con `docker compose up` (lo levantan los dos backends). Bandeja: **http://127.0.0.1:8025**. Ahí aparecen todos los correos de los backends en modo `mailpit`, con su versión HTML y sus enlaces, que abren el panel (`FRONTEND_URL`). Para usar Mailpit desde `npm run dev` en el host: `SMTP_HOST=localhost`, `SMTP_PORT=1025` y `SMTP_SECURE=none` en `backend/.env`.
+
+Los códigos de 6 dígitos de los correos de verificación y recuperación (para la app) nunca van a un log: cuando el correo se imprime en la consola (sin `SMTP_HOST`), el código sale tapado (`••••••`). Para verlo en desarrollo, usar Mailpit.
 
 **Probar la configuración**
 
@@ -463,6 +466,19 @@ Pantallas del frontend que abren los enlaces de los correos (el token va en la r
 | `${FRONTEND_URL}/verificar-email/<token>` | Llama a `GET /auth/verify-email/:token` y muestra el resultado (400 = enlace vencido o ya usado). Reenviar el correo: `POST /auth/resend-verification` con la sesión iniciada, o `POST /auth/request-verification` con el email y sin sesión (respuesta neutra). |
 | `${FRONTEND_URL}/restablecer-password/<token>` | Pide la contraseña nueva y envía `POST /auth/reset-password` con `{ "token", "password" }`. Luego, login. El enlace se pide con `POST /auth/forgot-password` (vigente 1 hora). |
 | `${FRONTEND_URL}/crear-password/<token>` | Igual que la anterior, con otro texto ("Crea tu contraseña"): llega en el correo de bienvenida a un cliente que registró un negocio (vigente 7 días). Usa el mismo `POST /auth/reset-password`. |
+
+**Códigos de 6 dígitos (app móvil).** La app no puede abrir esos enlaces (apuntan al panel), así que los correos de verificación y recuperación llevan además un código:
+
+| Para | Endpoint | Notas |
+|---|---|---|
+| Verificar el correo | `POST /auth/verify-email/codigo` con `{ "codigo" }`, **con sesión** | 409 si ya está verificado |
+| Restablecer la contraseña | `POST /auth/reset-password/codigo` con `{ "email", "codigo", "password" }`, sin sesión | Igual que con el enlace: desbloquea, verifica el email y cierra **todas** las sesiones; después, login |
+
+- El código vence a los 15 minutos, sirve una vez y 5 intentos fallidos lo anulan. Cada correo nuevo reemplaza el código y el enlace anteriores; usar uno invalida el otro.
+- Error: 400 "El código no es válido o ya venció. Solicita uno nuevo", el mismo si el email no existe o la cuenta está desactivada (no delata cuentas).
+- Máximo un correo por minuto y cinco por hora por cuenta, además del límite por IP. `forgot-password` y `request-verification` responden igual aunque no envíen; `resend-verification` responde 429.
+- "Mi veterinaria me registró": el correo de bienvenida sigue con su enlace de 7 días; en la app se usa "¿Olvidaste tu contraseña?", que envía un código (y reemplaza el enlace de bienvenida).
+- En la base solo está el HMAC del código (`codigos_correo`, clave `CODIGO_SECRET`), ligado al usuario y al tipo; la comparación es en tiempo constante.
 
 ### Acceso al panel de un negocio
 
