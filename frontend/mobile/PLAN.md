@@ -131,7 +131,7 @@ Notas:
 - Jest: `renderRouter` activa los timers falsos; `jest.config.js` deja `nextTick` y `setImmediate` reales (si no, ninguna llamada a la API termina en las pruebas de flujo).
 - Contraseñas del seed: `backend/README.md`, "Usuarios de prueba". En la demo de este equipo la de `cliente@petcat.test` ya no coincidía con el seed (se cambió después de cargarlo): recargar la demo antes de correr Maestro.
 
-## 🟨 M2 · Inicio y mascotas
+## ✅ M2 · Inicio y mascotas
 
 - M4 inicio: selector de mascota, héroe de mascota, próxima cita, recordatorios, accesos rápidos.
 - M5 mis mascotas, M6 ficha (resumen, peso, datos clave), M21 agregar/editar mascota (foto con Cloudinary según la API actual).
@@ -160,8 +160,10 @@ Correcciones tras la primera prueba en Android (Expo Go):
 - [x] El teclado tapaba los campos: `react-native-keyboard-controller` (`KeyboardAwareScrollView`) en todos los formularios (Crear cuenta, Iniciar sesión, Recuperar, código, confirmar correo, Nueva mascota, Editar, Fallecimiento); el botón principal queda encima del teclado y "Siguiente" pasa de campo en campo.
 - [x] `unstable_settings.anchor` en lugar de `initialRouteName` (obsoleto) en `(auth)`.
 
-Falta para cerrar M2:
-- [ ] Probarla en el teléfono (Expo Go) contra `backend-demo`.
+- [x] Prueba intermitente de cerrar sesión: la causa era un `waitFor` con callback async. Con los timers falsos, el callback podía resolver mientras el `act()` de `waitFor` seguía abierto; la prueba seguía con otro `act()` encima y React dejaba sin aplicar la redirección a la Bienvenida. Reproducido a propósito (3 de 3) y corregido con lecturas sincrónicas del mock de AsyncStorage; sin tiempos extra.
+
+Cierre (2026-11-20):
+- [x] Probada en Android con Expo Go: selector de sexo, teclado en todos los formularios, "Siguiente", interruptores y casilla de la política. M2 terminada.
 
 Notas:
 - La caché se guarda con `@tanstack/react-query-persist-client` en AsyncStorage, un persister por sesión (su throttle guarda estado) que deja de escribir al cerrar sesión.
