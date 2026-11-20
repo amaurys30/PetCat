@@ -246,7 +246,7 @@ Cierre (2026-11-20):
 Notas:
 - `react-native-webview` 14.0.1 tipa mal su clase (`WebView<P = undefined>` con props `WebViewProps & P`, que con TypeScript estricto es `never`): `MapaNegocios.tsx` usa un alias bien tipado del mismo componente.
 
-## 🟨 M5 · Reservas y citas
+## ✅ M5 · Reservas y citas
 
 - M12 agendar: mascota, servicio, días con disponibilidad, franjas (ocupadas tachadas + etiqueta), resumen fijo abajo.
 - M13 confirmación (confeti respetando "Reducir movimiento"), añadir al calendario del teléfono.
@@ -270,6 +270,9 @@ Hecho:
 - [x] Accesibilidad: mascotas, días y horas como grupos de radios con su estado; cada cita es un botón con todo en la etiqueta y sus acciones aparte; contraste AA de los colores de estado.
 - [x] Pruebas: 369 (flujo completo, 409, sin red, día sin horas, mascotas no compatibles, sedes, reprogramar, cancelar tardía, Mis citas vacía y con error, Inicio; lógica de días, horas, reglas de 2 horas y grupos). Prueba de humo contra backend-demo: reservar, 409 en la misma hora, mis citas, detalle sin notas internas, reprogramar y cancelar.
 - [x] Maestro: `e2e/agendar-cita.yaml` (agenda y cancela, para dejar la demo igual). Escrito, sin correr todavía.
+
+Cierre (2026-11-20):
+- [x] Probada en Android con Expo Go: agendar desde el perfil, desde un servicio y desde el mapa; confirmación; reprogramar; cancelar (con el aviso de cancelación tardía); el 409; Inicio abre el detalle. La cita aparece en vivo en la agenda del panel. M5 terminada.
 
 Pendientes:
 - [ ] Tiempo real con Socket.IO (`agenda_actualizada`, `cita_confirmada`): hoy se refresca al volver a la pantalla y al deslizar.
