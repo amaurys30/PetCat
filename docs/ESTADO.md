@@ -84,7 +84,8 @@ Lo que el panel necesita y la API todavía no tiene (lista completa con el conte
 | Seguridad de las cuentas de super admin | Pendiente | Verificación en dos pasos y sesión más corta para `tipo_usuario = admin`. |
 | Sesión del panel | Deuda aceptada en el MVP | El refresh token está en `localStorage`; a futuro, cookie httpOnly desde la API. |
 | Pagos | Fase 3 | MercadoPago (citas, pedidos y suscripciones, comisión del 4 %). Hoy los planes los asigna el super admin a mano. |
-| Despliegue | Pendiente | Servidor para la API y MySQL, dominio y HTTPS, el panel y la página pública como sitio estático (con `og:image` en URL absoluta del dominio), copias de seguridad de la base. |
+| Despliegue | Pendiente | Servidor para la API y MySQL, dominio y HTTPS, el panel y la página pública como sitio estático (con `og:image` en URL absoluta del dominio), copias de seguridad de la base (`mysqldump --routines` y `npm run db:verificar`, ver backend/README.md, "Copias de seguridad"). |
+| MySQL que permita funciones y triggers | Pendiente | La base los usa (número del Pasaporte PetCat, recordatorios de citas, reseñas, inventario). Con el binlog activo, crearlos exige `root`/SUPER o `log_bin_trust_function_creators=1` (en servicios administrados, en el grupo de parámetros). Si el proveedor no lo permite, hay que elegir otro o pasar esa lógica a la API; para el pasaporte, generarlo en la API (detalle en `docs/PLAN.md`). |
 | Pruebas de punta a punta en CI | Pendiente | Hoy corren en el equipo de desarrollo contra la demo; en CI necesitan la API con un MySQL de servicio. |
 
 ---
