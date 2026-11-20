@@ -78,6 +78,8 @@ Formatos: dinero `$45.000` (COP, sin decimales), fechas `vie 15 nov`, horas `8:3
   Aquí **no se usa Vitest** (el backend y el panel sí): Vitest no corre el código de React Native, y jest-expo trae los mocks de los módulos nativos.
 
 Versiones de M0: Expo SDK 58 (React Native 0.88, React 19.3, TypeScript 6), NativeWind 4.2 con Tailwind 3 (NativeWind 5 sigue en rc: no se usa), MSW 3.
+
+Agregadas en M2: **expo-image-picker** (foto de la mascota; los textos del permiso están en `app.config.ts`) y **expo-image-manipulator** (reducir a 1200 px y JPEG antes de subir); **@react-native-async-storage/async-storage**, **@tanstack/react-query-persist-client** y **@tanstack/query-async-storage-persister** (caché de mascotas para abrir sin red, `src/lib/cachePersistente.ts`; mantener sus versiones iguales a la de `@tanstack/react-query`). En Jest, AsyncStorage, el selector de fotos y el manipulador tienen mock en `test/setup.ts`.
 Dos paquetes declaran dependencias pares viejas y se instalan con `overrides` en `package.json`: `eslint-plugin-react-native-a11y` (ESLint ≤ 8, cargado con `@eslint/compat`) y `openapi-typescript` (TypeScript 5). Si alguno falla, el plugin de a11y se reemplaza por reglas propias.
 
 **Expo Go no basta**: MapLibre y push en Android requieren **development build** (EAS Build, perfil `development`).
