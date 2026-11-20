@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { LogOut, PawPrint, ShieldCheck, Wifi } from "lucide-react-native";
+import { LogOut, PawPrint, ShieldCheck, Smartphone, Wifi } from "lucide-react-native";
 import { useState } from "react";
 import { ScrollView, View } from "react-native";
 
@@ -68,6 +68,14 @@ export function PerfilScreen() {
             variante="suave"
             icono={Wifi}
             onPress={() => router.push("/dev/estado")}
+          />
+        )}
+        {__DEV__ && (
+          <Button
+            titulo="Sensor del Pasaporte"
+            variante="suave"
+            icono={Smartphone}
+            onPress={() => router.push("/dev/sensor")}
           />
         )}
         <Button

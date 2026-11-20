@@ -91,6 +91,7 @@ function Navegacion() {
       </Stack.Protected>
       <Stack.Screen name="politica" />
       <Stack.Screen name="dev/estado" />
+      <Stack.Screen name="dev/sensor" />
       <Stack.Screen name="+not-found" />
     </Stack>
   );
