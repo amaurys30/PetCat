@@ -17,7 +17,7 @@ function contraste(a: string, b: string): number {
 
 const BLANCO = "#FFFFFF";
 
-// Pares de texto que agregó M2 (texto normal: AA pide 4,5:1).
+// Pares de texto de M2 y M3 (texto normal: AA pide 4,5:1).
 const PARES: [string, Token | typeof BLANCO, Token][] = [
   ["texto blanco en el degradado del héroe y la ficha (inicio)", BLANCO, "primary-strong"],
   ["texto blanco en el degradado del héroe y la ficha (final)", BLANCO, "primary-deep"],
@@ -30,11 +30,50 @@ const PARES: [string, Token | typeof BLANCO, Token][] = [
   ["chip En memoria", "lavender-ink", "lavender-soft"],
   ["tendencia del peso", "primary-deep", "primary-soft"],
   ["aviso sin conexión", "danger-ink", "danger-soft"],
+  // M3 · Pasaporte: tarjeta (los dos extremos del degradado) y fondo oscuro de la pantalla.
+  ...(["pasaporte-carta-from", "pasaporte-carta-to"] as const).flatMap((fondo) => [
+    [`tarjeta: nombre y datos sobre ${fondo}`, BLANCO, fondo] as [string, typeof BLANCO, Token],
+    [`tarjeta: rótulos sobre ${fondo}`, "pasaporte-rotulo", fondo] as [string, Token, Token],
+    [`tarjeta: número de pasaporte sobre ${fondo}`, "pasaporte-numero", fondo] as [string, Token, Token],
+  ]),
+  ...(["pasaporte-memoria-from", "pasaporte-memoria-to"] as const).flatMap((fondo) => [
+    [`tarjeta «En memoria»: datos sobre ${fondo}`, BLANCO, fondo] as [string, typeof BLANCO, Token],
+    [`tarjeta «En memoria»: rótulos sobre ${fondo}`, "pasaporte-memoria-rotulo", fondo] as [
+      string,
+      Token,
+      Token,
+    ],
+  ]),
+  ["chip «En memoria» de la tarjeta", "lavender-ink", "white"],
+  ...(["passport-from", "passport-to", "pasaporte-panel"] as const).flatMap((fondo) =>
+    (
+      [
+        BLANCO,
+        "oscuro-muted",
+        "sello-teal",
+        "sello-coral",
+        "sello-lavender",
+        "sello-info",
+        "sello-sun",
+        "sello-danger",
+        "sello-memoria",
+      ] as const
+    ).map(
+      (texto) =>
+        [`pantalla oscura: ${texto} sobre ${fondo}`, texto, fondo] as [string, Token | typeof BLANCO, Token],
+    ),
+  ),
+  // Línea de vida (M8), sobre fondo claro.
+  ["insignia Pendiente", "sun-ink", "sun-soft"],
+  ["insignia Atendida", "info-ink", "info-soft"],
+  ["insignia Aplicada", "primary-deep", "primary-soft"],
+  ["insignia Vencida", "danger-ink", "danger-soft"],
+  ["ícono de desparasitación", "lavender-ink", "lavender-soft"],
 ];
 
 const valor = (t: string) => (t.startsWith("#") ? t : colors[t as Token]);
 
-describe("contraste AA de los colores de M2", () => {
+describe("contraste AA de los colores de M2 y M3", () => {
   it.each(PARES)("%s", (_nombre, texto, fondo) => {
     expect(contraste(valor(texto), valor(fondo))).toBeGreaterThanOrEqual(4.5);
   });

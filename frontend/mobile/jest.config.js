@@ -56,5 +56,10 @@ module.exports = {
     // global.css lo compila Metro con NativeWind; en Jest no hace falta.
     "\\.css$": "<rootDir>/test/vacio.js",
     "^lucide-react-native$": "<rootDir>/node_modules/lucide-react-native/dist/cjs/lucide-react-native.js",
+    // Reanimated: mock propio. expo-router/testing-library registra el suyo con react-native-reanimated/mock,
+    // que carga la librería real y falla sin el runtime nativo: las dos rutas apuntan al propio
+    // (en archivos distintos, ver test/reanimated.ts).
+    "^react-native-reanimated$": "<rootDir>/test/reanimated.ts",
+    "^react-native-reanimated/mock$": "<rootDir>/test/reanimatedMock.tsx",
   },
 };
