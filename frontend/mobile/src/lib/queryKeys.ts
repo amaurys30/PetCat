@@ -21,4 +21,12 @@ export const queryKeys = {
     perfil: (id_negocio: number) => ["negocios", "perfil", id_negocio] as const,
     resenas: (id_negocio: number) => ["negocios", "resenas", id_negocio] as const,
   },
+  // Citas (M5): no se guardan en el teléfono; se piden de nuevo al volver a la pantalla.
+  citas: {
+    todas: () => ["citas"] as const,
+    mias: (alcance: string) => ["citas", "mias", alcance] as const,
+    detalle: (id_cita: number) => ["citas", "detalle", id_cita] as const,
+    horarios: (id_servicio: number, id_sucursal: number, fecha: string) =>
+      ["citas", "horarios", id_servicio, id_sucursal, fecha] as const,
+  },
 };

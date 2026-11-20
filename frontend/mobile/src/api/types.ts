@@ -58,3 +58,10 @@ export type SucursalPublica = NegocioPublico["sucursales"][number];
 export type HorarioRango = Schemas["HorarioRango"];
 export type ServicioNegocio = NegocioPublico["servicios"][number];
 export type ResenaPublica = Schemas["ResenaPublica"];
+
+export type Cita = Schemas["Cita"];
+export type EstadoCita = Cita["estado"];
+export type HorariosLibres = Schemas["HorariosLibres"];
+export type HorarioLibre = HorariosLibres["horarios"][number];
+export type DatosReserva = Body<"/citas", "post">;
+export type DatosReprogramacion = Body<"/citas/{id_cita}/reprogramar", "post">;
