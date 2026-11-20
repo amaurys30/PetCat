@@ -67,3 +67,6 @@ jest.mock("expo-image-manipulator", () => {
     SaveFormat: { JPEG: "jpeg", PNG: "png", WEBP: "webp" },
   };
 });
+
+// Teclado: el mock de la librería (KeyboardAwareScrollView es un ScrollView y KeyboardStickyView un View).
+jest.mock("react-native-keyboard-controller", () => require("react-native-keyboard-controller/jest"));

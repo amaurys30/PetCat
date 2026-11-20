@@ -61,7 +61,9 @@ export function LoginScreen() {
     router.push({ pathname: "/recuperar", params: { email: form.getValues("email") } });
 
   return (
-    <PantallaFormulario>
+    <PantallaFormulario
+      pie={<Button titulo="Entrar" cargando={form.formState.isSubmitting} onPress={enviar} />}
+    >
       <LinearGradient
         colors={gradients.brand.colors}
         locations={gradients.brand.locations}
@@ -132,8 +134,6 @@ export function LoginScreen() {
           {error.texto}
         </Aviso>
       )}
-
-      <Button titulo="Entrar" cargando={form.formState.isSubmitting} onPress={enviar} />
 
       <Aviso tono="consejo">
         ¿Tu veterinaria te registró? Usa “¿Olvidaste tu contraseña?” con tu correo para activar tu cuenta.

@@ -6,7 +6,15 @@ import { AccessibilityInfo, Alert, View } from "react-native";
 
 import { toApiError } from "@/api/errors";
 import type { Mascota } from "@/api/types";
-import { Aviso, Button, ErrorState, PantallaFormulario, ScreenHeader, SkeletonLista, Text } from "@/components/ui";
+import {
+  Aviso,
+  Button,
+  ErrorState,
+  PantallaFormulario,
+  ScreenHeader,
+  SkeletonLista,
+  Text,
+} from "@/components/ui";
 import { formatearFecha } from "@/lib/formatos";
 import { anunciarErrores, marcarErroresApi } from "@/lib/formularios";
 import { segunSexo } from "@/lib/mascotas";
@@ -31,11 +39,20 @@ export function EditarMascotaScreen() {
   const id_mascota = Number(id);
   const mascota = useMascota(id_mascota);
 
-  if (mascota.isPending) return <View className="flex-1 bg-surface pt-24"><SkeletonLista filas={3} etiqueta="Cargando" /></View>;
+  if (mascota.isPending)
+    return (
+      <View className="flex-1 bg-surface pt-24">
+        <SkeletonLista filas={3} etiqueta="Cargando" />
+      </View>
+    );
   if (!mascota.data) {
     return (
       <View className="flex-1 justify-center bg-surface">
-        <ErrorState error={mascota.error} onReintentar={() => mascota.refetch()} reintentando={mascota.isFetching} />
+        <ErrorState
+          error={mascota.error}
+          onReintentar={() => mascota.refetch()}
+          reintentando={mascota.isFetching}
+        />
       </View>
     );
   }
@@ -96,8 +113,7 @@ function Formulario({ mascota }: { mascota: Mascota }) {
       {
         text: "Quitar",
         style: "destructive",
-        onPress: () =>
-          quitarFoto.mutateAsync().catch((e) => setErrorFoto({ texto: toApiError(e).message })),
+        onPress: () => quitarFoto.mutateAsync().catch((e) => setErrorFoto({ texto: toApiError(e).message })),
       },
     ]);
 
@@ -135,14 +151,27 @@ function Formulario({ mascota }: { mascota: Mascota }) {
         { text: "Cancelar", style: "cancel" },
         {
           text: "Corregir",
-          onPress: () => editar.mutateAsync({ fallecido: false }).catch((e) => setError(toApiError(e).message)),
+          onPress: () =>
+            editar.mutateAsync({ fallecido: false }).catch((e) => setError(toApiError(e).message)),
         },
       ],
     );
 
   return (
-    <PantallaFormulario cabecera={<ScreenHeader titulo={`Editar a ${mascota.nombre}`} volverA={`/mascotas/${id_mascota}`} />}>
-      {soloLectura && <Aviso tono="error">Sin conexión. Podrás guardar cambios cuando vuelva la conexión.</Aviso>}
+    <PantallaFormulario
+      cabecera={<ScreenHeader titulo={`Editar a ${mascota.nombre}`} volverA={`/mascotas/${id_mascota}`} />}
+      pie={
+        <Button
+          titulo="Guardar cambios"
+          cargando={form.formState.isSubmitting}
+          disabled={soloLectura}
+          onPress={() => void guardar()}
+        />
+      }
+    >
+      {soloLectura && (
+        <Aviso tono="error">Sin conexión. Podrás guardar cambios cuando vuelva la conexión.</Aviso>
+      )}
 
       <FotoMascota
         nombre={mascota.nombre}
@@ -176,12 +205,6 @@ function Formulario({ mascota }: { mascota: Mascota }) {
       <CamposSalud form={form} />
 
       {error && <Aviso tono="error">{error}</Aviso>}
-      <Button
-        titulo="Guardar cambios"
-        cargando={form.formState.isSubmitting}
-        disabled={soloLectura}
-        onPress={() => void guardar()}
-      />
 
       <View className="mt-6 gap-3 border-t border-border pt-6">
         <Text variante="seccion">Otras opciones</Text>
@@ -189,10 +212,17 @@ function Formulario({ mascota }: { mascota: Mascota }) {
           <>
             <Text className="text-muted">
               {`Registrada como ${segunSexo(mascota.sexo, "fallecido", "fallecida")}${
-                mascota.fecha_fallecimiento ? ` el ${formatearFecha(mascota.fecha_fallecimiento, { anio: true })}` : ""
+                mascota.fecha_fallecimiento
+                  ? ` el ${formatearFecha(mascota.fecha_fallecimiento, { anio: true })}`
+                  : ""
               }.`}
             </Text>
-            <Button titulo="Corregir: no ha fallecido" variante="secundario" disabled={soloLectura} onPress={confirmarCorreccion} />
+            <Button
+              titulo="Corregir: no ha fallecido"
+              variante="secundario"
+              disabled={soloLectura}
+              onPress={confirmarCorreccion}
+            />
           </>
         ) : (
           <Button
@@ -202,7 +232,12 @@ function Formulario({ mascota }: { mascota: Mascota }) {
             onPress={() => router.push(`/mascotas/${id_mascota}/fallecimiento`)}
           />
         )}
-        <Button titulo={`Eliminar a ${mascota.nombre}`} variante="peligro" disabled={soloLectura} onPress={confirmarEliminar} />
+        <Button
+          titulo={`Eliminar a ${mascota.nombre}`}
+          variante="peligro"
+          disabled={soloLectura}
+          onPress={confirmarEliminar}
+        />
       </View>
     </PantallaFormulario>
   );

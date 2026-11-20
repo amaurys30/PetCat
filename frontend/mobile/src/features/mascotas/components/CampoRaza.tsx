@@ -11,11 +11,13 @@ type Props = {
   onCambiar: (raza: string) => void;
   onBlur?: () => void;
   error?: string;
+  /** "Siguiente" del teclado: pasa al campo que sigue. */
+  onSiguiente?: () => void;
   ref?: Ref<ComponentRef<typeof TextInput>>;
 };
 
 /** Raza: texto libre con sugerencias locales (perro y gato) mientras se escribe. */
-export function CampoRaza({ especie, valor, onCambiar, onBlur, error, ref }: Props) {
+export function CampoRaza({ especie, valor, onCambiar, onBlur, error, onSiguiente, ref }: Props) {
   const [enfocado, setEnfocado] = useState(false);
   const sugerencias = enfocado && especie ? buscarRazas(especie, valor) : [];
 
@@ -35,9 +37,15 @@ export function CampoRaza({ especie, valor, onCambiar, onBlur, error, ref }: Pro
         error={error}
         autoCapitalize="words"
         maxLength={100}
+        returnKeyType={onSiguiente ? "next" : "done"}
+        submitBehavior={onSiguiente ? "submit" : "blurAndSubmit"}
+        onSubmitEditing={onSiguiente}
       />
       {sugerencias.length > 0 && (
-        <View className="overflow-hidden rounded-control border border-border bg-white" accessibilityLiveRegion="polite">
+        <View
+          className="overflow-hidden rounded-control border border-border bg-white"
+          accessibilityLiveRegion="polite"
+        >
           {sugerencias.map((raza) => (
             <Pressable
               key={raza}

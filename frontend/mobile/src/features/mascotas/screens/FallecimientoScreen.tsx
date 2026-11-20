@@ -4,7 +4,16 @@ import { useState } from "react";
 import { AccessibilityInfo, Alert, View } from "react-native";
 
 import { toApiError } from "@/api/errors";
-import { Aviso, Button, ErrorState, Input, PantallaFormulario, ScreenHeader, SkeletonLista, Text } from "@/components/ui";
+import {
+  Aviso,
+  Button,
+  ErrorState,
+  Input,
+  PantallaFormulario,
+  ScreenHeader,
+  SkeletonLista,
+  Text,
+} from "@/components/ui";
 import { hoyEnBogota } from "@/lib/fechas";
 import { aplicarMascaraFecha, esFutura, fechaApiAMascara, mascaraAFechaApi } from "@/lib/fechaMascara";
 import { formatearFecha } from "@/lib/formatos";
@@ -27,7 +36,12 @@ export function FallecimientoScreen() {
   const [errorFecha, setErrorFecha] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
 
-  if (mascota.isPending) return <View className="flex-1 bg-surface pt-24"><SkeletonLista filas={2} /></View>;
+  if (mascota.isPending)
+    return (
+      <View className="flex-1 bg-surface pt-24">
+        <SkeletonLista filas={2} />
+      </View>
+    );
   if (!mascota.data) return <ErrorState error={mascota.error} onReintentar={() => mascota.refetch()} />;
   const m = mascota.data;
 
@@ -36,7 +50,8 @@ export function FallecimientoScreen() {
     let problema: string | undefined;
     if (!valor) problema = "Escribe una fecha real, como 15/03/2026";
     else if (esFutura(valor)) problema = "No puede ser una fecha futura";
-    else if (m.fecha_nacimiento && valor < m.fecha_nacimiento) problema = "No puede ser anterior a su nacimiento";
+    else if (m.fecha_nacimiento && valor < m.fecha_nacimiento)
+      problema = "No puede ser anterior a su nacimiento";
     setErrorFecha(problema);
     if (problema) AccessibilityInfo.announceForAccessibility(problema);
     return problema ? null : valor;
@@ -70,7 +85,17 @@ export function FallecimientoScreen() {
   };
 
   return (
-    <PantallaFormulario cabecera={<ScreenHeader titulo="Registrar fallecimiento" volverA={`/mascotas/${id_mascota}/editar`} />}>
+    <PantallaFormulario
+      cabecera={<ScreenHeader titulo="Registrar fallecimiento" volverA={`/mascotas/${id_mascota}/editar`} />}
+      pie={
+        <Button
+          titulo="Registrar fallecimiento"
+          cargando={editar.isPending}
+          disabled={soloLectura}
+          onPress={confirmar}
+        />
+      }
+    >
       <View className="items-center gap-3 py-2">
         <View className="h-16 w-16 items-center justify-center rounded-full bg-lavender-soft">
           <Heart size={30} color={colors["lavender-ink"]} accessibilityElementsHidden />
@@ -101,7 +126,6 @@ export function FallecimientoScreen() {
       />
       {error && <Aviso tono="error">{error}</Aviso>}
       {soloLectura && <Aviso tono="error">Sin conexión. Podrás registrarlo cuando vuelva la conexión.</Aviso>}
-      <Button titulo="Registrar fallecimiento" cargando={editar.isPending} disabled={soloLectura} onPress={confirmar} />
       <Button titulo="Cancelar" variante="secundario" onPress={() => router.back()} />
     </PantallaFormulario>
   );

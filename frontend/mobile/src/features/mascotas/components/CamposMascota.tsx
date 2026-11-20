@@ -53,6 +53,7 @@ export function CamposBasicos({ form }: Props) {
             onCambiar={field.onChange}
             onBlur={field.onBlur}
             error={fieldState.error?.message}
+            onSiguiente={() => form.setFocus("fecha_nacimiento")}
           />
         )}
       />
@@ -71,6 +72,7 @@ export function CamposBasicos({ form }: Props) {
             error={fieldState.error?.message}
             keyboardType="number-pad"
             maxLength={10}
+            returnKeyType="done"
           />
         )}
       />
@@ -111,6 +113,9 @@ export function CamposSalud({ form }: Props) {
             error={fieldState.error?.message}
             keyboardType="decimal-pad"
             maxLength={7}
+            returnKeyType="next"
+            submitBehavior="submit"
+            onSubmitEditing={() => form.setFocus("color")}
           />
         )}
       />
@@ -126,6 +131,9 @@ export function CamposSalud({ form }: Props) {
             onBlur={field.onBlur}
             error={fieldState.error?.message}
             maxLength={100}
+            returnKeyType="next"
+            submitBehavior="submit"
+            onSubmitEditing={() => form.setFocus("microchip")}
           />
         )}
       />
@@ -142,6 +150,9 @@ export function CamposSalud({ form }: Props) {
             error={fieldState.error?.message}
             keyboardType="number-pad"
             maxLength={50}
+            returnKeyType="next"
+            submitBehavior="submit"
+            onSubmitEditing={() => form.setFocus(tieneAlergias ? "alergias_detalle" : "condiciones_medicas")}
           />
         )}
       />
@@ -159,7 +170,9 @@ export function CamposSalud({ form }: Props) {
       <Controller
         control={form.control}
         name="tiene_alergias"
-        render={({ field }) => <Toggle etiqueta="Tiene alergias" activo={field.value} onCambiar={field.onChange} />}
+        render={({ field }) => (
+          <Toggle etiqueta="Tiene alergias" activo={field.value} onCambiar={field.onChange} />
+        )}
       />
       {tieneAlergias && (
         <Controller
@@ -210,6 +223,9 @@ export function CamposSalud({ form }: Props) {
             error={fieldState.error?.message}
             autoCapitalize="characters"
             maxLength={10}
+            returnKeyType="next"
+            submitBehavior="submit"
+            onSubmitEditing={() => form.setFocus("numero_registro")}
           />
         )}
       />
@@ -225,6 +241,7 @@ export function CamposSalud({ form }: Props) {
             onBlur={field.onBlur}
             error={fieldState.error?.message}
             maxLength={60}
+            returnKeyType="done"
           />
         )}
       />

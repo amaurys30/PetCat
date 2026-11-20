@@ -68,7 +68,9 @@ export function AgregarMascotaScreen() {
     } catch (e) {
       const mensaje = toApiError(e).message;
       setErrorFoto(mensaje);
-      AccessibilityInfo.announceForAccessibility(`${mascota.nombre} quedó guardada, pero la foto no se pudo subir`);
+      AccessibilityInfo.announceForAccessibility(
+        `${mascota.nombre} quedó guardada, pero la foto no se pudo subir`,
+      );
     } finally {
       setSubiendo(false);
     }
@@ -99,7 +101,11 @@ export function AgregarMascotaScreen() {
     return (
       <PantallaFormulario cabecera={<ScreenHeader titulo="Nueva mascota" />}>
         <Aviso tono="error">{`${creada.nombre} quedó guardada, pero la foto no se pudo subir: ${errorFoto}`}</Aviso>
-        <Button titulo="Reintentar subir la foto" cargando={subiendo} onPress={() => foto && subirFoto(creada, foto)} />
+        <Button
+          titulo="Reintentar subir la foto"
+          cargando={subiendo}
+          onPress={() => foto && subirFoto(creada, foto)}
+        />
         <Button titulo="Seguir sin foto" variante="secundario" onPress={() => terminar(creada)} />
         <Text variante="apoyo" className="text-muted">
           Puedes agregar la foto después desde Editar.
@@ -110,26 +116,41 @@ export function AgregarMascotaScreen() {
 
   return (
     <PantallaFormulario
-      cabecera={<ScreenHeader titulo="Nueva mascota" subtitulo={`Paso ${paso} de 2`} volverA={RESPALDO.inicio} />}
-    >
-      {soloLectura && <Aviso tono="error">Sin conexión. Podrás agregar la mascota cuando vuelva la conexión.</Aviso>}
-      {paso === 1 ? (
-        <View className="gap-5">
-          <FotoMascota nombre={nombre} especie={especie} uri={foto} onElegir={setFoto} onQuitar={() => setFoto(null)} />
-          <CamposBasicos form={form} />
+      cabecera={
+        <ScreenHeader titulo="Nueva mascota" subtitulo={`Paso ${paso} de 2`} volverA={RESPALDO.inicio} />
+      }
+      pie={
+        paso === 1 ? (
           <Button titulo="Continuar" onPress={continuar} />
-        </View>
-      ) : (
-        <View className="gap-5">
-          <Text className="text-muted">Todo es opcional: puedes completarlo después.</Text>
-          <CamposSalud form={form} />
-          {error && <Aviso tono="error">{error}</Aviso>}
+        ) : (
           <Button
             titulo="Guardar mascota"
             cargando={form.formState.isSubmitting || subiendo}
             disabled={soloLectura}
             onPress={() => void guardar()}
           />
+        )
+      }
+    >
+      {soloLectura && (
+        <Aviso tono="error">Sin conexión. Podrás agregar la mascota cuando vuelva la conexión.</Aviso>
+      )}
+      {paso === 1 ? (
+        <View className="gap-5">
+          <FotoMascota
+            nombre={nombre}
+            especie={especie}
+            uri={foto}
+            onElegir={setFoto}
+            onQuitar={() => setFoto(null)}
+          />
+          <CamposBasicos form={form} />
+        </View>
+      ) : (
+        <View className="gap-5">
+          <Text className="text-muted">Todo es opcional: puedes completarlo después.</Text>
+          <CamposSalud form={form} />
+          {error && <Aviso tono="error">{error}</Aviso>}
           <Button titulo="Volver al paso 1" variante="secundario" onPress={() => irAPaso(1)} />
         </View>
       )}
