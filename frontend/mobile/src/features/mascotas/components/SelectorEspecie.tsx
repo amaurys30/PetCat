@@ -4,7 +4,7 @@ import { AccessibilityInfo, Pressable, View } from "react-native";
 import type { Especie } from "@/api/types";
 import { Chip, Text } from "@/components/ui";
 import { ESPECIES } from "@/lib/mascotas";
-import { colors } from "@/theme/tokens";
+import { colors, fontFamilies } from "@/theme/tokens";
 
 const PRINCIPALES: { valor: "perro" | "gato" | "otros"; etiqueta: string; icono: LucideIcon }[] = [
   { valor: "perro", etiqueta: "Perro", icono: Dog },
@@ -23,7 +23,9 @@ export function SelectorEspecie({ valor, onCambiar, error }: Props) {
   const elegir = (opcion: (typeof PRINCIPALES)[number]["valor"]) => {
     if (opcion === "otros") {
       if (grupo !== "otros") onCambiar("conejo");
-      AccessibilityInfo.announceForAccessibility("Elige qué animal es: conejo, ave, reptil, roedor, pez u otro");
+      AccessibilityInfo.announceForAccessibility(
+        "Elige qué animal es: conejo, ave, reptil, roedor, pez u otro",
+      );
     } else onCambiar(opcion);
   };
 
@@ -46,20 +48,38 @@ export function SelectorEspecie({ valor, onCambiar, error }: Props) {
               accessibilityLabel={etiqueta}
               accessibilityState={{ checked: marcado }}
               onPress={() => elegir(opcion)}
-              className={`min-h-24 flex-1 items-center justify-center gap-1 rounded-card border-2 ${
-                marcado ? "border-primary-strong bg-primary-soft" : "border-border bg-white"
-              }`}
+              className="min-h-24 flex-1 items-center justify-center gap-1 rounded-card border-2"
+              style={{
+                borderColor: marcado ? colors["primary-strong"] : colors.border,
+                backgroundColor: marcado ? colors["primary-soft"] : colors.white,
+              }}
             >
               <Icono size={32} color={marcado ? colors["primary-deep"] : colors.muted} />
-              <Text className={marcado ? "font-bold text-primary-deep" : "text-ink"}>{etiqueta}</Text>
+              <Text
+                style={{
+                  fontFamily: marcado ? fontFamilies.bold : fontFamilies.regular,
+                  color: marcado ? colors["primary-deep"] : colors.ink,
+                }}
+              >
+                {etiqueta}
+              </Text>
             </Pressable>
           );
         })}
       </View>
       {grupo === "otros" && (
-        <View accessibilityRole="radiogroup" accessibilityLabel="¿Qué animal es?" className="flex-row flex-wrap gap-2 pt-1">
+        <View
+          accessibilityRole="radiogroup"
+          accessibilityLabel="¿Qué animal es?"
+          className="flex-row flex-wrap gap-2 pt-1"
+        >
           {OTRAS.map((e) => (
-            <Chip key={e.valor} etiqueta={e.etiqueta} seleccionado={valor === e.valor} onPress={() => onCambiar(e.valor)} />
+            <Chip
+              key={e.valor}
+              etiqueta={e.etiqueta}
+              seleccionado={valor === e.valor}
+              onPress={() => onCambiar(e.valor)}
+            />
           ))}
         </View>
       )}

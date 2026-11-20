@@ -1,5 +1,7 @@
 import { View } from "react-native";
 
+import { colors } from "@/theme/tokens";
+
 import { Text } from "./Text";
 
 export type NivelPassword = 0 | 1 | 2 | 3;
@@ -34,12 +36,17 @@ export function MedidorPassword({ password }: { password: string }) {
       {[1, 2, 3].map((barra) => (
         <View
           key={barra}
-          className={`h-1.5 flex-1 rounded-full ${barra <= nivel ? (nivel >= 2 ? "bg-primary-strong" : "bg-danger") : "bg-track"}`}
+          className="h-1.5 flex-1 rounded-full"
+          style={{
+            backgroundColor:
+              barra <= nivel ? (nivel >= 2 ? colors["primary-strong"] : colors.danger) : colors.track,
+          }}
         />
       ))}
       <Text
         variante="apoyo"
-        className={`w-14 text-right font-bold ${nivel >= 2 ? "text-primary-strong" : "text-danger-ink"}`}
+        className="w-14 text-right font-bold"
+        style={{ color: nivel >= 2 ? colors["primary-strong"] : colors["danger-ink"] }}
       >
         {etiqueta}
       </Text>

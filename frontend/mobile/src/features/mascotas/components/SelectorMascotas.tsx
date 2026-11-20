@@ -18,7 +18,11 @@ type Props = {
 export function SelectorMascotas({ mascotas, actual, onElegir, puedeAgregar }: Props) {
   const router = useRouter();
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3 px-pantalla">
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerClassName="gap-3 px-pantalla"
+    >
       <View accessibilityRole="radiogroup" accessibilityLabel="Elige una mascota" className="flex-row gap-3">
         {mascotas.map((m) => {
           const elegida = m.id_mascota === actual;
@@ -29,12 +33,16 @@ export function SelectorMascotas({ mascotas, actual, onElegir, puedeAgregar }: P
               accessibilityLabel={m.nombre}
               accessibilityState={{ checked: elegida }}
               onPress={() => onElegir(m.id_mascota)}
-              className={`min-h-14 flex-row items-center gap-2 rounded-full py-1.5 pl-1.5 pr-5 ${
-                elegida ? "bg-primary-strong" : "border border-border bg-white"
-              }`}
+              className="min-h-14 flex-row items-center gap-2 rounded-full border py-1.5 pl-1.5 pr-5"
+              style={{
+                backgroundColor: elegida ? colors["primary-strong"] : colors.white,
+                borderColor: elegida ? colors["primary-strong"] : colors.border,
+              }}
             >
               <Avatar nombre={m.nombre} uri={m.foto_miniatura_url} especie={m.especie} tamano="sm" />
-              <Text className={`font-bold ${elegida ? "text-white" : "text-ink"}`}>{m.nombre}</Text>
+              <Text className="font-bold" style={{ color: elegida ? colors.white : colors.ink }}>
+                {m.nombre}
+              </Text>
             </Pressable>
           );
         })}

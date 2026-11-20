@@ -29,13 +29,11 @@ export function Checkbox({ etiqueta, marcado, onCambiar, error, ref, className =
         className="min-h-12 flex-row items-center gap-3 py-2"
       >
         <View
-          className={`h-7 w-7 items-center justify-center rounded-lg border-2 ${
-            marcado
-              ? "border-primary-strong bg-primary-strong"
-              : error
-                ? "border-danger bg-white"
-                : "border-muted bg-white"
-          }`}
+          className="h-7 w-7 items-center justify-center rounded-lg border-2"
+          style={{
+            borderColor: marcado ? colors["primary-strong"] : error ? colors.danger : colors.muted,
+            backgroundColor: marcado ? colors["primary-strong"] : colors.white,
+          }}
         >
           {marcado && <Check size={18} color={colors.white} strokeWidth={3} />}
         </View>

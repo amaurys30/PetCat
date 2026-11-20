@@ -1,5 +1,7 @@
 import { Pressable, View } from "react-native";
 
+import { colors } from "@/theme/tokens";
+
 import { Text } from "./Text";
 
 type Props = {
@@ -40,9 +42,11 @@ export function Toggle({
         )}
       </View>
       <View
-        className={`h-7 w-12 justify-center rounded-full px-0.5 ${
-          disabled ? "bg-track" : activo ? "bg-primary-strong" : "bg-muted"
-        } ${activo ? "items-end" : "items-start"}`}
+        className="h-7 w-12 justify-center rounded-full px-0.5"
+        style={{
+          backgroundColor: disabled ? colors.track : activo ? colors["primary-strong"] : colors.muted,
+          alignItems: activo ? "flex-end" : "flex-start",
+        }}
       >
         <View className="h-6 w-6 rounded-full bg-white" />
       </View>

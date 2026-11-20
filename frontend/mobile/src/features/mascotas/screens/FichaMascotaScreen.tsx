@@ -18,7 +18,17 @@ import { GraficoPeso } from "../components/GraficoPeso";
 import { useMascota, usePesos, useSoloLectura } from "../hooks";
 
 /** Botón redondo de la cabecera: círculo blanco con ícono primary-deep (contraste en el degradado). */
-function BotonCabecera({ etiqueta, icono: Icono, onPress, deshabilitado }: { etiqueta: string; icono: typeof Pencil; onPress: () => void; deshabilitado?: boolean }) {
+function BotonCabecera({
+  etiqueta,
+  icono: Icono,
+  onPress,
+  deshabilitado,
+}: {
+  etiqueta: string;
+  icono: typeof Pencil;
+  onPress: () => void;
+  deshabilitado?: boolean;
+}) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -28,7 +38,10 @@ function BotonCabecera({ etiqueta, icono: Icono, onPress, deshabilitado }: { eti
       onPress={onPress}
       className="h-12 w-12 items-center justify-center"
     >
-      <View className={`h-10 w-10 items-center justify-center rounded-full ${deshabilitado ? "bg-white/60" : "bg-white"}`}>
+      <View
+        className="h-10 w-10 items-center justify-center rounded-full bg-white"
+        style={{ opacity: deshabilitado ? 0.6 : 1 }}
+      >
         <Icono size={22} color={colors["primary-deep"]} />
       </View>
     </Pressable>
@@ -37,7 +50,11 @@ function BotonCabecera({ etiqueta, icono: Icono, onPress, deshabilitado }: { eti
 
 function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
   return (
-    <View className="flex-row justify-between gap-4 border-b border-border py-3" accessible accessibilityLabel={`${etiqueta}: ${valor}`}>
+    <View
+      className="flex-row justify-between gap-4 border-b border-border py-3"
+      accessible
+      accessibilityLabel={`${etiqueta}: ${valor}`}
+    >
       <Text className="text-muted">{etiqueta}</Text>
       <Text className="flex-1 text-right font-semibold">{valor}</Text>
     </View>
@@ -60,18 +77,29 @@ export function FichaMascotaScreen() {
   const mascota = useMascota(id_mascota);
   const pesos = usePesos(id_mascota);
 
-  if (mascota.isPending) return <View className="flex-1 bg-surface pt-24"><SkeletonLista filas={3} etiqueta="Cargando la ficha" /></View>;
+  if (mascota.isPending)
+    return (
+      <View className="flex-1 bg-surface pt-24">
+        <SkeletonLista filas={3} etiqueta="Cargando la ficha" />
+      </View>
+    );
   if (!mascota.data) {
     return (
       <View className="flex-1 justify-center bg-surface">
-        <ErrorState error={mascota.error} onReintentar={() => mascota.refetch()} reintentando={mascota.isFetching} />
+        <ErrorState
+          error={mascota.error}
+          onReintentar={() => mascota.refetch()}
+          reintentando={mascota.isFetching}
+        />
         <Button titulo="Volver" variante="secundario" onPress={volver} className="mx-pantalla" />
       </View>
     );
   }
 
   const m = mascota.data;
-  const detalle = [m.raza ?? nombreEspecie(m.especie), m.sexo !== "desconocido" ? nombreSexo(m.sexo) : null].filter(Boolean).join(" · ");
+  const detalle = [m.raza ?? nombreEspecie(m.especie), m.sexo !== "desconocido" ? nombreSexo(m.sexo) : null]
+    .filter(Boolean)
+    .join(" · ");
   const datos = [
     { etiqueta: "Edad", valor: formatearEdad(m.edad_meses) ?? "Sin fecha" },
     { etiqueta: "Peso", valor: formatearPeso(m.peso) ?? "Sin registro" },
@@ -79,7 +107,10 @@ export function FichaMascotaScreen() {
   ];
   const clave = [
     { etiqueta: "Especie", valor: nombreEspecie(m.especie) },
-    m.fecha_nacimiento && { etiqueta: "Nacimiento", valor: formatearFecha(m.fecha_nacimiento, { anio: true }) },
+    m.fecha_nacimiento && {
+      etiqueta: "Nacimiento",
+      valor: formatearFecha(m.fecha_nacimiento, { anio: true }),
+    },
     { etiqueta: "Microchip", valor: m.microchip ?? "Sin registrar" },
     { etiqueta: "Alergias", valor: m.tiene_alergias ? (m.alergias_detalle ?? "Sí") : "Ninguna registrada" },
     { etiqueta: "Condiciones médicas", valor: m.condiciones_medicas ?? "Ninguna registrada" },
@@ -119,7 +150,9 @@ export function FichaMascotaScreen() {
           {m.fallecido ? (
             <View className="rounded-full bg-white px-3 py-1.5">
               <Text variante="apoyo" className="font-bold text-lavender-ink">
-                {m.fecha_fallecimiento ? `En memoria · ${formatearFecha(m.fecha_fallecimiento, { anio: true })}` : "En memoria"}
+                {m.fecha_fallecimiento
+                  ? `En memoria · ${formatearFecha(m.fecha_fallecimiento, { anio: true })}`
+                  : "En memoria"}
               </Text>
             </View>
           ) : (
@@ -131,7 +164,12 @@ export function FichaMascotaScreen() {
       <View className="-mt-10 gap-4 px-pantalla">
         <Card className="flex-row justify-around">
           {datos.map((d) => (
-            <View key={d.etiqueta} accessible accessibilityLabel={`${d.etiqueta}: ${d.valor}`} className="items-center gap-0.5">
+            <View
+              key={d.etiqueta}
+              accessible
+              accessibilityLabel={`${d.etiqueta}: ${d.valor}`}
+              className="items-center gap-0.5"
+            >
               <Text variante="seccion">{d.valor}</Text>
               <Text variante="apoyo" className="text-muted">
                 {d.etiqueta}

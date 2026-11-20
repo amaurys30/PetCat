@@ -88,5 +88,18 @@ export const spacing = {
   pantalla: 20, // padding horizontal de pantalla
 } as const;
 
+// Sombras como estilo de React Native (iOS: shadow*; Android: elevation). No usar las clases
+// shadow-* de Tailwind en algo que cambia de estado: usan variables CSS y NativeWind remonta el
+// componente al agregarlas después del primer render (en M2 eso rompía el Segmented).
+export const sombras = {
+  suave: {
+    shadowColor: colors.ink,
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
+  },
+} as const;
+
 // Áreas táctiles mínimas (48 × 48) y separación entre acciones (8).
 export const touch = { min: 48, gap: 8 } as const;
