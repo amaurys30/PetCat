@@ -98,7 +98,7 @@ export function TarjetaNegocio({ negocio: n, conDistancia }: Props) {
             <Button
               titulo="Agendar"
               accessibilityLabel={`Agendar en ${n.nombre}`}
-              onPress={() => router.push(`/negocios/${n.id_negocio}`)}
+              onPress={() => router.push({ pathname: "/negocios/[id]/agendar", params: { id: n.id_negocio } })}
             />
           </View>
           {sede && (

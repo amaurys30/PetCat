@@ -1,6 +1,6 @@
 import { http, HttpResponse } from "msw";
 
-import type { RegistroHistorial, Vacuna } from "@/api/types";
+import type { Cita, HorariosLibres, RegistroHistorial, Vacuna } from "@/api/types";
 
 export const API = "http://api.test/api/v1";
 
@@ -257,6 +257,57 @@ export function negocioPublicoDemo(cambios: Record<string, unknown> = {}) {
     resenas_recientes: [],
     ...cambios,
   };
+}
+
+/** Cita de la vista del dueño (GET /citas/mias, GET /citas/:id, POST /citas). */
+export function citaDemo(cambios: Partial<Cita> = {}): Cita {
+  return {
+    id_cita: 50,
+    fecha: "2026-11-18",
+    hora_inicio: "08:30",
+    hora_fin: "09:00",
+    estado: "pendiente",
+    origen: "app_movil",
+    prioridad: "normal",
+    precio_estimado: 45000,
+    precio_final: null,
+    notas_cliente: null,
+    id_cita_origen: null,
+    confirmar_antes_de: null,
+    fecha_completada: null,
+    id_resena: null,
+    cancelacion: null,
+    negocio: { id_negocio: 1, nombre: "Clínica Vet Sabanas", logo_url: null },
+    sucursal: {
+      id_sucursal: 10,
+      nombre: "Principal",
+      direccion: "Cra. 25 #18-40",
+      telefono: "6052800000",
+      latitud: 9.3047,
+      longitud: -75.3978,
+    },
+    servicio: { id_servicio: 1, nombre: "Consulta general", duracion_minutos: 30 },
+    empleado: { id_empleado: 3, nombre: "Carlos", apellido: "Pérez" },
+    mascota: { id_mascota: 1, nombre: "Luna", especie: "perro" },
+    cliente: { id_usuario: 7, nombre: "Ana", apellido: "Gómez", telefono: null },
+    fecha_creacion: "2026-11-17 10:00:00",
+    ...cambios,
+  } as Cita;
+}
+
+/** Respuesta de GET /citas/horarios-libres con esas horas libres. */
+export function horariosDemo(fecha: string, horas: string[], motivo: string | null = null): HorariosLibres {
+  return {
+    fecha,
+    servicio: { id_servicio: 1, nombre: "Consulta general", duracion_minutos: 30, precio_actual: 45000 },
+    sucursal: { id_sucursal: 10, nombre: "Principal" },
+    horarios: horas.map((h) => ({
+      hora_inicio: h,
+      hora_fin: h,
+      empleados: [{ id_empleado: 3, nombre: "Carlos", apellido: "Pérez" }],
+    })),
+    motivo_sin_horarios: horas.length ? null : (motivo ?? "No hay horarios disponibles para esa fecha"),
+  } as HorariosLibres;
 }
 
 // Handlers por defecto. Cada prueba agrega los suyos con server.use(...).

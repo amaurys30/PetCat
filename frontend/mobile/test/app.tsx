@@ -26,7 +26,12 @@ import Fallecimiento from "../app/mascotas/[id]/fallecimiento";
 import LineaDeVida from "../app/mascotas/[id]/linea-vida";
 import Sensor from "../app/dev/sensor";
 import NegociosLayout from "../app/negocios/_layout";
-import PerfilNegocio from "../app/negocios/[id]";
+import PerfilNegocio from "../app/negocios/[id]/index";
+import AgendarCita from "../app/negocios/[id]/agendar";
+import CitaLayout from "../app/cita/_layout";
+import DetalleCita from "../app/cita/[id]/index";
+import CitaConfirmada from "../app/cita/[id]/confirmada";
+import ReprogramarCita from "../app/cita/[id]/reprogramar";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { refreshStorage } from "@/api/refreshStorage";
@@ -62,7 +67,12 @@ export const RUTAS = {
   "mascotas/[id]/linea-vida": LineaDeVida,
   "dev/sensor": Sensor,
   "negocios/_layout": NegociosLayout,
-  "negocios/[id]": PerfilNegocio,
+  "negocios/[id]/index": PerfilNegocio,
+  "negocios/[id]/agendar": AgendarCita,
+  "cita/_layout": CitaLayout,
+  "cita/[id]/index": DetalleCita,
+  "cita/[id]/confirmada": CitaConfirmada,
+  "cita/[id]/reprogramar": ReprogramarCita,
 };
 
 /** Estado limpio entre pruebas: sin sesión en memoria, sin refresh guardado y sin caché. */
