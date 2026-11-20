@@ -8,7 +8,7 @@
 const KM_POR_GRADO = 111.045;
 
 /**
- * CTE `cercania (id_negocio, id_sucursal, distancia_km)`: un punto por negocio,
+ * CTE `cercania (id_negocio, id_sucursal, latitud, longitud, distancia_km)`: un punto por negocio,
  * el más cercano a (lat, lng), dentro de `radio_km`. Antes de calcular la
  * distancia se descartan los puntos fuera del recuadro que contiene el círculo.
  * Uso: `WITH ${sql} SELECT ... JOIN cercania ce ON ce.id_negocio = n.id_negocio`,
@@ -20,9 +20,9 @@ export const cercaniaCTE = ({ lat, lng, radio_km }) => {
   const distancia = "ST_Distance_Sphere(POINT(p.longitud, p.latitud), POINT(?, ?))";
 
   const sql = `cercania AS (
-    SELECT id_negocio, id_sucursal, distancia_km
+    SELECT id_negocio, id_sucursal, latitud, longitud, distancia_km
     FROM (
-      SELECT p.id_negocio, p.id_sucursal, ${distancia} / 1000 AS distancia_km,
+      SELECT p.id_negocio, p.id_sucursal, p.latitud, p.longitud, ${distancia} / 1000 AS distancia_km,
              ROW_NUMBER() OVER (PARTITION BY p.id_negocio ORDER BY ${distancia}, p.id_sucursal) AS orden
       FROM (
         SELECT s.id_negocio, s.id_sucursal, s.latitud, s.longitud

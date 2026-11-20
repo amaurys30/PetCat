@@ -36,6 +36,18 @@ const router = express.Router();
  *         id_sucursal: { type: integer }
  *         nombre: { type: string }
  *         direccion: { type: string }
+ *         latitud:
+ *           type: number
+ *           example: 9.30472
+ *           description: Coordenadas del punto de la búsqueda (las del negocio si la sucursal no tiene). Para el pin del mapa.
+ *         longitud: { type: number, example: -75.39778 }
+ *         abierto_ahora:
+ *           type: boolean
+ *           description: >
+ *             La sucursal está abierta ahora según su horario semanal, en hora de Bogotá. No considera
+ *             festivos de Colombia (pendiente). Los bloqueos y vacaciones son de cada empleado, no de la sucursal.
+ *         cierra_a: { type: string, nullable: true, example: "19:00", description: Si está abierta, hora de cierre del tramo actual }
+ *         abre_hoy_a: { type: string, nullable: true, example: "14:00", description: Si está cerrada y abre más tarde hoy, a qué hora }
  *     NegocioBusqueda:
  *       type: object
  *       properties:
@@ -112,7 +124,18 @@ const router = express.Router();
  *       - $ref: '#/components/parameters/page'
  *       - $ref: '#/components/parameters/limit'
  *       - { in: query, name: q, schema: { type: string, maxLength: 100 }, description: Busca en nombre y descripción }
- *       - { in: query, name: tipo, schema: { type: string, enum: [veterinaria, tienda_mascotas, peluqueria_canina, guarderia, entrenador, clinica, multiservicio] } }
+ *       - in: query
+ *         name: tipo
+ *         description: >
+ *           Uno o varios separados por comas (veterinaria, tienda_mascotas, peluqueria_canina, guarderia,
+ *           entrenador, clinica, multiservicio). La app agrupa "veterinaria,clinica".
+ *         schema: { type: string, example: "veterinaria,clinica" }
+ *       - in: query
+ *         name: abierto_ahora
+ *         description: >
+ *           true: solo los abiertos ahora (con coordenadas, su sucursal más cercana; sin coordenadas, alguna
+ *           sucursal activa). Horario semanal en hora de Bogotá, sin festivos de Colombia.
+ *         schema: { type: string, enum: ["true", "false"] }
  *       - { in: query, name: id_categoria, schema: { type: integer }, description: Negocios con servicios visibles de esa categoría }
  *       - $ref: '#/components/parameters/lat'
  *       - $ref: '#/components/parameters/lng'

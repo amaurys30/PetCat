@@ -29,7 +29,16 @@ const geoJuntas = (data, ctx) => {
 export const buscarNegociosQuery = paginationSchema
   .extend({
     q,
-    tipo: z.enum(TIPOS_NEGOCIO, { error: `Debe ser uno de: ${TIPOS_NEGOCIO.join(", ")}` }).optional(),
+    // Uno o varios separados por comas: la app agrupa veterinaria y clínica en "Veterinarias".
+    tipo: z
+      .string()
+      .transform((valor) => [...new Set(valor.split(",").map((t) => t.trim()))])
+      .pipe(z.array(z.enum(TIPOS_NEGOCIO, { error: `Cada tipo debe ser uno de: ${TIPOS_NEGOCIO.join(", ")}` })).min(1))
+      .optional(),
+    abierto_ahora: z
+      .enum(["true", "false"], { error: "Debe ser true o false" })
+      .transform((valor) => valor === "true")
+      .optional(),
     id_categoria: id,
     ...geo,
   })
