@@ -190,17 +190,26 @@ Hecho:
 - [x] Pila deslizable (FlatList paginada): llega con la mascota de Inicio y al cambiar actualiza la selección (solo las vivas). Vivas primero, luego «En memoria».
 - [x] Sellos: la dosis vigente de cada vacuna (las anteriores no) y la última desparasitación. Aplicada (✓, fecha), próxima (reloj de arena, "Vence 12 dic", sol), vencida (alerta, "Venció…", borde continuo); cada sello se lee completo con su origen. «En memoria»: en gris, sin alertas.
 - [x] Anillo "N/M": vacunas vigentes no vencidas, con el próximo refuerzo o la vencida y desde cuándo.
-- [x] Efecto holográfico: `useAnimatedSensor` (gravedad, ~30 Hz, en el hilo de UI) solo con la pestaña visible y la app en primer plano; con "Reducir movimiento", brillo fijo. Solo la tarjeta del frente.
-- [x] Compartir con QR y PDF visibles pero deshabilitados ("Próximamente", también para el lector).
+- [x] Brillo fijo en la tarjeta. El efecto holográfico (sensor y giro 3D) está construido pero **pausado** (`EFECTO_HOLOGRAFICO = false` en `features/pasaporte/efecto.tsx`): ver "Pendiente: efecto holográfico del Pasaporte" más abajo.
+- [x] Compartir con QR y PDF visibles pero claramente no disponibles: sin relleno, borde apagado y "Próximamente" dentro del botón (también para el lector, como deshabilitados).
 - [x] M8 · Línea de vida (`/mascotas/[id]/linea-vida`, desde el Pasaporte y la ficha): filtros Todo, Vacunas, Desparasitación y Consultas; "Próximo" arriba; del más reciente al más antiguo con separadores por año; 20 por página con "Cargar más" (las vacunas, completas, se intercalan sin reordenar al cargar más); la vacunación que una vacuna enlaza no se repite; al tocar un registro, diagnóstico, tratamiento, indicaciones y próximo control.
 - [x] Sin red: el Pasaporte completo con la caché; la línea de vida con vacunas y la última desparasitación, y el aviso de que las consultas necesitan conexión.
-- [x] Pantalla de desarrollo "Sensor del Pasaporte" (Perfil, solo en desarrollo) para comprobar el sensor en el teléfono.
+- [x] Pantalla de desarrollo "Sensor del Pasaporte" (Perfil y ruta `/dev/sensor`, solo con `__DEV__`; fuera de desarrollo la ruta lleva a Inicio) para comprobar el sensor en el teléfono.
+- [x] Ajustes de la primera prueba en el teléfono: sellos en cuadrícula de 3 columnas alineada a la izquierda, con el nombre completo de la vacuna debajo del círculo (antes "PARVOVIR.", "ANTIRRÁB."); el círculo de los sellos es SVG y sin giro (los bordes punteados con `borderRadius` y `rotate` dan problemas en Android); "Ver línea de vida" como enlace en color de acento con flecha; la etiqueta "Carnet" de la barra se veía cortada: la columna del botón central tenía `flex: 1` (base 0) y no aportaba su alto a la barra.
 - [x] Pruebas: 296 (pasaporte y línea de vida con MSW, lógica de sellos, anillo, etiquetas y línea de vida, contraste AA de los colores nuevos sobre el fondo oscuro). Contrato comprobado contra la demo.
 - [x] `npm run lint`, `npm run typecheck`, `npm test`, `npx expo install --check`, `npx expo-doctor` (20/20) y el bundle de Android en verde.
 
 Falta para cerrar M3:
-- [ ] Probarla en el teléfono, incluida la pantalla "Sensor del Pasaporte": si las lecturas no suben al inclinarlo, el efecto pasa a expo-sensors (solo cambia `useInclinacion` en `features/pasaporte/efecto.tsx`).
+- [ ] Última prueba en el teléfono (con el efecto pausado).
+
+Queda para después (no bloquea M3):
 - [ ] Maestro: `e2e/pasaporte.yaml` (pendiente de instalar Maestro, como en M1).
+- [ ] **Efecto holográfico del Pasaporte (pausado por cierres nativos en Android).** Lo que se sabe:
+  - Síntoma: en la primera prueba en Android (Expo Go, SDK 58) la app se cerró sola en el Pasaporte, también con "Quitar animaciones" activado. No hay registro del cierre (no se capturó `adb logcat`), así que la causa no está confirmada.
+  - El código: `useInclinacion` (`useAnimatedSensor` de Reanimated 4.7, gravedad a ~30 Hz) y el giro 3D con `withSpring` dentro de `useAnimatedStyle`, solo en la tarjeta del frente, con la pestaña visible y la app en primer plano. No se llegó a confirmar en el teléfono que el sensor entregue lecturas (pantalla "Sensor del Pasaporte").
+  - Por qué "Quitar animaciones" no lo evitaba: `useReducirMovimiento` empezaba en `false` hasta que Android respondía, así que en el primer render el sensor se montaba y se desmontaba enseguida. Un registro y baja del sensor casi simultáneos es una causa posible. Corregido: `Holograma` espera la respuesta (`useReducirMovimientoConocido`) antes de montarlo.
+  - También se quitaron del Pasaporte otros riesgos nativos, aunque no se confirmó que causaran el cierre: el brillo fijo ya no usa `Animated.View` de Reanimated (solo `View` y `LinearGradient`), y los sellos dejaron de usar borde punteado con `borderRadius` y `rotate` (ahora SVG). La pila nunca usó gesture-handler ni Reanimated: es un `FlatList` horizontal paginado.
+  - Para retomarlo: `EFECTO_HOLOGRAFICO = true`; probar primero en un development build y no solo en Expo Go; capturar el cierre con `adb logcat` (en PowerShell: `adb logcat *:E | Select-String "FATAL|AndroidRuntime|reanimated|worklets"`); comprobar el sensor con la pantalla "Sensor del Pasaporte"; si el problema es el sensor de Reanimated, cambiar `useInclinacion` por expo-sensors (`DeviceMotion` o `Gravity`) con las mismas reglas (solo con foco, ~30 Hz, apagado con "Reducir movimiento"). Las pruebas del efecto activo (sensor solo con la pestaña visible y sin "Reducir movimiento") se reemplazaron por la del efecto pausado: hay que volver a escribirlas.
 
 Notas:
 - Jest: Reanimated tiene un mock propio (`test/reanimatedMock.tsx`, por `moduleNameMapper`): el oficial carga la librería real y falla sin el runtime nativo, y `expo-router/testing-library` registra el suyo encima.

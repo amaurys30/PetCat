@@ -84,7 +84,7 @@ Agregadas en M2: **expo-image-picker** (foto de la mascota; los textos del permi
 
 También en M2: **react-native-keyboard-controller** (incluido en Expo Go; `KeyboardProvider` en `app/_layout.tsx`). Con edge-to-edge en Android, `KeyboardAvoidingView` no basta: todo formulario va en `PantallaFormulario` (`KeyboardAwareScrollView`) con la acción principal en `pie` (sube con el teclado), y cada campo de una línea pasa al siguiente con "Siguiente" (`returnKeyType="next"`, `submitBehavior="submit"`, `form.setFocus`).
 
-En M3 el efecto holográfico del Pasaporte usa `useAnimatedSensor` de Reanimated (sensor en el hilo de UI, sin dependencia nueva) en lugar de expo-sensors: todo pasa por `useInclinacion` en `src/features/pasaporte/efecto.tsx`. En Jest, Reanimated tiene un mock propio (`test/reanimatedMock.tsx`, por `moduleNameMapper`): el oficial carga la librería real y falla sin el runtime nativo.
+En M3 el efecto holográfico del Pasaporte usa `useAnimatedSensor` de Reanimated (sensor en el hilo de UI, sin dependencia nueva) en lugar de expo-sensors: todo pasa por `useInclinacion` en `src/features/pasaporte/efecto.tsx`. **Está pausado** (`EFECTO_HOLOGRAFICO = false`) por cierres nativos en Android: antes de activarlo, leer el pendiente en `PLAN.md`. Mientras tanto, en el Pasaporte no se usa Reanimated. En Jest, Reanimated tiene un mock propio (`test/reanimatedMock.tsx`, por `moduleNameMapper`): el oficial carga la librería real y falla sin el runtime nativo.
 
 **Expo Go no basta**: MapLibre y push en Android requieren **development build** (EAS Build, perfil `development`).
 Mantén la app compatible con Expo Go hasta M4 cuando sea posible, para facilitar las primeras pruebas.
