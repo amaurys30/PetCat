@@ -6,6 +6,16 @@ export const SEXOS = ["macho", "hembra", "desconocido"];
 
 export const idMascotaParams = idParam("id_mascota");
 
+/** `?incluir=resumen`: agrega el resumen de salud (solo en las rutas del dueño). */
+export const incluirQuery = z.object({
+  incluir: z.enum(["resumen"], { error: "Debe ser 'resumen'" }).optional(),
+});
+
+/** Historial de peso: los últimos `meses` (1 a 60; 12 por defecto). */
+export const pesosQuery = z.object({
+  meses: z.coerce.number().int().min(1).max(60).default(12),
+});
+
 // Campos opcionales que se pueden vaciar enviando null.
 const opcionales = {
   raza: texto(100).nullable(),

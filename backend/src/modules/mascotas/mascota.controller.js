@@ -3,11 +3,15 @@ import { ok, created } from "../../shared/utils/response.js";
 import { archivoUnico } from "../../shared/utils/uploads.js";
 
 export const getMisMascotas = async (req, res) => {
-  return ok(res, await service.getMisMascotas(req.user.id_usuario));
+  return ok(res, await service.getMisMascotas(req.user.id_usuario, req.query));
 };
 
 export const getMascota = async (req, res) => {
-  return ok(res, await service.getMascota(req.user.id_usuario, req.params.id_mascota));
+  return ok(res, await service.getMascota(req.user.id_usuario, req.params.id_mascota, req.query));
+};
+
+export const getPesos = async (req, res) => {
+  return ok(res, await service.getPesos(req.user.id_usuario, req.params.id_mascota, req.query));
 };
 
 export const createMascota = async (req, res) => {

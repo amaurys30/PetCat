@@ -1,4 +1,6 @@
 import * as mascotaRepo from "./mascota.repository.js";
+import * as pesoRepo from "./peso.repository.js";
+import { resumenesDeMascotas } from "../salud/salud.lote.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
 import { castFields } from "../../shared/utils/format.js";
 import { hoyISO } from "../../shared/utils/fechas.js";
@@ -57,14 +59,45 @@ export const eliminarFoto = async (id_usuario, id_mascota) => {
   return getMascota(id_usuario, id_mascota);
 };
 
-export const getMisMascotas = async (id_usuario) =>
-  (await mascotaRepo.findActivasByUsuario(id_usuario)).map(formatMascota);
+/**
+ * Con `incluir: "resumen"`, cada mascota trae su resumen de salud, calculado en lote para
+ * todas. Estas rutas son solo del dueño (findPropia o sus propias mascotas): un negocio
+ * nunca recibe el resumen, que incluye citas de otros negocios.
+ */
+const conResumen = async (mascotas, incluir) => {
+  const formateadas = mascotas.map(formatMascota);
+  if (incluir !== "resumen") return formateadas;
+  const resumenes = await resumenesDeMascotas(mascotas);
+  return formateadas.map((m) => ({ ...m, resumen: resumenes.get(m.id_mascota) }));
+};
 
-export const getMascota = async (id_usuario, id_mascota) => formatMascota(await findPropia(id_usuario, id_mascota));
+export const getMisMascotas = async (id_usuario, { incluir } = {}) =>
+  conResumen(await mascotaRepo.findActivasByUsuario(id_usuario), incluir);
 
+export const getMascota = async (id_usuario, id_mascota, { incluir } = {}) =>
+  (await conResumen([await findPropia(id_usuario, id_mascota)], incluir))[0];
+
+/** Con peso, queda como primer punto de su historial de peso (anotado por el dueño, hoy). */
 export const createMascota = async (id_usuario, data) => {
-  const id_mascota = await mascotaRepo.create(id_usuario, data);
+  const id_mascota = await withTransaction(async (conn) => {
+    const id = await mascotaRepo.create(id_usuario, data, conn);
+    if (data.peso !== undefined && data.peso !== null) await pesoRepo.registrarDelDueno(id, data.peso, hoyISO(), conn);
+    return id;
+  });
   return formatMascota(await mascotaRepo.findById(id_mascota));
+};
+
+const restarMeses = (fechaISO, meses) => {
+  const fecha = new Date(`${fechaISO}T12:00:00Z`);
+  fecha.setUTCMonth(fecha.getUTCMonth() - meses);
+  return fecha.toISOString().slice(0, 10);
+};
+
+/** Historial de peso de una mascota propia: los últimos `meses`, del más antiguo al más reciente. */
+export const getPesos = async (id_usuario, id_mascota, { meses }) => {
+  const mascota = await findPropia(id_usuario, id_mascota);
+  const puntos = await pesoRepo.findDesde(id_mascota, restarMeses(hoyISO(), meses));
+  return { peso_actual: mascota.peso === null ? null : Number(mascota.peso), puntos };
 };
 
 /**
@@ -115,6 +148,10 @@ export const updateMascota = async (id_usuario, id_mascota, data) => {
       await conflictoCitasFuturas(id_mascota, conn, "registrar el fallecimiento");
     }
     await mascotaRepo.update(id_mascota, cambios, conn);
+    // Un peso nuevo del dueño queda en el historial de peso (uno por día; vaciarlo no borra el historial).
+    if (cambios.peso !== undefined && cambios.peso !== null && Number(cambios.peso) !== Number(actual.peso)) {
+      await pesoRepo.registrarDelDueno(id_mascota, cambios.peso, hoyISO(), conn);
+    }
   });
   return formatMascota(await mascotaRepo.findById(id_mascota));
 };

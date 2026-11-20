@@ -1,6 +1,6 @@
 import express from "express";
 import * as controller from "./mascota.controller.js";
-import { createMascotaBody, idMascotaParams, updateMascotaBody } from "./mascota.schemas.js";
+import { createMascotaBody, idMascotaParams, incluirQuery, pesosQuery, updateMascotaBody } from "./mascota.schemas.js";
 import { authMiddleware } from "../../shared/middlewares/auth.middleware.js";
 import { validate } from "../../shared/middlewares/validate.js";
 import { uploadLimiter } from "../../shared/middlewares/rateLimit.js";
@@ -64,6 +64,60 @@ const router = express.Router();
  *         fecha_fallecimiento: { type: string, format: date, nullable: true }
  *         fecha_registro: { type: string, example: "2026-09-26 10:00:00" }
  *         fecha_actualizacion: { type: string, example: "2026-09-26 10:00:00" }
+ *         resumen:
+ *           allOf:
+ *             - $ref: '#/components/schemas/ResumenMascota'
+ *           x-opcional: true
+ *           description: Solo con `?incluir=resumen` en GET /mascotas y GET /mascotas/{id_mascota} (rutas del dueño)
+ *     ResumenMascota:
+ *       type: object
+ *       description: >
+ *         Resumen corto de salud para las listas de la app, calculado en lote. Mismas reglas que
+ *         GET /mascotas/{id_mascota}/resumen-salud. Solo lo recibe el dueño: incluye citas de cualquier negocio.
+ *         Mascota fallecida: `estado_vacunas` null, sin eventos ni cita.
+ *       properties:
+ *         estado_vacunas:
+ *           type: string
+ *           nullable: true
+ *           enum: [al_dia, proximo, vencido, sin_vacunas]
+ *           description: vencido si alguna dosis vigente venció; proximo si alguna vence en `dias_aviso_vacuna` días (30); al_dia; sin_vacunas
+ *         vacunas:
+ *           type: object
+ *           description: Conteo de dosis vigentes (la más reciente de cada vacuna)
+ *           properties:
+ *             vigentes: { type: integer, example: 6 }
+ *             al_dia: { type: integer, example: 5 }
+ *             proximas: { type: integer, example: 1 }
+ *             vencidas: { type: integer, example: 0 }
+ *         proximos_eventos:
+ *           type: array
+ *           description: >
+ *             Vacunas vencidas o próximas y controles o desparasitaciones (proximo_control del historial) de los
+ *             próximos `dias_aviso_vacuna` días; máximo 5, del más cercano al más lejano.
+ *           items:
+ *             type: object
+ *             properties:
+ *               tipo: { type: string, enum: [vacuna, desparasitacion, control] }
+ *               titulo: { type: string, example: Antirrábica }
+ *               fecha: { type: string, format: date }
+ *               dias: { type: integer, description: Días desde hoy (negativo si ya venció), example: 20 }
+ *               id_vacuna: { type: integer, nullable: true }
+ *               id_historial: { type: integer, nullable: true }
+ *               negocio:
+ *                 type: object
+ *                 nullable: true
+ *                 properties: { id_negocio: { type: integer }, nombre: { type: string } }
+ *         proxima_cita:
+ *           type: object
+ *           nullable: true
+ *           description: La cita pendiente o confirmada más cercana que no ha terminado, de cualquier negocio
+ *           properties:
+ *             id_cita: { type: integer }
+ *             fecha: { type: string, format: date }
+ *             hora_inicio: { type: string, example: "08:30" }
+ *             estado: { type: string, enum: [pendiente, confirmada] }
+ *             servicio: { type: object, properties: { id_servicio: { type: integer }, nombre: { type: string } } }
+ *             negocio: { type: object, properties: { id_negocio: { type: integer }, nombre: { type: string } } }
  *     MascotaRespuesta:
  *       type: object
  *       properties:
@@ -90,8 +144,13 @@ const router = express.Router();
  * /mascotas:
  *   get:
  *     summary: Mis mascotas
- *     description: Mascotas del usuario autenticado sin las eliminadas; las fallecidas van al final.
+ *     description: >
+ *       Mascotas del usuario autenticado sin las eliminadas; las fallecidas van al final. Con
+ *       `incluir=resumen`, cada una trae `resumen` (salud, próximos eventos y próxima cita), calculado
+ *       en lote para todas.
  *     tags: [Mascotas]
+ *     parameters:
+ *       - { in: query, name: incluir, schema: { type: string, enum: [resumen] } }
  *     responses:
  *       200:
  *         description: Lista
@@ -125,7 +184,7 @@ const router = express.Router();
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
-router.get("/mascotas", authMiddleware, controller.getMisMascotas);
+router.get("/mascotas", authMiddleware, validate({ query: incluirQuery }), controller.getMisMascotas);
 router.post("/mascotas", authMiddleware, validate({ body: createMascotaBody }), controller.createMascota);
 
 /**
@@ -135,7 +194,10 @@ router.post("/mascotas", authMiddleware, validate({ body: createMascotaBody }), 
  *     - { in: path, name: id_mascota, required: true, schema: { type: integer } }
  *   get:
  *     summary: Detalle de una mascota propia
+ *     description: Con `incluir=resumen`, trae `resumen` (salud, próximos eventos y próxima cita).
  *     tags: [Mascotas]
+ *     parameters:
+ *       - { in: query, name: incluir, schema: { type: string, enum: [resumen] } }
  *     responses:
  *       200:
  *         description: Mascota
@@ -206,7 +268,59 @@ router.post("/mascotas", authMiddleware, validate({ body: createMascotaBody }), 
  *             example: { success: false, message: "La mascota tiene citas pendientes o confirmadas: cancélalas antes de eliminarla" }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
-router.get("/mascotas/:id_mascota", authMiddleware, validate({ params: idMascotaParams }), controller.getMascota);
+router.get(
+  "/mascotas/:id_mascota",
+  authMiddleware,
+  validate({ params: idMascotaParams, query: incluirQuery }),
+  controller.getMascota
+);
+
+/**
+ * @swagger
+ * /mascotas/{id_mascota}/pesos:
+ *   get:
+ *     summary: Historial de peso de una mascota propia (app)
+ *     description: >
+ *       Solo el dueño. Los pesos de los últimos `meses`, del más antiguo al más reciente: los de los
+ *       registros médicos (`origen: historial`, de cualquier negocio) y los que anota el dueño al crear o
+ *       editar la mascota (`origen: dueno`, uno por día). Puede haber más de uno el mismo día.
+ *     tags: [Mascotas]
+ *     parameters:
+ *       - { in: path, name: id_mascota, required: true, schema: { type: integer } }
+ *       - { in: query, name: meses, schema: { type: integer, minimum: 1, maximum: 60, default: 12 } }
+ *     responses:
+ *       200:
+ *         description: Historial de peso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: OK }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     peso_actual: { type: number, nullable: true, example: 28.4 }
+ *                     puntos:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           fecha: { type: string, format: date }
+ *                           peso: { type: number, example: 27.8 }
+ *                           origen: { type: string, enum: [dueno, historial] }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { $ref: '#/components/responses/MascotaAjena' }
+ *       404: { $ref: '#/components/responses/MascotaNoEncontrada' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.get(
+  "/mascotas/:id_mascota/pesos",
+  authMiddleware,
+  validate({ params: idMascotaParams, query: pesosQuery }),
+  controller.getPesos
+);
 router.patch(
   "/mascotas/:id_mascota",
   authMiddleware,
