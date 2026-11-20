@@ -4222,6 +4222,7 @@ export interface paths {
                 query?: {
                     page?: components["parameters"]["page"];
                     limit?: components["parameters"]["limit"];
+                    /** @description Uno o varios tipos separados por comas (consulta_general,control) */
                     tipo?: components["parameters"]["historialTipo"];
                     desde?: components["parameters"]["historialDesde"];
                     hasta?: components["parameters"]["historialHasta"];
@@ -4273,6 +4274,7 @@ export interface paths {
                 query?: {
                     page?: components["parameters"]["page"];
                     limit?: components["parameters"]["limit"];
+                    /** @description Uno o varios tipos separados por comas (consulta_general,control) */
                     tipo?: components["parameters"]["historialTipo"];
                     desde?: components["parameters"]["historialDesde"];
                     hasta?: components["parameters"]["historialHasta"];
@@ -9378,6 +9380,11 @@ export interface components {
             peso: number | null;
             microchip: string | null;
             numero_registro: string | null;
+            /**
+             * @description Número del Pasaporte PetCat. Lo asigna la API al crear la mascota: aleatorio y estable, no sale del id ni se puede editar. Es un dato visible, no una credencial (no da acceso a nada).
+             * @example PC-7KQ4-M9XR
+             */
+            codigo_pasaporte: string;
             esterilizado: boolean;
             tiene_alergias: boolean;
             compartir_historial: boolean;
@@ -10743,6 +10750,7 @@ export interface components {
         horariosLibresFecha: string;
         /** @description Solo ese empleado (debe atender el servicio) */
         horariosLibresEmpleado: number;
+        /** @description Uno o varios tipos separados por comas (consulta_general,control) */
         historialTipo: string;
         historialDesde: string;
         historialHasta: string;

@@ -20,7 +20,9 @@ export function CarnetTabButton({ seleccionada, onPress, onLongPress }: Props) {
       onPress={onPress}
       onLongPress={onLongPress}
       testID="tab-carnet"
-      className="flex-1 items-center"
+      // Sin flex-1: con flex: 1 la columna no aporta su alto a la barra (base 0) y la etiqueta
+      // quedaba fuera, debajo del círculo. Con su alto natural, la barra mide círculo + etiqueta.
+      className="items-center"
     >
       <View
         style={{
@@ -55,8 +57,11 @@ export function CarnetTabButton({ seleccionada, onPress, onLongPress }: Props) {
         variante="rotulo"
         numberOfLines={1}
         maxFontSizeMultiplier={1.4}
-        className="mt-1 text-coral-dark"
-        style={{ fontFamily: seleccionada ? fontFamilies.extrabold : fontFamilies.bold }}
+        className="mt-1"
+        style={{
+          color: colors["coral-dark"],
+          fontFamily: seleccionada ? fontFamilies.extrabold : fontFamilies.bold,
+        }}
       >
         Carnet
       </Text>

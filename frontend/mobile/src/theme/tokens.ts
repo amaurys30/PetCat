@@ -38,6 +38,25 @@ export const colors = {
   "passport-from": "#0E2A33",
   "passport-to": "#132F3D",
   "brand-from": "#17B5AB",
+  // Pasaporte PetCat (M3): tarjeta (degradado) y colores sobre el fondo oscuro passport-*.
+  // Contraste AA comprobado en theme/contraste.test.ts.
+  "pasaporte-carta-from": "#155A63",
+  "pasaporte-carta-to": "#3A2C77",
+  "pasaporte-panel": "#1B3A47", // tarjetas sobre el fondo oscuro (anillo, avisos)
+  "pasaporte-borde": "#2A4A57", // bordes y pista del anillo
+  "oscuro-muted": "#B5C7CD", // texto secundario sobre el fondo oscuro (no sobre la tarjeta)
+  "pasaporte-rotulo": "#A7E3DA", // rótulos de la tarjeta (ESPECIE, MICROCHIP)
+  "pasaporte-numero": "#FFD27A", // número de pasaporte
+  "pasaporte-memoria-from": "#4B3D86", // tarjeta «En memoria»
+  "pasaporte-memoria-to": "#2A2A4A",
+  "pasaporte-memoria-rotulo": "#D9CCFF",
+  "sello-teal": "#5FD8C9",
+  "sello-coral": "#FFA285",
+  "sello-lavender": "#BBA8F5",
+  "sello-info": "#8FBCFA",
+  "sello-sun": "#FFC857",
+  "sello-danger": "#FF8F92",
+  "sello-memoria": "#AEBBC4",
 } as const;
 
 export type ColorToken = keyof typeof colors;

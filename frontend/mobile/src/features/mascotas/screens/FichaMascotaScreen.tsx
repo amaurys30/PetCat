@@ -1,6 +1,6 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ChevronLeft, IdCard, Pencil } from "lucide-react-native";
+import { ChevronLeft, History, IdCard, Pencil } from "lucide-react-native";
 import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -62,8 +62,9 @@ function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
 }
 
 /**
- * M6 · Ficha de la mascota (pestaña Resumen). Historial y Documentos llegan en M3, así que el
- * selector de pestañas aún no se muestra. "Tamaño" no existe en la API: no se muestra.
+ * M6 · Ficha de la mascota (pestaña Resumen). El historial se ve en la línea de vida (M8, botón
+ * "Ver línea de vida") y los Documentos llegan en M6 de la app, así que el selector de pestañas
+ * aún no se muestra. "Tamaño" no existe en la API: no se muestra.
  */
 export function FichaMascotaScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -191,6 +192,13 @@ export function FichaMascotaScreen() {
             }}
           />
         )}
+        <Button
+          titulo="Ver línea de vida"
+          accessibilityLabel={`Ver la línea de vida de ${m.nombre}`}
+          variante="secundario"
+          icono={History}
+          onPress={() => router.push(`/mascotas/${id_mascota}/linea-vida`)}
+        />
 
         <GraficoPeso
           puntos={pesos.data?.puntos}

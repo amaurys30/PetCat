@@ -84,6 +84,8 @@ Agregadas en M2: **expo-image-picker** (foto de la mascota; los textos del permi
 
 También en M2: **react-native-keyboard-controller** (incluido en Expo Go; `KeyboardProvider` en `app/_layout.tsx`). Con edge-to-edge en Android, `KeyboardAvoidingView` no basta: todo formulario va en `PantallaFormulario` (`KeyboardAwareScrollView`) con la acción principal en `pie` (sube con el teclado), y cada campo de una línea pasa al siguiente con "Siguiente" (`returnKeyType="next"`, `submitBehavior="submit"`, `form.setFocus`).
 
+En M3 el efecto holográfico del Pasaporte usa `useAnimatedSensor` de Reanimated (sensor en el hilo de UI, sin dependencia nueva) en lugar de expo-sensors: todo pasa por `useInclinacion` en `src/features/pasaporte/efecto.tsx`. **Está pausado** (`EFECTO_HOLOGRAFICO = false`) por cierres nativos en Android: antes de activarlo, leer el pendiente en `PLAN.md`. Mientras tanto, en el Pasaporte no se usa Reanimated. En Jest, Reanimated tiene un mock propio (`test/reanimatedMock.tsx`, por `moduleNameMapper`): el oficial carga la librería real y falla sin el runtime nativo.
+
 **Expo Go no basta**: MapLibre y push en Android requieren **development build** (EAS Build, perfil `development`).
 Mantén la app compatible con Expo Go hasta M4 cuando sea posible, para facilitar las primeras pruebas.
 
@@ -148,6 +150,7 @@ Las pruebas van junto al código que prueban (`*.test.ts(x)` dentro de `src/`), 
 - Pruebas de flujo con la app real: `renderApp(ruta)` y `reiniciarSesion()` de `test/app.tsx` (todas las rutas, con el arranque y las rutas protegidas). `renderRouter` activa los timers falsos; `jest.config.js` deja `nextTick` y `setImmediate` reales para que las llamadas a la API terminen.
 - `waitFor` con callback sincrónico, nunca `async`: con los timers falsos, un callback async puede resolver mientras el `act()` de `waitFor` sigue abierto; la prueba sigue, abre otro `act()` encima ("overlapping act() calls") y React puede dejar sin aplicar una actualización (en M2, la redirección a la Bienvenida al cerrar sesión, de forma intermitente). Para leer AsyncStorage, revisar las llamadas del mock (`ultimoGuardado` en `mascotas.test.tsx`).
 - NativeWind: lo que cambia con el estado (seleccionado, activo, marcado) va en `style` con los tokens, no en clases condicionales. Las clases que usan variables CSS (`shadow-*`, `ring-*`, transformaciones), transiciones, animaciones o pseudo-clases obligan a NativeWind a remontar el componente si aparecen después del primer render, y su aviso en desarrollo terminó en pantalla roja en M2 ("Couldn't find a LinkingContext context"). Para sombras, `sombras` de `tokens.ts`. Lo comprueba `src/components/ui/estadoSinRemontar.test.tsx`.
+- Con los timers falsos, una consulta que falla por red se reintenta (1 s y 2 s): adelantar el reloj (`act(() => jest.advanceTimersByTimeAsync(4_000))`) en lugar de esperar a que `waitFor` lo haga de a 50 ms.
 - Formularios: React Hook Form con `Controller` (pasar `field.ref` al campo para el foco) y `useWatch` en lugar de `watch` (React Compiler omite los componentes que usan `watch`).
 
 ## 8. Comandos

@@ -23,6 +23,8 @@ import NuevaMascota from "../app/mascotas/nueva";
 import FichaMascota from "../app/mascotas/[id]/index";
 import EditarMascota from "../app/mascotas/[id]/editar";
 import Fallecimiento from "../app/mascotas/[id]/fallecimiento";
+import LineaDeVida from "../app/mascotas/[id]/linea-vida";
+import Sensor from "../app/dev/sensor";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { refreshStorage } from "@/api/refreshStorage";
@@ -55,6 +57,8 @@ export const RUTAS = {
   "mascotas/[id]/index": FichaMascota,
   "mascotas/[id]/editar": EditarMascota,
   "mascotas/[id]/fallecimiento": Fallecimiento,
+  "mascotas/[id]/linea-vida": LineaDeVida,
+  "dev/sensor": Sensor,
 };
 
 /** Estado limpio entre pruebas: sin sesión en memoria, sin refresh guardado y sin caché. */

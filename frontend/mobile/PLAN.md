@@ -169,7 +169,7 @@ Notas:
 - La caché se guarda con `@tanstack/react-query-persist-client` en AsyncStorage, un persister por sesión (su throttle guarda estado) que deja de escribir al cerrar sesión.
 - Jest: TanStack avisa a las pantallas con un `setTimeout(0)`, que con `renderRouter` es falso; si una prueba lee la caché directamente, avanzar los timers antes de tocar la pantalla.
 
-## ⬜ M3 · Pasaporte PetCat (pieza principal)
+## ✅ M3 · Pasaporte PetCat (pieza principal)
 
 - M7 tarjeta Pasaporte: degradado, brillo holográfico que reacciona al giroscopio (Reanimated + expo-sensors; desactivado con "Reducir movimiento"), foto, número `PC-AAAA-NNNNN`, microchip, QR, línea tipo MRZ.
 - Pila deslizable cuando hay varias mascotas.
@@ -177,6 +177,42 @@ Notas:
 - M8 línea de vida con filtros (vacunas, desparasitación, consultas), del más reciente al más antiguo.
 - Botones Compartir y PDF visibles pero deshabilitados con "Próximamente" hasta M7.
 - Pruebas: cálculo de estado de vacunas, lectura completa con lector de pantalla (etiquetas).
+
+### Resultado de M3 (rama `mobile/m3-pasaporte`)
+
+Backend primero: PR #20 (`api/pasaporte`, fusionado). Número del pasaporte `codigo_pasaporte` (`PC-XXXX-XXXX`, aleatorio y estable, migración 030; no sale del id) y `tipo` del historial con varios valores. Además: `npm run db:verificar` y copias con `mysqldump --routines`.
+
+Decisiones del plan (aprobadas): número aleatorio de la API en lugar de `PC-AAAA-NNNNN` derivado del id; sin QR en la tarjeta hasta M7 (en su lugar, un emblema decorativo); sin insignia "Verificado" (el origen va por vacuna: "Registrada por Clínica X" o "por ti"); "6 de 6 vacunas al día" en lugar de "esquema completo" (la app no conoce el esquema de cada especie); efecto con `useAnimatedSensor` de Reanimated en lugar de expo-sensors; sin red se guardan vacunas y última desparasitación, no las consultas (Ley 1581); los Documentos de la ficha pasan a M6.
+
+Hecho:
+- [x] M7 · Tarjeta: degradado, foto, nombre, número, estado de salud, especie, nacimiento, microchip en bloques de tres y línea tipo pasaporte (decorativa; el microchip va completo y se recorta el nombre o la raza). «En memoria»: tarjeta lavanda con la fecha. Sin alto fijo: con texto grande (`fontScale ≥ 1,3`) los datos van en una columna.
+- [x] Lector de pantalla: la tarjeta es un solo elemento con todo en texto (el número deletreado por grupos, el microchip en bloques). Con varias mascotas, la pila es un control ajustable ("Mascota 1 de 2"; deslizar arriba o abajo cambia y anuncia el nombre). Emblema, brillo, línea tipo pasaporte y puntos de página, ocultos.
+- [x] Pila deslizable (FlatList paginada): llega con la mascota de Inicio y al cambiar actualiza la selección (solo las vivas). Vivas primero, luego «En memoria».
+- [x] Sellos: la dosis vigente de cada vacuna (las anteriores no) y la última desparasitación. Aplicada (✓, fecha), próxima (reloj de arena, "Vence 12 dic", sol), vencida (alerta, "Venció…", borde continuo); cada sello se lee completo con su origen. «En memoria»: en gris, sin alertas.
+- [x] Anillo "N/M": vacunas vigentes no vencidas, con el próximo refuerzo o la vencida y desde cuándo.
+- [x] Brillo fijo en la tarjeta. El efecto holográfico (sensor y giro 3D) está construido pero **pausado** (`EFECTO_HOLOGRAFICO = false` en `features/pasaporte/efecto.tsx`): ver "Pendiente: efecto holográfico del Pasaporte" más abajo.
+- [x] Compartir con QR y PDF visibles pero claramente no disponibles: sin relleno, borde apagado y "Próximamente" dentro del botón (también para el lector, como deshabilitados).
+- [x] M8 · Línea de vida (`/mascotas/[id]/linea-vida`, desde el Pasaporte y la ficha): filtros Todo, Vacunas, Desparasitación y Consultas; "Próximo" arriba; del más reciente al más antiguo con separadores por año; 20 por página con "Cargar más" (las vacunas, completas, se intercalan sin reordenar al cargar más); la vacunación que una vacuna enlaza no se repite; al tocar un registro, diagnóstico, tratamiento, indicaciones y próximo control.
+- [x] Sin red: el Pasaporte completo con la caché; la línea de vida con vacunas y la última desparasitación, y el aviso de que las consultas necesitan conexión.
+- [x] Pantalla de desarrollo "Sensor del Pasaporte" (Perfil y ruta `/dev/sensor`, solo con `__DEV__`; fuera de desarrollo la ruta lleva a Inicio) para comprobar el sensor en el teléfono.
+- [x] Ajustes de la primera prueba en el teléfono: sellos en cuadrícula de 3 columnas alineada a la izquierda, con el nombre completo de la vacuna debajo del círculo (antes "PARVOVIR.", "ANTIRRÁB."); el círculo de los sellos es SVG y sin giro (los bordes punteados con `borderRadius` y `rotate` dan problemas en Android); "Ver línea de vida" como enlace en color de acento con flecha; la etiqueta "Carnet" de la barra se veía cortada: la columna del botón central tenía `flex: 1` (base 0) y no aportaba su alto a la barra.
+- [x] Pruebas: 296 (pasaporte y línea de vida con MSW, lógica de sellos, anillo, etiquetas y línea de vida, contraste AA de los colores nuevos sobre el fondo oscuro). Contrato comprobado contra la demo.
+- [x] `npm run lint`, `npm run typecheck`, `npm test`, `npx expo install --check`, `npx expo-doctor` (20/20) y el bundle de Android en verde.
+
+Cierre (2026-11-20):
+- [x] Probada en Android con Expo Go, con el efecto pausado: sin cierres en unas 10 aperturas, con y sin "Quitar animaciones"; sellos, botones Compartir y PDF, enlace "Ver línea de vida" y etiqueta "Carnet" bien. M3 terminada.
+
+Queda para después (no bloquea M3):
+- [ ] Maestro: `e2e/pasaporte.yaml` (pendiente de instalar Maestro, como en M1).
+- [ ] **Efecto holográfico del Pasaporte (pausado por cierres nativos en Android).** Lo que se sabe:
+  - Síntoma: en la primera prueba en Android (Expo Go, SDK 58) la app se cerró sola en el Pasaporte, también con "Quitar animaciones" activado. No hay registro del cierre (no se capturó `adb logcat`), así que la causa no está confirmada.
+  - El código: `useInclinacion` (`useAnimatedSensor` de Reanimated 4.7, gravedad a ~30 Hz) y el giro 3D con `withSpring` dentro de `useAnimatedStyle`, solo en la tarjeta del frente, con la pestaña visible y la app en primer plano. No se llegó a confirmar en el teléfono que el sensor entregue lecturas (pantalla "Sensor del Pasaporte").
+  - Por qué "Quitar animaciones" no lo evitaba: `useReducirMovimiento` empezaba en `false` hasta que Android respondía, así que en el primer render el sensor se montaba y se desmontaba enseguida. Un registro y baja del sensor casi simultáneos es una causa posible. Corregido: `Holograma` espera la respuesta (`useReducirMovimientoConocido`) antes de montarlo.
+  - También se quitaron del Pasaporte otros riesgos nativos, aunque no se confirmó que causaran el cierre: el brillo fijo ya no usa `Animated.View` de Reanimated (solo `View` y `LinearGradient`), y los sellos dejaron de usar borde punteado con `borderRadius` y `rotate` (ahora SVG). La pila nunca usó gesture-handler ni Reanimated: es un `FlatList` horizontal paginado.
+  - Para retomarlo: `EFECTO_HOLOGRAFICO = true`; probar primero en un development build y no solo en Expo Go; capturar el cierre con `adb logcat` (en PowerShell: `adb logcat *:E | Select-String "FATAL|AndroidRuntime|reanimated|worklets"`); comprobar el sensor con la pantalla "Sensor del Pasaporte"; si el problema es el sensor de Reanimated, cambiar `useInclinacion` por expo-sensors (`DeviceMotion` o `Gravity`) con las mismas reglas (solo con foco, ~30 Hz, apagado con "Reducir movimiento"). Las pruebas del efecto activo (sensor solo con la pestaña visible y sin "Reducir movimiento") se reemplazaron por la del efecto pausado: hay que volver a escribirlas.
+
+Notas:
+- Jest: Reanimated tiene un mock propio (`test/reanimatedMock.tsx`, por `moduleNameMapper`): el oficial carga la librería real y falla sin el runtime nativo, y `expo-router/testing-library` registra el suyo encima.
 
 ## ⬜ M4 · Explorar y negocios
 
@@ -199,6 +235,7 @@ Notas:
 - M18 bandeja de notificaciones (leídas/no leídas, tiempo real).
 - M19 perfil y privacidad: `compartir_historial`, ubicación, descargar mis datos (si la API lo tiene; si no, marcar como pendiente de Ley 1581), eliminar cuenta, texto grande.
 - M20 calificar visita (reseñas).
+- Documentos de la ficha (pestaña de M6 · Ficha): imágenes y PDF del historial (`archivos`, URL firmada que vence), visor y descarga. Pasó de M3 a esta fase (plan de M3, noviembre 2026).
 
 ## ⬜ M7 · Compartir pasaporte — requiere API nueva
 

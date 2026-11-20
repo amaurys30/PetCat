@@ -46,3 +46,7 @@ export type DatosMascota = Body<"/mascotas", "post">;
 export type CambiosMascota = Body<"/mascotas/{id_mascota}", "patch">;
 export type Especie = NonNullable<DatosMascota["especie"]>;
 export type Sexo = NonNullable<DatosMascota["sexo"]>;
+
+export type Vacuna = Schemas["Vacuna"];
+export type EstadoVacuna = Vacuna["estado"];
+export type RegistroHistorial = Schemas["RegistroHistorial"];

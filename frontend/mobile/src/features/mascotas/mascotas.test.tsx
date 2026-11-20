@@ -136,7 +136,7 @@ describe("M4 · Inicio", () => {
     await renderApp("/");
     await fireEvent.press(await screen.findByRole("button", { name: "Abrir el Pasaporte PetCat de Luna" }));
     expect(screen).toHavePathname("/carnet");
-    expect(await screen.findByText(/Pasaporte PetCat de Luna/)).toBeOnTheScreen();
+    expect(await screen.findByLabelText(/^Pasaporte PetCat de Luna\. Número /)).toBeOnTheScreen();
   });
 
   it("si la API falla: error con Reintentar", async () => {

@@ -63,7 +63,7 @@ export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
 
           if (route.name === RUTA_CARNET) {
             return (
-              <View key={route.key} pointerEvents="box-none" className="flex-1">
+              <View key={route.key} pointerEvents="box-none" className="flex-1 items-center justify-end">
                 <CarnetTabButton seleccionada={seleccionada} onPress={onPress} onLongPress={onLongPress} />
               </View>
             );
