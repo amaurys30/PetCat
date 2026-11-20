@@ -98,6 +98,12 @@ describe("GET /negocios (búsqueda pública)", () => {
         id_sucursal: cercana.id_sucursal,
         nombre: "Cercana",
         direccion: cercana.direccion,
+        latitud: Number(cercana.latitud),
+        longitud: Number(cercana.longitud),
+        // Sin horario cargado: cerrada.
+        abierto_ahora: false,
+        cierra_a: null,
+        abre_hoy_a: null,
       });
       expect(res.body.data[1].distancia_km).toBeCloseTo(5, 1);
 

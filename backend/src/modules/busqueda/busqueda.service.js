@@ -8,6 +8,7 @@ import { castFields, toBool, toNumber } from "../../shared/utils/format.js";
 import { redondearKm } from "../../shared/utils/geo.js";
 import { conMiniaturas } from "../../shared/utils/storage.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
+import { estadoApertura, momento } from "./apertura.js";
 
 const RADIO_POR_DEFECTO_KM = 10;
 
@@ -18,17 +19,34 @@ const geoDe = async ({ lat, lng, radio_km }) => {
   return { lat, lng, radio_km: radio_km ?? Math.min(porDefecto, RADIO_MAX_KM) };
 };
 
-const sucursalCercana = (row) =>
-  row.sc_id_sucursal ? { id_sucursal: row.sc_id_sucursal, nombre: row.sc_nombre, direccion: row.sc_direccion } : null;
+/**
+ * Sucursal más cercana con sus coordenadas (las del negocio si la sucursal no las tiene) y si
+ * está abierta ahora. `horarios`: rangos de hoy por sucursal (horariosDelDia).
+ */
+const sucursalCercana = (row, horarios, hora) =>
+  row.sc_id_sucursal
+    ? {
+        id_sucursal: row.sc_id_sucursal,
+        nombre: row.sc_nombre,
+        direccion: row.sc_direccion,
+        latitud: toNumber(row.sc_latitud),
+        longitud: toNumber(row.sc_longitud),
+        ...estadoApertura(horarios[row.sc_id_sucursal] ?? [], hora),
+      }
+    : null;
 
-const formatNegocio = ({ sc_id_sucursal, sc_nombre, sc_direccion, ...row }) => ({
+const formatNegocio = ({ sc_id_sucursal, sc_nombre, sc_direccion, sc_latitud, sc_longitud, ...row }, horarios, hora) => ({
   ...conMiniaturas(castFields(row, { bools: ["verificado", "destacado", "confirmacion_automatica"], numbers: ["calificacion_promedio"] })),
   distancia_km: redondearKm(row.distancia_km),
-  sucursal_cercana: sucursalCercana({ sc_id_sucursal, sc_nombre, sc_direccion }),
+  sucursal_cercana: sucursalCercana({ sc_id_sucursal, sc_nombre, sc_direccion, sc_latitud, sc_longitud }, horarios, hora),
 });
 
+/** Rangos de hoy de las sucursales cercanas de la página. */
+const horariosDeHoy = (rows, dia_semana) =>
+  busquedaRepo.horariosDelDia([...new Set(rows.map((r) => r.sc_id_sucursal).filter(Boolean))], dia_semana);
+
 /** Servicio en el formato público de la app (búsqueda y detalle). */
-const formatServicio = (row) => ({
+const formatServicio = (row, horarios = {}, hora = "00:00:00") => ({
   id_servicio: row.id_servicio,
   nombre: row.nombre,
   descripcion: row.descripcion,
@@ -57,28 +75,37 @@ const formatServicio = (row) => ({
   reservable: toBool(row.reservable),
   ...("distancia_km" in row && {
     distancia_km: redondearKm(row.distancia_km),
-    sucursal_cercana: sucursalCercana(row),
+    sucursal_cercana: sucursalCercana(row, horarios, hora),
   }),
 });
 
-export const buscarNegocios = async ({ page, limit, lat, lng, radio_km, ...filtros }) => {
+/**
+ * `abierto_ahora`: con coordenadas, la sucursal más cercana está abierta (la misma cuyo estado
+ * se devuelve); sin coordenadas, alguna sucursal activa lo está. Hora de Bogotá, sin festivos.
+ */
+export const buscarNegocios = async ({ page, limit, lat, lng, radio_km, abierto_ahora, ...filtros }, ahora = new Date()) => {
+  const { dia_semana, hora } = momento(ahora);
   const { rows, total } = await busquedaRepo.buscarNegocios({
     ...filtros,
     geo: await geoDe({ lat, lng, radio_km }),
+    abierto: abierto_ahora ? { dia_semana, hora } : null,
     limit,
     offset: (page - 1) * limit,
   });
-  return { rows: rows.map(formatNegocio), meta: buildMeta(total, page, limit) };
+  const horarios = await horariosDeHoy(rows, dia_semana);
+  return { rows: rows.map((row) => formatNegocio(row, horarios, hora)), meta: buildMeta(total, page, limit) };
 };
 
-export const buscarServicios = async ({ page, limit, lat, lng, radio_km, ...filtros }) => {
+export const buscarServicios = async ({ page, limit, lat, lng, radio_km, ...filtros }, ahora = new Date()) => {
+  const { dia_semana, hora } = momento(ahora);
   const { rows, total } = await busquedaRepo.buscarServicios({
     ...filtros,
     geo: await geoDe({ lat, lng, radio_km }),
     limit,
     offset: (page - 1) * limit,
   });
-  return { rows: rows.map(formatServicio), meta: buildMeta(total, page, limit) };
+  const horarios = await horariosDeHoy(rows, dia_semana);
+  return { rows: rows.map((row) => formatServicio(row, horarios, hora)), meta: buildMeta(total, page, limit) };
 };
 
 /** Detalle público: 404 si no existe, está inactivo u oculto, o su negocio está inactivo. */

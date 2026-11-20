@@ -16,7 +16,8 @@ const partesGeo = (geo) => {
       withSql: "",
       withValues: [],
       join: "",
-      columnas: "NULL AS distancia_km, NULL AS sc_id_sucursal, NULL AS sc_nombre, NULL AS sc_direccion",
+      columnas:
+        "NULL AS distancia_km, NULL AS sc_id_sucursal, NULL AS sc_nombre, NULL AS sc_direccion, NULL AS sc_latitud, NULL AS sc_longitud",
     };
   }
   const { sql, values } = cercaniaCTE(geo);
@@ -25,7 +26,8 @@ const partesGeo = (geo) => {
     withValues: values,
     join: `JOIN cercania ce ON ce.id_negocio = n.id_negocio
            LEFT JOIN sucursales sc ON sc.id_sucursal = ce.id_sucursal`,
-    columnas: "ce.distancia_km, sc.id_sucursal AS sc_id_sucursal, sc.nombre AS sc_nombre, sc.direccion AS sc_direccion",
+    columnas: `ce.distancia_km, sc.id_sucursal AS sc_id_sucursal, sc.nombre AS sc_nombre, sc.direccion AS sc_direccion,
+               ce.latitud AS sc_latitud, ce.longitud AS sc_longitud`,
   };
 };
 
@@ -45,13 +47,19 @@ const pagina = async ({ withSql, withValues, select, from, where, valores, orden
 
 // ---------- Negocios ----------
 
+/** La sucursal (`columna`) tiene un rango de horario activo que incluye el momento. */
+const sqlAbierta = (columna) => `EXISTS (SELECT 1 FROM horarios_negocio h
+  WHERE h.id_sucursal = ${columna} AND h.activo = TRUE
+    AND h.dia_semana = ? AND h.hora_apertura <= ? AND h.hora_cierre > ?)`;
+
 /**
  * Negocios activos con al menos una sucursal activa. Filtros: `q` (nombre o
- * descripción), `tipo`, `id_categoria` (tiene servicios visibles de esa
- * categoría) y `geo` ({ lat, lng, radio_km }).
+ * descripción), `tipo` (uno o varios), `id_categoria` (tiene servicios visibles de esa
+ * categoría), `geo` ({ lat, lng, radio_km }) y `abierto` ({ dia_semana, hora }: con geo, la
+ * sucursal más cercana está abierta; sin geo, alguna sucursal activa lo está).
  * Orden: destacados primero; luego distancia (con geo) o calificación y reseñas.
  */
-export const buscarNegocios = async ({ q, tipo, id_categoria, geo, limit, offset }) => {
+export const buscarNegocios = async ({ q, tipo, id_categoria, geo, abierto, limit, offset }) => {
   const partes = partesGeo(geo);
   const condiciones = ["n.activo = TRUE", SQL_CON_SUCURSAL];
   const valores = [];
@@ -59,9 +67,18 @@ export const buscarNegocios = async ({ q, tipo, id_categoria, geo, limit, offset
     condiciones.push("(n.nombre LIKE ? OR n.descripcion LIKE ?)");
     valores.push(likeLiteral(q), likeLiteral(q));
   }
-  if (tipo) {
-    condiciones.push("n.tipo = ?");
+  if (tipo?.length) {
+    condiciones.push("n.tipo IN (?)");
     valores.push(tipo);
+  }
+  if (abierto) {
+    condiciones.push(
+      geo
+        ? sqlAbierta("ce.id_sucursal")
+        : `EXISTS (SELECT 1 FROM sucursales sa2 WHERE sa2.id_negocio = n.id_negocio AND sa2.activo = TRUE
+                   AND ${sqlAbierta("sa2.id_sucursal")})`
+    );
+    valores.push(abierto.dia_semana, abierto.hora, abierto.hora);
   }
   if (id_categoria) {
     condiciones.push(`EXISTS (SELECT 1 FROM servicios s
@@ -157,4 +174,19 @@ export const findServicioPublico = async (id_servicio) => {
     [id_servicio]
   );
   return rows[0];
+};
+
+// ---------- Horarios ----------
+
+/** Rangos activos de ese día de la semana para esas sucursales: { [id_sucursal]: [rango] }. */
+export const horariosDelDia = async (ids_sucursal, dia_semana) => {
+  if (ids_sucursal.length === 0) return {};
+  const [rows] = await db.query(
+    `SELECT id_sucursal, hora_apertura, hora_cierre FROM horarios_negocio
+     WHERE activo = TRUE AND dia_semana = ? AND id_sucursal IN (?)`,
+    [dia_semana, ids_sucursal]
+  );
+  const porSucursal = {};
+  for (const { id_sucursal, ...rango } of rows) (porSucursal[id_sucursal] ??= []).push(rango);
+  return porSucursal;
 };
