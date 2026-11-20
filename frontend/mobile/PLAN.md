@@ -169,7 +169,7 @@ Notas:
 - La caché se guarda con `@tanstack/react-query-persist-client` en AsyncStorage, un persister por sesión (su throttle guarda estado) que deja de escribir al cerrar sesión.
 - Jest: TanStack avisa a las pantallas con un `setTimeout(0)`, que con `renderRouter` es falso; si una prueba lee la caché directamente, avanzar los timers antes de tocar la pantalla.
 
-## 🟨 M3 · Pasaporte PetCat (pieza principal)
+## ✅ M3 · Pasaporte PetCat (pieza principal)
 
 - M7 tarjeta Pasaporte: degradado, brillo holográfico que reacciona al giroscopio (Reanimated + expo-sensors; desactivado con "Reducir movimiento"), foto, número `PC-AAAA-NNNNN`, microchip, QR, línea tipo MRZ.
 - Pila deslizable cuando hay varias mascotas.
@@ -199,8 +199,8 @@ Hecho:
 - [x] Pruebas: 296 (pasaporte y línea de vida con MSW, lógica de sellos, anillo, etiquetas y línea de vida, contraste AA de los colores nuevos sobre el fondo oscuro). Contrato comprobado contra la demo.
 - [x] `npm run lint`, `npm run typecheck`, `npm test`, `npx expo install --check`, `npx expo-doctor` (20/20) y el bundle de Android en verde.
 
-Falta para cerrar M3:
-- [ ] Última prueba en el teléfono (con el efecto pausado).
+Cierre (2026-11-20):
+- [x] Probada en Android con Expo Go, con el efecto pausado: sin cierres en unas 10 aperturas, con y sin "Quitar animaciones"; sellos, botones Compartir y PDF, enlace "Ver línea de vida" y etiqueta "Carnet" bien. M3 terminada.
 
 Queda para después (no bloquea M3):
 - [ ] Maestro: `e2e/pasaporte.yaml` (pendiente de instalar Maestro, como en M1).
