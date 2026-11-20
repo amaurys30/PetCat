@@ -1,7 +1,7 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useIsFocused } from "expo-router";
 import { useEffect, useState, type ReactNode } from "react";
-import { AppState, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { AppState, StyleSheet, View } from "react-native";
 import Animated, {
   SensorType,
   useAnimatedSensor,
@@ -12,18 +12,23 @@ import Animated, {
   type SharedValue,
 } from "react-native-reanimated";
 
-import { useReducirMovimiento } from "@/lib/movimiento";
+import { useReducirMovimientoConocido } from "@/lib/movimiento";
 
 // Efecto holográfico del Pasaporte (M3). Decorativo: oculto al lector y sin información.
-//
-// Batería y rendimiento:
+
+/**
+ * PAUSADO (cierre de M3): hubo cierres nativos de la app en Android con el Pasaporte, también con
+ * "Quitar animaciones" activado. Con esto en false la tarjeta tiene solo el brillo fijo y en el
+ * Pasaporte no se monta nada de Reanimated (ni el sensor ni el giro 3D). Para retomarlo: ponerlo
+ * en true y seguir lo anotado en PLAN.md ("Efecto holográfico del Pasaporte").
+ */
+export const EFECTO_HOLOGRAFICO = false;
+
+// Batería y rendimiento (cuando está activo):
 // - El sensor solo existe mientras el efecto está montado: con la pestaña visible, la app en
-//   primer plano y sin "Reducir movimiento". Al salir se desmonta y Reanimated lo apaga.
-// - ~30 lecturas por segundo, en el hilo de UI (useAnimatedSensor): sin pasar por JavaScript
-//   ni provocar renders de React.
+//   primer plano y sabiendo ya que no hay "Reducir movimiento". Al salir se desmonta y se apaga.
+// - ~30 lecturas por segundo, en el hilo de UI (useAnimatedSensor), sin renders de React.
 // - Solo la tarjeta del frente lo tiene.
-//
-// Si el sensor no existe (o no responde en el dispositivo), queda el brillo fijo.
 // Para cambiar a expo-sensors basta reemplazar useInclinacion.
 
 const INTERVALO_MS = 33; // ~30 Hz
@@ -71,25 +76,28 @@ const COLORES_BRILLO = [
   "rgba(255,255,255,0)",
 ] as const;
 
-function Brillo({ estilo }: { estilo?: StyleProp<ViewStyle> | ReturnType<typeof useAnimatedStyle> }) {
+function Degradado() {
+  return (
+    <LinearGradient
+      colors={COLORES_BRILLO}
+      locations={[0.3, 0.45, 0.55, 0.7]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={StyleSheet.absoluteFill}
+    />
+  );
+}
+
+/** Capa recortada a la forma de la tarjeta, oculta al lector y sin recibir toques. */
+function Capa({ radio, children }: { radio: number; children: ReactNode }) {
   return (
     <View
       pointerEvents="none"
-      style={StyleSheet.absoluteFill}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
+      style={[StyleSheet.absoluteFill, { borderRadius: radio, overflow: "hidden" }]}
     >
-      <Animated.View
-        style={[{ position: "absolute", top: 0, bottom: 0, left: "-50%", width: "200%" }, estilo]}
-      >
-        <LinearGradient
-          colors={COLORES_BRILLO}
-          locations={[0.3, 0.45, 0.55, 0.7]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-      </Animated.View>
+      {children}
     </View>
   );
 }
@@ -109,19 +117,21 @@ function ConSensor({ children, radio }: { children: ReactNode; radio: number }) 
   return (
     <Animated.View style={[{ borderRadius: radio }, tarjeta]} testID="pasaporte-efecto-activo">
       {children}
-      <View
-        pointerEvents="none"
-        style={[StyleSheet.absoluteFill, { borderRadius: radio, overflow: "hidden" }]}
-      >
-        <Brillo estilo={brillo} />
-      </View>
+      <Capa radio={radio}>
+        <Animated.View
+          style={[{ position: "absolute", top: 0, bottom: 0, left: "-50%", width: "200%" }, brillo]}
+        >
+          <Degradado />
+        </Animated.View>
+      </Capa>
     </Animated.View>
   );
 }
 
 /**
- * Tarjeta con efecto holográfico. `activo` = es la tarjeta del frente. El sensor solo se monta si
- * además la pantalla se ve y no hay "Reducir movimiento"; si no, brillo fijo.
+ * Tarjeta con su brillo. Brillo fijo (sin Reanimated: solo View y LinearGradient) salvo que el
+ * efecto esté activo (EFECTO_HOLOGRAFICO), sea la tarjeta del frente, la pantalla se vea y ya se
+ * sepa que no hay "Reducir movimiento" (antes de la respuesta del sistema no se monta el sensor).
  */
 export function Holograma({
   children,
@@ -133,17 +143,16 @@ export function Holograma({
   radio: number;
 }) {
   const visible = useVisible();
-  const reducir = useReducirMovimiento();
-  if (activo && visible && !reducir) return <ConSensor radio={radio}>{children}</ConSensor>;
+  const reducir = useReducirMovimientoConocido();
+  if (EFECTO_HOLOGRAFICO && activo && visible && reducir === false) {
+    return <ConSensor radio={radio}>{children}</ConSensor>;
+  }
   return (
     <View style={{ borderRadius: radio }} testID="pasaporte-efecto-fijo">
       {children}
-      <View
-        pointerEvents="none"
-        style={[StyleSheet.absoluteFill, { borderRadius: radio, overflow: "hidden" }]}
-      >
-        <Brillo />
-      </View>
+      <Capa radio={radio}>
+        <Degradado />
+      </Capa>
     </View>
   );
 }

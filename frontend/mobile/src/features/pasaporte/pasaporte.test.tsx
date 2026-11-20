@@ -21,6 +21,8 @@ import {
   vacunaDemo as vacuna,
 } from "../../../test/msw/handlers";
 import { server } from "../../../test/msw/server";
+import { sensores } from "../../../test/reanimatedMock";
+import { EFECTO_HOLOGRAFICO } from "./efecto";
 
 let anuncios: string[];
 
@@ -184,25 +186,24 @@ describe("M7 · Pasaporte PetCat", () => {
     expect(screen).toHavePathname("/mascotas/nueva");
   });
 
-  it("efecto: el sensor solo con la pestaña visible; con Reducir movimiento, brillo fijo", async () => {
-    conSesion({ mascotas: [luna] });
-    await renderApp("/carnet");
-    expect(await screen.findByTestId("pasaporte-efecto-activo")).toBeOnTheScreen();
-
-    await fireEvent.press(screen.getByRole("tab", { name: "Inicio" }));
-    await waitFor(() => expect(screen.queryByTestId("pasaporte-efecto-activo")).toBeNull());
-
-    await fireEvent.press(screen.getByRole("tab", { name: "Carnet de mis mascotas" }));
-    expect(await screen.findByTestId("pasaporte-efecto-activo")).toBeOnTheScreen();
-  });
-
-  it("con Reducir movimiento no se monta el sensor", async () => {
-    jest.spyOn(AccessibilityInfo, "isReduceMotionEnabled").mockResolvedValue(true);
-    conSesion({ mascotas: [luna] });
-    await renderApp("/carnet");
-    expect(await screen.findByTestId("pasaporte-efecto-fijo")).toBeOnTheScreen();
-    expect(screen.queryByTestId("pasaporte-efecto-activo")).toBeNull();
-  });
+  it.each([
+    ["sin", false],
+    ["con", true],
+  ])(
+    "efecto holográfico pausado: brillo fijo y ningún sensor, ni un instante (%s Reducir movimiento)",
+    async (_texto, reducir) => {
+      expect(EFECTO_HOLOGRAFICO).toBe(false);
+      sensores.montados = 0;
+      jest.spyOn(AccessibilityInfo, "isReduceMotionEnabled").mockResolvedValue(reducir);
+      conSesion({ mascotas: [luna, milo] });
+      await renderApp("/carnet");
+      // Con dos mascotas la pila es un solo control para el lector: las tarjetas quedan ocultas a él.
+      const ocultas = { includeHiddenElements: true };
+      expect(await screen.findAllByTestId("pasaporte-efecto-fijo", ocultas)).toHaveLength(2);
+      expect(screen.queryByTestId("pasaporte-efecto-activo", ocultas)).toBeNull();
+      expect(sensores.montados).toBe(0);
+    },
+  );
 
   it("sin red: el Pasaporte se ve con las vacunas guardadas", async () => {
     await guardarSesionSinConexion(7, "Sofía");
