@@ -2,6 +2,8 @@ import { create } from "axios";
 
 import { env } from "@/lib/env";
 import { queryClient } from "@/lib/queryClient";
+import { borrarDatosGuardados } from "@/lib/cachePersistente";
+import { CLAVE_SELECCION, useMascotaSeleccionada } from "@/store/mascotaSeleccionada";
 import { useSesion } from "@/store/sesion";
 
 import { sesionExpirada, toApiError } from "./errors";
@@ -63,9 +65,14 @@ export async function guardarSesion({ access_token, refresh_token, usuario }: Se
   useSesion.getState().iniciar({ accessToken: access_token, usuario });
 }
 
-/** Borra tokens, estado y caché de datos (Ley 1581: nada de datos personales tras salir). */
+/**
+ * Borra tokens, estado, caché en memoria y lo guardado en el teléfono (caché de mascotas,
+ * sesión sin conexión y mascota seleccionada). Ley 1581: nada de datos personales tras salir.
+ */
 export async function cerrarSesionLocal() {
   await refreshStorage.borrar();
   useSesion.getState().limpiar();
+  useMascotaSeleccionada.getState().limpiar();
   queryClient.clear();
+  await borrarDatosGuardados([CLAVE_SELECCION]);
 }

@@ -13,7 +13,8 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { SinConexionScreen } from "@/features/sesion/SinConexionScreen";
 import { useArranque } from "@/features/sesion/useArranque";
 import { queryClient } from "@/lib/queryClient";
-import { useSesion } from "@/store/sesion";
+import { suscribirCache } from "@/lib/cachePersistente";
+import { useIdUsuario, useSesion } from "@/store/sesion";
 import { fuentes } from "@/theme/fuentes";
 import { colors } from "@/theme/tokens";
 
@@ -61,6 +62,13 @@ function Navegacion() {
   const autenticada = useSesion((s) => s.estado === "autenticada");
   const requierePolitica = useSesion((s) => s.requierePolitica);
   const recienRegistrado = useSesion((s) => s.recienRegistrado);
+  const id_usuario = useIdUsuario();
+
+  // Con sesión, las consultas de mascotas se guardan en el teléfono (24 h) para abrir sin red.
+  useEffect(() => {
+    if (!id_usuario) return;
+    return suscribirCache(id_usuario);
+  }, [id_usuario]);
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.surface } }}>
@@ -69,6 +77,7 @@ function Navegacion() {
         redirectTo={autenticada ? "/aceptar-politica" : "/bienvenida"}
       >
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="mascotas" />
         <Stack.Screen name="verificar-correo" />
       </Stack.Protected>
       <Stack.Protected guard={autenticada && requierePolitica} redirectTo={autenticada ? "/" : "/bienvenida"}>

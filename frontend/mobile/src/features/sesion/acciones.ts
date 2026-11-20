@@ -2,12 +2,16 @@ import { getMe, postLogin, postLogout } from "@/api/auth";
 import { ApiError, MENSAJES, toApiError } from "@/api/errors";
 import { refreshStorage } from "@/api/refreshStorage";
 import { cerrarSesionLocal, guardarSesion, renovarSesion } from "@/api/sesion";
+import { guardarSesionSinConexion, leerSesionSinConexion, restaurarCache } from "@/lib/cachePersistente";
+import { queryClient } from "@/lib/queryClient";
+import { queryKeys } from "@/lib/queryKeys";
 import { useSesion } from "@/store/sesion";
 
 /** Tiempo máximo del arranque con sesión guardada: el splash no se queda colgado sin red. */
 export const LIMITE_ARRANQUE_MS = 8_000;
 
-export type ResultadoArranque = "autenticada" | "anonima" | "sin_conexion";
+/** `sin_conexion_con_datos`: sin red, pero con datos guardados de la cuenta: se entra en modo sin conexión. */
+export type ResultadoArranque = "autenticada" | "anonima" | "sin_conexion" | "sin_conexion_con_datos";
 
 function conLimite<T>(promesa: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -26,10 +30,11 @@ function conLimite<T>(promesa: Promise<T>, ms: number): Promise<T> {
 }
 
 /**
- * Al abrir la app: sin refresh guardado → anónima. Con refresh → renovación silenciosa y perfil
- * (para saber si falta aceptar la política). Si la API rechaza el refresh (401/403), la sesión
- * se cierra; si no hay red, tarda o el servidor falla, se conserva el refresh y se informa
- * `sin_conexion` para reintentar.
+ * Al abrir la app (y al reconectar): sin refresh guardado → anónima. Con refresh → renovación
+ * silenciosa y perfil (para saber si falta aceptar la política); la caché guardada de la cuenta
+ * se carga para mostrar algo al instante. Si la API rechaza el refresh (401/403), la sesión se
+ * cierra. Si no hay red, tarda o el servidor falla, se conserva el refresh: con datos guardados
+ * de la cuenta (menos de 24 h) se entra sin conexión; si no, `sin_conexion` para reintentar.
  */
 export async function restaurarSesion(limiteMs = LIMITE_ARRANQUE_MS): Promise<ResultadoArranque> {
   if (!(await refreshStorage.leer())) {
@@ -39,14 +44,36 @@ export async function restaurarSesion(limiteMs = LIMITE_ARRANQUE_MS): Promise<Re
   try {
     await conLimite(renovarSesion(), limiteMs);
     const perfil = await conLimite(getMe(), limiteMs);
-    useSesion.getState().setUsuario(perfil);
-    useSesion.getState().setRequierePolitica(perfil.requiere_aceptar_politica);
+    const sesion = useSesion.getState();
+    if (sesion.sinConexion && sesion.sinConexion.id_usuario !== perfil.id_usuario) queryClient.clear();
+    sesion.setUsuario(perfil);
+    sesion.setRequierePolitica(perfil.requiere_aceptar_politica);
+    await guardarSesionSinConexion(perfil.id_usuario, perfil.nombre);
+    if (!sesion.modoSinConexion) await restaurarCache(perfil.id_usuario);
     return "autenticada";
   } catch (error) {
     const apiError = toApiError(error);
     if (apiError.tipo === "sesion") return "anonima";
+    // Ya estaba sin conexión (reintento): sigue igual.
+    if (useSesion.getState().modoSinConexion) return "sin_conexion_con_datos";
+    const guardada = await leerSesionSinConexion();
+    if (guardada) {
+      await restaurarCache(guardada.id_usuario);
+      if (queryClient.getQueryData(queryKeys.mascotas.lista())) {
+        useSesion.getState().entrarSinConexion(guardada);
+        return "sin_conexion_con_datos";
+      }
+    }
     return "sin_conexion";
   }
+}
+
+/** Reintento desde el aviso "Sin conexión" o al volver la red: actualiza los datos si entra. */
+export async function reconectar() {
+  const resultado = await restaurarSesion();
+  // Sin esperar: las pantallas muestran lo guardado mientras se actualiza.
+  if (resultado === "autenticada") void queryClient.invalidateQueries({ queryKey: queryKeys.mascotas.todas() });
+  return resultado;
 }
 
 /**
@@ -64,6 +91,7 @@ export async function iniciarSesion(email: string, password: string) {
   }
   await guardarSesion(sesion);
   useSesion.getState().setRequierePolitica(requierePolitica);
+  await guardarSesionSinConexion(sesion.usuario.id_usuario, sesion.usuario.nombre);
 }
 
 /**
