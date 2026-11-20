@@ -33,3 +33,16 @@ export type Usuario = Schemas["Usuario"];
 /** Respuesta de login y de `POST /auth/refresh-token`. */
 export type SesionApi = Schemas["Sesion"];
 export type Salud = DataGet<"/health">;
+
+export type Mascota = Schemas["Mascota"];
+export type ResumenMascota = Schemas["ResumenMascota"];
+/** Mascota de `GET /mascotas?incluir=resumen` (el resumen siempre llega con incluir). */
+export type MascotaConResumen = Mascota & { resumen: ResumenMascota };
+export type EventoSalud = ResumenMascota["proximos_eventos"][number];
+export type CitaResumen = NonNullable<ResumenMascota["proxima_cita"]>;
+export type Pesos = DataGet<"/mascotas/{id_mascota}/pesos">;
+export type PuntoPeso = Pesos["puntos"][number];
+export type DatosMascota = Body<"/mascotas", "post">;
+export type CambiosMascota = Body<"/mascotas/{id_mascota}", "patch">;
+export type Especie = NonNullable<DatosMascota["especie"]>;
+export type Sexo = NonNullable<DatosMascota["sexo"]>;
