@@ -75,6 +75,18 @@ const PARES: [string, Token | typeof BLANCO, Token][] = [
   ["chip Abierto", "primary-deep", "primary-soft"],
   ["chip Cerrado", "muted", "track"],
   ["enlace Mostrando Sincelejo", "primary-strong", "surface"],
+  // M5 · Citas: estados (texto sobre su fondo), día y hora elegidos, días cerrados y la confirmación.
+  ["estado Pendiente", "sun-ink", "sun-soft"],
+  ["estado Confirmada", "primary-deep", "primary-soft"],
+  ["estado En curso", "info-ink", "info-soft"],
+  ["estado Completada", "ink", "track"],
+  ["estado Cancelada / No asististe", "danger-ink", "danger-soft"],
+  ["estado Reprogramada y día cerrado", "muted", "track"],
+  ["día u hora elegidos", "white", "primary-strong"],
+  ["mascota elegida", "primary-deep", "primary-soft"],
+  ["fecha de la cita activa", "coral-dark", "coral-soft"],
+  ["texto secundario de la confirmación", "muted", "primary-soft"],
+  ["consejos de la confirmación", "sun-ink", "sun-soft"],
 ];
 
 const valor = (t: string) => (t.startsWith("#") ? t : colors[t as Token]);

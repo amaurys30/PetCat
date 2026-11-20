@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { LinearGradient } from "expo-linear-gradient";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { BadgeCheck, ChevronLeft, Globe, MessageCircle, Navigation, Phone, Star } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import { Linking, Pressable, ScrollView, View } from "react-native";
@@ -197,12 +197,13 @@ function Sede({ sede, nombreNegocio }: { sede: SucursalPublica; nombreNegocio: s
 
 /**
  * M11 · Perfil del negocio (público): servicios con precio, reseñas e información (sedes con su
- * horario, cómo llegar y contacto). Agendar llega en M5: el botón está, deshabilitado.
+ * horario, cómo llegar y contacto). Agendar abre M12: abajo (con el primer servicio) o en cada servicio.
  */
 export function PerfilNegocioScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const id_negocio = Number(id);
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const volver = useVolver(RESPALDO.inicio);
   const [pestana, setPestana] = useState<Pestana>("servicios");
   const negocio = useQuery({
@@ -244,6 +245,12 @@ export function PerfilNegocioScreen() {
   }
 
   const desde = precioDesde(n.servicios);
+  const reservables = n.servicios.some((s) => s.reservable);
+  const agendar = (id_servicio?: number) =>
+    router.push({
+      pathname: "/negocios/[id]/agendar",
+      params: id_servicio ? { id: n.id_negocio, servicio: id_servicio } : { id: n.id_negocio },
+    });
   const direccion = principal ? `${principal.direccion}, ${principal.ciudad}` : (n.direccion ?? n.ciudad);
   const resumen = [
     n.total_resenas > 0
@@ -361,34 +368,40 @@ export function PerfilNegocioScreen() {
                     .filter(Boolean)
                     .join(". ");
                   return (
-                    <Card
-                      key={s.id_servicio}
-                      accessibilityLabel={etiqueta}
-                      className="flex-row items-center gap-3"
-                    >
-                      <View className="flex-1 gap-0.5">
-                        <Text className="font-bold">{s.nombre}</Text>
-                        <Text variante="apoyo" className="text-muted">
-                          {[s.categoria, textoDuracion(s.duracion_minutos)].join(" · ")}
-                        </Text>
-                        {!s.reservable && (
+                    <Card key={s.id_servicio} className="gap-3">
+                      <View accessible accessibilityLabel={etiqueta} className="flex-row items-center gap-3">
+                        <View className="flex-1 gap-0.5">
+                          <Text className="font-bold">{s.nombre}</Text>
                           <Text variante="apoyo" className="text-muted">
-                            Sin reserva en línea
+                            {[s.categoria, textoDuracion(s.duracion_minutos)].join(" · ")}
                           </Text>
-                        )}
+                          {!s.reservable && (
+                            <Text variante="apoyo" className="text-muted">
+                              Sin reserva en línea
+                            </Text>
+                          )}
+                        </View>
+                        <View className="items-end">
+                          <Text className="font-bold">{textoPrecio(s)}</Text>
+                          {s.oferta_vigente && (
+                            <Text
+                              variante="apoyo"
+                              className="text-muted"
+                              style={{ textDecorationLine: "line-through" }}
+                            >
+                              {formatearDinero(s.precio_base)}
+                            </Text>
+                          )}
+                        </View>
                       </View>
-                      <View className="items-end">
-                        <Text className="font-bold">{textoPrecio(s)}</Text>
-                        {s.oferta_vigente && (
-                          <Text
-                            variante="apoyo"
-                            className="text-muted"
-                            style={{ textDecorationLine: "line-through" }}
-                          >
-                            {formatearDinero(s.precio_base)}
-                          </Text>
-                        )}
-                      </View>
+                      {s.reservable && (
+                        <Button
+                          titulo="Agendar"
+                          variante="suave"
+                          accessibilityLabel={`Agendar ${s.nombre}`}
+                          onPress={() => agendar(s.id_servicio)}
+                        />
+                      )}
                     </Card>
                   );
                 })}
@@ -448,10 +461,9 @@ export function PerfilNegocioScreen() {
         )}
         <View className="flex-1">
           <Button
-            titulo="Agendar cita · Próximamente"
-            accessibilityLabel="Agendar cita. Próximamente"
-            disabled
-            onPress={() => undefined}
+            titulo={reservables ? "Agendar cita" : "Sin reservas en línea"}
+            disabled={!reservables}
+            onPress={() => agendar()}
           />
         </View>
       </View>

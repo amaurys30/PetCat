@@ -175,7 +175,7 @@ describe("M10 · Explorar", () => {
     );
 
     await fireEvent.press(screen.getByRole("button", { name: "Agendar en Peluquería Huellitas" }));
-    expect(screen).toHavePathname("/negocios/2");
+    expect(screen).toHavePathname("/negocios/2/agendar");
   });
 
   it("filtros y búsqueda van a la API", async () => {
@@ -306,7 +306,7 @@ describe("M11 · Perfil del negocio", () => {
     );
   }
 
-  it("servicios con precio (y oferta), verificado y Agendar deshabilitado hasta M5", async () => {
+  it("servicios con precio (y oferta), verificado y Agendar (abajo y en cada servicio)", async () => {
     conPerfil();
     await renderApp("/negocios/1");
 
@@ -315,7 +315,25 @@ describe("M11 · Perfil del negocio", () => {
     expect(screen.getByLabelText("Consulta general. 30 min. $45.000")).toBeOnTheScreen();
     expect(screen.getByLabelText("Vacunación. 15 min. $38.000. En oferta, antes $40.000")).toBeOnTheScreen();
     expect(screen.getByLabelText("Desde $38.000")).toBeOnTheScreen();
-    expect(screen.getByRole("button", { name: "Agendar cita. Próximamente" })).toBeDisabled();
+    await fireEvent.press(screen.getByRole("button", { name: "Agendar Vacunación" }));
+    expect(screen).toHavePathname("/negocios/1/agendar");
+    expect(screen).toHaveSearchParams({ id: "1", servicio: "2" });
+  });
+
+  it("sin servicios reservables, Agendar queda deshabilitado", async () => {
+    conPerfil();
+    server.use(
+      http.get(`${API}/negocios/:id`, () =>
+        ok(
+          negocioPublicoDemo({
+            servicios: negocioPublicoDemo().servicios.map((s) => ({ ...s, reservable: false })),
+          }),
+        ),
+      ),
+    );
+    await renderApp("/negocios/1");
+    expect(await screen.findByRole("button", { name: "Sin reservas en línea" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Agendar Consulta general" })).toBeNull();
   });
 
   it("reseñas paginadas con la respuesta del negocio", async () => {

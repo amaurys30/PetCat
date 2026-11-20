@@ -88,6 +88,8 @@ En M3 el efecto holográfico del Pasaporte usa `useAnimatedSensor` de Reanimated
 
 En M4: **react-native-webview** y **expo-location** (las dos en Expo Go). El mapa de Explorar es Leaflet + OpenStreetMap dentro del WebView, no MapLibre (decisión de M4, por la entrega). Todo lo del mapa vive en `src/features/explorar/mapa/` y la pantalla solo usa `<MapaNegocios>`: para pasar a MapLibre se reemplaza ese módulo. Leaflet va empaquetado: `leaflet` es devDependency (misma versión que el panel) y `npm run mapa:leaflet` genera `leaflet.generado.ts` (no se edita a mano; está fuera de Prettier y ESLint). El WebView solo carga su página y la CSP solo permite las imágenes del origen de `EXPO_PUBLIC_MAP_TILES_URL`: si se cambia de proveedor, revisar que el mapa cargue. En Jest, el WebView y la ubicación tienen mock (`test/webviewMock.tsx`, `test/setup.ts`).
 
+En M5 (citas, sin dependencias nuevas): agendar es `/negocios/[id]/agendar` y una cita es `/cita/[id]` (con `confirmada` y `reprogramar`), en singular para no chocar con la pestaña `/citas`. Las citas no se guardan en el teléfono (claves `["citas", ...]`) y, sin Socket.IO por ahora, se piden de nuevo al volver a la pantalla (`useRefrescarAlVolver`) y al deslizar hacia abajo. Reservar y reprogramar nunca se reintentan solos (podrían duplicar la cita). En las pruebas con MSW, un handler `GET /citas/:id` también atrapa `/citas/horarios-libres` y `/citas/mias`: usar el de `citas.test.tsx`, que solo responde a ids numéricos.
+
 **Expo Go no basta**: MapLibre y push en Android requieren **development build** (EAS Build, perfil `development`).
 Mantén la app compatible con Expo Go hasta M4 cuando sea posible, para facilitar las primeras pruebas.
 
