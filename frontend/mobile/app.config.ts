@@ -31,6 +31,14 @@ const config: ExpoConfig = {
     "expo-font",
     "expo-secure-store",
     [
+      "expo-image-picker",
+      {
+        photosPermission: "PetCat usa tus fotos para que elijas la foto de tu mascota.",
+        cameraPermission: "PetCat usa la cámara para tomar la foto de tu mascota.",
+        microphonePermission: false,
+      },
+    ],
+    [
       "expo-splash-screen",
       { backgroundColor: "#0F7D76", image: "./assets/images/splash-icon.png", imageWidth: 76 },
     ],

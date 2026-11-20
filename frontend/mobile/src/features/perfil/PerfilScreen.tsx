@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { LogOut, ShieldCheck, Wifi } from "lucide-react-native";
+import { LogOut, PawPrint, ShieldCheck, Wifi } from "lucide-react-native";
 import { useState } from "react";
 import { ScrollView, View } from "react-native";
 
@@ -55,6 +55,7 @@ export function PerfilScreen() {
           </Aviso>
         )}
 
+        <Button titulo="Mis mascotas" variante="suave" icono={PawPrint} onPress={() => router.push("/mascotas")} />
         <Button titulo="Política de datos" variante="suave" icono={ShieldCheck} onPress={abrirPolitica} />
         {__DEV__ && (
           <Button
