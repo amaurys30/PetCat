@@ -50,3 +50,11 @@ export type Sexo = NonNullable<DatosMascota["sexo"]>;
 export type Vacuna = Schemas["Vacuna"];
 export type EstadoVacuna = Vacuna["estado"];
 export type RegistroHistorial = Schemas["RegistroHistorial"];
+
+export type NegocioBusqueda = Schemas["NegocioBusqueda"];
+export type SucursalCercana = NonNullable<NegocioBusqueda["sucursal_cercana"]>;
+export type NegocioPublico = Schemas["NegocioPublico"];
+export type SucursalPublica = NegocioPublico["sucursales"][number];
+export type HorarioRango = Schemas["HorarioRango"];
+export type ServicioNegocio = NegocioPublico["servicios"][number];
+export type ResenaPublica = Schemas["ResenaPublica"];

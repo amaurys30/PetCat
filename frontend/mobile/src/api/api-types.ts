@@ -1348,7 +1348,10 @@ export interface paths {
                     limit?: components["parameters"]["limit"];
                     /** @description Busca en nombre y descripción */
                     q?: string;
-                    tipo?: "veterinaria" | "tienda_mascotas" | "peluqueria_canina" | "guarderia" | "entrenador" | "clinica" | "multiservicio";
+                    /** @description Uno o varios separados por comas (veterinaria, tienda_mascotas, peluqueria_canina, guarderia, entrenador, clinica, multiservicio). La app agrupa "veterinaria,clinica". */
+                    tipo?: string;
+                    /** @description true: solo los abiertos ahora (con coordenadas, su sucursal más cercana; sin coordenadas, alguna sucursal activa). Horario semanal en hora de Bogotá, sin festivos de Colombia. */
+                    abierto_ahora?: "true" | "false";
                     /** @description Negocios con servicios visibles de esa categoría */
                     id_categoria?: number;
                     /** @description Latitud de la búsqueda, junto con `lng`. Con coordenadas solo aparecen los negocios con coordenadas dentro del radio: los que no tienen coordenadas en ninguna sucursal activa ni en el negocio quedan fuera (el negocio debe cargar su ubicación en el panel). */
@@ -8433,6 +8436,25 @@ export interface components {
             id_sucursal: number;
             nombre: string;
             direccion: string;
+            /**
+             * @description Coordenadas del punto de la búsqueda (las del negocio si la sucursal no tiene). Para el pin del mapa.
+             * @example 9.30472
+             */
+            latitud: number;
+            /** @example -75.39778 */
+            longitud: number;
+            /** @description La sucursal está abierta ahora según su horario semanal, en hora de Bogotá. No considera festivos de Colombia (pendiente). Los bloqueos y vacaciones son de cada empleado, no de la sucursal. */
+            abierto_ahora: boolean;
+            /**
+             * @description Si está abierta
+             * @example 19:00
+             */
+            cierra_a: string | null;
+            /**
+             * @description Si está cerrada y abre más tarde hoy
+             * @example 14:00
+             */
+            abre_hoy_a: string | null;
         } | null;
         NegocioBusqueda: {
             id_negocio: number;
