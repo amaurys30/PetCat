@@ -78,9 +78,11 @@ Formatos: dinero `$45.000` (COP, sin decimales), fechas `vie 15 nov`, horas `8:3
   Aquí **no se usa Vitest** (el backend y el panel sí): Vitest no corre el código de React Native, y jest-expo trae los mocks de los módulos nativos.
 
 Versiones de M0: Expo SDK 58 (React Native 0.88, React 19.3, TypeScript 6), NativeWind 4.2 con Tailwind 3 (NativeWind 5 sigue en rc: no se usa), MSW 3.
+Dos paquetes declaran dependencias pares viejas y se instalan con `overrides` en `package.json`: `eslint-plugin-react-native-a11y` (ESLint ≤ 8, cargado con `@eslint/compat`) y `openapi-typescript` (TypeScript 5). Si alguno falla, el plugin de a11y se reemplaza por reglas propias.
 
 Agregadas en M2: **expo-image-picker** (foto de la mascota; los textos del permiso están en `app.config.ts`) y **expo-image-manipulator** (reducir a 1200 px y JPEG antes de subir); **@react-native-async-storage/async-storage**, **@tanstack/react-query-persist-client** y **@tanstack/query-async-storage-persister** (caché de mascotas para abrir sin red, `src/lib/cachePersistente.ts`; mantener sus versiones iguales a la de `@tanstack/react-query`). En Jest, AsyncStorage, el selector de fotos y el manipulador tienen mock en `test/setup.ts`.
-Dos paquetes declaran dependencias pares viejas y se instalan con `overrides` en `package.json`: `eslint-plugin-react-native-a11y` (ESLint ≤ 8, cargado con `@eslint/compat`) y `openapi-typescript` (TypeScript 5). Si alguno falla, el plugin de a11y se reemplaza por reglas propias.
+
+También en M2: **react-native-keyboard-controller** (incluido en Expo Go; `KeyboardProvider` en `app/_layout.tsx`). Con edge-to-edge en Android, `KeyboardAvoidingView` no basta: todo formulario va en `PantallaFormulario` (`KeyboardAwareScrollView`) con la acción principal en `pie` (sube con el teclado), y cada campo de una línea pasa al siguiente con "Siguiente" (`returnKeyType="next"`, `submitBehavior="submit"`, `form.setFocus`).
 
 **Expo Go no basta**: MapLibre y push en Android requieren **development build** (EAS Build, perfil `development`).
 Mantén la app compatible con Expo Go hasta M4 cuando sea posible, para facilitar las primeras pruebas.
@@ -144,6 +146,7 @@ Las pruebas van junto al código que prueban (`*.test.ts(x)` dentro de `src/`), 
 - Jest corre con `TZ=Asia/Tokyo` (`jest.config.js`) para que una fecha que dependa de la zona del equipo falle en las pruebas.
 - MSW en Jest: el SDK 58 reemplaza el `fetch` global por `expo/fetch` (un stub en Jest). `test/environment.js` guarda el `fetch` de Node y `test/setup.ts` lo restaura antes de arrancar MSW; MSW 3 usa `onUnhandledFrame` (antes `onUnhandledRequest`).
 - Pruebas de flujo con la app real: `renderApp(ruta)` y `reiniciarSesion()` de `test/app.tsx` (todas las rutas, con el arranque y las rutas protegidas). `renderRouter` activa los timers falsos; `jest.config.js` deja `nextTick` y `setImmediate` reales para que las llamadas a la API terminen.
+- NativeWind: lo que cambia con el estado (seleccionado, activo, marcado) va en `style` con los tokens, no en clases condicionales. Las clases que usan variables CSS (`shadow-*`, `ring-*`, transformaciones), transiciones, animaciones o pseudo-clases obligan a NativeWind a remontar el componente si aparecen después del primer render, y su aviso en desarrollo terminó en pantalla roja en M2 ("Couldn't find a LinkingContext context"). Para sombras, `sombras` de `tokens.ts`. Lo comprueba `src/components/ui/estadoSinRemontar.test.tsx`.
 - Formularios: React Hook Form con `Controller` (pasar `field.ref` al campo para el foco) y `useWatch` en lugar de `watch` (React Compiler omite los componentes que usan `watch`).
 
 ## 8. Comandos

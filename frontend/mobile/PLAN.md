@@ -155,6 +155,11 @@ Hecho:
 - [x] Pruebas: 210 (Inicio, Mis mascotas, Ficha, Nueva mascota con foto y cámara, Editar, Eliminar, Fallecimiento, sin conexión y cierre de sesión con MSW; lógica de edad, peso, saludo, fecha, razas, formulario; contraste AA de los colores nuevos).
 - [x] `npm run lint`, `npm run typecheck`, `npm test`, `npx expo install --check`, `npx expo-doctor` (20/20) y el bundle de Android (`expo export`) en verde.
 
+Correcciones tras la primera prueba en Android (Expo Go):
+- [x] Pantalla roja al elegir el sexo en Nueva mascota: el `shadow-sm` que el Segmented agregaba al seleccionar usa variables CSS; NativeWind tenía que remontar el componente y su aviso de desarrollo, al serializar los hijos, chocaba con el contexto de navegación. Lo que cambia al seleccionar va ahora en `style` con tokens (Segmented, Toggle, Chip, Checkbox, barra de pestañas, selectores de especie y de mascota, medidor de contraseña). Pruebas con NativeWind real: cambiar de estado no remonta, y ninguna clase de ese tipo es condicional en el código.
+- [x] El teclado tapaba los campos: `react-native-keyboard-controller` (`KeyboardAwareScrollView`) en todos los formularios (Crear cuenta, Iniciar sesión, Recuperar, código, confirmar correo, Nueva mascota, Editar, Fallecimiento); el botón principal queda encima del teclado y "Siguiente" pasa de campo en campo.
+- [x] `unstable_settings.anchor` en lugar de `initialRouteName` (obsoleto) en `(auth)`.
+
 Falta para cerrar M2:
 - [ ] Probarla en el teléfono (Expo Go) contra `backend-demo`.
 
