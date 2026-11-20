@@ -1,0 +1,36 @@
+# Agendar una cita de punta a punta contra la API de demo (petcat_demo) y cancelarla al final
+# para dejar la demo como estaba. Local, no en CI. Requiere el mapa (Explorar) o su lista.
+#   maestro test -e EXPO_URL=exp://192.168.1.50:8081 -e PASSWORD=<la del README> e2e/agendar-cita.yaml
+# Con la development build el appId es co.petcat.app y sobra el openLink.
+appId: host.exp.exponent
+env:
+  EXPO_URL: exp://127.0.0.1:8081
+---
+- runFlow: login.yaml
+- tapOn: "Explorar"
+- extendedWaitUntil:
+    visible: "Ver lista"
+    timeout: 20000
+- tapOn: "Ver lista"
+- tapOn: "Agendar en Clínica Veterinaria Patitas"
+- extendedWaitUntil:
+    visible: "Agendar cita"
+    timeout: 15000
+- assertVisible: "¿Para quién?"
+# La primera hora libre del primer día abierto (las horas son "8:30", los días no llevan dos puntos).
+- extendedWaitUntil:
+    visible: "[0-9]{1,2}:[0-9]{2}"
+    timeout: 15000
+- tapOn:
+    text: "[0-9]{1,2}:[0-9]{2}"
+    index: 0
+- tapOn: "Confirmar cita"
+- extendedWaitUntil:
+    visible: "¡(Solicitud enviada|Cita agendada)!"
+    timeout: 15000
+- tapOn: "Ver mis citas"
+- assertVisible: "Mis citas"
+- tapOn:
+    text: "Cancelar"
+    index: 0
+- tapOn: "Sí, cancelar"

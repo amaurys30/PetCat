@@ -246,13 +246,35 @@ Cierre (2026-11-20):
 Notas:
 - `react-native-webview` 14.0.1 tipa mal su clase (`WebView<P = undefined>` con props `WebViewProps & P`, que con TypeScript estricto es `never`): `MapaNegocios.tsx` usa un alias bien tipado del mismo componente.
 
-## ⬜ M5 · Reservas y citas
+## 🟨 M5 · Reservas y citas
 
 - M12 agendar: mascota, servicio, días con disponibilidad, franjas (ocupadas tachadas + etiqueta), resumen fijo abajo.
 - M13 confirmación (confeti respetando "Reducir movimiento"), añadir al calendario del teléfono.
 - M17 mis citas: próximas/pasadas, reprogramar, cancelar, cómo llegar.
 - Actualización en vivo con Socket.IO (`agenda_actualizada`).
 - Maestro: agendar cita de punta a punta.
+
+### Resultado de M5 (rama `mobile/m5-citas`)
+
+Sin cambios en el backend: la API ya tenía horas libres, reservar, mis citas, detalle, cancelar y reprogramar (el dueño, hasta 2 horas antes). La demo ya tiene horas libres en los próximos 14 días (horarios semanales y citas con fechas relativas a `CURDATE()`), así que el seed no cambió.
+
+Decisiones (entrega cercana, aprobadas): solo se muestran las horas libres, sin las ocupadas tachadas (la API no las da; si no hay ninguna, el `motivo_sin_horarios` de la API); sin puntos de disponibilidad por día (serían 14 consultas); reprogramar sí entra; sin Socket.IO: las citas se piden de nuevo al volver a la pantalla y al deslizar hacia abajo; sin "Añadir al calendario" ni la tarjeta "Sin agendar" del mockup.
+
+Hecho:
+- [x] M12 · Agendar (`/negocios/[id]/agendar?servicio=`): mascota (las que el servicio no atiende por especie, deshabilitadas con el motivo; el peso lo valida la API), servicio con "Cambiar", sede si hay varias, 14 días (los que la sede no abre dicen "Cerrado") y horas libres en Mañana, Tarde y Noche; resumen fijo abajo con "Confirmar cita". Se abre desde el perfil (abajo y en cada servicio) y desde la tarjeta del mapa.
+- [x] 409 al confirmar: "Esa hora se acaba de ocupar. Elige otra de las horas libres." (o el mensaje de la API en otros conflictos), anunciado al lector, y se vuelven a pedir las horas libres. 422 de la mascota junto a la mascota. Sin respuesta: no se reintenta solo (podría duplicar la cita) y pide revisar Mis citas.
+- [x] M13 · Confirmación (`/cita/[id]/confirmada`): "¡Cita agendada!", "¡Solicitud enviada!" si el negocio debe confirmarla, o "¡Cita reprogramada!"; ticket y consejos. Confeti con `Animated` de React Native (sin Reanimated), solo sin "Reducir movimiento".
+- [x] M17 · Mis citas (pestaña Citas): Próximas y Pasadas, agrupadas en "Esta semana" y por mes; estado en texto; Cómo llegar, Reprogramar (hasta 2 horas antes) y Cancelar con confirmación (avisa si será cancelación tardía). Detalle de la cita (`/cita/[id]`) con el aviso de confirmación pendiente y quién canceló.
+- [x] Reprogramar (`/cita/[id]/reprogramar`): la misma pantalla de agendar con la mascota, el servicio y la sede de la cita.
+- [x] Inicio: la próxima cita abre su detalle.
+- [x] Accesibilidad: mascotas, días y horas como grupos de radios con su estado; cada cita es un botón con todo en la etiqueta y sus acciones aparte; contraste AA de los colores de estado.
+- [x] Pruebas: 369 (flujo completo, 409, sin red, día sin horas, mascotas no compatibles, sedes, reprogramar, cancelar tardía, Mis citas vacía y con error, Inicio; lógica de días, horas, reglas de 2 horas y grupos). Prueba de humo contra backend-demo: reservar, 409 en la misma hora, mis citas, detalle sin notas internas, reprogramar y cancelar.
+- [x] Maestro: `e2e/agendar-cita.yaml` (agenda y cancela, para dejar la demo igual). Escrito, sin correr todavía.
+
+Pendientes:
+- [ ] Tiempo real con Socket.IO (`agenda_actualizada`, `cita_confirmada`): hoy se refresca al volver a la pantalla y al deslizar.
+- [ ] Horas ocupadas tachadas (requiere que `GET /citas/horarios-libres` las devuelva) y puntos de disponibilidad por día.
+- [ ] "Añadir al calendario" del teléfono y la tarjeta "Sin agendar" sugerida por el pasaporte.
 
 ## ⬜ M6 · Notificaciones y perfil
 
