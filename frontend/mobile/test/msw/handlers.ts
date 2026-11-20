@@ -143,6 +143,122 @@ export function registroDemo(cambios: Partial<RegistroHistorial> = {}): Registro
   } as RegistroHistorial;
 }
 
+/** Negocio de GET /negocios (búsqueda), con su sucursal cercana. */
+export function negocioBusquedaDemo(
+  cambios: Record<string, unknown> = {},
+  sucursal: Record<string, unknown> = {},
+) {
+  return {
+    id_negocio: 1,
+    nombre: "Clínica Vet Sabanas",
+    tipo: "veterinaria",
+    descripcion: null,
+    ciudad: "Sincelejo",
+    logo_url: null,
+    logo_miniatura_url: null,
+    calificacion_promedio: 4.9,
+    total_resenas: 128,
+    verificado: true,
+    destacado: false,
+    confirmacion_automatica: false,
+    distancia_km: 1.23,
+    sucursal_cercana: {
+      id_sucursal: 10,
+      nombre: "Principal",
+      direccion: "Cra. 25 #18-40",
+      latitud: 9.3047,
+      longitud: -75.3978,
+      abierto_ahora: true,
+      cierra_a: "19:00",
+      abre_hoy_a: null,
+      ...sucursal,
+    },
+    ...cambios,
+  };
+}
+
+/** Perfil público de GET /negocios/:id. */
+export function negocioPublicoDemo(cambios: Record<string, unknown> = {}) {
+  return {
+    id_negocio: 1,
+    nombre: "Clínica Vet Sabanas",
+    tipo: "veterinaria",
+    descripcion: "Atención para perros y gatos.",
+    telefono: "6052800000",
+    whatsapp: "3001234567",
+    email: null,
+    sitio_web: null,
+    direccion: "Cra. 25 #18-40",
+    ciudad: "Sincelejo",
+    departamento: "Sucre",
+    latitud: 9.3047,
+    longitud: -75.3978,
+    logo_url: null,
+    logo_miniatura_url: null,
+    banner_url: null,
+    calificacion_promedio: 4.9,
+    total_resenas: 128,
+    verificado: true,
+    confirmacion_automatica: false,
+    sucursales: [
+      {
+        id_sucursal: 10,
+        id_negocio: 1,
+        nombre: "Principal",
+        descripcion: null,
+        telefono: "6052800000",
+        direccion: "Cra. 25 #18-40",
+        ciudad: "Sincelejo",
+        latitud: 9.3047,
+        longitud: -75.3978,
+        es_principal: true,
+        horarios: [1, 2, 3, 4, 5].flatMap((d) => [
+          { dia_semana: d, hora_apertura: "08:00", hora_cierre: "12:00" },
+          { dia_semana: d, hora_apertura: "14:00", hora_cierre: "18:00" },
+        ]),
+      },
+    ],
+    servicios: [
+      {
+        id_servicio: 1,
+        nombre: "Consulta general",
+        descripcion: null,
+        precio_base: 45000,
+        precio_maximo: null,
+        tipo_precio: "fijo",
+        duracion_minutos: 30,
+        tipo_mascota: ["perro", "gato"],
+        en_oferta: false,
+        precio_oferta: null,
+        precio_actual: 45000,
+        oferta_vigente: false,
+        reservable: true,
+        id_categoria: 1,
+        categoria: "Consulta",
+      },
+      {
+        id_servicio: 2,
+        nombre: "Vacunación",
+        descripcion: null,
+        precio_base: 40000,
+        precio_maximo: null,
+        tipo_precio: "fijo",
+        duracion_minutos: 15,
+        tipo_mascota: ["perro"],
+        en_oferta: true,
+        precio_oferta: 38000,
+        precio_actual: 38000,
+        oferta_vigente: true,
+        reservable: true,
+        id_categoria: 2,
+        categoria: "Vacunación",
+      },
+    ],
+    resenas_recientes: [],
+    ...cambios,
+  };
+}
+
 // Handlers por defecto. Cada prueba agrega los suyos con server.use(...).
 // Las pestañas abren Inicio, que pide las mascotas: por defecto, sin mascotas.
 export const handlers = [
@@ -153,6 +269,14 @@ export const handlers = [
   http.get(`${API}/mascotas`, () => ok([])),
   http.get(`${API}/mascotas/:id/pesos`, () => ok({ peso_actual: null, puntos: [] })),
   http.get(`${API}/mascotas/:id/vacunas`, () => ok([])),
+  http.get(`${API}/negocios`, () =>
+    HttpResponse.json({
+      success: true,
+      message: "OK",
+      data: [],
+      meta: { total: 0, page: 1, limit: 100, totalPages: 0, hasNext: false },
+    }),
+  ),
   http.get(`${API}/mascotas/:id/historial`, () =>
     HttpResponse.json({
       success: true,

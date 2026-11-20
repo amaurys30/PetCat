@@ -25,6 +25,8 @@ import EditarMascota from "../app/mascotas/[id]/editar";
 import Fallecimiento from "../app/mascotas/[id]/fallecimiento";
 import LineaDeVida from "../app/mascotas/[id]/linea-vida";
 import Sensor from "../app/dev/sensor";
+import NegociosLayout from "../app/negocios/_layout";
+import PerfilNegocio from "../app/negocios/[id]";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { refreshStorage } from "@/api/refreshStorage";
@@ -59,6 +61,8 @@ export const RUTAS = {
   "mascotas/[id]/fallecimiento": Fallecimiento,
   "mascotas/[id]/linea-vida": LineaDeVida,
   "dev/sensor": Sensor,
+  "negocios/_layout": NegociosLayout,
+  "negocios/[id]": PerfilNegocio,
 };
 
 /** Estado limpio entre pruebas: sin sesión en memoria, sin refresh guardado y sin caché. */
