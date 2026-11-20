@@ -80,7 +80,10 @@ export function RecuperarCodigoScreen() {
   };
 
   return (
-    <PantallaFormulario cabecera={<ScreenHeader titulo="Escribe el código" volverA={RESPALDO.recuperar} />}>
+    <PantallaFormulario
+      cabecera={<ScreenHeader titulo="Escribe el código" volverA={RESPALDO.recuperar} />}
+      pie={<Button titulo="Guardar y entrar" cargando={form.formState.isSubmitting} onPress={enviar} />}
+    >
       <Text className="text-muted">
         Si {email} tiene una cuenta, le enviamos un código de 6 dígitos. Vence en 15 minutos.
       </Text>
@@ -127,7 +130,6 @@ export function RecuperarCodigoScreen() {
       {error && <Aviso tono="error">{error}</Aviso>}
       {info && <Aviso tono="info">{info}</Aviso>}
 
-      <Button titulo="Guardar y entrar" cargando={form.formState.isSubmitting} onPress={enviar} />
       <Enlace
         rol="button"
         titulo={reenviando ? "Enviando…" : "Reenviar código"}

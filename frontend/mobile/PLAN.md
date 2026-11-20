@@ -131,11 +131,43 @@ Notas:
 - Jest: `renderRouter` activa los timers falsos; `jest.config.js` deja `nextTick` y `setImmediate` reales (si no, ninguna llamada a la API termina en las pruebas de flujo).
 - Contraseñas del seed: `backend/README.md`, "Usuarios de prueba". En la demo de este equipo la de `cliente@petcat.test` ya no coincidía con el seed (se cambió después de cargarlo): recargar la demo antes de correr Maestro.
 
-## ⬜ M2 · Inicio y mascotas
+## ✅ M2 · Inicio y mascotas
 
 - M4 inicio: selector de mascota, héroe de mascota, próxima cita, recordatorios, accesos rápidos.
 - M5 mis mascotas, M6 ficha (resumen, peso, datos clave), M21 agregar/editar mascota (foto con Cloudinary según la API actual).
 - Estados vacíos (usuario sin mascotas → invitar a agregar).
+
+### Resultado de M2 (rama `mobile/m2-mascotas`)
+
+Backend primero: PR #18 (`api/mascotas-resumen`, fusionado): `GET /mascotas?incluir=resumen` (resumen de salud en lote: estado de vacunas, próximos eventos y próxima cita), tabla `mascota_pesos` (migración 029) con `GET /mascotas/:id/pesos` solo para el dueño, y la invitación a reseñar se anula si la mascota falleció.
+
+Hecho:
+- [x] M4 · Inicio: saludo según la hora de Bogotá, selector de mascotas (radio, con "+" para agregar), héroe con peso, vacunas y lo próximo, "Abrir su Pasaporte PetCat" (va a la pestaña Carnet con esa mascota), próxima cita o "no tiene citas próximas", recordatorios solo si hay. Sin campana, evento destacado ni accesos a fases futuras.
+- [x] Mascota seleccionada recordada (Zustand persistido): si ya no está, falleció o es de otra cuenta, se muestra la primera viva; sin mascotas vivas, estado vacío.
+- [x] M5 · Mis mascotas: tarjetas con una sola etiqueta para el lector y botón Carnet aparte; las que están «En memoria» al final; "¿Tienes otra mascota?".
+- [x] M6 · Ficha (pestaña Resumen; Historial y Documentos llegan en M3): edad, peso y sexo, gráfico de peso de 6 meses descrito en texto ("Subió 0,6 kg en 3 meses, de 27,8 a 28,4 kg…") con su propio error y Reintentar, datos clave. "Tamaño" no existe en la API: no se muestra.
+- [x] M21 · Nueva mascota en 2 pasos (React Hook Form + Zod con las reglas de la API): Perro/Gato/Otro (Otro muestra conejo, ave, reptil, roedor, pez u otro), raza con sugerencias locales y texto libre, fecha dd/mm/aaaa con teclado numérico. 422 → error en su campo (vuelve al paso 1 si hace falta).
+- [x] Foto: galería sin permiso; cámara con una hoja que explica el permiso antes de pedirlo y "Abrir Ajustes" si está bloqueado. Se reduce a 1200 px y se re-codifica en JPEG 0,8 antes de subir (sin metadatos; la API además quita EXIF y GPS). Si la subida falla, la mascota ya quedó guardada: "Reintentar subir la foto" o "Seguir sin foto".
+- [x] Editar: envía solo lo que cambió (PATCH); la foto se cambia o se quita al momento. Eliminar con confirmación (409 si tiene citas activas, con el mensaje de la API).
+- [x] Fallecimiento, aparte al final de Editar: pantalla con textos cuidadosos, fecha (hoy por defecto; ni futura ni antes del nacimiento) y confirmación; la ficha muestra «En memoria · fecha». "Corregir: no ha fallecido" con confirmación. Los recordatorios se detienen en la API (#18).
+- [x] Sin conexión con datos guardados: al abrir sin red con una sesión de menos de 24 h, entra a las pestañas con las mascotas guardadas, el aviso "Sin conexión · datos de hace…" y Reintentar; agregar, editar y eliminar quedan deshabilitados. Del usuario solo se guarda el nombre (y el id que liga la caché a su cuenta). La caché (solo consultas de mascotas) vence a las 24 h; cerrar sesión la borra junto con la mascota seleccionada.
+- [x] Perfil: acceso a "Mis mascotas". Pestaña Carnet: nombra a la mascota seleccionada hasta M3.
+- [x] Pruebas: 210 (Inicio, Mis mascotas, Ficha, Nueva mascota con foto y cámara, Editar, Eliminar, Fallecimiento, sin conexión y cierre de sesión con MSW; lógica de edad, peso, saludo, fecha, razas, formulario; contraste AA de los colores nuevos).
+- [x] `npm run lint`, `npm run typecheck`, `npm test`, `npx expo install --check`, `npx expo-doctor` (20/20) y el bundle de Android (`expo export`) en verde.
+
+Correcciones tras la primera prueba en Android (Expo Go):
+- [x] Pantalla roja al elegir el sexo en Nueva mascota: el `shadow-sm` que el Segmented agregaba al seleccionar usa variables CSS; NativeWind tenía que remontar el componente y su aviso de desarrollo, al serializar los hijos, chocaba con el contexto de navegación. Lo que cambia al seleccionar va ahora en `style` con tokens (Segmented, Toggle, Chip, Checkbox, barra de pestañas, selectores de especie y de mascota, medidor de contraseña). Pruebas con NativeWind real: cambiar de estado no remonta, y ninguna clase de ese tipo es condicional en el código.
+- [x] El teclado tapaba los campos: `react-native-keyboard-controller` (`KeyboardAwareScrollView`) en todos los formularios (Crear cuenta, Iniciar sesión, Recuperar, código, confirmar correo, Nueva mascota, Editar, Fallecimiento); el botón principal queda encima del teclado y "Siguiente" pasa de campo en campo.
+- [x] `unstable_settings.anchor` en lugar de `initialRouteName` (obsoleto) en `(auth)`.
+
+- [x] Prueba intermitente de cerrar sesión: la causa era un `waitFor` con callback async. Con los timers falsos, el callback podía resolver mientras el `act()` de `waitFor` seguía abierto; la prueba seguía con otro `act()` encima y React dejaba sin aplicar la redirección a la Bienvenida. Reproducido a propósito (3 de 3) y corregido con lecturas sincrónicas del mock de AsyncStorage; sin tiempos extra.
+
+Cierre (2026-11-20):
+- [x] Probada en Android con Expo Go: selector de sexo, teclado en todos los formularios, "Siguiente", interruptores y casilla de la política. M2 terminada.
+
+Notas:
+- La caché se guarda con `@tanstack/react-query-persist-client` en AsyncStorage, un persister por sesión (su throttle guarda estado) que deja de escribir al cerrar sesión.
+- Jest: TanStack avisa a las pantallas con un `setTimeout(0)`, que con `renderRouter` es falso; si una prueba lee la caché directamente, avanzar los timers antes de tocar la pantalla.
 
 ## ⬜ M3 · Pasaporte PetCat (pieza principal)
 

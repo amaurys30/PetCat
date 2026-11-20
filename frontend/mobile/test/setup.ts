@@ -43,3 +43,30 @@ jest.mock("expo-secure-store", () => {
 server.listen({ onUnhandledFrame: "error" });
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
+
+// AsyncStorage en memoria (caché sin conexión y mascota seleccionada).
+jest.mock("@react-native-async-storage/async-storage", () =>
+  require("@react-native-async-storage/async-storage/jest/async-storage-mock"),
+);
+
+// Selector de fotos y compresión: las pruebas definen el resultado con mockResolvedValue.
+jest.mock("expo-image-picker", () => ({
+  launchImageLibraryAsync: jest.fn(async () => ({ canceled: true, assets: null })),
+  launchCameraAsync: jest.fn(async () => ({ canceled: true, assets: null })),
+  requestCameraPermissionsAsync: jest.fn(async () => ({ granted: true, canAskAgain: true })),
+}));
+jest.mock("expo-image-manipulator", () => {
+  const contexto: { resize: jest.Mock; renderAsync: jest.Mock } = {
+    resize: jest.fn(() => contexto),
+    renderAsync: jest.fn(async () => ({
+      saveAsync: jest.fn(async () => ({ uri: "file:///comprimida.jpg", width: 1200, height: 1200 })),
+    })),
+  };
+  return {
+    ImageManipulator: { manipulate: jest.fn(() => contexto) },
+    SaveFormat: { JPEG: "jpeg", PNG: "png", WEBP: "webp" },
+  };
+});
+
+// Teclado: el mock de la librería (KeyboardAwareScrollView es un ScrollView y KeyboardStickyView un View).
+jest.mock("react-native-keyboard-controller", () => require("react-native-keyboard-controller/jest"));

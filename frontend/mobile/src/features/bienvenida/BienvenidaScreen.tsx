@@ -109,7 +109,8 @@ export function BienvenidaScreen() {
             {LAMINAS.map((l, i) => (
               <View
                 key={l.id}
-                className={`h-2 rounded-full ${i === actual ? "w-6 bg-white" : "w-2 bg-white/50"}`}
+                className="h-2 rounded-full bg-white"
+                style={{ width: i === actual ? 24 : 8, opacity: i === actual ? 1 : 0.5 }}
               />
             ))}
           </View>

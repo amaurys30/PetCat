@@ -70,6 +70,7 @@ export function RegistroScreen() {
 
   return (
     <PantallaFormulario
+      pie={<Button titulo="Crear cuenta" cargando={form.formState.isSubmitting} onPress={enviar} />}
       cabecera={
         <ScreenHeader
           titulo="Crea tu cuenta"
@@ -202,8 +203,6 @@ export function RegistroScreen() {
           {error.texto}
         </Aviso>
       )}
-
-      <Button titulo="Crear cuenta" cargando={form.formState.isSubmitting} onPress={enviar} />
 
       <View className="flex-row flex-wrap items-center justify-center">
         <Text className="text-muted">¿Ya tienes cuenta? </Text>

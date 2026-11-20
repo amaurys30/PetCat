@@ -17,9 +17,17 @@ import AceptarPolitica from "../app/aceptar-politica";
 import Estado from "../app/dev/estado";
 import Politica from "../app/politica";
 import VerificarCorreo from "../app/verificar-correo";
+import MascotasLayout from "../app/mascotas/_layout";
+import MisMascotas from "../app/mascotas/index";
+import NuevaMascota from "../app/mascotas/nueva";
+import FichaMascota from "../app/mascotas/[id]/index";
+import EditarMascota from "../app/mascotas/[id]/editar";
+import Fallecimiento from "../app/mascotas/[id]/fallecimiento";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { refreshStorage } from "@/api/refreshStorage";
 import { queryClient } from "@/lib/queryClient";
+import { useMascotaSeleccionada } from "@/store/mascotaSeleccionada";
 import { useSesion } from "@/store/sesion";
 
 /** Todas las rutas reales de la app, con su layout raíz (arranque y rutas protegidas). */
@@ -41,6 +49,12 @@ export const RUTAS = {
   "aceptar-politica": AceptarPolitica,
   politica: Politica,
   "dev/estado": Estado,
+  "mascotas/_layout": MascotasLayout,
+  "mascotas/index": MisMascotas,
+  "mascotas/nueva": NuevaMascota,
+  "mascotas/[id]/index": FichaMascota,
+  "mascotas/[id]/editar": EditarMascota,
+  "mascotas/[id]/fallecimiento": Fallecimiento,
 };
 
 /** Estado limpio entre pruebas: sin sesión en memoria, sin refresh guardado y sin caché. */
@@ -52,7 +66,11 @@ export async function reiniciarSesion() {
     estado: "desconocida",
     requierePolitica: false,
     recienRegistrado: false,
+    modoSinConexion: false,
+    sinConexion: null,
   });
+  useMascotaSeleccionada.setState({ id_usuario: null, id_mascota: null });
+  await AsyncStorage.clear();
   queryClient.clear();
 }
 

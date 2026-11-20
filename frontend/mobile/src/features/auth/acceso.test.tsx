@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react-native";
 import * as WebBrowser from "expo-web-browser";
 import { http, HttpResponse } from "msw";
 import { AccessibilityInfo } from "react-native";
@@ -385,6 +385,8 @@ describe("Política de datos", () => {
     );
     await renderApp("/registro");
     await waitFor(() => expect(queryClient.getQueryData(["politica-datos"])).toBeTruthy());
+    // TanStack avisa a la pantalla con un setTimeout(0), que aquí es un timer falso.
+    await act(() => jest.advanceTimersByTimeAsync(0));
     await fireEvent.press(screen.getByRole("link", { name: "Ver política" }));
     expect(WebBrowser.openBrowserAsync).toHaveBeenCalledWith("https://petcat.co/politica");
   });

@@ -1,5 +1,7 @@
 import { Pressable, View } from "react-native";
 
+import { colors, fontFamilies, sombras } from "@/theme/tokens";
+
 import { Text } from "./Text";
 
 type Opcion<T extends string> = { valor: T; etiqueta: string };
@@ -13,7 +15,8 @@ type Props<T extends string> = {
   className?: string;
 };
 
-// Una sola opción activa: grupo de radios para los lectores de pantalla.
+// Una sola opción activa: grupo de radios para los lectores de pantalla. Lo que cambia al
+// elegir va en style con los tokens, no en clases (ver sombras en tokens.ts).
 export function Segmented<T extends string>({
   etiqueta,
   opciones,
@@ -36,14 +39,16 @@ export function Segmented<T extends string>({
             accessibilityLabel={opcion.etiqueta}
             accessibilityState={{ checked: activa, selected: activa }}
             onPress={() => onCambiar(opcion.valor)}
-            className={`min-h-11 flex-1 items-center justify-center rounded-chip px-2 ${
-              activa ? "bg-white shadow-sm" : ""
-            }`}
+            className="min-h-11 flex-1 items-center justify-center rounded-chip px-2"
+            style={activa ? { backgroundColor: colors.white, ...sombras.suave } : undefined}
           >
             <Text
               variante="apoyo"
               numberOfLines={1}
-              className={activa ? "font-bold text-primary-deep" : "font-medium text-muted"}
+              style={{
+                fontFamily: activa ? fontFamilies.bold : fontFamilies.medium,
+                color: activa ? colors["primary-deep"] : colors.muted,
+              }}
             >
               {opcion.etiqueta}
             </Text>

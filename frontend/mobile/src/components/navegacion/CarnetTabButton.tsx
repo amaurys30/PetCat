@@ -3,7 +3,7 @@ import { IdCard } from "lucide-react-native";
 import { Pressable, View } from "react-native";
 
 import { Text } from "@/components/ui/Text";
-import { colors, gradients } from "@/theme/tokens";
+import { colors, fontFamilies, gradients } from "@/theme/tokens";
 
 export const CIRCULO_CARNET = 64;
 
@@ -55,7 +55,8 @@ export function CarnetTabButton({ seleccionada, onPress, onLongPress }: Props) {
         variante="rotulo"
         numberOfLines={1}
         maxFontSizeMultiplier={1.4}
-        className={`mt-1 ${seleccionada ? "font-extrabold" : "font-bold"} text-coral-dark`}
+        className="mt-1 text-coral-dark"
+        style={{ fontFamily: seleccionada ? fontFamilies.extrabold : fontFamilies.bold }}
       >
         Carnet
       </Text>

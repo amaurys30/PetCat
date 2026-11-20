@@ -5,7 +5,7 @@ import { Keyboard, Platform, Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Text } from "@/components/ui/Text";
-import { colors } from "@/theme/tokens";
+import { colors, fontFamilies } from "@/theme/tokens";
 
 import { CarnetTabButton } from "./CarnetTabButton";
 
@@ -87,9 +87,8 @@ export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
                 style={{ minHeight: ALTO_BARRA }}
               >
                 <View
-                  className={`h-8 w-14 items-center justify-center rounded-full ${
-                    seleccionada ? "bg-primary-soft" : ""
-                  }`}
+                  className="h-8 w-14 items-center justify-center rounded-full"
+                  style={{ backgroundColor: seleccionada ? colors["primary-soft"] : "transparent" }}
                 >
                   <Icono size={22} color={color} strokeWidth={seleccionada ? 2.4 : 2} />
                 </View>
@@ -97,7 +96,11 @@ export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
                   variante="rotulo"
                   numberOfLines={1}
                   maxFontSizeMultiplier={1.4}
-                  className={`mt-1 ${seleccionada ? "font-bold text-primary-deep" : "text-muted"}`}
+                  className="mt-1"
+                  style={{
+                    fontFamily: seleccionada ? fontFamilies.bold : fontFamilies.semibold,
+                    color: seleccionada ? colors["primary-deep"] : colors.muted,
+                  }}
                 >
                   {pestana.etiqueta}
                 </Text>

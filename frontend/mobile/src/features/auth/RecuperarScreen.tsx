@@ -39,7 +39,10 @@ export function RecuperarScreen() {
   const enviar = () => void enviarFormulario();
 
   return (
-    <PantallaFormulario cabecera={<ScreenHeader titulo="Recupera tu contraseña" volverA={RESPALDO.login} />}>
+    <PantallaFormulario
+      cabecera={<ScreenHeader titulo="Recupera tu contraseña" volverA={RESPALDO.login} />}
+      pie={<Button titulo="Enviar código" cargando={form.formState.isSubmitting} onPress={enviar} />}
+    >
       <Text className="text-muted">
         Te enviaremos un código de 6 dígitos a tu correo para que elijas una contraseña nueva. Si tu
         veterinaria te registró, así activas tu cuenta.
@@ -67,7 +70,6 @@ export function RecuperarScreen() {
         )}
       />
       {error && <Aviso tono="error">{error}</Aviso>}
-      <Button titulo="Enviar código" cargando={form.formState.isSubmitting} onPress={enviar} />
     </PantallaFormulario>
   );
 }

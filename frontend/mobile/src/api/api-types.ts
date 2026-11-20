@@ -4963,11 +4963,13 @@ export interface paths {
         };
         /**
          * Mis mascotas
-         * @description Mascotas del usuario autenticado sin las eliminadas; las fallecidas van al final.
+         * @description Mascotas del usuario autenticado sin las eliminadas; las fallecidas van al final. Con `incluir=resumen`, cada una trae `resumen` (salud, próximos eventos y próxima cita), calculado en lote para todas.
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    incluir?: "resumen";
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -5038,10 +5040,15 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Detalle de una mascota propia */
+        /**
+         * Detalle de una mascota propia
+         * @description Con `incluir=resumen`, trae `resumen` (salud, próximos eventos y próxima cita).
+         */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    incluir?: "resumen";
+                };
                 header?: never;
                 path: {
                     id_mascota: number;
@@ -5168,6 +5175,70 @@ export interface paths {
                 422: components["responses"]["ValidationError"];
             };
         };
+        trace?: never;
+    };
+    "/mascotas/{id_mascota}/pesos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Historial de peso de una mascota propia (app)
+         * @description Solo el dueño. Los pesos de los últimos `meses`, del más antiguo al más reciente: los de los registros médicos (`origen: historial`, de cualquier negocio) y los que anota el dueño al crear o editar la mascota (`origen: dueno`, uno por día). Puede haber más de uno el mismo día.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    meses?: number;
+                };
+                header?: never;
+                path: {
+                    id_mascota: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Historial de peso */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @example true */
+                            success: boolean;
+                            /** @example OK */
+                            message: string;
+                            data: {
+                                /** @example 28.4 */
+                                peso_actual: number | null;
+                                puntos: {
+                                    /** Format: date */
+                                    fecha: string;
+                                    /** @example 27.8 */
+                                    peso: number;
+                                    /** @enum {string} */
+                                    origen: "dueno" | "historial";
+                                }[];
+                            };
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["MascotaAjena"];
+                404: components["responses"]["MascotaNoEncontrada"];
+                422: components["responses"]["ValidationError"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/mascotas/{id_mascota}/foto": {
@@ -9324,6 +9395,65 @@ export interface components {
             fecha_registro: string;
             /** @example 2026-09-26 10:00:00 */
             fecha_actualizacion: string;
+            /** @description Solo con `?incluir=resumen` en GET /mascotas y GET /mascotas/{id_mascota} (rutas del dueño) */
+            resumen?: components["schemas"]["ResumenMascota"];
+        };
+        /** @description Resumen corto de salud para las listas de la app, calculado en lote. Mismas reglas que GET /mascotas/{id_mascota}/resumen-salud. Solo lo recibe el dueño: incluye citas de cualquier negocio. Mascota fallecida: `estado_vacunas` null, sin eventos ni cita. */
+        ResumenMascota: {
+            /**
+             * @description vencido si alguna dosis vigente venció; proximo si alguna vence en `dias_aviso_vacuna` días (30); al_dia; sin_vacunas
+             * @enum {string|null}
+             */
+            estado_vacunas: "al_dia" | "proximo" | "vencido" | "sin_vacunas" | null;
+            /** @description Conteo de dosis vigentes (la más reciente de cada vacuna) */
+            vacunas: {
+                /** @example 6 */
+                vigentes: number;
+                /** @example 5 */
+                al_dia: number;
+                /** @example 1 */
+                proximas: number;
+                /** @example 0 */
+                vencidas: number;
+            };
+            /** @description Vacunas vencidas o próximas y controles o desparasitaciones (proximo_control del historial) de los próximos `dias_aviso_vacuna` días; máximo 5, del más cercano al más lejano. */
+            proximos_eventos: {
+                /** @enum {string} */
+                tipo: "vacuna" | "desparasitacion" | "control";
+                /** @example Antirrábica */
+                titulo: string;
+                /** Format: date */
+                fecha: string;
+                /**
+                 * @description Días desde hoy (negativo si ya venció)
+                 * @example 20
+                 */
+                dias: number;
+                id_vacuna: number | null;
+                id_historial: number | null;
+                negocio: {
+                    id_negocio: number;
+                    nombre: string;
+                } | null;
+            }[];
+            /** @description La cita pendiente o confirmada más cercana que no ha terminado, de cualquier negocio */
+            proxima_cita: {
+                id_cita: number;
+                /** Format: date */
+                fecha: string;
+                /** @example 08:30 */
+                hora_inicio: string;
+                /** @enum {string} */
+                estado: "pendiente" | "confirmada";
+                servicio: {
+                    id_servicio: number;
+                    nombre: string;
+                };
+                negocio: {
+                    id_negocio: number;
+                    nombre: string;
+                };
+            } | null;
         };
         MascotaRespuesta: {
             /** @example true */

@@ -78,7 +78,9 @@ export function VerificarCorreoScreen() {
   };
 
   return (
-    <PantallaFormulario>
+    <PantallaFormulario
+      pie={<Button titulo="Confirmar" cargando={form.formState.isSubmitting} onPress={enviar} />}
+    >
       <View className="h-20 w-20 items-center justify-center rounded-full bg-primary-soft">
         <MailCheck size={36} color={colors["primary-deep"]} accessibilityElementsHidden />
       </View>
@@ -109,7 +111,6 @@ export function VerificarCorreoScreen() {
       {error && <Aviso tono="error">{error}</Aviso>}
       {info && <Aviso tono="info">{info}</Aviso>}
 
-      <Button titulo="Confirmar" cargando={form.formState.isSubmitting} onPress={enviar} />
       <View className="flex-row flex-wrap justify-between gap-2">
         <Enlace
           rol="button"
