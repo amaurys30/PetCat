@@ -1,13 +1,13 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
 import { setStatusBarStyle } from "expo-status-bar";
-import { FileText, PawPrint, QrCode } from "lucide-react-native";
+import { ChevronRight, FileText, PawPrint, QrCode, type LucideIcon } from "lucide-react-native";
 import { useCallback, useMemo, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { MascotaConResumen } from "@/api/types";
-import { Button, Card, EmptyState, Enlace, ErrorState, Skeleton, Text } from "@/components/ui";
+import { Card, EmptyState, ErrorState, Skeleton, Text } from "@/components/ui";
 import { AvisoSinConexion } from "@/features/mascotas/components/AvisoSinConexion";
 import { useMascotaActual, useMascotas } from "@/features/mascotas/hooks";
 import { hoyEnBogota } from "@/lib/fechas";
@@ -15,13 +15,74 @@ import { colors } from "@/theme/tokens";
 
 import { AnilloVacunas } from "./components/AnilloVacunas";
 import { PilaPasaportes } from "./components/PilaPasaportes";
-import { LADO_SELLO, SelloVacuna } from "./components/SelloVacuna";
+import { SelloVacuna } from "./components/SelloVacuna";
 import { useUltimaDesparasitacion, useVacunas } from "./hooks";
 import { construirAnillo, construirSellos } from "./logica";
 
 /** Vivas primero (como las ordena la API), luego las que están «En memoria». */
 const ordenar = (mascotas: MascotaConResumen[]) =>
   [...mascotas].sort((a, b) => Number(a.fallecido) - Number(b.fallecido));
+
+/** Enlace sobre el fondo oscuro, en color de acento y con flecha (contraste AA: sello-teal). */
+function EnlaceAcento({
+  titulo,
+  accessibilityLabel,
+  onPress,
+}: {
+  titulo: string;
+  accessibilityLabel: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel={accessibilityLabel}
+      onPress={onPress}
+      hitSlop={8}
+      className="min-h-12 flex-row items-center gap-1 active:opacity-70"
+    >
+      <Text className="font-bold" style={{ color: colors["sello-teal"] }}>
+        {titulo}
+      </Text>
+      <ChevronRight size={18} color={colors["sello-teal"]} strokeWidth={2.6} />
+    </Pressable>
+  );
+}
+
+/**
+ * Acción que aún no existe (llega en M7): se ve como no disponible (sin relleno, borde apagado y
+ * "Próximamente" dentro) y no hace nada; para el lector, deshabilitada y con "Próximamente".
+ */
+function BotonProximamente({
+  titulo,
+  icono: Icono,
+  accesible,
+}: {
+  titulo: string;
+  icono: LucideIcon;
+  accesible: string;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${accesible}. Próximamente`}
+      accessibilityState={{ disabled: true }}
+      disabled
+      className="min-h-12 flex-row items-center justify-center gap-2 rounded-control border px-4 py-2"
+      style={{ borderColor: colors["pasaporte-borde"] }}
+    >
+      <Icono size={18} color={colors["oscuro-muted"]} />
+      <View>
+        <Text className="font-bold" style={{ color: colors["oscuro-muted"] }}>
+          {titulo}
+        </Text>
+        <Text variante="rotulo" style={{ color: colors["oscuro-muted"] }}>
+          Próximamente
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
 
 function Panel({ children }: { children: React.ReactNode }) {
   return (
@@ -160,10 +221,9 @@ export function PasaporteScreen() {
                     <Text variante="seccion" className="text-white" accessibilityRole="header">
                       Sellos de vacunación
                     </Text>
-                    <Enlace
+                    <EnlaceAcento
                       titulo="Ver línea de vida"
                       accessibilityLabel={`Ver la línea de vida de ${m.nombre}`}
-                      claro
                       onPress={() => router.push(`/mascotas/${m.id_mascota}/linea-vida`)}
                     />
                   </View>
@@ -176,40 +236,23 @@ export function PasaporteScreen() {
                       </Text>
                     </Panel>
                   ) : (
-                    <View
-                      className="flex-row flex-wrap justify-between gap-y-4"
-                      style={{ minHeight: LADO_SELLO }}
-                    >
-                      {sellos.map((s, i) => (
-                        <SelloVacuna key={s.clave} sello={s} indice={i} />
+                    // Cuadrícula de 3 columnas alineada a la izquierda (la última fila no se reparte).
+                    <View className="flex-row flex-wrap" style={{ rowGap: 20 }}>
+                      {sellos.map((s) => (
+                        <View key={s.clave} style={{ width: "33.333%" }} className="items-center px-1">
+                          <SelloVacuna sello={s} />
+                        </View>
                       ))}
                     </View>
                   )}
                 </>
               )}
 
-              <View className="gap-2 pt-2">
-                <View className="flex-row gap-3">
-                  <View className="flex-1">
-                    <Button
-                      titulo="Compartir con QR"
-                      icono={QrCode}
-                      accessibilityLabel="Compartir con QR. Próximamente"
-                      disabled
-                      onPress={() => undefined}
-                    />
-                  </View>
-                  <Button
-                    titulo="PDF"
-                    icono={FileText}
-                    accessibilityLabel="Descargar PDF. Próximamente"
-                    disabled
-                    onPress={() => undefined}
-                  />
+              <View className="flex-row gap-3 pt-2">
+                <View className="flex-1">
+                  <BotonProximamente titulo="Compartir con QR" icono={QrCode} accesible="Compartir con QR" />
                 </View>
-                <Text variante="apoyo" className="text-center" style={{ color: colors["oscuro-muted"] }}>
-                  Compartir y descargar el pasaporte: próximamente.
-                </Text>
+                <BotonProximamente titulo="PDF" icono={FileText} accesible="Descargar PDF" />
               </View>
             </View>
           </>

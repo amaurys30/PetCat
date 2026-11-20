@@ -11,7 +11,6 @@ import {
   LARGO_MRZ,
   lineaMrz,
   microchipEnGrupos,
-  nombreCorto,
   textoSello,
   type FilaLinea,
 } from "./logica";
@@ -68,10 +67,11 @@ describe("sellos", () => {
       null,
       { hoy: HOY },
     );
-    expect(sellos.map((s) => [s.corto, s.estado, s.tono])).toEqual([
-      ["RABIA", "aplicada", "teal"],
-      ["MÚLTIPLE", "proxima", "sun"],
-      ["BORDETEL.", "vencida", "danger"],
+    // El nombre va completo (no "BORDETEL.").
+    expect(sellos.map((s) => [s.nombre, s.estado, s.tono])).toEqual([
+      ["Rabia", "aplicada", "teal"],
+      ["Múltiple (DHPPi+L)", "proxima", "sun"],
+      ["Bordetella", "vencida", "danger"],
     ]);
     expect(sellos[2]!.origen).toBe("dueno");
   });
@@ -89,7 +89,7 @@ describe("sellos", () => {
       },
     );
     expect(sello).toMatchObject({
-      corto: "DESPARAS.",
+      nombre: "Desparasitación",
       estado: "aplicada",
       tono: "info",
       tipo: "desparasitacion",
@@ -137,11 +137,6 @@ describe("sellos", () => {
     expect(etiquetaSello(vencida!)).toBe(
       "Moquillo. Vencida. Aplicada el vie 12 dic 2025. Venció el dom 1 nov 2026. Registrada por ti.",
     );
-  });
-
-  it("nombre corto: primera palabra, en mayúsculas, hasta 9 letras", () => {
-    expect(nombreCorto("Múltiple (DHPPi+L)")).toBe("MÚLTIPLE");
-    expect(nombreCorto("Leptospirosis")).toBe("LEPTOSPI.");
   });
 });
 

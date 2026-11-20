@@ -58,8 +58,6 @@ export type TonoSello = "teal" | "coral" | "lavender" | "info" | "sun" | "danger
 export type Sello = {
   clave: string;
   nombre: string;
-  /** Nombre corto en mayúsculas para dentro del sello ("MÚLTIPLE", "DESPARAS."). */
-  corto: string;
   tipo: "vacuna" | "desparasitacion";
   estado: EstadoSello;
   fecha_aplicacion: string;
@@ -70,12 +68,6 @@ export type Sello = {
 };
 
 const TONOS_APLICADA: TonoSello[] = ["teal", "coral", "lavender", "info"];
-
-export function nombreCorto(nombre: string): string {
-  const primera = nombre.trim().split(/[\s(]+/)[0] ?? nombre;
-  const mayus = primera.toLocaleUpperCase("es-CO");
-  return mayus.length > 9 ? `${mayus.slice(0, 8)}.` : mayus;
-}
 
 const ESTADO_DE_VACUNA: Record<string, EstadoSello> = {
   al_dia: "aplicada",
@@ -114,7 +106,6 @@ export function construirSellos(
       return {
         clave: `vacuna-${v.id_vacuna}`,
         nombre: v.nombre_vacuna,
-        corto: nombreCorto(v.nombre_vacuna),
         tipo: "vacuna",
         estado,
         fecha_aplicacion: v.fecha_aplicacion,
@@ -129,7 +120,6 @@ export function construirSellos(
     sellos.push({
       clave: `desparasitacion-${desparasitacion.id_historial}`,
       nombre: "Desparasitación",
-      corto: "DESPARAS.",
       tipo: "desparasitacion",
       estado,
       fecha_aplicacion: desparasitacion.fecha,
