@@ -169,7 +169,7 @@ Notas:
 - La caché se guarda con `@tanstack/react-query-persist-client` en AsyncStorage, un persister por sesión (su throttle guarda estado) que deja de escribir al cerrar sesión.
 - Jest: TanStack avisa a las pantallas con un `setTimeout(0)`, que con `renderRouter` es falso; si una prueba lee la caché directamente, avanzar los timers antes de tocar la pantalla.
 
-## ⬜ M3 · Pasaporte PetCat (pieza principal)
+## 🟨 M3 · Pasaporte PetCat (pieza principal)
 
 - M7 tarjeta Pasaporte: degradado, brillo holográfico que reacciona al giroscopio (Reanimated + expo-sensors; desactivado con "Reducir movimiento"), foto, número `PC-AAAA-NNNNN`, microchip, QR, línea tipo MRZ.
 - Pila deslizable cuando hay varias mascotas.
@@ -177,6 +177,33 @@ Notas:
 - M8 línea de vida con filtros (vacunas, desparasitación, consultas), del más reciente al más antiguo.
 - Botones Compartir y PDF visibles pero deshabilitados con "Próximamente" hasta M7.
 - Pruebas: cálculo de estado de vacunas, lectura completa con lector de pantalla (etiquetas).
+
+### Resultado de M3 (rama `mobile/m3-pasaporte`)
+
+Backend primero: PR #20 (`api/pasaporte`, fusionado). Número del pasaporte `codigo_pasaporte` (`PC-XXXX-XXXX`, aleatorio y estable, migración 030; no sale del id) y `tipo` del historial con varios valores. Además: `npm run db:verificar` y copias con `mysqldump --routines`.
+
+Decisiones del plan (aprobadas): número aleatorio de la API en lugar de `PC-AAAA-NNNNN` derivado del id; sin QR en la tarjeta hasta M7 (en su lugar, un emblema decorativo); sin insignia "Verificado" (el origen va por vacuna: "Registrada por Clínica X" o "por ti"); "6 de 6 vacunas al día" en lugar de "esquema completo" (la app no conoce el esquema de cada especie); efecto con `useAnimatedSensor` de Reanimated en lugar de expo-sensors; sin red se guardan vacunas y última desparasitación, no las consultas (Ley 1581); los Documentos de la ficha pasan a M6.
+
+Hecho:
+- [x] M7 · Tarjeta: degradado, foto, nombre, número, estado de salud, especie, nacimiento, microchip en bloques de tres y línea tipo pasaporte (decorativa; el microchip va completo y se recorta el nombre o la raza). «En memoria»: tarjeta lavanda con la fecha. Sin alto fijo: con texto grande (`fontScale ≥ 1,3`) los datos van en una columna.
+- [x] Lector de pantalla: la tarjeta es un solo elemento con todo en texto (el número deletreado por grupos, el microchip en bloques). Con varias mascotas, la pila es un control ajustable ("Mascota 1 de 2"; deslizar arriba o abajo cambia y anuncia el nombre). Emblema, brillo, línea tipo pasaporte y puntos de página, ocultos.
+- [x] Pila deslizable (FlatList paginada): llega con la mascota de Inicio y al cambiar actualiza la selección (solo las vivas). Vivas primero, luego «En memoria».
+- [x] Sellos: la dosis vigente de cada vacuna (las anteriores no) y la última desparasitación. Aplicada (✓, fecha), próxima (reloj de arena, "Vence 12 dic", sol), vencida (alerta, "Venció…", borde continuo); cada sello se lee completo con su origen. «En memoria»: en gris, sin alertas.
+- [x] Anillo "N/M": vacunas vigentes no vencidas, con el próximo refuerzo o la vencida y desde cuándo.
+- [x] Efecto holográfico: `useAnimatedSensor` (gravedad, ~30 Hz, en el hilo de UI) solo con la pestaña visible y la app en primer plano; con "Reducir movimiento", brillo fijo. Solo la tarjeta del frente.
+- [x] Compartir con QR y PDF visibles pero deshabilitados ("Próximamente", también para el lector).
+- [x] M8 · Línea de vida (`/mascotas/[id]/linea-vida`, desde el Pasaporte y la ficha): filtros Todo, Vacunas, Desparasitación y Consultas; "Próximo" arriba; del más reciente al más antiguo con separadores por año; 20 por página con "Cargar más" (las vacunas, completas, se intercalan sin reordenar al cargar más); la vacunación que una vacuna enlaza no se repite; al tocar un registro, diagnóstico, tratamiento, indicaciones y próximo control.
+- [x] Sin red: el Pasaporte completo con la caché; la línea de vida con vacunas y la última desparasitación, y el aviso de que las consultas necesitan conexión.
+- [x] Pantalla de desarrollo "Sensor del Pasaporte" (Perfil, solo en desarrollo) para comprobar el sensor en el teléfono.
+- [x] Pruebas: 296 (pasaporte y línea de vida con MSW, lógica de sellos, anillo, etiquetas y línea de vida, contraste AA de los colores nuevos sobre el fondo oscuro). Contrato comprobado contra la demo.
+- [x] `npm run lint`, `npm run typecheck`, `npm test`, `npx expo install --check`, `npx expo-doctor` (20/20) y el bundle de Android en verde.
+
+Falta para cerrar M3:
+- [ ] Probarla en el teléfono, incluida la pantalla "Sensor del Pasaporte": si las lecturas no suben al inclinarlo, el efecto pasa a expo-sensors (solo cambia `useInclinacion` en `features/pasaporte/efecto.tsx`).
+- [ ] Maestro: `e2e/pasaporte.yaml` (pendiente de instalar Maestro, como en M1).
+
+Notas:
+- Jest: Reanimated tiene un mock propio (`test/reanimatedMock.tsx`, por `moduleNameMapper`): el oficial carga la librería real y falla sin el runtime nativo, y `expo-router/testing-library` registra el suyo encima.
 
 ## ⬜ M4 · Explorar y negocios
 
