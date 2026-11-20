@@ -21,9 +21,24 @@ beforeEach(async () => {
   await reiniciarSesion();
   anuncios = [];
   jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation((m) => void anuncios.push(m));
+  jest.mocked(AsyncStorage.setItem).mockClear();
 });
 
 afterEach(() => jest.restoreAllMocks());
+
+/**
+ * Lo último que la app escribió en esa clave del teléfono. Es sincrónico a propósito: con los
+ * timers falsos, waitFor envuelve cada intento en act(); un callback async que sigue pendiente
+ * cuando empieza el siguiente intento abre un act() encima del otro, y React puede dejar sin
+ * aplicar una actualización que llega en ese momento (por ejemplo, la redirección a la
+ * Bienvenida después de cerrar sesión).
+ */
+function ultimoGuardado(clave: string): string | undefined {
+  return jest
+    .mocked(AsyncStorage.setItem)
+    .mock.calls.filter(([k]) => k === clave)
+    .at(-1)?.[1];
+}
 
 const luna = mascotaDemo();
 const milo = mascotaDemo({
@@ -421,7 +436,7 @@ describe("Sin conexión con datos guardados", () => {
     conSesion([luna]);
     await renderApp("/");
     await screen.findByRole("radio", { name: "Luna" });
-    await waitFor(async () => expect(await AsyncStorage.getItem("petcat.cache")).toContain("Luna"));
+    await waitFor(() => expect(ultimoGuardado("petcat.cache")).toContain("Luna"));
     const guardada = JSON.parse((await AsyncStorage.getItem("petcat.sesion_sin_conexion"))!);
     expect(guardada).toEqual({ id_usuario: 7, nombre: "Sofía", guardado_en: expect.any(Number) });
     expect(await AsyncStorage.getItem("petcat.cache")).not.toContain("sofia@petcat.test");
@@ -432,7 +447,7 @@ describe("Sin conexión con datos guardados", () => {
     await guardarSesionSinConexion(7, "Sofía");
     const dejar = suscribirCache(7);
     queryClient.setQueryData(queryKeys.mascotas.lista(), [luna]);
-    await waitFor(async () => expect(await AsyncStorage.getItem("petcat.cache")).toContain("Luna"));
+    await waitFor(() => expect(ultimoGuardado("petcat.cache")).toContain("Luna"));
     dejar();
     queryClient.clear();
 
@@ -464,21 +479,21 @@ describe("Sin conexión con datos guardados", () => {
     await fireEvent.press(screen.getByRole("button", { name: "Reintentar" }));
     expect(await screen.findByRole("button", { name: "Editar a Luna" })).toBeEnabled();
     expect(useSesion.getState().modoSinConexion).toBe(false);
-  }, 20_000);
+  });
 
   it("cerrar sesión borra la caché, la sesión guardada y la mascota elegida", async () => {
     conSesion([luna]);
     server.use(http.post(`${API}/auth/logout`, () => ok(null)));
     await renderApp("/");
     await screen.findByRole("radio", { name: "Luna" });
-    await waitFor(async () => expect(await AsyncStorage.getItem("petcat.cache")).not.toBeNull());
+    await waitFor(() => expect(ultimoGuardado("petcat.cache")).toBeDefined());
 
     await fireEvent.press(screen.getByRole("tab", { name: "Perfil" }));
     await fireEvent.press(await screen.findByRole("button", { name: "Cerrar sesión" }));
 
-    await screen.findByTestId("carrusel-bienvenida", {}, { timeout: 15_000 });
+    await screen.findByTestId("carrusel-bienvenida");
     expect(await AsyncStorage.getItem("petcat.cache")).toBeNull();
     expect(await AsyncStorage.getItem("petcat.sesion_sin_conexion")).toBeNull();
     expect(useMascotaSeleccionada.getState().id_mascota).toBeNull();
-  }, 30_000);
+  });
 });
