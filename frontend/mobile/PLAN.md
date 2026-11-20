@@ -214,7 +214,7 @@ Queda para después (no bloquea M3):
 Notas:
 - Jest: Reanimated tiene un mock propio (`test/reanimatedMock.tsx`, por `moduleNameMapper`): el oficial carga la librería real y falla sin el runtime nativo, y `expo-router/testing-library` registra el suyo encima.
 
-## 🟨 M4 · Explorar y negocios
+## ✅ M4 · Explorar y negocios
 
 - M10 mapa con MapLibre (requiere development build): pines por categoría con calificación, agrupación, mi ubicación (permiso explicado antes de pedirlo), filtros, carrusel inferior sincronizado con los pines, "Ver lista" accesible como alternativa al mapa.
 - "Cómo llegar" abre Google Maps/Waze con la coordenada.
@@ -240,8 +240,8 @@ Hecho:
 - [x] Pruebas: 326 (Explorar y perfil con MSW y el WebView simulado; lógica de filtros, textos, horario, precios, enlaces, mensajes del mapa, CSP y navegación; contraste de los colores nuevos).
 - [x] `npm run lint`, `npm run typecheck`, `npm test`, `npx expo install --check`, `npx expo-doctor` (20/20) y el bundle de Android en verde.
 
-Falta para cerrar M4:
-- [ ] Probarla en el teléfono. Las teselas públicas de OpenStreetMap no se pudieron comprobar desde el equipo de desarrollo (sin acceso a su servidor): confirmar en el teléfono que el mapa se ve. Si sale el aviso "El mapa no pudo cargar sus imágenes", OSM está negando las teselas (por ejemplo, por no enviar `Referer` desde el WebView): se cambia de proveedor con `EXPO_PUBLIC_MAP_TILES_URL` sin tocar código.
+Cierre (2026-11-20):
+- [x] Probada en Android con Expo Go: el mapa carga con las teselas de OpenStreetMap, pines, ubicación (concedida y negada), tarjeta, Cómo llegar, filtros, lista y perfil, sin cierres. M4 terminada.
 
 Notas:
 - `react-native-webview` 14.0.1 tipa mal su clase (`WebView<P = undefined>` con props `WebViewProps & P`, que con TypeScript estricto es `never`): `MapaNegocios.tsx` usa un alias bien tipado del mismo componente.
