@@ -199,6 +199,7 @@ Notas:
 - M18 bandeja de notificaciones (leídas/no leídas, tiempo real).
 - M19 perfil y privacidad: `compartir_historial`, ubicación, descargar mis datos (si la API lo tiene; si no, marcar como pendiente de Ley 1581), eliminar cuenta, texto grande.
 - M20 calificar visita (reseñas).
+- Documentos de la ficha (pestaña de M6 · Ficha): imágenes y PDF del historial (`archivos`, URL firmada que vence), visor y descarga. Pasó de M3 a esta fase (plan de M3, noviembre 2026).
 
 ## ⬜ M7 · Compartir pasaporte — requiere API nueva
 
