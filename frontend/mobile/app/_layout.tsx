@@ -81,6 +81,7 @@ function Navegacion() {
       >
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="mascotas" />
+        <Stack.Screen name="negocios" />
         <Stack.Screen name="verificar-correo" />
       </Stack.Protected>
       <Stack.Protected guard={autenticada && requierePolitica} redirectTo={autenticada ? "/" : "/bienvenida"}>
