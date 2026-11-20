@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { fileURLToPath } from "node:url";
 import { pool } from "../../src/config/db.js";
@@ -66,37 +67,52 @@ describe("número del Pasaporte PetCat (codigo_pasaporte)", () => {
     });
   });
 
-  it("el trigger regenera mientras el código generado ya exista", async () => {
+  it("si el código al azar ya existe, la API reintenta y la mascota se crea con otro (app y panel usan el mismo alta)", async () => {
     const dueno = await crearUsuario();
+    const token = await tokenDe(dueno);
     const ocupado = codigoAlAzar();
     let libre = codigoAlAzar();
     while (libre === ocupado) libre = codigoAlAzar();
-    const ocupada = await crearMascota(dueno, { codigo_pasaporte: ocupado });
-    const conn = await pool.getConnection();
+    await crearMascota(dueno, { codigo_pasaporte: ocupado });
+    // Versión de prueba: en cada conexión, la primera llamada devuelve el código ocupado. Cuenta con
+    // una variable de sesión de nombre único (no se deshace con la sentencia que falla, a diferencia
+    // de una tabla), así no la comparte con otras pruebas.
+    const contador = `@colision_${randomUUID().replaceAll("-", "")}`;
+    await pool.query("DROP FUNCTION fn_codigo_pasaporte");
     try {
-      // Versión de prueba: las 3 primeras llamadas de la sesión devuelven el código ocupado.
-      await conn.query("DROP FUNCTION fn_codigo_pasaporte");
-      await conn.query(
+      await pool.query(
         `CREATE FUNCTION fn_codigo_pasaporte() RETURNS CHAR(12) CHARSET ascii NOT DETERMINISTIC NO SQL
          BEGIN
-           SET @llamadas = COALESCE(@llamadas, 0) + 1;
-           IF @llamadas <= 3 THEN RETURN @ocupado; END IF;
-           RETURN @libre;
+           SET ${contador} = COALESCE(${contador}, 0) + 1;
+           IF ${contador} = 1 THEN RETURN '${ocupado}'; END IF;
+           RETURN '${libre}';
          END`
       );
-      await conn.query("SET @llamadas = 0, @ocupado = ?, @libre = ?", [ocupado, libre]);
-      const [r] = await conn.query("INSERT INTO mascotas (id_usuario, nombre, especie) VALUES (?, 'Nueva', 'gato')", [
-        dueno.id_usuario,
-      ]);
-      const [[{ llamadas }]] = await conn.query("SELECT @llamadas AS llamadas");
-      const [[nueva]] = await conn.query("SELECT codigo_pasaporte FROM mascotas WHERE id_mascota = ?", [r.insertId]);
-      expect(Number(llamadas)).toBe(4);
-      expect(nueva.codigo_pasaporte).toBe(libre);
-      expect(ocupada.codigo_pasaporte).toBe(ocupado);
+      const creada = await api(token).post("/mascotas").send({ nombre: "Nueva", especie: "gato" });
+      expect(creada.status).toBe(201);
+      expect(creada.body.data.codigo_pasaporte).toBe(libre);
     } finally {
       // La migración 030 es reejecutable: deja la función original.
-      await runSqlFile(conn, MIGRACION_030);
-      conn.release();
+      const conn = await pool.getConnection();
+      try {
+        await runSqlFile(conn, MIGRACION_030);
+      } finally {
+        conn.release();
+      }
     }
+  });
+
+  it("altas simultáneas no se bloquean entre sí (sin deadlock)", async () => {
+    const dueno = await crearUsuario();
+    const token = await tokenDe(dueno);
+    const directas = await Promise.allSettled(Array.from({ length: 40 }, () => crearMascota(dueno)));
+    expect(directas.filter((r) => r.status === "rejected").map((r) => r.reason.code)).toEqual([]);
+
+    const porApi = await Promise.all(
+      Array.from({ length: 15 }, (_, i) => api(token).post("/mascotas").send({ nombre: `Simultánea ${i}`, especie: "perro" }))
+    );
+    expect(porApi.map((r) => r.status)).toEqual(Array(15).fill(201));
+    const codigos = [...directas.map((r) => r.value.codigo_pasaporte), ...porApi.map((r) => r.body.data.codigo_pasaporte)];
+    expect(new Set(codigos).size).toBe(55);
   });
 });

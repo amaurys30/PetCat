@@ -33,14 +33,28 @@ export const findActivasByUsuario = async (id_usuario) => {
   return rows;
 };
 
+const INTENTOS_CODIGO = 5;
+const esCodigoRepetido = (err) => err.code === "ER_DUP_ENTRY" && err.message.includes("uq_mascotas_codigo_pasaporte");
+
+/**
+ * El trigger le asigna el número de pasaporte (migración 030). Si el código al azar ya existe
+ * (≈1 en 10^11), el índice único rechaza la fila y se vuelve a intentar: el trigger genera otro.
+ * Dentro de una transacción solo se deshace esa sentencia.
+ */
 export const create = async (id_usuario, data, conn) => {
   const campos = { ...pick(data, CAMPOS_MASCOTA), id_usuario };
   const columnas = Object.keys(campos);
-  const [result] = await (conn ?? db).query(
-    `INSERT INTO mascotas (${columnas.join(", ")}) VALUES (${columnas.map(() => "?").join(", ")})`,
-    Object.values(campos)
-  );
-  return result.insertId;
+  for (let intento = 1; ; intento++) {
+    try {
+      const [result] = await (conn ?? db).query(
+        `INSERT INTO mascotas (${columnas.join(", ")}) VALUES (${columnas.map(() => "?").join(", ")})`,
+        Object.values(campos)
+      );
+      return result.insertId;
+    } catch (err) {
+      if (!esCodigoRepetido(err) || intento === INTENTOS_CODIGO) throw err;
+    }
+  }
 };
 
 export const update = async (id_mascota, data, conn) => {

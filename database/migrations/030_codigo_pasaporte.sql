@@ -5,10 +5,16 @@
 --  id, así que no deja adivinar cuántas mascotas hay ni recorrer números. Es un dato
 --  visible, no una credencial: no da acceso a nada.
 --  - fn_codigo_pasaporte(): genera un código con RANDOM_BYTES (aleatorio criptográfico).
---  - trg_mascotas_before_insert: lo asigna al crear la mascota (y regenera si choca).
+--  - trg_mascotas_before_insert: lo asigna al crear la mascota. No busca antes si el código
+--    existe: ese SELECT, dentro del INSERT, toma bloqueos compartidos en el índice único y dos
+--    altas simultáneas se bloqueaban entre sí (deadlock). La unicidad la garantiza el índice;
+--    si un código choca (≈1 en 10^11), la API reintenta (mascota.repository.js, create).
 --  Reejecutable (MySQL no revierte DDL): si falla a mitad, se vuelve a correr y termina.
 --  Cada paso revisa el estado: columna (nula al inicio), relleno de las filas sin código,
 --  duplicados resueltos aquí mismo, y al final NOT NULL e índice único.
+--  Requisito del servidor: con el binlog activo, crear la función y el trigger exige root/SUPER
+--  o log_bin_trust_function_creators=1 (igual que los triggers que ya existían). Las copias
+--  necesitan mysqldump --routines (ver backend/README.md, "Copias de seguridad").
 -- ═══════════════════════════════════════════════════════════════════════════
 
 DROP FUNCTION IF EXISTS fn_codigo_pasaporte;
@@ -107,9 +113,6 @@ FOR EACH ROW
 BEGIN
     IF NEW.codigo_pasaporte IS NULL OR NEW.codigo_pasaporte = '' THEN
         SET NEW.codigo_pasaporte = fn_codigo_pasaporte();
-        WHILE EXISTS (SELECT 1 FROM mascotas WHERE codigo_pasaporte = NEW.codigo_pasaporte) DO
-            SET NEW.codigo_pasaporte = fn_codigo_pasaporte();
-        END WHILE;
     END IF;
 END$$
 

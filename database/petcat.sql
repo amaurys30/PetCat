@@ -1556,16 +1556,15 @@ BEGIN
     RETURN codigo;
 END$
 
--- Migración 030: cada mascota nueva recibe su número de pasaporte (regenera si choca).
+-- Migración 030: cada mascota nueva recibe su número de pasaporte. Sin buscar antes si existe
+-- (dentro del INSERT ese SELECT bloquea el índice único y las altas simultáneas chocaban en
+-- deadlock): lo garantiza uq_mascotas_codigo_pasaporte y la API reintenta si choca.
 CREATE TRIGGER trg_mascotas_before_insert
 BEFORE INSERT ON mascotas
 FOR EACH ROW
 BEGIN
     IF NEW.codigo_pasaporte IS NULL OR NEW.codigo_pasaporte = '' THEN
         SET NEW.codigo_pasaporte = fn_codigo_pasaporte();
-        WHILE EXISTS (SELECT 1 FROM mascotas WHERE codigo_pasaporte = NEW.codigo_pasaporte) DO
-            SET NEW.codigo_pasaporte = fn_codigo_pasaporte();
-        END WHILE;
     END IF;
 END$
 
