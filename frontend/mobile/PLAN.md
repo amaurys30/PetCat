@@ -214,12 +214,37 @@ Queda para después (no bloquea M3):
 Notas:
 - Jest: Reanimated tiene un mock propio (`test/reanimatedMock.tsx`, por `moduleNameMapper`): el oficial carga la librería real y falla sin el runtime nativo, y `expo-router/testing-library` registra el suyo encima.
 
-## ⬜ M4 · Explorar y negocios
+## 🟨 M4 · Explorar y negocios
 
 - M10 mapa con MapLibre (requiere development build): pines por categoría con calificación, agrupación, mi ubicación (permiso explicado antes de pedirlo), filtros, carrusel inferior sincronizado con los pines, "Ver lista" accesible como alternativa al mapa.
 - "Cómo llegar" abre Google Maps/Waze con la coordenada.
 - M11 perfil del negocio: servicios con precio, reseñas, información.
 - Teselas configurables (`EXPO_PUBLIC_MAP_TILES_URL`, atribución visible "© OpenStreetMap").
+
+### Resultado de M4 (rama `mobile/m4-explorar`)
+
+Backend primero: PR #22 (`api/explorar`, fusionado): la sucursal cercana de `GET /negocios` trae coordenadas y si está abierta ahora (`abierto_ahora`, `cierra_a`, `abre_hoy_a`), filtro `abierto_ahora` y `tipo` con varios valores. Pendiente en la API: los festivos de Colombia.
+
+Decisiones (entrega cercana, aprobadas): sin MapLibre por ahora (requiere development build): Leaflet + OpenStreetMap dentro de `react-native-webview`, que funciona en Expo Go, como el panel web. Fuera de M4: agrupar pines, ruta punteada, carrusel sincronizado y animaciones. Agendar abre el perfil; en el perfil, "Agendar cita · Próximamente" deshabilitado hasta M5 (sin botón por servicio). Sin ubicación, el mapa centra en Sincelejo y no muestra distancias.
+
+Hecho:
+- [x] Módulo del mapa (`src/features/explorar/mapa/`): la pantalla solo conoce `<MapaNegocios>`; el WebView, el HTML y el protocolo de mensajes viven ahí, para cambiar a MapLibre sin tocar la pantalla. Mensajes en JSON en los dos sentidos; lo que llega del WebView se valida con Zod.
+- [x] Leaflet 1.9.4 empaquetado en la app (`npm run mapa:leaflet` genera `leaflet.generado.ts` desde `node_modules`, con el aviso de licencia BSD-2), sin CDN.
+- [x] Seguridad del WebView: solo carga su página (los enlaces, como la atribución, se abren fuera); CSP sin red salvo las imágenes del origen de `EXPO_PUBLIC_MAP_TILES_URL`. Probado en Chrome con Playwright: las teselas del origen configurado cargan, las imágenes de otros orígenes se bloquean sin pedirse, las etiquetas y la atribución van escapadas y, si el servidor niega las teselas, el mapa avisa.
+- [x] Si el mapa no carga (sin "listo" en 10 s, error del WebView o teselas que no cargan): pasa a la lista con un aviso y "Reintentar mapa". Nunca queda en blanco sin decir nada.
+- [x] M10 · Explorar: pines por categoría con la calificación (o "Nuevo"), el seleccionado destacado, mi ubicación; búsqueda (con espera de 400 ms) y chips Abierto ahora, Veterinarias (veterinaria y clínica) y Peluquería; tarjeta inferior con nombre, calificación, distancia, abierto o cerrado, Agendar (abre el perfil) y Cómo llegar (Google Maps o Waze con la coordenada).
+- [x] "Ver lista": la misma información en una lista accesible; también es lo que se ve si el mapa falla.
+- [x] Ubicación (`expo-location`, solo con la app abierta): una hoja explica para qué antes de pedir el permiso; si lo niega, Sincelejo con "Mostrando Sincelejo · Usar mi ubicación"; bloqueado, el botón ofrece abrir Ajustes.
+- [x] M11 · Perfil del negocio (`/negocios/[id]`): "Verificado por PetCat" (si la API lo marca), calificación, distancia (si ya hay permiso de ubicación) y abierto o cerrado; pestañas Servicios (precio, oferta, duración, "Desde"), Reseñas (paginadas, con la respuesta del negocio) e Información (horario de lunes a domingo por sede, Cómo llegar, Llamar, WhatsApp y sitio web).
+- [x] Accesibilidad: el mapa es solo visual (oculto al lector, con "Mapa con N negocios. Para recorrerlos con el lector de pantalla, usa Ver lista"); cada negocio es un elemento con todo en texto y sus acciones aparte; al tocar un pin se anuncia el negocio.
+- [x] Pruebas: 326 (Explorar y perfil con MSW y el WebView simulado; lógica de filtros, textos, horario, precios, enlaces, mensajes del mapa, CSP y navegación; contraste de los colores nuevos).
+- [x] `npm run lint`, `npm run typecheck`, `npm test`, `npx expo install --check`, `npx expo-doctor` (20/20) y el bundle de Android en verde.
+
+Falta para cerrar M4:
+- [ ] Probarla en el teléfono. Las teselas públicas de OpenStreetMap no se pudieron comprobar desde el equipo de desarrollo (sin acceso a su servidor): confirmar en el teléfono que el mapa se ve. Si sale el aviso "El mapa no pudo cargar sus imágenes", OSM está negando las teselas (por ejemplo, por no enviar `Referer` desde el WebView): se cambia de proveedor con `EXPO_PUBLIC_MAP_TILES_URL` sin tocar código.
+
+Notas:
+- `react-native-webview` 14.0.1 tipa mal su clase (`WebView<P = undefined>` con props `WebViewProps & P`, que con TypeScript estricto es `never`): `MapaNegocios.tsx` usa un alias bien tipado del mismo componente.
 
 ## ⬜ M5 · Reservas y citas
 
