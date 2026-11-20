@@ -326,6 +326,29 @@ Para una base de pruebas aparte que no toque esta, ver [Base de demo](#base-de-d
 
 Se niega a correr con `NODE_ENV=production` o sin `--yes`.
 
+### Copias de seguridad
+
+La base tiene funciones, procedimientos y triggers: `fn_codigo_pasaporte` (número del Pasaporte PetCat de cada mascota nueva, migración 030), `sp_programar_recordatorios_cita` (recordatorios al confirmar una cita) y los triggers de `petcat.sql`. **`mysqldump` exporta los triggers por defecto, pero las funciones y los procedimientos solo con `--routines`.** Sin esa opción, la copia restaurada no puede crear mascotas ni confirmar citas.
+
+```powershell
+# Copia: se escribe dentro del contenedor y se trae con docker compose cp
+# (en PowerShell 5.1, ">" la guardaría en UTF-16 y la dañaría).
+docker compose exec mysql sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --single-transaction --routines --default-character-set=utf8mb4 petcat_db > /tmp/petcat_db.sql'
+docker compose cp mysql:/tmp/petcat_db.sql "$HOME\copias-petcat\petcat_db_$(Get-Date -Format yyyy-MM-dd).sql"
+docker compose exec mysql rm /tmp/petcat_db.sql
+
+# Restaurar (BORRA lo que haya en petcat_db) y comprobar
+docker compose cp "$HOME\copias-petcat\petcat_db_2026-11-20.sql" mysql:/tmp/restaurar.sql
+docker compose exec mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "DROP DATABASE IF EXISTS petcat_db; CREATE DATABASE petcat_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"'
+docker compose exec mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" --default-character-set=utf8mb4 petcat_db < /tmp/restaurar.sql; rm /tmp/restaurar.sql'
+docker compose exec backend npm run db:verificar
+```
+
+- `--single-transaction`: copia consistente de InnoDB sin bloquear la base mientras la API sigue funcionando. La base no usa eventos (`--events` no hace falta).
+- `npm run db:verificar` comprueba que la base tiene todas las funciones, procedimientos y triggers de `petcat.sql` y que se puede crear una mascota (en una transacción que se revierte: no deja datos). Si falta algo, sale con código 1 y lo dice. Sirve también en cualquier otro momento.
+- Restaurar crea funciones y triggers: con el binlog activo hace falta `root` (o un usuario con SUPER) o `log_bin_trust_function_creators=1` en el servidor (ver "Requisitos antes de lanzar" en `docs/PLAN.md`). La copia conserva el `DEFINER` de cada uno: ese usuario debe existir en el servidor de destino.
+- La copia tiene datos personales y de salud (Ley 1581): guárdala fuera del repositorio, cifrada, y bórrala cuando ya no haga falta.
+
 ### Base de demo (para probar el panel web)
 
 `petcat_demo` es una base aparte con el esquema y el seed de desarrollo, para probar el panel web (y sus pruebas de Playwright) contra datos conocidos sin tocar `petcat_db`. Usa el mismo MySQL y el resto de `backend/.env` (credenciales, JWT, SMTP); solo cambia el nombre de la base.

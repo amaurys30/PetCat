@@ -52,6 +52,12 @@ const router = express.Router();
  *         peso: { type: number, nullable: true }
  *         microchip: { type: string, nullable: true }
  *         numero_registro: { type: string, nullable: true }
+ *         codigo_pasaporte:
+ *           type: string
+ *           example: PC-7KQ4-M9XR
+ *           description: >
+ *             Número del Pasaporte PetCat. Lo asigna la API al crear la mascota: aleatorio y estable, no sale del id
+ *             ni se puede editar. Es un dato visible, no una credencial (no da acceso a nada).
  *         esterilizado: { type: boolean }
  *         tiene_alergias: { type: boolean }
  *         compartir_historial: { type: boolean }

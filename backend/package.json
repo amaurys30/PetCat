@@ -16,6 +16,7 @@
     "db:reset": "node scripts/db-reset.js",
     "db:migrate": "node scripts/db-migrate.js",
     "db:demo": "node scripts/db-demo.js",
+    "db:verificar": "node scripts/db-verificar.js",
     "mail:test": "node scripts/mail-test.js"
   },
   "dependencies": {

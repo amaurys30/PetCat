@@ -137,6 +137,27 @@ describe("historial médico: lectura", () => {
     expect(porFecha.body.meta.total).toBe(2);
     expect((await api(await tokenDe(await crearUsuario())).get(base)).status).toBe(403);
   });
+
+  it("tipo acepta varios separados por comas (el filtro Consultas de la app), en el dueño y en el panel", async () => {
+    const ctx = await contexto();
+    await crearHistorial(ctx.clinicaA, ctx.mascota, { tipo: "desparasitacion", fecha: sumarDias(HOY, -5) });
+    await crearHistorial(ctx.clinicaA, ctx.mascota, { tipo: "control", fecha: sumarDias(HOY, -3) });
+    await crearHistorial(ctx.clinicaA, ctx.mascota, { tipo: "vacunacion", fecha: sumarDias(HOY, -2) });
+    const base = `/mascotas/${ctx.mascota.id_mascota}/historial`;
+
+    const consultas = await api(ctx.tokenCliente).get(`${base}?tipo=consulta_general,control, cirugia`);
+    expect(consultas.status).toBe(200);
+    expect(consultas.body.data.map((r) => r.tipo)).toEqual(["control", "consulta_general", "consulta_general"]);
+    expect(consultas.body.meta.total).toBe(3);
+
+    const enPanel = await api(ctx.tokenA).get(
+      `/negocios/${ctx.clinicaA.id_negocio}/mascotas/${ctx.mascota.id_mascota}/historial?tipo=vacunacion,desparasitacion`
+    );
+    expect(enPanel.body.data.map((r) => r.tipo)).toEqual(["vacunacion", "desparasitacion"]);
+
+    expect((await api(ctx.tokenCliente).get(`${base}?tipo=control,inventado`)).status).toBe(422);
+    expect((await api(ctx.tokenCliente).get(`${base}?tipo=`)).status).toBe(422);
+  });
 });
 
 describe("POST /negocios/:id_negocio/historial", () => {

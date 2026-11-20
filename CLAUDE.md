@@ -133,6 +133,7 @@ npm test                          # Vitest
 npm run db:migrate                # migraciones pendientes (--status para ver el estado)
 npm run db:reset -- --yes         # recrea la base de backend/.env con esquema y seed
 npm run db:demo                   # recrea petcat_demo (base del panel web) con esquema y seed
+npm run db:verificar              # funciones, procedimientos y triggers completos (tras restaurar una copia: mysqldump --routines)
 npm run dev:demo                  # API contra petcat_demo
 
 # Docker (Amaurys trabaja así; detalle en backend/README.md, "Dos backends en Docker")

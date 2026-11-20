@@ -407,6 +407,9 @@ CREATE TABLE mascotas (
     -- Identificación
     microchip        VARCHAR(50)     NULL,
     numero_registro  VARCHAR(60)     NULL,
+    -- Migración 030: número del Pasaporte PetCat; lo asigna trg_mascotas_before_insert.
+    codigo_pasaporte CHAR(12) CHARACTER SET ascii COLLATE ascii_bin NOT NULL
+                     COMMENT 'Número del Pasaporte PetCat (PC-XXXX-XXXX), aleatorio y estable',
     -- Salud general
     esterilizado     BOOLEAN         NOT NULL DEFAULT FALSE,
     tiene_alergias   BOOLEAN         NOT NULL DEFAULT FALSE,
@@ -429,6 +432,7 @@ CREATE TABLE mascotas (
     INDEX idx_mascotas_especie (especie),
     INDEX idx_mascotas_microchip (microchip),
     INDEX idx_mascotas_activo (activo),
+    UNIQUE KEY uq_mascotas_codigo_pasaporte (codigo_pasaporte),
     CONSTRAINT fk_mascotas_usuario
         FOREIGN KEY (id_usuario) REFERENCES usuarios (id_usuario)
         ON DELETE CASCADE ON UPDATE CASCADE
@@ -1529,7 +1533,40 @@ CREATE TABLE archivos (
 --  TRIGGERS Y PROCEDIMIENTOS
 -- ═══════════════════════════════════════════════════════════════════════════
 
-DELIMITER $$
+DELIMITER $
+
+-- Migración 030: número del Pasaporte PetCat, PC-XXXX-XXXX con 8 caracteres aleatorios
+-- (RANDOM_BYTES) de un alfabeto de 30 sin los que se confunden (sin 0/O, 1/I/L ni U).
+-- No sale del id: no deja adivinar cuántas mascotas hay. Es un dato visible, no una credencial.
+CREATE FUNCTION fn_codigo_pasaporte() RETURNS CHAR(12) CHARSET ascii
+    NOT DETERMINISTIC NO SQL
+    COMMENT 'Código del Pasaporte PetCat: PC-XXXX-XXXX, aleatorio'
+BEGIN
+    DECLARE alfabeto CHAR(30) CHARSET ascii DEFAULT '23456789ABCDEFGHJKMNPQRSTVWXYZ';
+    DECLARE codigo VARCHAR(12) CHARSET ascii DEFAULT 'PC-';
+    DECLARE i TINYINT DEFAULT 0;
+    WHILE i < 8 DO
+        IF i = 4 THEN
+            SET codigo = CONCAT(codigo, '-');
+        END IF;
+        -- 2 bytes (0-65535) módulo 30: el sesgo es despreciable.
+        SET codigo = CONCAT(codigo, SUBSTRING(alfabeto, 1 + MOD(CONV(HEX(RANDOM_BYTES(2)), 16, 10), 30), 1));
+        SET i = i + 1;
+    END WHILE;
+    RETURN codigo;
+END$
+
+-- Migración 030: cada mascota nueva recibe su número de pasaporte. Sin buscar antes si existe
+-- (dentro del INSERT ese SELECT bloquea el índice único y las altas simultáneas chocaban en
+-- deadlock): lo garantiza uq_mascotas_codigo_pasaporte y la API reintenta si choca.
+CREATE TRIGGER trg_mascotas_before_insert
+BEFORE INSERT ON mascotas
+FOR EACH ROW
+BEGIN
+    IF NEW.codigo_pasaporte IS NULL OR NEW.codigo_pasaporte = '' THEN
+        SET NEW.codigo_pasaporte = fn_codigo_pasaporte();
+    END IF;
+END$
 
 -- Calificación promedio y total de reseñas visibles del negocio al agregar una reseña.
 -- COALESCE (migración 018): sin reseñas visibles, AVG da NULL y calificacion_promedio es NOT NULL.
@@ -1947,7 +1984,8 @@ INSERT INTO schema_migrations (nombre) VALUES
 ('026_citas_ver_todas_y_creador_historial.sql'),
 ('027_publico_landing.sql'),
 ('028_codigos_correo.sql'),
-('029_mascota_pesos.sql');
+('029_mascota_pesos.sql'),
+('030_codigo_pasaporte.sql');
 
 
 SET FOREIGN_KEY_CHECKS = 1;
