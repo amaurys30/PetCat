@@ -43,10 +43,53 @@ export const perfilDemo = (requiere_aceptar_politica = false, usuario = usuarioD
   negocios: [],
 });
 
+
+const resumenVacio = {
+  estado_vacunas: "sin_vacunas" as const,
+  vacunas: { vigentes: 0, al_dia: 0, proximas: 0, vencidas: 0 },
+  proximos_eventos: [],
+  proxima_cita: null,
+};
+
+/** Mascota de la API (GET /mascotas?incluir=resumen). */
+export function mascotaDemo(cambios: Record<string, unknown> = {}) {
+  return {
+    id_mascota: 1,
+    id_usuario: usuarioDemo.id_usuario,
+    nombre: "Luna",
+    especie: "perro",
+    raza: "Labrador",
+    color: null,
+    fecha_nacimiento: "2023-05-10",
+    edad_meses: 42,
+    sexo: "hembra" as const,
+    peso: 28.4,
+    microchip: null,
+    numero_registro: null,
+    esterilizado: true,
+    tiene_alergias: false,
+    compartir_historial: true,
+    alergias_detalle: null,
+    condiciones_medicas: null,
+    tipo_sangre: null,
+    foto_url: null,
+    foto_miniatura_url: null,
+    fallecido: false,
+    fecha_fallecimiento: null,
+    fecha_registro: "2026-01-10 10:00:00",
+    fecha_actualizacion: "2026-11-01 10:00:00",
+    resumen: resumenVacio,
+    ...cambios,
+  };
+}
+
 // Handlers por defecto. Cada prueba agrega los suyos con server.use(...).
+// Las pestañas abren Inicio, que pide las mascotas: por defecto, sin mascotas.
 export const handlers = [
   http.get(`${API}/health`, () =>
     ok({ status: "ok", db: "ok", uptime: 42, time: "2026-11-18T13:00:00.000Z" }),
   ),
   http.get(`${API}/politica-datos`, () => ok({ version: "1.0", url: null })),
+  http.get(`${API}/mascotas`, () => ok([])),
+  http.get(`${API}/mascotas/:id/pesos`, () => ok({ peso_actual: null, puntos: [] })),
 ];
