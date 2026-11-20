@@ -96,6 +96,60 @@ describe("GET /mascotas/:id_mascota/pesos", () => {
     expect(dosAnios.body.data.puntos).toHaveLength(3);
   });
 
+  it("es solo del dueño: un negocio con cita recibe 403, comparta o no el historial", async () => {
+    const dueno = await crearUsuario();
+    const mascota = await crearMascota(dueno, { peso: 10 });
+    const clinicaA = await crearNegocio(null);
+    const clinicaB = await crearNegocio(null);
+    await crearCita(clinicaA, { cliente: dueno, mascota, estado: "completada", fecha: sumarDias(-20) });
+    await crearCita(clinicaB, { cliente: dueno, mascota, estado: "completada", fecha: sumarDias(-10) });
+    const tokenA = await tokenDe(clinicaA.propietario);
+    const tokenB = await tokenDe(clinicaB.propietario);
+    await api(tokenA)
+      .post(`/negocios/${clinicaA.id_negocio}/historial`)
+      .send({ id_mascota: mascota.id_mascota, tipo: "control", fecha: sumarDias(-20), peso_registro: 10.4 });
+
+    for (const compartir of [true, false]) {
+      await pool.query("UPDATE mascotas SET compartir_historial = ? WHERE id_mascota = ?", [compartir, mascota.id_mascota]);
+      for (const token of [tokenA, tokenB]) {
+        const res = await api(token).get(`/mascotas/${mascota.id_mascota}/pesos`);
+        expect(res.status).toBe(403);
+        expect(res.body).not.toHaveProperty("data");
+      }
+    }
+  });
+
+  it("el panel ve la evolución del peso solo en resumen-salud, que respeta compartir_historial", async () => {
+    const dueno = await crearUsuario();
+    const mascota = await crearMascota(dueno, { peso: 10 });
+    const clinicaA = await crearNegocio(null);
+    const clinicaB = await crearNegocio(null);
+    await crearCita(clinicaA, { cliente: dueno, mascota, estado: "completada", fecha: sumarDias(-20) });
+    await crearCita(clinicaB, { cliente: dueno, mascota, estado: "completada", fecha: sumarDias(-10) });
+    const tokenA = await tokenDe(clinicaA.propietario);
+    const tokenB = await tokenDe(clinicaB.propietario);
+    // A registra un peso en su consulta; el dueño anota otro en la app.
+    await api(tokenA)
+      .post(`/negocios/${clinicaA.id_negocio}/historial`)
+      .send({ id_mascota: mascota.id_mascota, tipo: "control", fecha: sumarDias(-20), peso_registro: 10.4 });
+    await api(await tokenDe(dueno)).patch(`/mascotas/${mascota.id_mascota}`).send({ peso: 10.9 });
+
+    const puntosDeB = async () =>
+      (await api(tokenB).get(`/negocios/${clinicaB.id_negocio}/mascotas/${mascota.id_mascota}/resumen-salud`)).body.data
+        .evolucion_peso.puntos;
+
+    // Compartiendo: B ve el peso que registró A (y nunca el que anotó el dueño, que no es historial clínico).
+    expect(await puntosDeB()).toEqual([{ fecha: sumarDias(-20), peso: 10.4 }]);
+
+    // Sin compartir: B no ve el peso registrado por A.
+    await api(await tokenDe(dueno)).patch(`/mascotas/${mascota.id_mascota}`).send({ compartir_historial: false });
+    expect(await puntosDeB()).toEqual([]);
+
+    // A sigue viendo el suyo.
+    const deA = await api(tokenA).get(`/negocios/${clinicaA.id_negocio}/mascotas/${mascota.id_mascota}/resumen-salud`);
+    expect(deA.body.data.evolucion_peso.puntos).toEqual([{ fecha: sumarDias(-20), peso: 10.4 }]);
+  });
+
   it("otro usuario 403; eliminada 404; meses fuera de rango 422", async () => {
     const dueno = await crearUsuario();
     const mascota = await crearMascota(dueno);
