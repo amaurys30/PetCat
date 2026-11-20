@@ -9,7 +9,12 @@ describe("leerEnv", () => {
         { EXPO_PUBLIC_API_URL: "http://192.168.1.50:3001/api/v1/" },
         { ...android, hostUri: "10.0.0.2:8081" },
       ),
-    ).toEqual({ apiUrl: "http://192.168.1.50:3001/api/v1", socketUrl: "http://192.168.1.50:3001" });
+    ).toEqual({
+      apiUrl: "http://192.168.1.50:3001/api/v1",
+      socketUrl: "http://192.168.1.50:3001",
+      // Sin variables del mapa: teselas de OpenStreetMap (solo desarrollo).
+      mapa: { teselas: "https://tile.openstreetmap.org/{z}/{x}/{y}.png", atribucion: "© OpenStreetMap" },
+    });
   });
 
   it("respeta EXPO_PUBLIC_SOCKET_URL", () => {

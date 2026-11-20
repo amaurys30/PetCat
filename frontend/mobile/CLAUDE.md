@@ -86,6 +86,8 @@ También en M2: **react-native-keyboard-controller** (incluido en Expo Go; `Keyb
 
 En M3 el efecto holográfico del Pasaporte usa `useAnimatedSensor` de Reanimated (sensor en el hilo de UI, sin dependencia nueva) en lugar de expo-sensors: todo pasa por `useInclinacion` en `src/features/pasaporte/efecto.tsx`. **Está pausado** (`EFECTO_HOLOGRAFICO = false`) por cierres nativos en Android: antes de activarlo, leer el pendiente en `PLAN.md`. Mientras tanto, en el Pasaporte no se usa Reanimated. En Jest, Reanimated tiene un mock propio (`test/reanimatedMock.tsx`, por `moduleNameMapper`): el oficial carga la librería real y falla sin el runtime nativo.
 
+En M4: **react-native-webview** y **expo-location** (las dos en Expo Go). El mapa de Explorar es Leaflet + OpenStreetMap dentro del WebView, no MapLibre (decisión de M4, por la entrega). Todo lo del mapa vive en `src/features/explorar/mapa/` y la pantalla solo usa `<MapaNegocios>`: para pasar a MapLibre se reemplaza ese módulo. Leaflet va empaquetado: `leaflet` es devDependency (misma versión que el panel) y `npm run mapa:leaflet` genera `leaflet.generado.ts` (no se edita a mano; está fuera de Prettier y ESLint). El WebView solo carga su página y la CSP solo permite las imágenes del origen de `EXPO_PUBLIC_MAP_TILES_URL`: si se cambia de proveedor, revisar que el mapa cargue. En Jest, el WebView y la ubicación tienen mock (`test/webviewMock.tsx`, `test/setup.ts`).
+
 **Expo Go no basta**: MapLibre y push en Android requieren **development build** (EAS Build, perfil `development`).
 Mantén la app compatible con Expo Go hasta M4 cuando sea posible, para facilitar las primeras pruebas.
 

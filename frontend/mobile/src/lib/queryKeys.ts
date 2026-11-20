@@ -15,4 +15,10 @@ export const queryKeys = {
   // Fuera de "mascotas" a propósito: diagnósticos y tratamientos no se guardan en el teléfono
   // (Ley 1581, decisión de M3). Sin red, la línea de vida muestra solo vacunas y desparasitación.
   historial: (id_mascota: number, filtro: string) => ["historial", id_mascota, filtro] as const,
+  // Negocios públicos (Explorar): no se guardan en el teléfono.
+  negocios: {
+    busqueda: (filtros: object) => ["negocios", "busqueda", filtros] as const,
+    perfil: (id_negocio: number) => ["negocios", "perfil", id_negocio] as const,
+    resenas: (id_negocio: number) => ["negocios", "resenas", id_negocio] as const,
+  },
 };

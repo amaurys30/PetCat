@@ -69,6 +69,12 @@ const PARES: [string, Token | typeof BLANCO, Token][] = [
   ["insignia Aplicada", "primary-deep", "primary-soft"],
   ["insignia Vencida", "danger-ink", "danger-soft"],
   ["ícono de desparasitación", "lavender-ink", "lavender-soft"],
+  // M4 · Explorar: pines del mapa y estado de apertura.
+  ["pin seleccionado (calificación sobre coral)", "coral-ink", "coral"],
+  ["pin: calificación sobre blanco", "ink", "white"],
+  ["chip Abierto", "primary-deep", "primary-soft"],
+  ["chip Cerrado", "muted", "track"],
+  ["enlace Mostrando Sincelejo", "primary-strong", "surface"],
 ];
 
 const valor = (t: string) => (t.startsWith("#") ? t : colors[t as Token]);

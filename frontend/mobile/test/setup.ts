@@ -70,3 +70,24 @@ jest.mock("expo-image-manipulator", () => {
 
 // Teclado: el mock de la librería (KeyboardAwareScrollView es un ScrollView y KeyboardStickyView un View).
 jest.mock("react-native-keyboard-controller", () => require("react-native-keyboard-controller/jest"));
+
+// Mapa de Explorar: WebView simulado (test/webviewMock.tsx).
+jest.mock("react-native-webview", () => require("./webviewMock"));
+
+// Ubicación: por defecto, sin decidir aún (la pantalla explica antes de pedirla) y concedida al pedirla.
+jest.mock("expo-location", () => ({
+  PermissionStatus: { GRANTED: "granted", UNDETERMINED: "undetermined", DENIED: "denied" },
+  Accuracy: { Balanced: 3 },
+  getForegroundPermissionsAsync: jest.fn(async () => ({
+    status: "undetermined",
+    granted: false,
+    canAskAgain: true,
+  })),
+  requestForegroundPermissionsAsync: jest.fn(async () => ({
+    status: "granted",
+    granted: true,
+    canAskAgain: true,
+  })),
+  getLastKnownPositionAsync: jest.fn(async () => ({ coords: { latitude: 9.315, longitude: -75.389 } })),
+  getCurrentPositionAsync: jest.fn(async () => ({ coords: { latitude: 9.315, longitude: -75.389 } })),
+}));

@@ -31,6 +31,15 @@ const config: ExpoConfig = {
     "expo-font",
     "expo-secure-store",
     [
+      "expo-location",
+      {
+        // Solo con la app abierta (Explorar): sin ubicación en segundo plano.
+        locationWhenInUsePermission: "PetCat usa tu ubicación para mostrarte los negocios cercanos y a qué distancia están.",
+        isAndroidBackgroundLocationEnabled: false,
+        isIosBackgroundLocationEnabled: false,
+      },
+    ],
+    [
       "expo-image-picker",
       {
         photosPermission: "PetCat usa tus fotos para que elijas la foto de tu mascota.",
