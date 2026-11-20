@@ -95,6 +95,24 @@ describe("PUT|DELETE /mascotas/:id_mascota/foto", () => {
     expect((await api(token).delete(`/mascotas/${mascota.id_mascota}/foto`)).status).toBe(404);
   });
 
+  it("la foto de la mascota se guarda sin EXIF ni ubicación GPS (ni XMP), también la miniatura", async () => {
+    const dueno = await crearUsuario();
+    const mascota = await crearMascota(dueno);
+    const original = await fotoConGps();
+    // La foto de prueba sí trae la ubicación, como la de un celular.
+    expect((await sharp(original).metadata()).exif).toBeDefined();
+
+    const res = await subir(await tokenDe(dueno), `/mascotas/${mascota.id_mascota}/foto`, "foto", original);
+    expect(res.status).toBe(200);
+
+    const guardado = storage.archivos.get(publicIdDe(res.body.data.foto_url));
+    const meta = await sharp(guardado.buffer).metadata();
+    expect(meta.exif).toBeUndefined();
+    expect(meta.xmp).toBeUndefined();
+    // Ni rastro de las etiquetas GPS en los bytes.
+    expect(guardado.buffer.includes(Buffer.from("GPS"))).toBe(false);
+  });
+
   it("otro usuario recibe 403 y no se sube nada; inexistente o eliminada, 404", async () => {
     const mascota = await crearMascota(await crearUsuario());
     const token = await tokenDe(await crearUsuario());

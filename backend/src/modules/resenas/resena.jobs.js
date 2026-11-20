@@ -19,6 +19,8 @@ const motivoDescarte = async (cita, antesDe, ahora, conn) => {
   if (!plazoAbierto(antesDe, ahora)) return "Terminó el plazo para reseñar";
   if (!cita.usuario_activo) return "El dueño está inactivo";
   if (!cita.negocio_activo) return "El negocio está inactivo";
+  // Si la mascota falleció (por ejemplo, el mismo día de la cita), no se invita a reseñar la visita.
+  if (cita.mascota_fallecida) return "La mascota falleció";
   if (await resenaRepo.findByCita(cita.id_cita, conn)) return "Ya dejó su reseña";
   if (await resenaRepo.esPersonal(cita.id_usuario, cita.id_negocio, conn)) return "Es personal del negocio";
   return null;

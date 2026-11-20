@@ -19,10 +19,11 @@ export const lockCita = async (id_cita, conn) => {
 export const lockCitaSinEsperar = async (id_cita, conn) => {
   const [rows] = await conn.query(
     `SELECT c.id_cita, c.id_negocio, c.id_usuario, c.estado, c.fecha_completada,
-            u.activo AS usuario_activo, n.activo AS negocio_activo
+            u.activo AS usuario_activo, n.activo AS negocio_activo, m.fallecido AS mascota_fallecida
      FROM citas c
      JOIN usuarios u ON u.id_usuario = c.id_usuario
      JOIN negocios n ON n.id_negocio = c.id_negocio
+     LEFT JOIN mascotas m ON m.id_mascota = c.id_mascota
      WHERE c.id_cita = ? FOR UPDATE OF c SKIP LOCKED`,
     [id_cita]
   );
