@@ -6,6 +6,7 @@ import { diasEntre } from "../vacunas/vacuna.calculo.js";
 import { hoyISO } from "../../shared/utils/fechas.js";
 import { toNumber } from "../../shared/utils/format.js";
 import { formatMascota } from "../mascotas/mascota.service.js";
+import { SELECT_CITA, formatCitaResumen } from "./cita-resumen.js";
 
 const MESES_PESO = 24;
 const MAX_PUNTOS_PESO = 24;
@@ -19,22 +20,6 @@ const restarMeses = (fechaISO, meses) => {
 
 // Citas del resumen: para el dueño de cualquier negocio; para un negocio, solo las suyas.
 const filtroNegocio = (contexto) => (contexto.tipo === "negocio" ? ["AND c.id_negocio = ?", [contexto.id_negocio]] : ["", []]);
-
-const SELECT_CITA = `SELECT c.id_cita, c.fecha, TIME_FORMAT(c.hora_inicio, '%H:%i') AS hora_inicio, c.estado,
-         sv.id_servicio, sv.nombre AS servicio_nombre, n.id_negocio, n.nombre AS negocio_nombre
-  FROM citas c
-  JOIN servicios sv ON sv.id_servicio = c.id_servicio
-  JOIN negocios n ON n.id_negocio = c.id_negocio`;
-
-const formatCitaResumen = (c) =>
-  c && {
-    id_cita: c.id_cita,
-    fecha: c.fecha,
-    hora_inicio: c.hora_inicio,
-    estado: c.estado,
-    servicio: { id_servicio: c.id_servicio, nombre: c.servicio_nombre },
-    negocio: { id_negocio: c.id_negocio, nombre: c.negocio_nombre },
-  };
 
 const ultimaCitaCompletada = async (id_mascota, contexto) => {
   const [condicion, valores] = filtroNegocio(contexto);

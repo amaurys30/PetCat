@@ -410,3 +410,33 @@ describe("seed de desarrollo: datos realistas", () => {
     expect(cita.resena).toMatchObject({ puede_resenar: true, id_resena: null });
   });
 });
+
+describe("seed: historial de peso (migración 029)", () => {
+  // Solo los datos del seed: los demás tests crean mascotas y registros directo en la base.
+  const CORREOS_SEED = [
+    "admin", "andrea", "camilo", "cliente", "guarderia", "huellitas", "jorge", "lorena", "luis", "marta",
+    "pedro", "propietario", "recepcionista", "saludanimal", "valeria", "vet.salud", "veterinario",
+  ].map((n) => `'${n}@petcat.test'`);
+  const SEED = `SELECT id_usuario FROM usuarios WHERE email IN (${CORREOS_SEED.join(", ")})`;
+
+  it("copia los pesos de los registros médicos y, sin ninguno, el peso actual de la mascota", async () => {
+    const [desdeHistorial] = await pool.query(
+      `SELECT COUNT(*) AS faltan FROM historial_medico h JOIN mascotas m ON m.id_mascota = h.id_mascota
+       WHERE h.peso_registro IS NOT NULL AND m.id_usuario IN (${SEED})
+         AND NOT EXISTS (SELECT 1 FROM mascota_pesos p
+                         WHERE p.id_historial = h.id_historial AND p.peso = h.peso_registro
+                           AND p.fecha = h.fecha AND p.origen = 'historial')`
+    );
+    expect(desdeHistorial[0].faltan).toBe(0);
+
+    const [sinHistorial] = await pool.query(
+      `SELECT m.id_mascota, m.peso,
+              (SELECT COUNT(*) FROM mascota_pesos p WHERE p.id_mascota = m.id_mascota AND p.origen = 'dueno' AND p.peso = m.peso) AS del_dueno
+       FROM mascotas m
+       WHERE m.peso IS NOT NULL AND m.id_usuario IN (${SEED})
+         AND NOT EXISTS (SELECT 1 FROM historial_medico h WHERE h.id_mascota = m.id_mascota AND h.peso_registro IS NOT NULL)`
+    );
+    expect(sinHistorial.length).toBeGreaterThan(0);
+    for (const fila of sinHistorial) expect(fila.del_dueno).toBe(1);
+  });
+});

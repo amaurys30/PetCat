@@ -561,6 +561,9 @@ Detalle de cada uno en Swagger.
 - En el carnet, `registrada_por: dueno` y `tiene_comprobante` distinguen las vacunas que registró el dueño de las de un profesional. `estado` ya viene calculado (`no_aplica` en dosis reemplazadas por una más reciente de la misma vacuna).
 - Los archivos del historial y el comprobante de una vacuna se suben aparte (ver "Archivos e imágenes") y llegan en `archivos` y `comprobante` con URL firmada que vence.
 - `resumen-salud` trae lo que la app necesita para la ficha: vacunas vencidas y próximas (30 días), último y próximo control, próxima cita y evolución del peso.
+- **Listas de la app (Inicio, Mis mascotas):** `GET /mascotas?incluir=resumen` (y `GET /mascotas/:id_mascota?incluir=resumen`) agrega a cada mascota `resumen`: `estado_vacunas` (`al_dia`, `proximo`, `vencido`, `sin_vacunas`), conteo de dosis vigentes, `proximos_eventos` (vacunas, desparasitaciones y controles de los próximos 30 días, máximo 5) y `proxima_cita` (de cualquier negocio). Se calcula en lote: el mismo número de consultas con una mascota que con diez. Solo lo recibe el dueño; sin `incluir`, la respuesta no cambia. Una mascota fallecida no tiene estado de vacunas, eventos ni cita.
+- **Historial de peso:** `GET /mascotas/:id_mascota/pesos?meses=12` (1 a 60), solo el dueño. Junta los pesos de los registros médicos (`origen: historial`) y los que anota el dueño al crear o editar la mascota (`origen: dueno`, uno por día). La migración 029 copió los del historial y, para las mascotas sin ninguno, el peso actual.
+- **Mascota fallecida:** no recibe recordatorios de vacunas ni la invitación a reseñar una visita; los controles y desparasitaciones no tienen recordatorios programados.
 
 ### Clientes sin app (panel)
 

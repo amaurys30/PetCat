@@ -164,6 +164,28 @@ describe("job de invitaciones", () => {
     expect(await invitacion(propietario.cita.id_cita)).toMatchObject({ estado: "cancelado", error_detalle: "Es personal del negocio" });
     expect(await invitacion(vencida.cita.id_cita)).toMatchObject({ estado: "cancelado", error_detalle: "Terminó el plazo para reseñar" });
   });
+
+  it("no invita a reseñar la visita si la mascota falleció después de la cita", async () => {
+    const { cita, cliente } = await citaConInvitacion("2033-03-14", "11:00:00");
+    await pool.query("UPDATE mascotas SET fallecido = TRUE, fecha_fallecimiento = '2033-03-14' WHERE id_mascota = ?", [
+      cita.id_mascota,
+    ]);
+
+    expect(await enviarInvitacionesResena({ ahora: a("2033-03-14", "14:00:30") })).toBe(0);
+    expect(await invitacion(cita.id_cita)).toMatchObject({ estado: "cancelado", error_detalle: "La mascota falleció" });
+    expect(await notificacionesDe(cliente)).toEqual([]);
+    expect(pushSender.enviados).toEqual([]);
+  });
+});
+
+describe("mascota fallecida: no recibe recordatorios", () => {
+  it("vacunas: ya excluidas (tests/recordatorios/vacunas.test.js); controles y desparasitaciones no tienen recordatorios programados", async () => {
+    const [tipos] = await pool.query(
+      `SELECT DISTINCT tipo FROM recordatorios WHERE tipo IN ('control_medico', 'desparasitacion')`
+    );
+    // Ningún flujo de la API los programa (solo existen en el ENUM de la tabla): nada que cancelar.
+    expect(tipos).toEqual([]);
+  });
 });
 
 describe("dos instancias del job", () => {

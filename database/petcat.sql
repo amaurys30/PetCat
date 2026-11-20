@@ -567,6 +567,28 @@ CREATE TABLE vacunas (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Registro de vacunas con trazabilidad de lote y laboratorio';
 
+-- Migración 029. Historial de peso: registros médicos con peso (uno por registro) y lo que
+-- anota el dueño al crear o editar la mascota (uno por día).
+CREATE TABLE mascota_pesos (
+    id_peso         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    id_mascota      INT UNSIGNED    NOT NULL,
+    peso            DECIMAL(6,2)    NOT NULL COMMENT 'En kilogramos',
+    fecha           DATE            NOT NULL,
+    origen          ENUM('dueno','historial') NOT NULL,
+    id_historial    BIGINT UNSIGNED NULL COMMENT 'Registro médico de donde sale (origen historial)',
+    fecha_creacion  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id_peso),
+    UNIQUE KEY uq_pesos_historial (id_historial),
+    INDEX idx_pesos_mascota_fecha (id_mascota, fecha),
+    CONSTRAINT fk_pesos_mascota
+        FOREIGN KEY (id_mascota) REFERENCES mascotas (id_mascota)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_pesos_historial
+        FOREIGN KEY (id_historial) REFERENCES historial_medico (id_historial)
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Historial de peso de las mascotas (registros médicos y lo que anota el dueño)';
+
 -- Migración 023: cada edición de una vacuna (las vacunas no se borran).
 CREATE TABLE vacunas_ediciones (
     id_edicion         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -1924,7 +1946,8 @@ INSERT INTO schema_migrations (nombre) VALUES
 ('025_suscripciones_usuario_registro.sql'),
 ('026_citas_ver_todas_y_creador_historial.sql'),
 ('027_publico_landing.sql'),
-('028_codigos_correo.sql');
+('028_codigos_correo.sql'),
+('029_mascota_pesos.sql');
 
 
 SET FOREIGN_KEY_CHECKS = 1;
