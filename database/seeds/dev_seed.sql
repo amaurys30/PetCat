@@ -921,3 +921,18 @@ SELECT c.id_cita, IF(c.cancelada_por = 'dueno', c.id_usuario, n.id_usuario_propi
 FROM citas c JOIN negocios n ON n.id_negocio = c.id_negocio
 WHERE c.estado = 'cancelada' AND c.cancelada_por IN ('dueno', 'negocio')
   AND NOT EXISTS (SELECT 1 FROM historial_citas h WHERE h.id_cita = c.id_cita AND h.valor_nuevo = 'cancelada');
+
+
+-- Historial de peso (migración 029): los pesos de los registros médicos y, para las mascotas
+-- sin ninguno, el peso actual. Igual que la migración, porque el seed carga los datos después.
+INSERT INTO mascota_pesos (id_mascota, peso, fecha, origen, id_historial)
+SELECT h.id_mascota, h.peso_registro, h.fecha, 'historial', h.id_historial
+FROM historial_medico h
+WHERE h.peso_registro IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM mascota_pesos p WHERE p.id_historial = h.id_historial);
+
+INSERT INTO mascota_pesos (id_mascota, peso, fecha, origen)
+SELECT m.id_mascota, m.peso, DATE(m.fecha_actualizacion), 'dueno'
+FROM mascotas m
+WHERE m.peso IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM mascota_pesos p WHERE p.id_mascota = m.id_mascota);

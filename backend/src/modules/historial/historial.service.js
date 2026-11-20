@@ -1,5 +1,6 @@
 import * as historialRepo from "./historial.repository.js";
 import * as empleadoRepo from "../empleados/empleado.repository.js";
+import * as pesoRepo from "../mascotas/peso.repository.js";
 import { accesoDueno, accesoNegocio } from "../salud/salud.acceso.js";
 import { withTransaction } from "../../shared/utils/transaction.js";
 import { buildMeta } from "../../shared/utils/pagination.js";
@@ -175,6 +176,10 @@ export const crearRegistro = async (negocio, { id_usuario, acceso }, data) => {
       conn
     );
     await actualizarPesoSiEsElUltimo(data.id_mascota, id, fecha, data.peso_registro, conn);
+    await pesoRepo.sincronizarDeHistorial(
+      { id_historial: id, id_mascota: data.id_mascota, peso: data.peso_registro, fecha },
+      conn
+    );
     return id;
   });
   return registroDelNegocio(id_historial, negocio.id_negocio);
@@ -220,6 +225,8 @@ export const actualizarRegistro = async (id_historial, negocio, { id_usuario, ac
     await historialRepo.registrarEdicion(id_historial, id_usuario, anteriores, conn);
     const peso = data.peso_registro !== undefined ? data.peso_registro : toNumber(actual.peso_registro);
     await actualizarPesoSiEsElUltimo(actual.id_mascota, id_historial, fecha, peso, conn);
+    // Historial de peso: sigue al registro (cambia con su peso o su fecha; sin peso, se quita).
+    await pesoRepo.sincronizarDeHistorial({ id_historial, id_mascota: actual.id_mascota, peso, fecha }, conn);
   });
   return registroDelNegocio(id_historial, negocio.id_negocio);
 };
