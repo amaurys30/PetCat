@@ -1,17 +1,12 @@
 import { api } from "./client";
-import type {
-  CambiosMascota,
-  DatosMascota,
-  Mascota,
-  MascotaConResumen,
-  Pesos,
-  Respuesta,
-} from "./types";
+import type { CambiosMascota, DatosMascota, Mascota, MascotaConResumen, Pesos, Respuesta } from "./types";
 
 // Funciones de /mascotas (rutas del dueño).
 
 export async function getMascotas(): Promise<MascotaConResumen[]> {
-  const { data } = await api.get<Respuesta<MascotaConResumen[]>>("/mascotas", { params: { incluir: "resumen" } });
+  const { data } = await api.get<Respuesta<MascotaConResumen[]>>("/mascotas", {
+    params: { incluir: "resumen" },
+  });
   return data.data;
 }
 

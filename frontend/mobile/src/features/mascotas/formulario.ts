@@ -95,13 +95,21 @@ export function desdeMascota(m: Mascota): MascotaForm {
   };
 }
 
-const OPCIONALES = ["raza", "color", "microchip", "numero_registro", "tipo_sangre", "condiciones_medicas"] as const;
+const OPCIONALES = [
+  "raza",
+  "color",
+  "microchip",
+  "numero_registro",
+  "tipo_sangre",
+  "condiciones_medicas",
+] as const;
 
 /** Valor de un campo para la API: los textos vacíos son null; la fecha y el peso se convierten. */
 function valorApi(form: MascotaForm, campo: keyof MascotaForm) {
   if (campo === "fecha_nacimiento") return mascaraAFechaApi(form.fecha_nacimiento);
   if (campo === "peso") return leerPeso(form.peso);
-  if (campo === "alergias_detalle") return form.tiene_alergias && form.alergias_detalle ? form.alergias_detalle : null;
+  if (campo === "alergias_detalle")
+    return form.tiene_alergias && form.alergias_detalle ? form.alergias_detalle : null;
   const valor = form[campo];
   return typeof valor === "string" ? valor.trim() || null : valor;
 }

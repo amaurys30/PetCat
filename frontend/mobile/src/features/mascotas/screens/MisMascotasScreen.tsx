@@ -27,30 +27,44 @@ export function MisMascotasScreen() {
 
   return (
     <View className="flex-1 bg-surface">
-      <ScreenHeader titulo="Mis mascotas" subtitulo="Toca una mascota para ver su ficha completa." volverA={RESPALDO.inicio} />
+      <ScreenHeader
+        titulo="Mis mascotas"
+        subtitulo="Toca una mascota para ver su ficha completa."
+        volverA={RESPALDO.inicio}
+      />
       <AvisoSinConexion />
       {mascotas.isPending ? (
         <SkeletonLista filas={2} etiqueta="Cargando tus mascotas" />
       ) : mascotas.isError && !mascotas.data ? (
-        <ErrorState error={mascotas.error} onReintentar={() => mascotas.refetch()} reintentando={mascotas.isFetching} />
+        <ErrorState
+          error={mascotas.error}
+          onReintentar={() => mascotas.refetch()}
+          reintentando={mascotas.isFetching}
+        />
       ) : mascotas.data.length === 0 ? (
         <EmptyState
           icono={PawPrint}
           titulo="Aún no tienes mascotas"
           descripcion="Agrégala y lleva su salud al día desde aquí."
-          accion={soloLectura ? undefined : { etiqueta: "Agregar mascota", onPress: () => router.push("/mascotas/nueva") }}
+          accion={
+            soloLectura
+              ? undefined
+              : { etiqueta: "Agregar mascota", onPress: () => router.push("/mascotas/nueva") }
+          }
         />
       ) : (
         <ScrollView contentContainerClassName="gap-4 px-pantalla pb-10">
           {/* Las que están "En memoria" van al final. */}
-          {[...mascotas.data].sort((a, b) => Number(a.fallecido) - Number(b.fallecido)).map((m) => (
-            <TarjetaMascota
-              key={m.id_mascota}
-              mascota={m}
-              onAbrir={() => router.push(`/mascotas/${m.id_mascota}`)}
-              onCarnet={() => abrirCarnet(m.id_mascota)}
-            />
-          ))}
+          {[...mascotas.data]
+            .sort((a, b) => Number(a.fallecido) - Number(b.fallecido))
+            .map((m) => (
+              <TarjetaMascota
+                key={m.id_mascota}
+                mascota={m}
+                onAbrir={() => router.push(`/mascotas/${m.id_mascota}`)}
+                onCarnet={() => abrirCarnet(m.id_mascota)}
+              />
+            ))}
           {!soloLectura && (
             <Pressable
               accessibilityRole="button"

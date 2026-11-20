@@ -19,7 +19,12 @@ const OTRO: readonly [string, string] = [colors["coral-dark"], colors["passport-
 
 /** "Perro · Golden · Macho · 3 años". */
 export const lineaMascota = (m: MascotaConResumen) =>
-  [nombreEspecie(m.especie), m.raza, m.sexo !== "desconocido" ? nombreSexo(m.sexo) : null, formatearEdad(m.edad_meses)]
+  [
+    nombreEspecie(m.especie),
+    m.raza,
+    m.sexo !== "desconocido" ? nombreSexo(m.sexo) : null,
+    formatearEdad(m.edad_meses),
+  ]
     .filter(Boolean)
     .join(" · ");
 
@@ -44,7 +49,12 @@ export function TarjetaMascota({ mascota: m, onAbrir, onCarnet }: Props) {
 
   return (
     <View className="overflow-hidden rounded-card border border-border bg-white">
-      <Pressable accessibilityRole="button" accessibilityLabel={etiquetaMascota(m)} onPress={onAbrir} className="active:opacity-90">
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={etiquetaMascota(m)}
+        onPress={onAbrir}
+        className="active:opacity-90"
+      >
         <LinearGradient colors={colores} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ padding: 16 }}>
           <View className="flex-row items-center gap-4">
             <View className="rounded-full bg-white p-1">
@@ -62,13 +72,19 @@ export function TarjetaMascota({ mascota: m, onAbrir, onCarnet }: Props) {
           {m.fallecido ? (
             <ChipDato texto="En memoria" tono="memoria" />
           ) : pendientes > 0 ? (
-            <ChipDato texto={pendientes === 1 ? "1 vacuna pendiente" : `${pendientes} vacunas pendientes`} tono="coral" />
+            <ChipDato
+              texto={pendientes === 1 ? "1 vacuna pendiente" : `${pendientes} vacunas pendientes`}
+              tono="coral"
+            />
           ) : (
             <ChipSalud estado={resumen.estado_vacunas} />
           )}
           {m.microchip && <ChipDato texto="Microchip" tono="info" />}
           {resumen.proxima_cita && (
-            <ChipDato texto={`Cita ${formatearFecha(resumen.proxima_cita.fecha).replace(/^\S+ /, "")}`} tono="coral" />
+            <ChipDato
+              texto={`Cita ${formatearFecha(resumen.proxima_cita.fecha).replace(/^\S+ /, "")}`}
+              tono="coral"
+            />
           )}
           {m.esterilizado && <ChipDato texto={segunSexo(m.sexo, "Esterilizado", "Esterilizada")} />}
         </View>

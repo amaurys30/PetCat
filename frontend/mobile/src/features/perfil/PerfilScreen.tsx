@@ -55,7 +55,12 @@ export function PerfilScreen() {
           </Aviso>
         )}
 
-        <Button titulo="Mis mascotas" variante="suave" icono={PawPrint} onPress={() => router.push("/mascotas")} />
+        <Button
+          titulo="Mis mascotas"
+          variante="suave"
+          icono={PawPrint}
+          onPress={() => router.push("/mascotas")}
+        />
         <Button titulo="Política de datos" variante="suave" icono={ShieldCheck} onPress={abrirPolitica} />
         {__DEV__ && (
           <Button

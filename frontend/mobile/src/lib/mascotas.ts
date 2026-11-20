@@ -56,7 +56,8 @@ function mesesEntre(desde: string, hasta: string) {
   return Math.max(0, Math.round((b.anio - a.anio) * 12 + (b.mes - a.mes) + (b.dia - a.dia) / 30));
 }
 
-const plazo = (meses: number) => (meses <= 0 ? "en menos de un mes" : meses === 1 ? "en 1 mes" : `en ${meses} meses`);
+const plazo = (meses: number) =>
+  meses <= 0 ? "en menos de un mes" : meses === 1 ? "en 1 mes" : `en ${meses} meses`;
 
 /**
  * Descripción en texto del gráfico de peso (el gráfico es decorativo para el lector):

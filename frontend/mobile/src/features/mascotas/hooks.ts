@@ -34,7 +34,10 @@ export function useMascota(id_mascota: number) {
 }
 
 export function usePesos(id_mascota: number, meses = 12) {
-  return useQuery({ queryKey: queryKeys.mascotas.pesos(id_mascota, meses), queryFn: () => getPesos(id_mascota, meses) });
+  return useQuery({
+    queryKey: queryKeys.mascotas.pesos(id_mascota, meses),
+    queryFn: () => getPesos(id_mascota, meses),
+  });
 }
 
 /** Sin conexión (abrió con datos guardados): las pantallas no dejan escribir. */
@@ -88,12 +91,18 @@ export function useMascotaActual(mascotas: MascotaConResumen[] | undefined) {
   const guardada = useMascotaSeleccionada();
   const vivas = useMemo(() => (mascotas ?? []).filter((m) => !m.fallecido), [mascotas]);
   const actual =
-    (guardada.id_usuario === id_usuario ? vivas.find((m) => m.id_mascota === guardada.id_mascota) : undefined) ??
+    (guardada.id_usuario === id_usuario
+      ? vivas.find((m) => m.id_mascota === guardada.id_mascota)
+      : undefined) ??
     vivas[0] ??
     null;
 
   useEffect(() => {
-    if (actual && id_usuario && (guardada.id_mascota !== actual.id_mascota || guardada.id_usuario !== id_usuario)) {
+    if (
+      actual &&
+      id_usuario &&
+      (guardada.id_mascota !== actual.id_mascota || guardada.id_usuario !== id_usuario)
+    ) {
       guardada.seleccionar(id_usuario, actual.id_mascota);
     }
   }, [actual, id_usuario, guardada]);

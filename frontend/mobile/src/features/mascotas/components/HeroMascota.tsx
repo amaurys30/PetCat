@@ -27,8 +27,15 @@ export function HeroMascota({ mascota, onAbrirPasaporte }: Props) {
   const proximo = resumen.proximos_eventos[0];
   const datos = [
     { etiqueta: "Peso", valor: formatearPeso(mascota.peso) ?? "Sin registro" },
-    { etiqueta: "Vacunas", valor: vacunas, accesible: resumen.vacunas.vigentes ? `${vacunas} al día` : vacunas },
-    { etiqueta: "Próxima", valor: proximo ? formatearFecha(proximo.fecha).replace(/^\S+ /, "") : "Nada próximo" },
+    {
+      etiqueta: "Vacunas",
+      valor: vacunas,
+      accesible: resumen.vacunas.vigentes ? `${vacunas} al día` : vacunas,
+    },
+    {
+      etiqueta: "Próxima",
+      valor: proximo ? formatearFecha(proximo.fecha).replace(/^\S+ /, "") : "Nada próximo",
+    },
   ];
 
   return (
@@ -40,7 +47,12 @@ export function HeroMascota({ mascota, onAbrirPasaporte }: Props) {
     >
       <View className="flex-row items-center gap-4">
         <View className="rounded-full bg-white p-1">
-          <Avatar nombre={mascota.nombre} uri={mascota.foto_miniatura_url} especie={mascota.especie} tamano="lg" />
+          <Avatar
+            nombre={mascota.nombre}
+            uri={mascota.foto_miniatura_url}
+            especie={mascota.especie}
+            tamano="lg"
+          />
         </View>
         <View className="flex-1 gap-1">
           <Text variante="titulo" className="text-white">

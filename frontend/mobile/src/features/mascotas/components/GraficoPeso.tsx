@@ -87,7 +87,12 @@ export function GraficoPeso({ puntos, cargando, error, onReintentar }: Props) {
             </View>
             <View className="flex-row gap-3">
               {barras.map((b, i) => (
-                <Text key={`${b.etiqueta}-${i}`} variante="apoyo" className="flex-1 text-center text-muted" maxFontSizeMultiplier={1.3}>
+                <Text
+                  key={`${b.etiqueta}-${i}`}
+                  variante="apoyo"
+                  className="flex-1 text-center text-muted"
+                  maxFontSizeMultiplier={1.3}
+                >
                   {b.etiqueta}
                 </Text>
               ))}

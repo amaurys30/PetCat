@@ -43,7 +43,6 @@ export const perfilDemo = (requiere_aceptar_politica = false, usuario = usuarioD
   negocios: [],
 });
 
-
 const resumenVacio = {
   estado_vacunas: "sin_vacunas" as const,
   vacunas: { vigentes: 0, al_dia: 0, proximas: 0, vencidas: 0 },

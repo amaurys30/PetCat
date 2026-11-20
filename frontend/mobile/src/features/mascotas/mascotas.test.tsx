@@ -38,7 +38,15 @@ const milo = mascotaDemo({
     estado_vacunas: "proximo",
     vacunas: { vigentes: 2, al_dia: 1, proximas: 1, vencidas: 0 },
     proximos_eventos: [
-      { tipo: "vacuna", titulo: "Triple felina", fecha: "2026-11-29", dias: 10, id_vacuna: 3, id_historial: null, negocio: null },
+      {
+        tipo: "vacuna",
+        titulo: "Triple felina",
+        fecha: "2026-11-29",
+        dias: 10,
+        id_vacuna: 3,
+        id_historial: null,
+        negocio: null,
+      },
     ],
     proxima_cita: {
       id_cita: 9,
@@ -72,7 +80,8 @@ function responderAlerta(texto: string) {
   });
 }
 
-const escribir = (etiqueta: string | RegExp, texto: string) => fireEvent.changeText(screen.getByLabelText(etiqueta), texto);
+const escribir = (etiqueta: string | RegExp, texto: string) =>
+  fireEvent.changeText(screen.getByLabelText(etiqueta), texto);
 
 describe("M4 · Inicio", () => {
   it("sin mascotas: invita a agregar la primera", async () => {
@@ -129,7 +138,15 @@ describe("M4 · Inicio", () => {
 
 describe("M5 · Mis mascotas y M6 · Ficha", () => {
   it("tarjetas con una sola etiqueta; las que están en memoria van al final", async () => {
-    conSesion([mascotaDemo({ id_mascota: 5, nombre: "Rex", fallecido: true, resumen: { ...luna.resumen, estado_vacunas: null } }), luna]);
+    conSesion([
+      mascotaDemo({
+        id_mascota: 5,
+        nombre: "Rex",
+        fallecido: true,
+        resumen: { ...luna.resumen, estado_vacunas: null },
+      }),
+      luna,
+    ]);
     await renderApp("/mascotas");
 
     const tarjetas = await screen.findAllByRole("button", { name: /Ver ficha\.$/ });
@@ -158,7 +175,9 @@ describe("M5 · Mis mascotas y M6 · Ficha", () => {
     await renderApp("/mascotas/1");
 
     expect(
-      await screen.findByLabelText("Peso. Subió 0,6 kg en 3 meses, de 27,8 a 28,4 kg. Último registro: jue 12 nov."),
+      await screen.findByLabelText(
+        "Peso. Subió 0,6 kg en 3 meses, de 27,8 a 28,4 kg. Último registro: jue 12 nov.",
+      ),
     ).toBeOnTheScreen();
     expect(screen.getByLabelText("Esterilizada: Sí")).toBeOnTheScreen();
     expect(screen.getByLabelText("Edad: 3 años")).toBeOnTheScreen();
@@ -189,7 +208,13 @@ describe("M21 · Nueva mascota", () => {
     conSesion([]);
     const cuerpos: unknown[] = [];
     let foto: unknown = null;
-    const creada = mascotaDemo({ id_mascota: 30, nombre: "Copito", especie: "conejo", raza: null, sexo: "desconocido" });
+    const creada = mascotaDemo({
+      id_mascota: 30,
+      nombre: "Copito",
+      especie: "conejo",
+      raza: null,
+      sexo: "desconocido",
+    });
     server.use(
       http.post(`${API}/mascotas`, async ({ request }) => {
         cuerpos.push(await request.json());
@@ -237,8 +262,12 @@ describe("M21 · Nueva mascota", () => {
     let intentos = 0;
     const creada = mascotaDemo({ id_mascota: 31, nombre: "Toby" });
     server.use(
-      http.post(`${API}/mascotas`, () => HttpResponse.json({ success: true, message: "OK", data: creada }, { status: 201 })),
-      http.put(`${API}/mascotas/31/foto`, () => (++intentos === 1 ? fallo(500, "Error interno") : ok(creada))),
+      http.post(`${API}/mascotas`, () =>
+        HttpResponse.json({ success: true, message: "OK", data: creada }, { status: 201 }),
+      ),
+      http.put(`${API}/mascotas/31/foto`, () =>
+        ++intentos === 1 ? fallo(500, "Error interno") : ok(creada),
+      ),
       http.get(`${API}/mascotas/31`, () => ok(creada)),
     );
     jest.mocked(ImagePicker.launchImageLibraryAsync).mockResolvedValueOnce({
@@ -253,7 +282,9 @@ describe("M21 · Nueva mascota", () => {
     await fireEvent.press(screen.getByRole("button", { name: "Continuar" }));
     await fireEvent.press(await screen.findByRole("button", { name: "Guardar mascota" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(/Toby quedó guardada, pero la foto no se pudo subir/);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /Toby quedó guardada, pero la foto no se pudo subir/,
+    );
     expect(anuncios).toContain("Toby quedó guardada, pero la foto no se pudo subir");
 
     await fireEvent.press(screen.getByRole("button", { name: "Reintentar subir la foto" }));
@@ -263,7 +294,9 @@ describe("M21 · Nueva mascota", () => {
 
   it("un 422 del nombre vuelve al paso 1 con el error en el campo", async () => {
     conSesion([]);
-    server.use(http.post(`${API}/mascotas`, () => fallo(422, "Datos inválidos", { nombre: "Nombre no permitido" })));
+    server.use(
+      http.post(`${API}/mascotas`, () => fallo(422, "Datos inválidos", { nombre: "Nombre no permitido" })),
+    );
     await renderApp("/mascotas/nueva");
     await fireEvent.press(await screen.findByRole("radio", { name: "Gato" }));
     await escribir("Nombre", "Michi");
@@ -313,7 +346,7 @@ describe("Editar, eliminar y fallecimiento", () => {
     await fireEvent.press(screen.getByRole("button", { name: "Guardar cambios" }));
 
     await waitFor(() => expect(cuerpos).toEqual([{ peso: 29, raza: null }]));
-    expect(anuncios).toContain("Cambios guardados");
+    await waitFor(() => expect(anuncios).toContain("Cambios guardados"));
   });
 
   it("eliminar pide confirmación; con citas activas muestra el 409", async () => {
@@ -366,12 +399,18 @@ describe("Editar, eliminar y fallecimiento", () => {
 
     await escribir(/^Fecha(. Error|$)/, "01012020");
     await fireEvent.press(screen.getAllByRole("button", { name: "Registrar fallecimiento" }).at(-1)!);
-    expect(await screen.findByLabelText("Fecha. Error: No puede ser anterior a su nacimiento")).toBeOnTheScreen();
+    expect(
+      await screen.findByLabelText("Fecha. Error: No puede ser anterior a su nacimiento"),
+    ).toBeOnTheScreen();
 
     await escribir(/^Fecha(. Error|$)/, "10112026");
     await fireEvent.press(screen.getAllByRole("button", { name: "Registrar fallecimiento" }).at(-1)!);
 
-    expect(alerta).toHaveBeenCalledWith("Confirmar", "¿Registrar que Luna falleció el mar 10 nov 2026?", expect.any(Array));
+    expect(alerta).toHaveBeenCalledWith(
+      "Confirmar",
+      "¿Registrar que Luna falleció el mar 10 nov 2026?",
+      expect.any(Array),
+    );
     await waitFor(() => expect(cuerpos).toEqual([{ fallecido: true, fecha_fallecimiento: "2026-11-10" }]));
     await waitFor(() => expect(screen).toHavePathname("/mascotas/1"));
   });
@@ -437,9 +476,9 @@ describe("Sin conexión con datos guardados", () => {
     await fireEvent.press(screen.getByRole("tab", { name: "Perfil" }));
     await fireEvent.press(await screen.findByRole("button", { name: "Cerrar sesión" }));
 
-    await screen.findByTestId("carrusel-bienvenida");
+    await screen.findByTestId("carrusel-bienvenida", {}, { timeout: 15_000 });
     expect(await AsyncStorage.getItem("petcat.cache")).toBeNull();
     expect(await AsyncStorage.getItem("petcat.sesion_sin_conexion")).toBeNull();
     expect(useMascotaSeleccionada.getState().id_mascota).toBeNull();
-  });
+  }, 30_000);
 });

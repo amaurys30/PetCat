@@ -38,7 +38,8 @@ export function FotoMascota({ nombre, especie, uri, onElegir, onQuitar, deshabil
           resultado.puedePedirOtraVez
             ? { texto: "Sin permiso para usar la cámara. Puedes elegir una foto de la galería." }
             : {
-                texto: "La cámara está desactivada para PetCat. Puedes activarla en Ajustes o elegir una foto de la galería.",
+                texto:
+                  "La cámara está desactivada para PetCat. Puedes activarla en Ajustes o elegir una foto de la galería.",
                 ajustes: true,
               },
         );
@@ -79,7 +80,13 @@ export function FotoMascota({ nombre, especie, uri, onElegir, onQuitar, deshabil
           onPress={() => usar(elegirDeGaleria)}
         />
         {uri && onQuitar && (
-          <Button titulo="Quitar foto" variante="secundario" icono={Trash2} disabled={deshabilitado} onPress={onQuitar} />
+          <Button
+            titulo="Quitar foto"
+            variante="secundario"
+            icono={Trash2}
+            disabled={deshabilitado}
+            onPress={onQuitar}
+          />
         )}
       </View>
       {aviso && (
@@ -95,7 +102,12 @@ export function FotoMascota({ nombre, especie, uri, onElegir, onQuitar, deshabil
         </Aviso>
       )}
 
-      <Modal visible={explicando} transparent animationType="fade" onRequestClose={() => setExplicando(false)}>
+      <Modal
+        visible={explicando}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setExplicando(false)}
+      >
         <View className="flex-1 justify-end bg-black/40">
           <View className="gap-4 rounded-t-[28px] bg-white px-pantalla pb-10 pt-6" accessibilityViewIsModal>
             <Text variante="seccion">Usar la cámara</Text>

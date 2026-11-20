@@ -16,7 +16,11 @@ const ESTILO: Record<string, { caja: string; color: string; icono: LucideIcon }>
 /** Próximos eventos de salud (vacunas, desparasitaciones y controles), de la API. */
 export function Recordatorios({ eventos }: { eventos: EventoSalud[] }) {
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3 px-pantalla">
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerClassName="gap-3 px-pantalla"
+    >
       {eventos.map((e) => {
         const estilo = ESTILO[e.tipo] ?? ESTILO.control!;
         const Icono = estilo.icono;

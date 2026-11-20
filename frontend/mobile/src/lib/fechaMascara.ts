@@ -17,7 +17,8 @@ export function mascaraAFechaApi(texto: string): string | null {
   if (!m) return null;
   const [dia, mes, anio] = [Number(m[1]), Number(m[2]), Number(m[3])];
   const fecha = new Date(Date.UTC(anio, mes - 1, dia));
-  if (fecha.getUTCFullYear() !== anio || fecha.getUTCMonth() !== mes - 1 || fecha.getUTCDate() !== dia) return null;
+  if (fecha.getUTCFullYear() !== anio || fecha.getUTCMonth() !== mes - 1 || fecha.getUTCDate() !== dia)
+    return null;
   return `${m[3]}-${m[2]}-${m[1]}`;
 }
 

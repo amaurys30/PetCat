@@ -3,7 +3,15 @@ import { describirPeso, formatearEdad, formatearPeso, textoPlazo } from "@/lib/m
 import { saludo } from "@/lib/saludo";
 
 import { barrasPorMes } from "./components/GraficoPeso";
-import { aCambios, aDatos, desdeMascota, leerPeso, mascotaSchema, VACIO, type MascotaForm } from "./formulario";
+import {
+  aCambios,
+  aDatos,
+  desdeMascota,
+  leerPeso,
+  mascotaSchema,
+  VACIO,
+  type MascotaForm,
+} from "./formulario";
 import { buscarRazas } from "./razas";
 import { mascotaDemo } from "../../../test/msw/handlers";
 

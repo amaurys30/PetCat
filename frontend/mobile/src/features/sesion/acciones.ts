@@ -72,7 +72,8 @@ export async function restaurarSesion(limiteMs = LIMITE_ARRANQUE_MS): Promise<Re
 export async function reconectar() {
   const resultado = await restaurarSesion();
   // Sin esperar: las pantallas muestran lo guardado mientras se actualiza.
-  if (resultado === "autenticada") void queryClient.invalidateQueries({ queryKey: queryKeys.mascotas.todas() });
+  if (resultado === "autenticada")
+    void queryClient.invalidateQueries({ queryKey: queryKeys.mascotas.todas() });
   return resultado;
 }
 

@@ -34,10 +34,14 @@ export function InicioScreen() {
     router.navigate("/carnet");
   };
 
-  const sinConexionConDatos = mascotas.data && mascotas.error instanceof ApiError && mascotas.error.sinConexion;
+  const sinConexionConDatos =
+    mascotas.data && mascotas.error instanceof ApiError && mascotas.error.sinConexion;
 
   return (
-    <ScrollView className="flex-1 bg-surface" contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: 32 }}>
+    <ScrollView
+      className="flex-1 bg-surface"
+      contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: 32 }}
+    >
       <View className="mb-5 flex-row items-center gap-3 px-pantalla">
         <Avatar nombre={nombre || "Tú"} uri={fotoUsuario} tamano="md" />
         <View className="flex-1">
@@ -53,19 +57,36 @@ export function InicioScreen() {
       <AvisoSinConexion />
 
       {mascotas.isPending ? (
-        <View accessible accessibilityRole="progressbar" accessibilityLabel="Cargando tus mascotas" className="gap-4 px-pantalla">
+        <View
+          accessible
+          accessibilityRole="progressbar"
+          accessibilityLabel="Cargando tus mascotas"
+          className="gap-4 px-pantalla"
+        >
           <Skeleton className="h-14 w-48 rounded-full" />
           <Skeleton className="h-72 w-full rounded-card" />
           <Skeleton className="h-28 w-full rounded-card" />
         </View>
       ) : mascotas.isError && !mascotas.data ? (
-        <ErrorState error={mascotas.error} onReintentar={() => mascotas.refetch()} reintentando={mascotas.isFetching} />
+        <ErrorState
+          error={mascotas.error}
+          onReintentar={() => mascotas.refetch()}
+          reintentando={mascotas.isFetching}
+        />
       ) : !actual ? (
         <EmptyState
           icono={PawPrint}
-          titulo={vivas.length === 0 && (mascotas.data?.length ?? 0) > 0 ? "No hay mascotas activas" : "Agrega tu primera mascota"}
+          titulo={
+            vivas.length === 0 && (mascotas.data?.length ?? 0) > 0
+              ? "No hay mascotas activas"
+              : "Agrega tu primera mascota"
+          }
           descripcion="Lleva su carnet de vacunas, sus citas y sus recordatorios en un solo lugar."
-          accion={soloLectura ? undefined : { etiqueta: "Agregar mascota", onPress: () => router.push("/mascotas/nueva") }}
+          accion={
+            soloLectura
+              ? undefined
+              : { etiqueta: "Agregar mascota", onPress: () => router.push("/mascotas/nueva") }
+          }
         />
       ) : (
         <View className="gap-6">
@@ -77,9 +98,18 @@ export function InicioScreen() {
           <View className="gap-2">
             <View className="flex-row items-center justify-between px-pantalla">
               <Text variante="seccion">Tus mascotas</Text>
-              <Enlace titulo="Ver todas" accessibilityLabel="Ver todas mis mascotas" onPress={() => router.push("/mascotas")} />
+              <Enlace
+                titulo="Ver todas"
+                accessibilityLabel="Ver todas mis mascotas"
+                onPress={() => router.push("/mascotas")}
+              />
             </View>
-            <SelectorMascotas mascotas={vivas} actual={actual.id_mascota} onElegir={seleccionar} puedeAgregar={!soloLectura} />
+            <SelectorMascotas
+              mascotas={vivas}
+              actual={actual.id_mascota}
+              onElegir={seleccionar}
+              puedeAgregar={!soloLectura}
+            />
           </View>
 
           <View className="px-pantalla">
