@@ -31,7 +31,7 @@ export const findPage = async (id_mascota, { soloNegocio, tipo, desde, hasta, li
   const valores = [id_mascota];
   for (const [condicion, valor] of [
     ["h.id_negocio = ?", soloNegocio],
-    ["h.tipo = ?", tipo],
+    ["h.tipo IN (?)", tipo],
     ["h.fecha >= ?", desde],
     ["h.fecha <= ?", hasta],
   ]) {

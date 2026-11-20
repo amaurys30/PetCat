@@ -110,7 +110,11 @@ const router = express.Router();
  *         data: { type: array, items: { $ref: '#/components/schemas/RegistroHistorial' } }
  *         meta: { $ref: '#/components/schemas/PaginationMeta' }
  *   parameters:
- *     historialTipo: { in: query, name: tipo, schema: { type: string } }
+ *     historialTipo:
+ *       in: query
+ *       name: tipo
+ *       description: Uno o varios tipos separados por comas (consulta_general,control)
+ *       schema: { type: string, example: "consulta_general,control" }
  *     historialDesde: { in: query, name: desde, schema: { type: string, format: date } }
  *     historialHasta: { in: query, name: hasta, schema: { type: string, format: date } }
  */

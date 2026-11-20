@@ -50,7 +50,16 @@ export const createHistorialBody = z
 export const updateHistorialBody = conAlMenosUnCampo(z.strictObject(campos).partial());
 
 export const listHistorialQuery = paginationSchema.extend({
-  tipo: z.enum(TIPOS_HISTORIAL, { error: `Debe ser uno de: ${TIPOS_HISTORIAL.join(", ")}` }).optional(),
+  // Uno o varios tipos separados por comas ("consulta_general,control"): la app agrupa varios en un filtro.
+  tipo: z
+    .string()
+    .transform((valor) => [...new Set(valor.split(",").map((t) => t.trim()))])
+    .pipe(
+      z
+        .array(z.enum(TIPOS_HISTORIAL, { error: `Cada tipo debe ser uno de: ${TIPOS_HISTORIAL.join(", ")}` }))
+        .min(1)
+    )
+    .optional(),
   desde: fecha.optional(),
   hasta: fecha.optional(),
 });
