@@ -5,3 +5,4 @@ coverage
 package-lock.json
 src/api/api-types.ts
 *.md
+src/features/explorar/mapa/leaflet.generado.ts

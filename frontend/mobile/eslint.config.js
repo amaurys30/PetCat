@@ -7,7 +7,7 @@ const reactNativeA11y = require("eslint-plugin-react-native-a11y");
 // eslint-plugin-react-native-a11y está escrito para ESLint 8: @eslint/compat adapta sus
 // reglas a ESLint 9. Si deja de funcionar, reemplazarlo por reglas propias (ver PLAN.md).
 module.exports = defineConfig([
-  globalIgnores(["dist/*", ".expo/*", "expo-env.d.ts", "coverage/*", "src/api/api-types.ts"]),
+  globalIgnores(["dist/*", ".expo/*", "expo-env.d.ts", "coverage/*", "src/api/api-types.ts", "src/features/explorar/mapa/leaflet.generado.ts"]),
   expoConfig,
   {
     files: ["**/*.{ts,tsx}"],
