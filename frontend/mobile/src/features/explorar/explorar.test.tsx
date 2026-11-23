@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react-native";
 import * as Location from "expo-location";
 import { http, HttpResponse } from "msw";
 import { AccessibilityInfo, Alert, type AlertButton, Linking } from "react-native";
@@ -109,7 +109,7 @@ describe("M10 · Explorar", () => {
     expect(ultima().get("lng")).toBe("-75.389");
     await fireEvent.press(screen.getByRole("button", { name: "Ver lista" }));
     expect(
-      await screen.findByLabelText(
+      await screen.findByHintText(
         "Clínica Vet Sabanas, Veterinaria. 4,9 estrellas, 128 reseñas. A 1,2 km. Abierto hasta 7:00 p. m.",
       ),
     ).toBeOnTheScreen();
@@ -125,7 +125,7 @@ describe("M10 · Explorar", () => {
     expect(screen.getByRole("button", { name: "Mostrando Sincelejo. Usar mi ubicación" })).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole("button", { name: "Ver lista" }));
     expect(
-      await screen.findByLabelText(
+      await screen.findByHintText(
         "Clínica Vet Sabanas, Veterinaria. 4,9 estrellas, 128 reseñas. Abierto hasta 7:00 p. m.",
       ),
     ).toBeOnTheScreen();
@@ -178,6 +178,48 @@ describe("M10 · Explorar", () => {
     expect(screen).toHavePathname("/negocios/2/agendar");
   });
 
+  it("mapa: tocar la información de la tarjeta abre el perfil; las acciones quedan fuera de ese botón", async () => {
+    conSesion();
+    server.use(
+      http.get(`${API}/negocios/:id`, ({ params }) =>
+        ok(negocioPublicoDemo({ id_negocio: Number(params.id), nombre: "Peluquería Huellitas" })),
+      ),
+    );
+    await renderApp("/explorar");
+    await sinUbicacion();
+    await delMapa({ tipo: "listo" });
+    await delMapa({ tipo: "pin", id: 2 });
+
+    const perfil = await screen.findByRole("button", { name: "Ver perfil de Peluquería Huellitas" });
+    expect(perfil.props.accessibilityHint).toBe(
+      "Peluquería Huellitas, Peluquería canina. 4,6 estrellas, 20 reseñas. Cerrado · abre a las 2:00 p. m.",
+    );
+    // Nada tocable dentro del botón del perfil: Agendar y Cómo llegar son botones aparte.
+    expect(within(perfil).queryAllByRole("button")).toHaveLength(0);
+    expect(within(perfil).getByText("Peluquería Huellitas")).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Agendar en Peluquería Huellitas" })).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Cómo llegar a Peluquería Huellitas" })).toBeOnTheScreen();
+
+    await fireEvent.press(perfil);
+    expect(screen).toHavePathname("/negocios/2");
+    expect(await screen.findByRole("header", { name: "Peluquería Huellitas" })).toBeOnTheScreen();
+  });
+
+  it("Ver lista: cada negocio abre su perfil igual que la tarjeta del mapa", async () => {
+    conSesion();
+    await renderApp("/explorar");
+    await sinUbicacion();
+    await fireEvent.press(screen.getByRole("button", { name: "Ver lista" }));
+
+    const perfil = await screen.findByRole("button", { name: "Ver perfil de Clínica Vet Sabanas" });
+    expect(within(perfil).queryAllByRole("button")).toHaveLength(0);
+    expect(screen.getByRole("button", { name: "Agendar en Clínica Vet Sabanas" })).toBeOnTheScreen();
+
+    await fireEvent.press(perfil);
+    expect(screen).toHavePathname("/negocios/1");
+    expect(await screen.findByRole("header", { name: "Clínica Vet Sabanas" })).toBeOnTheScreen();
+  });
+
   it("filtros y búsqueda van a la API", async () => {
     conSesion();
     await renderApp("/explorar");
@@ -221,7 +263,7 @@ describe("M10 · Explorar", () => {
     expect(
       await screen.findByText("El mapa no pudo cargar sus imágenes. Te mostramos la lista."),
     ).toBeOnTheScreen();
-    expect(screen.getByLabelText(/^Clínica Vet Sabanas, Veterinaria\./)).toBeOnTheScreen();
+    expect(screen.getByHintText(/^Clínica Vet Sabanas, Veterinaria\./)).toBeOnTheScreen();
     expect(screen.queryByTestId("mapa-webview", OCULTOS)).toBeNull();
 
     await fireEvent.press(screen.getByRole("button", { name: "Reintentar mapa" }));
