@@ -252,9 +252,13 @@ const enviarCorreo = async (envio, datos) => {
   if (!envio.usuario_activo || !envio.notif_email || !envio.email || !datos.correo) {
     return notificacionRepo.marcarFinal(envio.id_envio, "omitido", "Correos desactivados o sin email");
   }
-  await sendMail(
+  const resultado = await sendMail(
     correoNotificacion({ id_usuario: envio.id_usuario, nombre: envio.nombre, email: envio.email, ...datos.correo })
   );
+  // Con un SMTP real, los dominios reservados (.test, example.com...) no se envían (mailer.js).
+  if (resultado?.mode === "bloqueado") {
+    return notificacionRepo.marcarFinal(envio.id_envio, "omitido", "Dominio reservado: no recibe correo");
+  }
   return notificacionRepo.marcarEnviado(envio.id_envio);
 };
 

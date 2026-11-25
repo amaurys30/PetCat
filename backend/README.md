@@ -243,6 +243,8 @@ Gmail limita los envíos diarios y no sirve para producción: úsalo solo para p
 
 **Advertencia: los correos del seed no existen.** Los usuarios de prueba usan `@petcat.test` (`propietario@petcat.test`, `cliente@petcat.test`...), un dominio reservado que no recibe correo. Con SMTP real, cualquier envío a ellos rebota, y muchos rebotes dañan la reputación de la cuenta que envía. Con correo real, prueba con cuentas creadas con tu propio correo, o deja ese backend en Mailpit.
 
+**Protección: con SMTP real, nunca a dominios reservados.** Si `SMTP_HOST` es un servidor de internet (no `mailpit`, `localhost`, `127.0.0.1` ni `::1`), la API no envía a direcciones de dominios que no reciben correo: `.test`, `.example`, `.invalid`, `.localhost` y `example.com`/`.net`/`.org` (con sus subdominios). En su lugar deja un aviso en el registro (`[correo] No enviado a c•••@petcat.test: dominio reservado...`, sin la dirección completa ni el contenido). Aplica a todos los correos: verificación, recuperación, invitaciones y notificaciones (también las de las tareas programadas, que quedan `omitido` con el motivo). Con Mailpit no se bloquea nada, para seguir viendo los correos de la demo. `mail:test` también rechaza esas direcciones con un SMTP real.
+
 **En producción**
 
 - Un proveedor de correo transaccional (Amazon SES, Brevo, Postmark, Mailgun, SendGrid...), no una cuenta personal: dan cuotas altas, métricas de rebotes y reputación separada.

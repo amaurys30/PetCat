@@ -10,7 +10,13 @@
 import "../src/config/loadEnv.js";
 import nodemailer from "nodemailer";
 import { env } from "../src/config/env.js";
-import { explicarErrorSmtp, modoSeguro, transportOptions } from "../src/shared/utils/mailer.js";
+import {
+  esDominioReservado,
+  esEnvioReal,
+  explicarErrorSmtp,
+  modoSeguro,
+  transportOptions,
+} from "../src/shared/utils/mailer.js";
 
 const args = process.argv.slice(2);
 const indice = args.indexOf("--to");
@@ -24,6 +30,14 @@ if (!env.SMTP_HOST) {
   console.error(
     "SMTP_HOST está vacío: los correos solo se muestran en la consola de la API.\n" +
       "En Docker, el modo \"mailpit\" lo configura solo; fuera de Docker, define SMTP_HOST en backend/.env."
+  );
+  process.exit(1);
+}
+
+if (esEnvioReal(env) && esDominioReservado(para)) {
+  console.error(
+    `${para.split("@")[1]} es un dominio reservado que no recibe correo (.test, .example, .invalid, .localhost, ` +
+      "example.com/.net/.org): con un SMTP real la API nunca envía ahí. Usa un correo tuyo que exista."
   );
   process.exit(1);
 }
