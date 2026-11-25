@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
-import { Navigation, Star } from "lucide-react-native";
-import { Alert, Linking, View } from "react-native";
+import { ChevronRight, Navigation, Star } from "lucide-react-native";
+import { Alert, Linking, Pressable, View } from "react-native";
 
 import type { NegocioBusqueda } from "@/api/types";
 import { Avatar, Button, Card, Text } from "@/components/ui";
@@ -33,8 +33,10 @@ type Props = {
 };
 
 /**
- * Negocio en el mapa (tarjeta inferior) y en la lista. Para el lector, los datos son un solo
- * elemento (etiquetaNegocio) y las acciones van aparte, con el nombre del negocio.
+ * Negocio en el mapa (tarjeta inferior) y en la lista. La información (logo, nombre, tipo,
+ * calificación y estado) es un botón que abre el perfil: "Ver perfil de X", con los datos en la
+ * pista (etiquetaNegocio). Agendar y Cómo llegar van aparte, fuera de ese botón: nada tocable
+ * dentro de otro elemento tocable.
  */
 export function TarjetaNegocio({ negocio: n, conDistancia }: Props) {
   const router = useRouter();
@@ -43,8 +45,16 @@ export function TarjetaNegocio({ negocio: n, conDistancia }: Props) {
   return (
     <View testID={`negocio-${n.id_negocio}`}>
       <Card className="gap-3">
-        <View accessible accessibilityLabel={etiquetaNegocio(n, conDistancia)} className="flex-row gap-3">
-          <Avatar nombre={n.nombre} uri={n.logo_miniatura_url} tamano="md" />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Ver perfil de ${n.nombre}`}
+          accessibilityHint={etiquetaNegocio(n, conDistancia)}
+          onPress={() => router.push({ pathname: "/negocios/[id]", params: { id: n.id_negocio } })}
+          className="flex-row items-center gap-3 active:opacity-70"
+        >
+          <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            <Avatar nombre={n.nombre} uri={n.logo_miniatura_url} tamano="md" />
+          </View>
           <View className="flex-1 gap-1">
             <Text variante="seccion" numberOfLines={2}>
               {n.nombre}
@@ -92,13 +102,16 @@ export function TarjetaNegocio({ negocio: n, conDistancia }: Props) {
               </View>
             )}
           </View>
-        </View>
+          <ChevronRight size={22} color={colors.muted} accessibilityElementsHidden />
+        </Pressable>
         <View className="flex-row gap-3">
           <View className="flex-1">
             <Button
               titulo="Agendar"
               accessibilityLabel={`Agendar en ${n.nombre}`}
-              onPress={() => router.push({ pathname: "/negocios/[id]/agendar", params: { id: n.id_negocio } })}
+              onPress={() =>
+                router.push({ pathname: "/negocios/[id]/agendar", params: { id: n.id_negocio } })
+              }
             />
           </View>
           {sede && (
