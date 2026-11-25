@@ -75,6 +75,49 @@ export const explicarErrorSmtp = (err, config = env) => {
   return err?.message ?? String(err);
 };
 
+// ---------- Dominios reservados ----------
+
+/**
+ * Dominios que no existen ni reciben correo (RFC 2606 y 6761): los de nivel superior .test,
+ * .example, .invalid y .localhost, y example.com/.net/.org (con sus subdominios). El seed usa
+ * @petcat.test: con un SMTP real, cada envío a esas direcciones rebotaría, y muchos rebotes
+ * dañan la reputación de la cuenta que envía (Gmail, por ejemplo).
+ */
+const TLD_RESERVADOS = new Set(["test", "example", "invalid", "localhost"]);
+const DOMINIOS_RESERVADOS = ["example.com", "example.net", "example.org"];
+
+/** Dominio de una dirección ("Ana <ana@x.co>" o "ana@x.co"), en minúsculas y sin punto final. */
+const dominioDe = (direccion) => {
+  const email = /<([^>]+)>/.exec(direccion)?.[1] ?? direccion;
+  const arroba = email.lastIndexOf("@");
+  return arroba < 0 ? "" : email.slice(arroba + 1).trim().toLowerCase().replace(/\.$/, "");
+};
+
+/** true si la dirección es de un dominio reservado que no recibe correo. */
+export const esDominioReservado = (direccion) => {
+  const dominio = dominioDe(String(direccion));
+  if (!dominio) return false;
+  if (TLD_RESERVADOS.has(dominio.split(".").at(-1))) return true;
+  return DOMINIOS_RESERVADOS.some((d) => dominio === d || dominio.endsWith(`.${d}`));
+};
+
+/** Servidores locales que atrapan el correo sin enviarlo (Mailpit en Docker o en el host). */
+const SERVIDORES_LOCALES = new Set(["mailpit", "localhost", "127.0.0.1", "::1"]);
+
+/**
+ * true si el SMTP configurado envía de verdad a internet (Gmail u otro proveedor). Mailpit no:
+ * ahí los correos a @petcat.test se siguen viendo (la API de demo y los códigos de la app).
+ */
+export const esEnvioReal = (config = env) =>
+  Boolean(config.SMTP_HOST) && !SERVIDORES_LOCALES.has(config.SMTP_HOST.trim().toLowerCase());
+
+/** "c•••@petcat.test": el registro no lleva la dirección completa. */
+const direccionTapada = (direccion) => {
+  const email = /<([^>]+)>/.exec(direccion)?.[1] ?? direccion;
+  const [local = "", dominio = ""] = email.split("@");
+  return `${local.slice(0, 1)}•••@${dominio}`;
+};
+
 let transporter;
 
 const getTransporter = () => {
@@ -83,27 +126,42 @@ const getTransporter = () => {
 };
 
 /**
- * Envía un correo. Incluir siempre `text` (con el enlace, si lo hay): es lo que
- * se muestra en consola cuando no hay SMTP y lo que leen los clientes sin HTML.
- * - Tests: se guarda en `outbox`.
- * - Sin SMTP_HOST (solo desarrollo; en producción env.js lo exige): se muestra en consola.
- * - Con SMTP_HOST: se envía con Nodemailer. Si falla, el mensaje del error lleva la causa
- *   explicada (explicarErrorSmtp) y el original entre corchetes.
- *
- * @param {{ to: string, subject: string, text: string, html?: string, headers?: Record<string, string>, ocultarEnConsola?: string[] }} mail
- *   `headers`: cabeceras adicionales (p. ej. List-Unsubscribe en los correos de notificaciones).
- *   `ocultarEnConsola`: secretos que el modo consola tapa (códigos de 6 dígitos): nunca a un log.
+ * Crea la función que envía los correos con esa configuración. `sendMail` es la de la app;
+ * los tests crean otras con un transporte falso para comprobar qué llega al SMTP.
  */
-export const sendMail = async ({ to, subject, text, html, headers, ocultarEnConsola = [] }) => {
-  const mail = { from: env.MAIL_FROM, to, subject, text, html, ...(headers && { headers }) };
+export const crearEnviador = ({ config = env, enTests = isTest, transporte = getTransporter, registro = console } = {}) =>
+  async ({ to, subject, text, html, headers, ocultarEnConsola = [] }) => {
+    const mail = { from: config.MAIL_FROM, to, subject, text, html, ...(headers && { headers }) };
 
-  if (isTest) {
-    outbox.push(mail);
-    return { delivered: false, mode: "test" };
-  }
+    if (enTests) {
+      outbox.push(mail);
+      return { delivered: false, mode: "test" };
+    }
 
-  if (!env.SMTP_HOST) {
-    console.log(
+    // Con un SMTP real, nunca a un dominio reservado: no se envía y queda en el registro.
+    if (esEnvioReal(config)) {
+      const destinatarios = String(to)
+        .split(",")
+        .map((d) => d.trim())
+        .filter(Boolean);
+      const reservados = destinatarios.filter(esDominioReservado);
+      if (reservados.length > 0) {
+        registro.warn(
+          `[correo] No enviado a ${reservados.map(direccionTapada).join(", ")}: dominio reservado que no recibe correo (asunto: "${subject}").`
+        );
+        const validos = destinatarios.filter((d) => !esDominioReservado(d));
+        if (validos.length === 0) return { delivered: false, mode: "bloqueado" };
+        mail.to = validos.join(", ");
+      }
+    }
+
+    return entregar(mail, { config, transporte, registro, ocultarEnConsola });
+  };
+
+const entregar = async (mail, { config, transporte, registro, ocultarEnConsola }) => {
+  const { to, subject, text } = mail;
+  if (!config.SMTP_HOST) {
+    registro.log(
       [
         "",
         "---- Correo (sin SMTP configurado) ----",
@@ -119,14 +177,32 @@ export const sendMail = async ({ to, subject, text, html, headers, ocultarEnCons
   }
 
   try {
-    const info = await getTransporter().sendMail(mail);
+    const info = await transporte().sendMail(mail);
     return { delivered: true, mode: "smtp", messageId: info.messageId };
   } catch (err) {
     // Quien lo registra (console.error de cada envío) muestra la causa en palabras claras.
-    err.message = `${explicarErrorSmtp(err)} [${err.message}]`;
+    err.message = `${explicarErrorSmtp(err, config)} [${err.message}]`;
     throw err;
   }
 };
+
+/**
+ * Envía un correo. Incluir siempre `text` (con el enlace, si lo hay): es lo que
+ * se muestra en consola cuando no hay SMTP y lo que leen los clientes sin HTML.
+ * - Tests: se guarda en `outbox`.
+ * - Con un SMTP real (no Mailpit): a los dominios reservados (.test, example.com...) no se
+ *   envía; queda un aviso en el registro y devuelve `mode: "bloqueado"`.
+ * - Sin SMTP_HOST (solo desarrollo; en producción env.js lo exige): se muestra en consola.
+ * - Con SMTP_HOST: se envía con Nodemailer. Si falla, el mensaje del error lleva la causa
+ *   explicada (explicarErrorSmtp) y el original entre corchetes.
+ * Todos los correos pasan por aquí: auth, invitaciones y notificaciones (también las de las
+ * tareas programadas).
+ *
+ * @param {{ to: string, subject: string, text: string, html?: string, headers?: Record<string, string>, ocultarEnConsola?: string[] }} mail
+ *   `headers`: cabeceras adicionales (p. ej. List-Unsubscribe en los correos de notificaciones).
+ *   `ocultarEnConsola`: secretos que el modo consola tapa (códigos de 6 dígitos): nunca a un log.
+ */
+export const sendMail = (mail) => crearEnviador()(mail);
 
 /**
  * Texto del correo para la consola, con los secretos tapados. Si tapó alguno, avisa
